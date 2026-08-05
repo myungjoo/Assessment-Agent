@@ -14,7 +14,7 @@ amendReason: "T-0083 (RBAC scaffold) + T-0086 (UserService.changeRole) + T-0087 
 
 ## Context
 
-본 ADR 은 [docs/architecture/api.md §2 L23](../architecture/api.md) 의 **Auth credential 행 "택일" 의무** 를 박제한다 — 동 행이 명시: "session cookie 또는 Bearer JWT 중 P3 AuthModule 도입 task 의 ADR 에서 택일". 본 ADR 이 그 택일을 박제하는 single source of truth.
+본 ADR 은 [docs/architecture/api.md §2 23 행](../architecture/api.md) 의 **Auth credential 행 "택일" 의무** 를 박제한다 — 동 행이 명시: "session cookie 또는 Bearer JWT 중 P3 AuthModule 도입 task 의 ADR 에서 택일". 본 ADR 이 그 택일을 박제하는 single source of truth.
 
 ### P3 진척 status quo 박제
 
@@ -22,15 +22,15 @@ amendReason: "T-0083 (RBAC scaffold) + T-0086 (UserService.changeRole) + T-0087 
 
 - **8/11 entity backbone fully closed** (T-0075 closure 기준) — User · UserRole · Group · Part · Assessment · Contribution · Summary · PermissionDeniedRecord 중 Group + Part CRUD-U 4-layer 완성.
 - **잔여 P3 backbone ~5~6 task** — User entity + AuthModule + ADR-0008 신설 chain 의 진입 시점.
-- **AuthModule 미박제** — [docs/architecture/modules.md L32](../architecture/modules.md) AuthModule row 만 박제 (책임 · dependency), 실 service / controller / guard 신설 0.
+- **AuthModule 미박제** — [docs/architecture/modules.md 32 행](../architecture/modules.md) AuthModule row 만 박제 (책임 · dependency), 실 service / controller / guard 신설 0.
 - **ADR-0008 트리거 시점 도달** — p3-to-p4-transition.md §2.3 ADR-0008 row "P3 진행 중 우선" 트리거.
 
 ### REQ 외력 (본 ADR 이 cover)
 
-- **REQ-043** ([README.md L83](../../README.md)) — "모든 사용 기능은 보안사항으로서 ID 와 Password 로 보호". 본 ADR 이 ID/Password 인증의 credential format 결정.
-- **REQ-044** ([README.md L84](../../README.md)) — "SuperAdmin (첫 로긴), Admin, User 3 등급. Admin→User 변경은 첫 로긴 Admin 만 수행, 본인에 대해서는 Admin→User 불가". 본 ADR 의 token / cookie 가 user role claim 을 carry + self-demote 차단 invariant 의 backbone.
-- **REQ-045** ([README.md L85](../../README.md)) — "Admin 은 평가 자료 재작성 / Reset / Import-Export / 인원 편집 등". Admin tier endpoint 의 RBAC guard 가 본 credential 을 verify.
-- **REQ-046** ([README.md L86](../../README.md)) — "User 등급은 시각화 자료의 조회 / Sorting / Filtering 등 read-only". User tier endpoint guard 도 동일.
+- **REQ-043** ([README.md 83 행](../../README.md)) — "모든 사용 기능은 보안사항으로서 ID 와 Password 로 보호". 본 ADR 이 ID/Password 인증의 credential format 결정.
+- **REQ-044** ([README.md 84 행](../../README.md)) — "SuperAdmin (첫 로긴), Admin, User 3 등급. Admin→User 변경은 첫 로긴 Admin 만 수행, 본인에 대해서는 Admin→User 불가". 본 ADR 의 token / cookie 가 user role claim 을 carry + self-demote 차단 invariant 의 backbone.
+- **REQ-045** ([README.md 85 행](../../README.md)) — "Admin 은 평가 자료 재작성 / Reset / Import-Export / 인원 편집 등". Admin tier endpoint 의 RBAC guard 가 본 credential 을 verify.
+- **REQ-046** ([README.md 86 행](../../README.md)) — "User 등급은 시각화 자료의 조회 / Sorting / Filtering 등 read-only". User tier endpoint guard 도 동일.
 
 ### 시스템 deployment 환경 박제 (ADR-0003 §2 정합)
 
@@ -38,7 +38,7 @@ amendReason: "T-0083 (RBAC scaffold) + T-0086 (UserService.changeRole) + T-0087 
 
 - **monolithic NestJS process 1 개** (ADR-0003 §1) — auth credential verify 가 동일 process 안에서 일어남, 별도 auth service hop 0.
 - **secret 은 환경변수** (ADR-0003 §2) — JWT signing secret 또는 session secret 모두 `process.env` 의 `@nestjs/config` getter 로 read. dev `.env` (gitignore) / prod systemd `EnvironmentFile=` 표준.
-- **HTTPS-only** ([docs/architecture/api.md §2 L19](../architecture/api.md)) — TLS over TCP, 평문 HTTP 미사용. cookie 의 `Secure` flag / Bearer header 의 TLS 보호 모두 본 전제 위에 성립.
+- **HTTPS-only** ([docs/architecture/api.md §2 19 행](../architecture/api.md)) — TLS over TCP, 평문 HTTP 미사용. cookie 의 `Secure` flag / Bearer header 의 TLS 보호 모두 본 전제 위에 성립.
 - **horizontal scaling 미확정** (ADR-0003 §1 의 "P5 이후 NFR 압박 시 worker 분리 ADR 전환") — 본 ADR 시점에서는 monolithic 1 process 이나, 향후 scale-out 시 session store (Redis) 도입 ADR 발화 risk 회피 의무.
 
 ### P6 frontend 정합
@@ -153,7 +153,7 @@ T-0087 round 1 안에서 push 가 2 회 fix 후 final green 도달 — 본 ADR �
 
 ### 후속 amend 후보 (별도 doc-only direct task)
 
-- **[api.md §2 L23](../architecture/api.md) Auth credential 행 amend** — "택일" → 본 ADR 의 결정값 (JWT + HttpOnly cookie hybrid) 으로 박제 + ADR-0008 link.
+- **[api.md §2 23 행](../architecture/api.md) Auth credential 행 amend** — "택일" → 본 ADR 의 결정값 (JWT + HttpOnly cookie hybrid) 으로 박제 + ADR-0008 link.
 - **[p3-to-p4-transition.md §2.3 ADR-0008 row](../architecture/p3-to-p4-transition.md) status amend** — "P3 진행 중 우선" → "ACCEPTED (2026-05-28, T-0079)".
 - **[modules.md AuthModule row](../architecture/modules.md) amend** — "JWT 또는 session cookie 발급·검증" → "JWT (HttpOnly cookie hybrid) 발급·검증 — ADR-0008".
 
@@ -170,17 +170,17 @@ T-0087 round 1 안에서 push 가 2 회 fix 후 final green 도달 — 본 ADR �
 | **(1) JWT in HttpOnly Secure SameSite cookie (hybrid)** (채택) | stateless verify / horizontal scaling 친화 / XSS 안전 (HttpOnly) / CSRF 차단 (SameSite=Strict) / NestJS `@nestjs/jwt` 표준 / refresh rotation 으로 revocation path 박제 / ADR-0003 §1 monolithic 정합 + future worker 분리 ADR 친화 | access TTL 15 분 refresh 빈도 ↑ / refresh token DB write 비용 / multi-domain 시 별도 ADR 동반 / HS256 의 secret share (worker 분리 시) | **✓ 채택** |
 | (2) Server-side session cookie (express-session / `@nestjs/passport-local` + PostgreSQL session store) | server-side revocation 자유 (DB row 삭제 1 회) / 표준 패턴 / payload tampering 본질 차단 (token 에 user data 없음, sessionId 만) | session store dependency 추가 (PostgreSQL 또는 Redis) → ADR-0003 §1 worker 분리 ADR 발화 시 Redis dep BLOCKED 게이트 risk / horizontal scaling 시 sticky session 또는 분산 store 필요 / `express-session` + `connect-pg-simple` 또는 `connect-redis` 추가 dep / CSRF 보호 별도 middleware 의무 | 기각 — horizontal scaling 친화도 (i) NestJS 정합 (iii) frontend 정합 (iv) revocation 정합 4 차원 평가 의 (ii) horizontal scaling 차원에서 채택안 대비 명확 열세 |
 | (3) JWT in localStorage / sessionStorage + Bearer Authorization header | SPA 표준 패턴 (단순) / cookie 처리 부담 0 / CORS 단순 | **XSS 노출 surface** — `document.cookie` 가 아닌 `localStorage.getItem('token')` 도 JS read 가능, XSS 1 회 발생 시 token 전부 유출 / refresh token 도 동일 storage = 탈취 시 영구 / SameSite cookie 의 CSRF 자동 방어 부재 → CSRF token middleware 추가 의무 | 기각 — REQ-043 보안 backbone 약화 + XSS 노출의 영구화 risk |
-| (4) OAuth / OIDC 외부 위임 (예: Samsung 내부 IdP / Azure AD / Google Workspace SSO) | 외부 IdP 의 audit / MFA / SSO 통합 / 자체 자격증명 backbone 부담 0 / password reset / lock-out 정책 외부 위임 | **REQ-043 self-contained 인증 backbone 요구와 어긋남** — README L83 "ID 와 Password 로 보호" 가 system-internal account 박제 / 사내 환경 외부 IdP 의존 시 IdP outage 가 본 system outage 전파 / OIDC client SDK 추가 dep / SuperAdmin 첫 로긴 invariant (REQ-044) 가 외부 IdP 의 user mapping 과 어울리지 않음 | 기각 — REQ-043 의 self-contained 의도와 정합 0 |
+| (4) OAuth / OIDC 외부 위임 (예: Samsung 내부 IdP / Azure AD / Google Workspace SSO) | 외부 IdP 의 audit / MFA / SSO 통합 / 자체 자격증명 backbone 부담 0 / password reset / lock-out 정책 외부 위임 | **REQ-043 self-contained 인증 backbone 요구와 어긋남** — README 83 행 "ID 와 Password 로 보호" 가 system-internal account 박제 / 사내 환경 외부 IdP 의존 시 IdP outage 가 본 system outage 전파 / OIDC client SDK 추가 dep / SuperAdmin 첫 로긴 invariant (REQ-044) 가 외부 IdP 의 user mapping 과 어울리지 않음 | 기각 — REQ-043 의 self-contained 의도와 정합 0 |
 | (5) Bearer header (Authorization: Bearer <jwt>) — cookie 미사용 | mobile / API client 정합 / SPA 외 client 다양성 친화 / CORS 단순 | XSS storage risk (대안 (3) 동일) / SPA storage 책임이 client 측 / cookie 의 HttpOnly 안전 net 부재 | 기각 — 본 시스템의 1 차 client 는 P6 web SPA + (선택적) API client. cookie hybrid 패턴이 SPA 안전 net + API client 도 cookie support (curl `--cookie` / Postman cookie jar) 로 cover |
 | (6) Hybrid — JWT in cookie + 동시 Bearer header 지원 | SPA (cookie) + API client (Bearer header) 둘 다 1 등 시민 | 두 path 의 verify logic / CSRF 정책 / 보관 위치가 분기 → 코드 복잡도 ↑ / 두 path 의 secret share 또는 분리 결정 추가 / 본 시점 client 다양성 요구 없음 | 미채택 (deferred) — 본 ADR 의 채택안에서 향후 자연 확장 가능 (`passport-jwt` 의 extractor 가 cookie + header 양쪽 fromExtractors 패턴 표준). 별도 ADR supersede 없이 본 ADR 안에서 extractor 만 추가하면 됨. |
 
 ## References
 
-- [README.md](../../README.md) L80–86 — REQ-043 (ID/Password 인증) / REQ-044 (3 등급 + SuperAdmin 첫 로긴 + self-demote 차단) / REQ-045 (Admin 권한) / REQ-046 (User read-only)
-- [docs/architecture/api.md §2](../architecture/api.md) L15–25 — Auth credential 행 "택일" 의무 source (본 ADR 의 직접 motivation)
-- [docs/architecture/api.md §3](../architecture/api.md) L26–37 — Auth tier 4 등급 (Public / User / Admin / SuperAdmin) + escalation 의미
-- [docs/architecture/api.md §4](../architecture/api.md) L39–53 — `/api/auth` + `/api/users` + `/api/me` prefix 책임 module 매핑
-- [docs/architecture/modules.md L32](../architecture/modules.md) — AuthModule row (책임 · dependency · cover REQ)
+- [README.md](../../README.md) 80~86 행 — REQ-043 (ID/Password 인증) / REQ-044 (3 등급 + SuperAdmin 첫 로긴 + self-demote 차단) / REQ-045 (Admin 권한) / REQ-046 (User read-only)
+- [docs/architecture/api.md §2](../architecture/api.md) 15~25 행 — Auth credential 행 "택일" 의무 source (본 ADR 의 직접 motivation)
+- [docs/architecture/api.md §3](../architecture/api.md) 26~37 행 — Auth tier 4 등급 (Public / User / Admin / SuperAdmin) + escalation 의미
+- [docs/architecture/api.md §4](../architecture/api.md) 39~53 행 — `/api/auth` + `/api/users` + `/api/me` prefix 책임 module 매핑
+- [docs/architecture/modules.md 32 행](../architecture/modules.md) — AuthModule row (책임 · dependency · cover REQ)
 - [docs/architecture/p3-to-p4-transition.md §2.3](../architecture/p3-to-p4-transition.md) — ADR-0008 row (트리거 시점 "P3 진행 중 우선")
 - [docs/architecture/p3-to-p4-transition.md §4.1](../architecture/p3-to-p4-transition.md) — session #22 binding-decision 권장 강화 박제
 - [docs/decisions/ADR-0001-stack.md](ADR-0001-stack.md) — NestJS / TypeScript / pnpm stack baseline

@@ -11,13 +11,13 @@ supersedes: null
 
 ## Context
 
-본 ADR 은 [docs/PLAN.md L84](../PLAN.md) Phase P4 의 **"Confluence SPACE 탐색 정책 (R-34) — Crawling 또는 page List/Hierarchy 기반 탐색 중 택. ADR 로 결정."** 의무를 박제한다 — 동 bullet 이 명시한 "ADR 로 결정" 이 본 ADR 의 single source of truth 트리거. [docs/requirements.md](../requirements.md) 의 **REQ-017** (Confluence SPACE crawling vs hierarchy 탐색 정책, kind = Constraint, phase = "P4 (ADR 필수)", status = PLANNED) 도 동일 결정을 명시 요구한다. [README.md L34](../../README.md) 가 결정 대상을 verbatim 박제한다: *"지정된 SPACE 내 Crawling을 해야 할 수 있다. 단, 지정된 SPACE 내 페이지 List나 Hierarchy (directory) 구조를 기반으로 탐색하여도 된다."* — README 가 셋 (crawling / page List / Hierarchy) 을 모두 **허용** 하므로, 본 ADR 이 그중 구현 default 1 개를 명시 선택하는 것이 본 결정의 본질이다.
+본 ADR 은 [docs/PLAN.md 84 행](../PLAN.md) Phase P4 의 **"Confluence SPACE 탐색 정책 (R-34) — Crawling 또는 page List/Hierarchy 기반 탐색 중 택. ADR 로 결정."** 의무를 박제한다 — 동 bullet 이 명시한 "ADR 로 결정" 이 본 ADR 의 single source of truth 트리거. [docs/requirements.md](../requirements.md) 의 **REQ-017** (Confluence SPACE crawling vs hierarchy 탐색 정책, kind = Constraint, phase = "P4 (ADR 필수)", status = PLANNED) 도 동일 결정을 명시 요구한다. [README.md 34 행](../../README.md) 이 결정 대상을 verbatim 박제한다: *"지정된 SPACE 내 Crawling을 해야 할 수 있다. 단, 지정된 SPACE 내 페이지 List나 Hierarchy (directory) 구조를 기반으로 탐색하여도 된다."* — README 가 셋 (crawling / page List / Hierarchy) 을 모두 **허용** 하므로, 본 ADR 이 그중 구현 default 1 개를 명시 선택하는 것이 본 결정의 본질이다.
 
 [docs/architecture/p4-implementation-plan.md §3 ADR 후보 (a)](../architecture/p4-implementation-plan.md) 와 §2 표의 ConfluenceModule row 가 ConfluenceAdapter 탐색 구현 진입 직전 본 ADR 신설을 트리거로 박제한다. [CLAUDE.md §1](../../CLAUDE.md) ("코드보다 ADR이 먼저다") + [§3.1 rule 3](../../CLAUDE.md) (ADR + 코드 혼합 task 는 split) 에 따라, **ConfluenceAdapter 의 실 page 수집 코드 task (HITL 게이트 동반) 의 선행 결정 ADR** 을 본 ADR 이 단독 박제하여 후속 adapter 코드가 일관된 탐색 contract 위에서 구현되게 한다. 본 ADR 은 **순수 결정 문서** 다 — 외부 dependency 추가 / 외부 자격증명 처리 / DB schema 변경 / auth-flow 변경을 하지 않는다 (Out of scope 는 [§HITL 경계](#hitl-경계-본-adr-과-후속-task) 와 References 박제).
 
 ### 결정 대상 3 축
 
-[README.md L31–34](../../README.md) + [docs/requirements.md REQ-015/016/017](../requirements.md) + [docs/architecture/modules.md ConfluenceModule row](../architecture/modules.md) ("SPACE list / page list / page version 조회 adapter. crawling vs hierarchy 정책은 P4 ADR. 4xx catch → PermissionDeniedEvent emit.") 가 ConfluenceModule 의 책임을 conceptual 박제하되 탐색 메커니즘 / 수집 경계 / 4xx 처리 위상의 구체 결정은 본 ADR 로 미룬다. 본 ADR 이 그 3 축을 확정:
+[README.md 31~34 행](../../README.md) + [docs/requirements.md REQ-015/016/017](../requirements.md) + [docs/architecture/modules.md ConfluenceModule row](../architecture/modules.md) ("SPACE list / page list / page version 조회 adapter. crawling vs hierarchy 정책은 P4 ADR. 4xx catch → PermissionDeniedEvent emit.") 가 ConfluenceModule 의 책임을 conceptual 박제하되 탐색 메커니즘 / 수집 경계 / 4xx 처리 위상의 구체 결정은 본 ADR 로 미룬다. 본 ADR 이 그 3 축을 확정:
 
 - **축 (1) 탐색 메커니즘 택일** — (a) full crawling (link 따라가며 재귀 수집) vs (b) page List 기반 (SPACE 의 content list API 순회) vs (c) page Hierarchy / directory 기반 (parent-child tree 순회) 중 하나를 구현 default 로 확정.
 - **축 (2) 지정 SPACE 다중 관리 + page 단위 수집 경계** — 지정된 SPACE 들 (다중) 을 어떻게 enumerate 하는지 + page 단위 (page + version) 수집의 단위 경계. raw 미저장 invariant 와의 정합.
@@ -25,9 +25,9 @@ supersedes: null
 
 ### REQ 외력 (본 ADR 이 cover)
 
-- **REQ-015** ([docs/requirements.md](../requirements.md), README L31) — 지정된 주소의 Confluence Service 내 지정된 SPACE 들 내 문서 작성 / 업데이트 활동 평가. 본 ADR 의 축 (1)·(2) 가 그 "지정 SPACE 들 내 page 수집" 의 탐색 메커니즘·수집 경계를 박제.
-- **REQ-016** ([docs/requirements.md](../requirements.md), README L33) — 접근 권한 (read) 부족 시 AA 사용자·관리자가 인식·대응. 본 ADR 의 축 (3) 이 그 4xx 의 탐색-제어 위상 (탐색 abort 여부) 을 박제 (PermissionDeniedEvent emit 자체 책임은 modules.md ConfluenceModule row).
-- **REQ-017 (= R-34)** ([docs/PLAN.md L84](../PLAN.md), README L34) — Confluence SPACE crawling vs hierarchy 탐색 정책. Constraint, "P4 ADR 필수". 본 ADR 의 축 (1) 이 그 택일을 박제 (본 ADR 의 직접 motivation).
+- **REQ-015** ([docs/requirements.md](../requirements.md), README 31 행) — 지정된 주소의 Confluence Service 내 지정된 SPACE 들 내 문서 작성 / 업데이트 활동 평가. 본 ADR 의 축 (1)·(2) 가 그 "지정 SPACE 들 내 page 수집" 의 탐색 메커니즘·수집 경계를 박제.
+- **REQ-016** ([docs/requirements.md](../requirements.md), README 33 행) — 접근 권한 (read) 부족 시 AA 사용자·관리자가 인식·대응. 본 ADR 의 축 (3) 이 그 4xx 의 탐색-제어 위상 (탐색 abort 여부) 을 박제 (PermissionDeniedEvent emit 자체 책임은 modules.md ConfluenceModule row).
+- **REQ-017 (= R-34)** ([docs/PLAN.md 84 행](../PLAN.md), README 34 행) — Confluence SPACE crawling vs hierarchy 탐색 정책. Constraint, "P4 ADR 필수". 본 ADR 의 축 (1) 이 그 택일을 박제 (본 ADR 의 직접 motivation).
 
 ### 선행 박제 정합 (raw 미저장 / adapter leaf)
 
@@ -37,7 +37,7 @@ supersedes: null
 ### ADR cross-reference (번호 정합 박제)
 
 - **다음 free 번호 ADR-0013** — `docs/decisions/` 에 ADR-0001 ~ ADR-0012 점유 (ADR-0007 은 미신설 — [ADR-0011 §ADR cross-reference](ADR-0011-difficulty-model-assignment.md) 박제). 본 ADR 은 다음 free 번호 ADR-0013 을 사용 (T-0145 acceptance 의 번호 정합 명시).
-- **p4-implementation-plan §3 의 트리거 task 표기** — [p4-implementation-plan.md §3 후보 (a)](../architecture/p4-implementation-plan.md) 가 본 ADR 트리거를 "T-0143" 로 placeholder 박제했으나, 실 planner 할당은 **T-0145** (P3→P4 진행 중 task ID 자연 shift — 동 문서 §2 가 "task ID 는 잠정 placeholder, 진행 중 자연 split / 한 자리 shift 가능" 박제). 트리거 source (R-34 / PLAN L84) 는 동일.
+- **p4-implementation-plan §3 의 트리거 task 표기** — [p4-implementation-plan.md §3 후보 (a)](../architecture/p4-implementation-plan.md) 가 본 ADR 트리거를 "T-0143" 로 placeholder 박제했으나, 실 planner 할당은 **T-0145** (P3→P4 진행 중 task ID 자연 shift — 동 문서 §2 가 "task ID 는 잠정 placeholder, 진행 중 자연 split / 한 자리 shift 가능" 박제). 트리거 source (R-34 / PLAN 84 행) 은 동일.
 - [ADR-0002 (DB / Prisma)](ADR-0002-db.md) — 후속 PermissionDeniedRecord entity 의 PostgreSQL row 영속 baseline (본 ADR scope 외 — 축 (3) 은 탐색-제어만, entity schema 0).
 
 ## Decision
@@ -47,13 +47,13 @@ supersedes: null
 ### Decision §1 — 탐색 메커니즘: page List 기반 (SPACE content list API 순회)
 
 - **page List 기반 채택** — ConfluenceAdapter 의 default 탐색 메커니즘은 **지정 SPACE 의 content list API 순회** 다. Confluence REST API 의 SPACE-scoped content 조회 (예: `GET /rest/api/space/{spaceKey}/content` 또는 `GET /rest/api/content?spaceKey={key}` 류, cursor / `start`+`limit` paging) 로 SPACE 내 page 를 **평면 list 로 enumerate** 하고 paging 을 끝까지 순회한다. 구체 endpoint 경로 / API 버전 (REST v1 vs v2) 선택은 ConfluenceAdapter 코드 task 책임 — 본 ADR 은 "SPACE content list API 순회" 라는 탐색 메커니즘 class 만 default 로 확정.
-- **full crawling 미채택 사유** — link 따라가며 재귀 수집하는 full crawling 은 (i) page body 의 link 파싱 의존 → raw body 처리 결합도 ↑ (raw 미저장 invariant 와 마찰) (ii) SPACE 경계 이탈 위험 (link 가 외부 / 타 SPACE 로) (iii) 재귀 depth / cycle 방어 복잡. README L34 가 "Crawling 을 해야 할 수 있다" 로 허용은 하나 **필요조건이 아니므로** (List / Hierarchy 도 허용) MVA 상 단순한 List 우선.
+- **full crawling 미채택 사유** — link 따라가며 재귀 수집하는 full crawling 은 (i) page body 의 link 파싱 의존 → raw body 처리 결합도 ↑ (raw 미저장 invariant 와 마찰) (ii) SPACE 경계 이탈 위험 (link 가 외부 / 타 SPACE 로) (iii) 재귀 depth / cycle 방어 복잡. README 34 행 이 "Crawling 을 해야 할 수 있다" 로 허용은 하나 **필요조건이 아니므로** (List / Hierarchy 도 허용) MVA 상 단순한 List 우선.
 - **Hierarchy 기반 미채택 사유 (default 아님)** — parent-child tree 순회는 SPACE 의 page 계층 구조에 의존하는데, (i) 모든 page 가 tree 에 속하지 않을 수 있고 (orphan / 루트 직속) (ii) tree 순회는 평면 list 대비 추가 ancestor / child 호출 round-trip 증가. 단 **List API 가 hierarchy 정보 (ancestors) 를 함께 반환** 하면 평가 메타로 활용 가능 — Hierarchy 는 default 탐색 경로가 아니라 List 결과의 보강 정보로 위치 ([§Consequences](#consequences) 5).
 - **modules.md 정합** — [modules.md ConfluenceModule row](../architecture/modules.md) 의 "SPACE list / page list / page version 조회 adapter" 책임과 직결 — 본 결정의 "page list API 순회" 가 그 "page list 조회" 책임의 구현 default. crawling vs hierarchy 가 "P4 ADR" 로 미뤄진 그 ADR 이 본 ADR 이며, List 기반을 default 로 박제하여 row 의 미결정을 해소한다.
 
 ### Decision §2 — 다중 SPACE enumerate + page 수집 경계: SPACE key allowlist 순회 + (page, version) 단위 raw-transient
 
-- **지정 SPACE allowlist 순회** — 평가 대상 SPACE 는 **명시 지정된 SPACE key 집합 (allowlist)** 으로 한정한다 (README L31 "지정된 SPACE 들"). ConfluenceAdapter 는 전체 SPACE 자동 발견 (SPACE list 전수 crawl) 을 **하지 않고**, 설정으로 주어진 SPACE key 목록을 순회하며 각 SPACE 에 Decision §1 의 content list 순회를 적용한다. SPACE key 집합의 설정 형태 (env / DB config) 는 ConfluenceAdapter 코드 task 책임 — 본 ADR 은 "지정 allowlist 만 순회, 전수 발견 안 함" 의 경계만 박제.
+- **지정 SPACE allowlist 순회** — 평가 대상 SPACE 는 **명시 지정된 SPACE key 집합 (allowlist)** 으로 한정한다 (README 31 행 "지정된 SPACE 들"). ConfluenceAdapter 는 전체 SPACE 자동 발견 (SPACE list 전수 crawl) 을 **하지 않고**, 설정으로 주어진 SPACE key 목록을 순회하며 각 SPACE 에 Decision §1 의 content list 순회를 적용한다. SPACE key 집합의 설정 형태 (env / DB config) 는 ConfluenceAdapter 코드 task 책임 — 본 ADR 은 "지정 allowlist 만 순회, 전수 발견 안 함" 의 경계만 박제.
 - **(page, version) 수집 단위** — 수집의 최소 단위는 **page 1 개 + 그 version 메타** (REQ-015 의 "작성 / 업데이트 활동" — version 이 업데이트 기여를 식별) 다. [modules.md](../architecture/modules.md) 의 "page version 조회" 책임과 직결. page body raw 는 평가 파이프라인 입력으로만 transient 사용하고 **영속화하지 않는다** — [ADR-0006](ADR-0006-assessment-data-model.md) / REQ-059 raw 미저장 invariant 정합. 영속화 대상은 평가 결과 (점수 / contribution 메타 / page 식별자 / version / 작성자 attribution) 만.
 - **raw-transient 경계** — page body 는 LLM 평가 호출 동안만 메모리에 존재하고 DB 에 저장되지 않는다. attribution (어느 Person 이 어느 page 의 어느 version 을 작성 / 업데이트) 만 결과에 남는다. 본 경계가 raw 미저장 invariant 를 탐색 단계에서부터 보장 — full crawling 대비 List 기반이 link 본문 파싱 불요로 이 경계 유지에 유리 (Decision §1 사유와 정합).
 
@@ -75,7 +75,7 @@ supersedes: null
 1. **후속 ConfluenceAdapter task contract 명확** — Decision §1~3 으로 탐색 메커니즘 (List) / SPACE allowlist 순회 / (page, version) 단위 / 4xx skip-and-continue 가 사전 고정 → architect / implementer 의 탐색 환각 ↓, 일관된 contract 위 구현. crawling depth / cycle 방어 / link 파싱 로직 불요로 adapter 구현 표면 ↓.
 2. **raw 미저장 invariant 탐색 단계 보장** — Decision §2 의 page body raw-transient 경계가 [ADR-0006](ADR-0006-assessment-data-model.md) / REQ-059 invariant 를 탐색 진입 단계부터 강제 → 평가 파이프라인 하류가 raw 누출 방어 부담 ↓. List 기반 선택 (link 본문 파싱 불요) 이 이 경계 유지에 구조적으로 유리.
 3. **부분 가용성 (partial availability)** — Decision §3 의 SPACE 단위 skip-and-continue 로 1 SPACE 권한 누락이 전체 평가를 막지 않음 → 다중 SPACE 운영의 robustness. PermissionDeniedEvent 가 누락 SPACE 를 가시화 (REQ-016 인식·대응) 하면서도 가용성 보존.
-4. **MVA 정합** — full crawling / hierarchy tree 순회 대비 평면 List 순회는 최소 복잡도 → [INDEX.md MVA 원칙](../architecture/INDEX.md) (over-design 회피) 정합. README L34 가 셋 다 허용하므로 가장 단순한 List 우선 선택이 정당.
+4. **MVA 정합** — full crawling / hierarchy tree 순회 대비 평면 List 순회는 최소 복잡도 → [INDEX.md MVA 원칙](../architecture/INDEX.md) (over-design 회피) 정합. README 34 행 이 셋 다 허용하므로 가장 단순한 List 우선 선택이 정당.
 5. **Hierarchy 보강 여지 박제** — Decision §1 상 Hierarchy 는 default 탐색 경로가 아니나, List API 가 반환하는 ancestors 정보를 평가 메타 (page 위치 / 계층 context) 로 활용 가능 → 향후 hierarchy 기반 평가 가중이 필요하면 List default 위에 보강 추가 (탐색 메커니즘 전환 ADR 불요, 메타 활용 확장).
 
 ### 음의 (negative) / trade-off
@@ -98,18 +98,18 @@ supersedes: null
 | 대안 | 장점 | 단점 / 정합도 | 채택 여부 |
 | --- | --- | --- | --- |
 | **(1) page List 기반 + SPACE allowlist 순회 + 4xx skip-and-continue** (채택) | MVA 최소 복잡도 (평면 순회) / raw 미저장 invariant 에 구조적 유리 (link 파싱 불요) / 부분 가용성 (1 SPACE 권한 누락 흡수) / modules.md "page list 조회" 책임 직결 | List API 일부 page type 누락 위험 (type 필터로 mitigation) / paging round-trip 비용 / skip silent partial 위험 (event 통지로 mitigation) | **✓ 채택** |
-| (2) full crawling (link 따라가며 재귀 수집) | README L34 "Crawling 을 해야 할 수 있다" 직접 충족 / link 그래프 전수 도달 | page body link 파싱 의존 → raw body 처리 결합 (raw 미저장 invariant 마찰) / SPACE 경계 이탈 위험 (외부 / 타 SPACE link) / 재귀 depth·cycle 방어 복잡 / README 가 "해야 할 수 있다" 로 허용은 하나 필요조건 아님 | 기각 — raw 결합 + SPACE 경계 이탈 + 복잡도, MVA 열세 |
+| (2) full crawling (link 따라가며 재귀 수집) | README 34 행 "Crawling 을 해야 할 수 있다" 직접 충족 / link 그래프 전수 도달 | page body link 파싱 의존 → raw body 처리 결합 (raw 미저장 invariant 마찰) / SPACE 경계 이탈 위험 (외부 / 타 SPACE link) / 재귀 depth·cycle 방어 복잡 / README 가 "해야 할 수 있다" 로 허용은 하나 필요조건 아님 | 기각 — raw 결합 + SPACE 경계 이탈 + 복잡도, MVA 열세 |
 | (3) page Hierarchy / directory tree 순회 (parent-child) | SPACE page 계층 구조 자연 반영 / 평가에 계층 context 활용 | 모든 page 가 tree 소속 아님 (orphan / 루트 직속 누락 위험) / ancestor·child 추가 round-trip / 평면 List 대비 순회 복잡 | 기각 (default 아님) — orphan 누락 + round-trip 증가. 단 List 가 반환하는 ancestors 를 메타 보강으로 활용 (Consequences 5) |
-| (4) 전체 SPACE 자동 발견 (SPACE list 전수 crawl 후 평가) | 지정 누락 없이 전 SPACE cover / SPACE key 설정 불요 | README L31 "지정된 SPACE 들" 명시 한정과 어긋남 (평가 범위 폭증) / 권한 부족 SPACE 대량 4xx / 의도하지 않은 SPACE 평가로 결과 noise | 기각 — README "지정 SPACE" 한정 위배, Decision §2 allowlist 와 충돌 |
+| (4) 전체 SPACE 자동 발견 (SPACE list 전수 crawl 후 평가) | 지정 누락 없이 전 SPACE cover / SPACE key 설정 불요 | README 31 행 "지정된 SPACE 들" 명시 한정과 어긋남 (평가 범위 폭증) / 권한 부족 SPACE 대량 4xx / 의도하지 않은 SPACE 평가로 결과 noise | 기각 — README "지정 SPACE" 한정 위배, Decision §2 allowlist 와 충돌 |
 | (5) 권한 부족 4xx → 탐색 전면 abort | 부분 데이터로 평가하는 위험 제거 (all-or-nothing) | 1 SPACE 권한 누락이 권한 있는 전 SPACE 평가까지 차단 → 가용성 손실 / 다중 SPACE 중 1 누락 흔한 운영 상황에 과도 / REQ-016 "인식·대응" 은 event 통지로 충족, abort 필요조건 아님 | 기각 — 가용성 손실, Decision §3 skip-and-continue 열세 |
 
 **향후 재검토 조건** (Alternatives 재평가 trigger): (i) 평가 정확도가 page 계층 context 를 요구하여 Hierarchy 순회 default 전환이 필요해지면 본 ADR supersede ADR. (ii) 지정 SPACE 내 link 그래프 기반 기여 (cross-page 참조 활동) 평가가 R-34 범위로 확장되면 crawling 보강 ADR. (iii) silent partial 누락이 운영상 빈발하면 Decision §3 을 "권한 누락 SPACE N% 초과 시 abort + 통지" 류 정책으로 강화하는 supersede ADR.
 
 ## References
 
-- [docs/PLAN.md L84](../PLAN.md) — Phase P4 "Confluence SPACE 탐색 정책 (R-34) — Crawling 또는 page List/Hierarchy 기반 탐색 중 택. ADR 로 결정." (본 ADR 의 직접 motivation)
+- [docs/PLAN.md 84 행](../PLAN.md) — Phase P4 "Confluence SPACE 탐색 정책 (R-34) — Crawling 또는 page List/Hierarchy 기반 탐색 중 택. ADR 로 결정." (본 ADR 의 직접 motivation)
 - [docs/requirements.md](../requirements.md) — REQ-015 (Confluence 지정 SPACE 평가) / REQ-016 (권한 부족 인식·통지) / REQ-017 (crawling vs hierarchy 탐색 정책, Constraint, "P4 ADR 필수") source of truth
-- [README.md L31–34](../../README.md) — Confluence 지정 SPACE 문서 활동 + 권한 부족 인식·대응 + crawling/List/Hierarchy 탐색 허용 문구 (결정 대상 verbatim)
+- [README.md 31~34 행](../../README.md) — Confluence 지정 SPACE 문서 활동 + 권한 부족 인식·대응 + crawling/List/Hierarchy 탐색 허용 문구 (결정 대상 verbatim)
 - [docs/architecture/modules.md](../architecture/modules.md) — ConfluenceModule row (SPACE list / page list / page version 조회 adapter, crawling vs hierarchy 정책은 P4 ADR, 4xx catch → PermissionDeniedEvent emit) — 책임 module + 트리거 source
 - [docs/architecture/p4-implementation-plan.md §3 후보 (a)](../architecture/p4-implementation-plan.md) — Confluence SPACE 탐색 정책 ADR 후보 + §2 표 ConfluenceModule (T-0142 scaffold) / T-0143 placeholder (실 할당 T-0145) / T-0144 PermissionDeniedRecord row
 - [docs/decisions/ADR-0006-assessment-data-model.md](ADR-0006-assessment-data-model.md) — raw 미저장 invariant (REQ-059) — Decision §2 page body raw-transient 경계 정합
