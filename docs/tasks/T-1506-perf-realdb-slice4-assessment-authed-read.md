@@ -2,12 +2,14 @@
 id: T-1506
 title: 실 DB round-trip perf-spec slice 4 — 인증 경유 `GET /api/assessments` 시계열 조회 p95 실측
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 285
 estimatedFiles: 2
 created: 2026-08-06
+completedAt: 2026-08-05T19:56:22Z
+prNumber: 1214
 independentStream: p7-perf-realdb-baseline
 dependsOn: [T-1505]
 touchesFiles:
@@ -156,3 +158,16 @@ slice 가 한 번도 건드리지 못한 **두 개의 새 축** 을 처음 실�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## Result (2026-08-05)
+
+PR [#1214](https://github.com/myungjoo/Assessment-Agent/pull/1214) round 1 reviewer APPROVE → 4-게이트 PASS
+→ squash merge (main `861add36`). 2 파일 +299/-1 (cap 준수).
+
+- `test/perf/assessment-read-realdb.perf-spec.ts` 신설 — 실 Postgres 상대 인증 경유 (`JwtAuthGuard` ·
+  `RolesGuard` override 0) `GET /api/assessments` 시계열 조회 + `:id` 상세 p95 실측 9 test
+  (happy 2 · 분기 3 · error 1 · negative 4).
+- `afterEach` truncate 가 `User` 를 지우므로 actor 를 **원본 id 그대로 재-seed** (token 재발급 0).
+- `test/perf/README.md` — slice 4 항목 추가 + 잔여 bullet 을 endpoint 3 개 / 조회 route 6 으로 갱신.
+- 로컬 Postgres 부재로 `test:perf` 는 CI `perf test` step (run 31041293501 success) 으로 검증.
+- PLAN `142 행` · 부하계획 `§ 5` · REQ-048 doc-sync 는 Out of Scope 대로 [T-1507](T-1507-perf-realdb-slice4-doc-sync.md) 로 이월.
