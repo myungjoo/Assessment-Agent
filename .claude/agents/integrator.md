@@ -57,9 +57,9 @@ implementer/tester 재호출은 executor 의 re-entry mode (`executor.md` "Re-en
 본 게이트는 단순히 `gh pr checks <num>` 의 latest conclusion 을 보면 안 된다. 다음 race 가 박제되어 있다:
 
 1. integrator 가 feature branch push → GitHub 의 `pull_request` event → CI 즉시 trigger (first run).
-2. CI 의 `reviewer agent approval 검증` step ([.github/workflows/ci.yml](../../.github/workflows/ci.yml) L82-115) 이 PR 의 comments 를 조회 — 아직 reviewer sub-agent 가 `gh pr comment` post 안 한 시점 → matches 0 건 → step exit 1 → **first run fail (race)**.
+2. CI 의 `reviewer agent approval 검증` step ([.github/workflows/ci.yml](../../.github/workflows/ci.yml) 82~115 행) 이 PR 의 comments 를 조회 — 아직 reviewer sub-agent 가 `gh pr comment` post 안 한 시점 → matches 0 건 → step exit 1 → **first run fail (race)**.
 3. reviewer sub-agent 가 약 10-30 초 후 `gh pr comment` post.
-4. **GitHub 의 `issue_comment: [created]` trigger** ([.github/workflows/ci.yml](../../.github/workflows/ci.yml) L13-16 에 박제) 가 발화 → CI **자동 재실행** (second run, event=issue_comment) → 이제 comment 1+ 존재 → step pass → second run green.
+4. **GitHub 의 `issue_comment: [created]` trigger** ([.github/workflows/ci.yml](../../.github/workflows/ci.yml) 13~16 행 에 박제) 가 발화 → CI **자동 재실행** (second run, event=issue_comment) → 이제 comment 1+ 존재 → step pass → second run green.
 
 따라서 integrator 의 게이트 (d) 평가는 **반드시 reviewer comment post 이후의 latest CI run (= second run, comment-triggered)** 의 conclusion 으로 한다. **first run fail 만 보고 게이트 (d) fail 판정 금지** — first run 의 reviewer-gate step fail 은 race 의 자연 결과로 expected.
 
@@ -90,7 +90,7 @@ implementer/tester 재호출은 executor 의 re-entry mode (`executor.md` "Re-en
 | REQUEST_CHANGES + round < 7 | `reviewRounds[T-NNNN]` 1 증가. REVIEW_FINDINGS 수집. 위 § 의 "다음 turn 으로 미룸" 조건 해당 시 STATUS=ANOTHER_ROUND 반환 + 다음 turn 으로. 그 외엔 같은 turn 안에서 executor re-entry 직접 진행 (driver 가 executor 를 즉시 재호출하도록 신호) |
 | REQUEST_CHANGES + round == 7 | STATUS=BLOCKED (reason: `review-rounds-exhausted`). driver 가 notifier 로. |
 | 게이트 (b) PR comment 부재 | (1) reviewer 재dispatch. 그래도 부재 시 STATUS=BLOCKED (`reviewer-post-failed`). |
-| 게이트 (c) 자체 점검 fail | PR comment 로 self-finding post — body 를 tempfile 에 쓰고 `gh pr comment <num> --body-file <tempfile>` (짧은 단일 줄이면 `gh pr comment <num> --body "<inline>"`) ↔ `mcp__github__add_issue_comment(issue_number, body)`. header: `> Committer self-check — integrator agent of Assessment-Agent`. **`--body @-` / heredoc-to-stdin 패턴 금지** (stdin 미연결 시 literal `@-` 가 박제됨). post 직후 `gh pr view <num> --json comments` ↔ `mcp__github__list_issue_comments(issue_number)` 로 최신 comment body 가 의도한 finding 인지 (literal `@-` / 빈 body 아닌지) 검증 — 불일치 시 재post. reviewer.md L90/127 이 이미 `--body-file` convention 을 쓰므로 integrator 도 동일 패턴. STATUS=ANOTHER_ROUND. <br>_(PR-154 incident: `--body @-` heredoc 미연결로 literal `@-` post → approval-gate CI 1 회 fail. `--body-file` 로 차단.)_ |
+| 게이트 (c) 자체 점검 fail | PR comment 로 self-finding post — body 를 tempfile 에 쓰고 `gh pr comment <num> --body-file <tempfile>` (짧은 단일 줄이면 `gh pr comment <num> --body "<inline>"`) ↔ `mcp__github__add_issue_comment(issue_number, body)`. header: `> Committer self-check — integrator agent of Assessment-Agent`. **`--body @-` / heredoc-to-stdin 패턴 금지** (stdin 미연결 시 literal `@-` 가 박제됨). post 직후 `gh pr view <num> --json comments` ↔ `mcp__github__list_issue_comments(issue_number)` 로 최신 comment body 가 의도한 finding 인지 (literal `@-` / 빈 body 아닌지) 검증 — 불일치 시 재post. reviewer.md 90/127 행 이 이미 `--body-file` convention 을 쓰므로 integrator 도 동일 패턴. STATUS=ANOTHER_ROUND. <br>_(PR-154 incident: `--body @-` heredoc 미연결로 literal `@-` post → approval-gate CI 1 회 fail. `--body-file` 로 차단.)_ |
 | 게이트 (d) CI failed | **먼저 first run fail 이 reviewer-gate race 인지 확인** (step name = `reviewer agent approval 검증` 의 fail 단독이면 race) — 그렇다면 comment-triggered run (event=issue_comment, latest) 의 conclusion 으로 재평가 (위 race 인지 절차 참조). race 아니거나 second run 도 fail 이면 `ci.consecutiveFails` 1 증가. ≥3 이면 STATUS=BLOCKED (`ci-repeat-fail`). 아니면 STATUS=ANOTHER_ROUND with CI_FAILURE (`gh run view <runId> --log-failed` ↔ `mcp__github__get_workflow_run_logs(run_id)` 첫 10 줄). |
 | 게이트 (d) CI 결과 자체 없음 (check-runs 0개, run list `[]`) | STATUS=BLOCKED (reason: `ci-trigger-missing`). `consecutiveFails` 증가 X (실패 아님). 진단은 사용자 영역 (PR Actions 탭 메시지 / repo Settings → Actions / githubstatus.com). |
 
@@ -140,7 +140,7 @@ driver 는 raw MCP response (JSON 전문) 를 받자마자 **핵심 결과만 �
 
 `which gh` exit 0 / gh v2.x Active 환경 (사용자 local 머신 /loop session 등) 에서는 integrator 가 직접 `gh pr <subcommand>` / `gh run <subcommand>` 호출 가능 — 본 agent 본문의 모든 gh 라인이 그대로 실행 가능. 이 경우 driver 는 integrator 의 STATUS / SUMMARY 만 받고 MCP 호출 의무 없음.
 
-**comment post 시 (게이트 (c) self-finding 등)**: 반드시 body 를 tempfile 에 쓴 뒤 `gh pr comment <num> --body-file <tempfile>` (또는 짧은 단일 줄이면 `gh pr comment <num> --body "<inline>"`) 를 쓴다. **`gh pr comment --body @-` 또는 heredoc-to-stdin 패턴 절대 금지** — gh 는 stdin 을 읽지 않아 literal `@-` 가 comment 로 박제된다. reviewer.md L90/127 이 이미 `--body-file` 을 reference convention 으로 쓰므로 integrator 도 동일 패턴으로 정합한다. post 직후 `gh pr view <num> --json comments` 로 최신 comment body 가 의도한 텍스트인지 (literal `@-` / 빈 body 아닌지) 확인하고, 불일치하면 재post 한다. _(PR-154 incident: `--body @-` heredoc 미연결로 literal `@-` post → approval-gate CI 1 회 fail. `--body-file` 로 영구 차단.)_
+**comment post 시 (게이트 (c) self-finding 등)**: 반드시 body 를 tempfile 에 쓴 뒤 `gh pr comment <num> --body-file <tempfile>` (또는 짧은 단일 줄이면 `gh pr comment <num> --body "<inline>"`) 를 쓴다. **`gh pr comment --body @-` 또는 heredoc-to-stdin 패턴 절대 금지** — gh 는 stdin 을 읽지 않아 literal `@-` 가 comment 로 박제된다. reviewer.md 90/127 행 이 이미 `--body-file` 을 reference convention 으로 쓰므로 integrator 도 동일 패턴으로 정합한다. post 직후 `gh pr view <num> --json comments` 로 최신 comment body 가 의도한 텍스트인지 (literal `@-` / 빈 body 아닌지) 확인하고, 불일치하면 재post 한다. _(PR-154 incident: `--body @-` heredoc 미연결로 literal `@-` post → approval-gate CI 1 회 fail. `--body-file` 로 영구 차단.)_
 
 ### 4-게이트 평가 도구 unified ([ADR-0005 Decision 표](../../docs/decisions/ADR-0005-mcp-tools-for-pr-review-flow.md))
 
@@ -201,4 +201,4 @@ PR title·description·합의 코멘트·SUMMARY·BLOCKER details·journal 라�
 - **Never delete task file** — `status: DONE` frontmatter 만 갱신.
 - **Never force-push** — conflict 시 implementer 에게 rebase task 또는 escalate.
 - **Never inline reviewer verdict in PR body** — reviewer 위장 패턴 차단 (자체 점검 6 항목).
-- **Never evaluate gate (d) on the first CI run when reviewer-gate race is suspected** — `reviewer agent approval 검증` step 의 단독 fail 은 reviewer comment post 전 race 의 자연 결과로 expected. 반드시 reviewer comment post 가 trigger 한 second run (event=issue_comment, [.github/workflows/ci.yml](../../.github/workflows/ci.yml) L13-16 의 trigger) 의 conclusion 으로 게이트 (d) 평가. first run fail 만 보고 ad-hoc `gh run rerun` 호출하면 CI compute 1.5x 낭비 (auto-rerun + manual rerun 중복).
+- **Never evaluate gate (d) on the first CI run when reviewer-gate race is suspected** — `reviewer agent approval 검증` step 의 단독 fail 은 reviewer comment post 전 race 의 자연 결과로 expected. 반드시 reviewer comment post 가 trigger 한 second run (event=issue_comment, [.github/workflows/ci.yml](../../.github/workflows/ci.yml) 13~16 행 의 trigger) 의 conclusion 으로 게이트 (d) 평가. first run fail 만 보고 ad-hoc `gh run rerun` 호출하면 CI compute 1.5x 낭비 (auto-rerun + manual rerun 중복).

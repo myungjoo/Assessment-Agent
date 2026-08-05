@@ -2,7 +2,7 @@
 id: T-1499
 title: 범위 표기 규약 축 S3 batch 19 — 비-ADR `L` 축 `.claude/agents/*` 2 파일 (`integrator.md` · `reviewer.md`) 축 마감 slice — 개정판 R5 · R1 · R4 정규화 + 슬래시 압축 다좌표 · 문서 간 반복 좌표 · `.claude/` 메타 mode 근거 (rule 5 비원용) 판정 신설 (audit §12.97)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 120
