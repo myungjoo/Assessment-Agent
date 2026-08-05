@@ -2,7 +2,9 @@
 id: T-1500
 title: 실 DB round-trip 첫 perf-spec — `GET /api/persons` p95 실측 (REQ-048 mock 한계 해소 slice 1)
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-08-05T13:58:12Z
+prNumber: 1211
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 230
@@ -123,4 +125,18 @@ production code 변경은 **0** 이라 [CLAUDE.md](../../CLAUDE.md) §5 게이�
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- **문서 정합 3 종** — `docs/PLAN.md` P7 성능검증 bullet · `docs/ops/load-resilience-test-plan.md`
+  `§ 5` item 5 · `docs/requirements.md` REQ-048 재판정 이 아직 "실 DB round-trip 미실측" 으로
+  서술한다. 본 실측 머지로 어긋났으므로 `direct` doc-sync 로 갱신 → **T-1501 로 큐잉됨**.
+- **나머지 mock perf-spec 실 DB cutover 확대** — 본 slice 는 `GET /api/persons` 1 개만 실증했다.
+  나머지 read 계열 perf-spec 의 실 DB 전환은 후속 slice (endpoint 단위로 쪼개 cap 준수).
+
+## 완료 요약 (2026-08-05)
+
+- PR [#1211](https://github.com/myungjoo/Assessment-Agent/pull/1211) squash 머지 (main `0395c51e`).
+- `test/perf/person-read-realdb.perf-spec.ts` 신설 (8 test — happy 1 / error 1 / 분기 2 / negative 4 +
+  baseline 관찰 1) + `test/perf/README.md` 에 "실 DB round-trip baseline (첫 slice)" 절 추가. 2 파일 +300/-0.
+- production code (`src/`) 변경 0. 로컬 `lint` · `build` · `test:cov` green (line 99.95% / function 100%),
+  실 Postgres 의존 `test:perf` 는 CI 에서 green (perf 총 276 test).
+- 4-게이트 충족 — reviewer APPROVE comment 외부 존재 + CI `reviewer agent approval 검증` step success +
+  integrator 자체 점검 + CI green.
