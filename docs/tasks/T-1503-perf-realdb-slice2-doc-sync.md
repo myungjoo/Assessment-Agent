@@ -2,7 +2,7 @@
 id: T-1503
 title: 실 DB round-trip slice 2(T-1502) 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 50
@@ -111,3 +111,14 @@ T-1502 에서 `## 실 DB round-trip baseline (첫 slice)` → `## 실 DB round-t
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 기록
+
+- 완료 시각: 2026-08-05T16:44Z (fire `cron@aa-local-89e2d333-0630`)
+- 결과: direct doc-sync 3 파일 (+11/-7) main `dbc37cdb` push. slice 2(T-1502) 실측을
+  `docs/PLAN.md` `142 행` · `docs/ops/load-resilience-test-plan.md` `§ 5` item 5 ·
+  `docs/requirements.md` REQ-048 재판정 3 지점에 반영. perf-spec 36 / read 32 수치는 `ls` 실측값만 사용.
+  "대규모 membership N+1 규모 민감도 미측정" 잔여를 박제하고 완료 선언은 0
+  (PLAN `140 행` checkbox `[ ]` · REQ-048 `IN_PROGRESS` · 부하계획 item 5 미완 유지).
+- AC 8 항목 전부 ok. 코드 변경 0 이라 R-110 tester 면제 대상 (링크 실재 · 표 구조는 직접 검증).
+- 잔여 민감도 측정은 planner 가 T-1504 (pr-mode, slice 3) 로 큐잉.
