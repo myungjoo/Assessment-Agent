@@ -2,7 +2,7 @@
 id: T-1494
 title: 범위 표기 규약 축 S3 batch 14 — 비-ADR `L` 축 첫 slice (`p3-implementation-plan.md` 단독) 개정판 R5 · R1 · R4 정규화 + 개정판 R5 첫 적용 · 파일 성격 판정 · en dash 마감 사정 범위 판정 (audit §12.92)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 120
