@@ -2,12 +2,13 @@
 id: T-1479
 title: 범위 표기 규약 축 S2 — CLAUDE.md §12 정본 pointer 소절 + §3.1 rule 5 명문화 (audit §12.77)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 90
 estimatedFiles: 3
 created: 2026-08-05
+completedAt: 2026-08-05T02:45:00Z
 independentStream: uc-doc-audit-resync
 dependsOn: [T-1478]
 touchesFiles:
