@@ -132,7 +132,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 4. **CI 통합** — 부하 harness 를 `.github/workflows/` 에 별도 job(정기/수동 trigger)으로
    편입. 상시 PR CI 와 분리(부하는 무거움).
 5. **baseline 확정 + 임계 fix** — 최초 실측으로 §3 의 "baseline 후 fix" 임계를 실 수치로
-   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 3 까지 도달**: slice 1(T-1500, main
+   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 4 까지 도달**: slice 1(T-1500, main
    `0395c51e`) 의 [`person-read-realdb.perf-spec.ts`](../../test/perf/person-read-realdb.perf-spec.ts)
    가 mock override 0 부트스트랩 + 실 Prisma seed 로 `GET /api/persons` 의 p95 < 3000ms 를 실측했고,
    slice 2(T-1502, main `97198504`) 의
@@ -143,12 +143,20 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    [`group-persons-scale-realdb.perf-spec.ts`](../../test/perf/group-persons-scale-realdb.perf-spec.ts)
    가 slice 2 와 **같은 route** (`GET /api/groups/:id/persons`) 를 membership **5 건 vs 60 건** 두
    표본으로 측정해 규모가 커져도 p95 < 3000ms 가 유지됨을 실측했다 — 즉 slice 3 이 늘린 것은
-   route 폭이 아니라 **규모 축** 이므로 실측 범위는 여전히 **2 endpoint (조회 4 route)** 다(정본
+   route 폭이 아니라 **규모 축** 이었다. 그다음 slice 4(T-1506, main `861add36`) 의
+   [`assessment-read-realdb.perf-spec.ts`](../../test/perf/assessment-read-realdb.perf-spec.ts)
+   (9 test) 가 세 번째 endpoint 도메인인 `AssessmentController` 의 조회 2 route
+   (`GET /api/assessments?personId=&period=` · `GET /api/assessments/:id`) 를 **실 JWT 로
+   `JwtAuthGuard` + `RolesGuard` 를 통과하며** 측정해 인증 layer + DB round-trip 을 모두 포함한
+   경로에서도 p95 < 3000ms 임을 실측했다(401 분기로 guard 생존 확인, `@@index([personId, period,
+   periodStart])` 를 타는 필터 + 다중 row 경로라 앞 slice 의 flat 목록 · N+1 loop 와 구조가 다르다).
+   slice 4 는 route 폭을 늘렸으므로 실측 범위는 **3 endpoint (조회 6 route)** 다(정본
    서술 = [`test/perf/README.md`](../../test/perf/README.md) 의
    `## 실 DB round-trip baseline (slice 목록)`).
    단 **본 item 은 미완** — `buildBaselineReport` + `formatBaselineLine` 은 **관찰 전용**
    이고 `writeBaselineFile` / `confirmOrCompareBaseline` 는 미사용이라 baseline 파일 확정이
    성립하지 않으며, §3 의 "baseline 후 fix" 임계 fix 도 미착수다. **잔여**: baseline 파일
    확정 · 임계 fix · 측정 endpoint 확대(나머지 read perf-spec 30 개는 service mock 잔존 —
-   slice 3 은 파일명에 `read` 가 없어 이 개수를 바꾸지 않는다) · **다른 endpoint 의 규모
+   계산식은 read 33 개 − 실 DB read 3 개이며, slice 4 는 파일명에 `read` 가 있어 피감수와 감수가
+   함께 1 씩 늘어 차이 30 은 불변이다) · **다른 endpoint 의 규모
    민감도**(규모 축 실측은 `:id/persons` 한 route 에 한해 도달).
