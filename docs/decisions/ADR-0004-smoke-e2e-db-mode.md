@@ -12,7 +12,7 @@ amendments: []
 
 ## Context
 
-본 ADR 은 [PLAN.md L66](../PLAN.md) 가 2026-05-26 사용자 commit `d27a47d` 로 추가한 P3 test-quality bullet — **"CI smoke/e2e real PostgreSQL 전환"** — 을 정식 의사결정으로 박제한다. 해당 bullet 본문이 "**ADR 동반** — mock vs real 의 trade-off (CI 속도 vs 통합 정확도) 박제 + 선택 사유 + 후속 e2e cleanup (`afterEach` truncate) 정책" 을 명시 요구한다.
+본 ADR 은 [PLAN.md 66 행](../PLAN.md) 가 2026-05-26 사용자 commit `d27a47d` 로 추가한 P3 test-quality bullet — **"CI smoke/e2e real PostgreSQL 전환"** — 을 정식 의사결정으로 박제한다. 해당 bullet 본문이 "**ADR 동반** — mock vs real 의 trade-off (CI 속도 vs 통합 정확도) 박제 + 선택 사유 + 후속 e2e cleanup (`afterEach` truncate) 정책" 을 명시 요구한다.
 
 현재 상태:
 
@@ -23,7 +23,7 @@ amendments: []
 
 - **REQ-029** ([README.md](../../README.md) 56 행 — 평가 자료 **non-volatile 저장**): 실 DB 통합 검증 0 은 REQ-029 정합의 사각지대. 실 PostgreSQL durability path 가 CI 안에서 한 번이라도 발화돼야 정합 검증이 의미를 갖는다.
 - **REQ-058** ([README.md](../../README.md) 운영 정책 underlying — 운영 시 사람이 개입하지 않고 코드 평가 자동화): test 정책의 자동화는 ADR 박제로만 long-horizon 일관성이 보장된다.
-- **사용자 정책 변경 2026-05-26** ([PLAN.md L66](../PLAN.md), commit `d27a47d`): mock 이 아닌 **실 PostgreSQL 을 CI 안에서 직접 띄워 통합 검증** 으로 정책 전환. 본 ADR 의 1 차 trigger.
+- **사용자 정책 변경 2026-05-26** ([PLAN.md 66 행](../PLAN.md), commit `d27a47d`): mock 이 아닌 **실 PostgreSQL 을 CI 안에서 직접 띄워 통합 검증** 으로 정책 전환. 본 ADR 의 1 차 trigger.
 
 [ADR-0002](ADR-0002-db.md) reference: PostgreSQL + Prisma 채택의 기반 ADR. **본 ADR 은 ADR-0002 의 supersede 가 아닌 test layer 의 보강** — ADR-0002 는 production / dev / 운영 DB 선택, 본 ADR 은 CI 의 smoke/e2e test 가 그 DB 위에서 어떻게 돌지의 정책.
 
@@ -127,7 +127,7 @@ export async function truncateAll(prisma: PrismaService): Promise<void> {
 - [ADR-0001](ADR-0001-stack.md) — Jest + supertest test stack (본 ADR 의 jest hook 사용 source)
 - [ADR-0002](ADR-0002-db.md) — PostgreSQL + Prisma 채택 (본 ADR 의 기반, supersede 0 / 보강)
 - [ADR-0003](ADR-0003-deployment.md) — Monolith / 단일 DB 인스턴스 (본 ADR 의 CI service container 단일성과 정합)
-- [PLAN.md L66](../PLAN.md) — 사용자 추가 bullet (commit `d27a47d`, 본 ADR 의 1 차 trigger)
+- [PLAN.md 66 행](../PLAN.md) — 사용자 추가 bullet (commit `d27a47d`, 본 ADR 의 1 차 trigger)
 - [.github/workflows/ci.yml](../../.github/workflows/ci.yml) — 현 CI 워크플로우 (후속 T-0052 변경 대상)
 - [test/helpers/prisma-mock.ts](../../test/helpers/prisma-mock.ts) — mock 패턴 (unit-only 보조 유지 결정)
 - [test/jest-smoke.json](../../test/jest-smoke.json) / [test/jest-e2e.json](../../test/jest-e2e.json) — jest config (후속 T-0052 의 cleanup hook 부착 대상)

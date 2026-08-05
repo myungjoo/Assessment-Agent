@@ -20,15 +20,15 @@ supersedes: null
 이 audience 모델은 **기존 코드에 없는 cross-cutting 계약**이다:
 
 - **`RolesGuard`/`@Roles`**([src/auth/roles.guard.ts](../../src/auth/roles.guard.ts) / [roles.decorator.ts](../../src/auth/roles.decorator.ts)) — `ROLE_HIERARCHY`(SuperAdmin ⊇ Admin ⊇ User) escalation 매핑으로 **role tier 검사만** 제공한다. "자기 instance" scoping 개념이 없다 — guard 는 미인증 시 401, role 부족 시 403 throw 하나 instance 단위 row-level 필터는 책임 밖.
-- **`JwtPayload`**([src/auth/auth.service.ts](../../src/auth/auth.service.ts) L36~42) — `sub`(userId) + `role`(String literal) **2 claim 만** 보유한다. 사용자를 어느 instance 에 묶는 binding(어느 GitHub host / Confluence baseUrl 을 운영하는가)이 **없다**.
+- **`JwtPayload`**([src/auth/auth.service.ts](../../src/auth/auth.service.ts) 36~42 행) — `sub`(userId) + `role`(String literal) **2 claim 만** 보유한다. 사용자를 어느 instance 에 묶는 binding(어느 GitHub host / Confluence baseUrl 을 운영하는가)이 **없다**.
 - **`PermissionDeniedRecord.instanceRef`**([ADR-0022 §1](ADR-0022-permission-denied-record-data-model.md)) — GitHub configured host(예: `github.sec.samsung.net`) / Confluence 풀 REST base URL(예: `https://acme.atlassian.net/wiki/rest/api`)의 **free-form 문자열**이다. "사용자 identity → 허용 instance 집합" 매핑 규칙이 미정의다.
 
 따라서 Q-0020 recommendation 대로 **controller 코드보다 먼저 ADR 로 audience/필터 계약을 박제**한다([ADR-0021](ADR-0021-github-confluence-live-integration-test-contract.md)/[ADR-0022](ADR-0022-permission-denied-record-data-model.md) ADR-first 패턴 mirror) — reviewer 가 구현 전 계약을 점검하고 후속 controller slice 가 단일 source 를 mirror 하도록. 본 task 는 ADR doc + INDEX 1 row 만 — production code 0.
 
 ### REQ 외력
 
-- **REQ-016** ([README.md](../../README.md) L33) — 권한 부족의 **user/admin audience 분리**. 본 ADR 이 그 분리를 audit 조회 경로의 RBAC scope(Admin 전체 vs non-Admin 자기 instance)로 매핑한다. [ADR-0022 §REQ 외력](ADR-0022-permission-denied-record-data-model.md)이 record 를 "audience 분리 view 의 data source" 로 박제했고, 본 ADR 이 그 view 의 조회 audience 계약을 박제한다.
-- **REQ-044** ([README.md](../../README.md) L19~22, L33) — instance / SPACE 별 권한 분리 + 권한 거부 가시화. 본 ADR 의 조회 endpoint 가 그 "가시화" 를 운영자 조회 경로로 완성한다 — record 영속화([ADR-0022](ADR-0022-permission-denied-record-data-model.md))는 audit 를 저장만 했고, 본 endpoint 가 instance 별 권한 분리를 조회 측에서 강제한다.
+- **REQ-016** ([README.md](../../README.md) 33 행) — 권한 부족의 **user/admin audience 분리**. 본 ADR 이 그 분리를 audit 조회 경로의 RBAC scope(Admin 전체 vs non-Admin 자기 instance)로 매핑한다. [ADR-0022 §REQ 외력](ADR-0022-permission-denied-record-data-model.md)이 record 를 "audience 분리 view 의 data source" 로 박제했고, 본 ADR 이 그 view 의 조회 audience 계약을 박제한다.
+- **REQ-044** ([README.md](../../README.md) 19~22, 33 행) — instance / SPACE 별 권한 분리 + 권한 거부 가시화. 본 ADR 의 조회 endpoint 가 그 "가시화" 를 운영자 조회 경로로 완성한다 — record 영속화([ADR-0022](ADR-0022-permission-denied-record-data-model.md))는 audit 를 저장만 했고, 본 endpoint 가 instance 별 권한 분리를 조회 측에서 강제한다.
 
 ### 기존 RBAC stack (본 ADR 이 따를 source)
 
@@ -63,7 +63,7 @@ audit 조회의 audience 를 3 tier 로 박제한다([README.md](../../README.md
 
 사용자 identity(`JwtPayload`)를 record `instanceRef`(GitHub host / Confluence baseUrl)에 매핑하는 규칙을 박제한다:
 
-- **현 `JwtPayload`(`sub`+`role`)에 instance binding 부재 (명시)** — [src/auth/auth.service.ts](../../src/auth/auth.service.ts) L36~42 상 `JwtPayload` 는 `sub`(userId) + `role` 2 claim 만 보유한다. "이 사용자가 어느 instance 를 운영하는가" 를 도출할 claim 이 없다. 따라서 own-instance 필터를 **현 JwtPayload 만으로 도출할 수 없다**.
+- **현 `JwtPayload`(`sub`+`role`)에 instance binding 부재 (명시)** — [src/auth/auth.service.ts](../../src/auth/auth.service.ts) 36~42 행 상 `JwtPayload` 는 `sub`(userId) + `role` 2 claim 만 보유한다. "이 사용자가 어느 instance 를 운영하는가" 를 도출할 claim 이 없다. 따라서 own-instance 필터를 **현 JwtPayload 만으로 도출할 수 없다**.
 - **(a) 매핑 데이터 source 결정 — User entity 의 instance 연계 (allowed instance set)** — 사용자 → 허용 instance 집합 매핑은 **User entity(또는 User↔instance 연계 테이블)에 보유하는 allowed-instance 데이터** 를 source 로 한다. controller 가 `@CurrentUser("sub")` 로 userId 를 받아 그 사용자의 허용 instance 집합(`instanceRef[]`)을 조회하고, 그 집합으로 `findMany` 의 `instanceRef in (...)` 필터를 강제 주입한다(Decision §3). JWT claim 에 instance 를 싣지 않고 server-side lookup 으로 도출하는 이유: (i) claim 비대화 회피, (ii) instance 권한 변경 시 토큰 재발급 불요(server-side 최신값 반영), (iii) JwtPayload 확장(별도 ADR/migration) 회피.
 - **(b) 그 source 가 현 schema 에 부재 — 별도 선행 task 경계 (명시)** — **현 `User` entity 에는 instance 연계 컬럼/테이블이 존재하지 않는다**. 따라서 own-instance 필터의 실 결선은 **선행 schema 확장(User↔instance allowed-set 컬럼/테이블 + migration)을 요구**한다. 이는 [CLAUDE.md §5](../../CLAUDE.md) DB schema 게이트 대상이므로 **별도 선행 task/ADR 로 박제**한다(본 ADR 의 후속 chain 에 선행 task 로 나열). 본 controller slice 는 그 선행 task 머지 후 own-instance 필터를 결선한다 — **JwtPayload 를 본 slice 에서 확장하지 않는다**(Decision §2 결론: server-side User lookup, claim 확장 회피).
 - **free-form `instanceRef` 매칭 경계 — exact match (명시 채택)** — `instanceRef` 문자열 매칭은 **exact match**(허용 집합의 정규화된 instanceRef 와 record 의 instanceRef 가 정확히 일치)로 한다(prefix / substring 아님). 사유: (i) prefix 매칭은 `github.sec.samsung.net` 이 `github.sec.samsung.net.evil.com` 류를 의도치 않게 포함할 host-spoofing risk, (ii) record 의 instanceRef 는 adapter 가 박제한 정규화된 configured host / 풀 base URL([ADR-0022 §1](ADR-0022-permission-denied-record-data-model.md))이라 exact 비교가 정확, (iii) [ADR-0019](ADR-0019-same-host-auth-restriction-for-pagination.md) 의 same-host strict equal(subdomain 불허) 정합. 매칭 정규화(case / trailing slash)는 후속 slice 가 source 박제 시 확정.
@@ -147,7 +147,7 @@ audit 조회의 응답 경계를 박제한다:
 - [docs/decisions/ADR-0019-same-host-auth-restriction-for-pagination.md](ADR-0019-same-host-auth-restriction-for-pagination.md) — strict equal(subdomain 불허) + 정보 노출 최소화 invariant(Decision §2 exact match / Decision §4 빈-필터 정합)
 - [docs/decisions/ADR-0008-auth-credential-type.md](ADR-0008-auth-credential-type.md) — JWT / JwtPayload(`sub`+`role`) claim 계약(Decision §2 claim 비확장 경계)
 - [src/auth/roles.guard.ts](../../src/auth/roles.guard.ts) / [roles.decorator.ts](../../src/auth/roles.decorator.ts) — `ROLE_HIERARCHY` escalation + 401/403 throw 위상(Decision §1/§3/§4 정합 source)
-- [src/auth/auth.service.ts](../../src/auth/auth.service.ts) L36~42 / [current-user.decorator.ts](../../src/auth/current-user.decorator.ts) — `JwtPayload`(`sub`+`role`) + `@CurrentUser()` 추출(Decision §2 instance binding 부재 근거)
+- [src/auth/auth.service.ts](../../src/auth/auth.service.ts) 36~42 행 / [current-user.decorator.ts](../../src/auth/current-user.decorator.ts) — `JwtPayload`(`sub`+`role`) + `@CurrentUser()` 추출(Decision §2 instance binding 부재 근거)
 - [src/llm/llm-provider-config.controller.ts](../../src/llm/llm-provider-config.controller.ts) — controller RBAC stack(`@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles`) mirror 대상(Decision §5)
 - [src/permission-denied/permission-denied-record.service.ts](../../src/permission-denied/permission-denied-record.service.ts) / [permission-denied-record.repository.ts](../../src/permission-denied/permission-denied-record.repository.ts) — 기존 `list(query?)` / `findMany(filter?)` 필터(Decision §3 own-instance 필터 layer 근거)
 - [docs/architecture/INDEX.md](../architecture/INDEX.md) — ADR 목록 row 추가 대상(본 ADR-0023 row)

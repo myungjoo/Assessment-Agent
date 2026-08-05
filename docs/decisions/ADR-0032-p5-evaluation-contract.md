@@ -14,9 +14,9 @@ supersedes: null
 
 ## Context
 
-P4 수집(collection) layer 는 [ADR-0029](ADR-0029-assessment-collection-orchestrator.md) / [ADR-0030](ADR-0030-assessment-collection-enumerate.md) / [ADR-0031](ADR-0031-collection-manual-trigger.md) 로 완결됐다 — GitHub 3 instance(com/sec/ecode) × org × repo 의 commit/PR/issue + Confluence 지정 SPACE 의 page 를 typed `Activity`([src/assessment-collection/domain/activity.ts](../../src/assessment-collection/domain/activity.ts)) 로 매핑하고, 수집-side dedup(commit SHA earliest-wins / page-id+version latest-wins)·author 귀속까지 박제됐다. LLM provider 추상화도 P4 milestone-1 에서 완결 — `LlmHttpGateway`([src/llm/llm-http-gateway.service.ts](../../src/llm/llm-http-gateway.service.ts)) 가 5 provider(azure_openai/custom/openai/anthropic/google_gemini) dispatch + 난이도 routing([ADR-0011](ADR-0011-difficulty-model-assignment.md))을 구현해 머지됐다. **그러나 수집 산출물(`Activity`)을 실제로 점수화(scoring)하는 평가 layer 가 0 이다** — `LlmHttpGateway` 는 자기 test 외 caller 가 0, [PLAN.md](../PLAN.md) Phase P5(L94~106) "단위 commit/document 평가(난이도·기여도·양)" bullet 은 미진입이다.
+P4 수집(collection) layer 는 [ADR-0029](ADR-0029-assessment-collection-orchestrator.md) / [ADR-0030](ADR-0030-assessment-collection-enumerate.md) / [ADR-0031](ADR-0031-collection-manual-trigger.md) 로 완결됐다 — GitHub 3 instance(com/sec/ecode) × org × repo 의 commit/PR/issue + Confluence 지정 SPACE 의 page 를 typed `Activity`([src/assessment-collection/domain/activity.ts](../../src/assessment-collection/domain/activity.ts)) 로 매핑하고, 수집-side dedup(commit SHA earliest-wins / page-id+version latest-wins)·author 귀속까지 박제됐다. LLM provider 추상화도 P4 milestone-1 에서 완결 — `LlmHttpGateway`([src/llm/llm-http-gateway.service.ts](../../src/llm/llm-http-gateway.service.ts)) 가 5 provider(azure_openai/custom/openai/anthropic/google_gemini) dispatch + 난이도 routing([ADR-0011](ADR-0011-difficulty-model-assignment.md))을 구현해 머지됐다. **그러나 수집 산출물(`Activity`)을 실제로 점수화(scoring)하는 평가 layer 가 0 이다** — `LlmHttpGateway` 는 자기 test 외 caller 가 0, [PLAN.md](../PLAN.md) Phase P5(94~106 행) "단위 commit/document 평가(난이도·기여도·양)" bullet 은 미진입이다.
 
-또한 P4 의 마지막 미완 bullet [L82](../PLAN.md)(GitHub Issue 평가 R-30 + self-follow-up 소비 제외)는 stale doc 가 아니라 진짜 미구현 backlog 인데, [Q-0027](../STATE.json) 결정으로 이를 P4 수집-side 에 끼우지 않고 **P5 평가 계약 안으로 흡수**한다. 핵심 risk 는 "평가 단위를 무엇으로 정의하고(commit/document/issue 를 어떻게 통일), 어떤 입력 shape 로 LLM 에 넘기며, 난이도·기여도·양을 어떻게 산출하고, 중복제거·self-follow-up 제외를 어디에 두는가"이므로 — 본 ADR 이 이 설계를 먼저 박제(de-risk)하고 구현 slice 로 분해한다.
+또한 P4 의 마지막 미완 bullet [82 행](../PLAN.md)(GitHub Issue 평가 R-30 + self-follow-up 소비 제외)는 stale doc 가 아니라 진짜 미구현 backlog 인데, [Q-0027](../STATE.json) 결정으로 이를 P4 수집-side 에 끼우지 않고 **P5 평가 계약 안으로 흡수**한다. 핵심 risk 는 "평가 단위를 무엇으로 정의하고(commit/document/issue 를 어떻게 통일), 어떤 입력 shape 로 LLM 에 넘기며, 난이도·기여도·양을 어떻게 산출하고, 중복제거·self-follow-up 제외를 어디에 두는가"이므로 — 본 ADR 이 이 설계를 먼저 박제(de-risk)하고 구현 slice 로 분해한다.
 
 ### 외력
 
@@ -31,10 +31,10 @@ P4 수집(collection) layer 는 [ADR-0029](ADR-0029-assessment-collection-orches
 
 **채택: 기존 `Activity` discriminated union 을 평가 입력의 source 로 재사용 + 평가-layer 신규 타입 `EvaluationInput` 으로 정규화(normalize)**.
 
-- 평가 단위(evaluation unit)의 source 는 수집 산출물 `Activity`(= `GithubActivity`(kind=commit/pr/issue) | `ConfluenceActivity`) 그대로다 — 평가 layer 는 수집을 재구현하지 않고 consume 만 한다(ADR-0029 SRP 경계 존중). **GitHub Issue 는 별도 source type 이 아니라 `GithubActivity` 의 `kind="issue"` 변형으로 이미 수집된다**([github-activity.mapper.ts](../../src/assessment-collection/domain/github-activity.mapper.ts) resolveKind (c)) — L82 "Issue 를 문서 기여로 평가"는 평가 layer 가 `kind="issue"` 활동을 문서 기여 category 로 점수화하는 routing 으로 충족한다.
+- 평가 단위(evaluation unit)의 source 는 수집 산출물 `Activity`(= `GithubActivity`(kind=commit/pr/issue) | `ConfluenceActivity`) 그대로다 — 평가 layer 는 수집을 재구현하지 않고 consume 만 한다(ADR-0029 SRP 경계 존중). **GitHub Issue 는 별도 source type 이 아니라 `GithubActivity` 의 `kind="issue"` 변형으로 이미 수집된다**([github-activity.mapper.ts](../../src/assessment-collection/domain/github-activity.mapper.ts) resolveKind (c)) — 82 행 "Issue 를 문서 기여로 평가"는 평가 layer 가 `kind="issue"` 활동을 문서 기여 category 로 점수화하는 routing 으로 충족한다.
 - **신규 평가-layer 타입 `EvaluationInput`**(예: `src/assessment-evaluation/domain/evaluation-input.ts`, 후속 slice) — commit / document / issue 를 단일 평가 파이프라인이 다루도록 공통 shape 로 정규화한다. 핵심 필드:
   - `unitId: string` — 평가 단위 고유 식별(= `Activity.externalId` 또는 `<sourceType>:<instanceKey>:<externalId>` 합성, dedup key 와 정합).
-  - `contributionKind` — 평가 category discriminator. **`"code" | "document"` 2 종으로 정규화**: GitHub commit/PR → `code`, GitHub issue + Confluence page → `document`. 이 정규화가 "Issue 를 문서 기여로 평가"(L82/R-30)를 계약 차원에서 박제한다.
+  - `contributionKind` — 평가 category discriminator. **`"code" | "document"` 2 종으로 정규화**: GitHub commit/PR → `code`, GitHub issue + Confluence page → `document`. 이 정규화가 "Issue 를 문서 기여로 평가"(82 행/R-30)를 계약 차원에서 박제한다.
   - `sourceType` / `instanceKey` / `author` / `timestamp` — `Activity` 에서 그대로 전사(귀속·시간적 dedup·since 기준값 보존).
   - `metadata: ActivityMetadata` — `Activity.metadata`(scalar only — REQ-032)를 그대로 전달. 평가 입력의 정량 신호(title 길이 등) source.
 - **신규 vs 재사용 경계**: source 타입(`Activity`)은 재사용, 평가 정규화 타입(`EvaluationInput`)은 신규다. 이유 — `Activity` 의 discriminator(`sourceType`=github/confluence, `kind`=commit/pr/issue)는 **수집 출처** 축이고, 평가는 **기여 category**(code/document) 축으로 다뤄야 통합 scoring 이 가능하다. 두 축을 한 타입에 묶으면 평가 routing 이 출처 분기로 오염된다. `Activity` → `EvaluationInput` 변환은 별도 순수 함수 mapper layer(후속 slice)가 단독 책임(github-activity.mapper 패턴 mirror).
@@ -45,7 +45,7 @@ P4 수집(collection) layer 는 [ADR-0029](ADR-0029-assessment-collection-orches
 
 - `LlmHttpGateway` 의 기존 [generate 시그니처](../../src/llm/llm-gateway.interface.ts)(`generate(prompt: string, options: LlmGenerateOptions): Promise<LlmGenerateResult>`)를 **변경 없이 재사용**한다 — 평가 layer 는 prompt 문자열을 조립하는 책임만 추가한다(gateway 확장 0). 호환/확장 경계: `LlmGenerateOptions.difficulty`(선택)에 (3)의 난이도 분류 결과를 넣어 난이도 routing(R-97, ADR-0011)을 그대로 활용한다. `modelId` 는 difficulty 미제공 fallback 경로용.
 - **prompt 입력 typed 필드(raw 본문 미포함, REQ-032)**: `contributionKind`(code/document) + `sourceType` + `metadata` 의 scalar 신호(예: titleLength) + `timestamp` 만. **commit message 전문 / issue body / page 본문 HTML 은 prompt 에 절대 포함하지 않는다** — `Activity`/`EvaluationInput` 이 애초에 raw 본문 필드를 보유하지 않으므로(REQ-032 schema-level 부재) 구조적으로 불가능. 정성 평가의 source 텍스트가 필요하면 그 확장은 raw-not-stored invariant 와 충돌하므로 **별도 ADR 필수**(본 ADR 은 typed-metadata-only 전제).
-- **batch 경계**: 본 계약은 평가 단위 1 건당 generate 1 회를 default 로 박제한다(단순·결정적·실패 격리). 일/주/월 aggregate 평가(PLAN P5 L97)의 batch prompting 은 본 단위 평가의 상위 layer 책임으로 후속 slice 에서 별도 설계(본 ADR 범위 밖).
+- **batch 경계**: 본 계약은 평가 단위 1 건당 generate 1 회를 default 로 박제한다(단순·결정적·실패 격리). 일/주/월 aggregate 평가(PLAN P5 97 행)의 batch prompting 은 본 단위 평가의 상위 layer 책임으로 후속 slice 에서 별도 설계(본 ADR 범위 밖).
 
 ### (3) 난이도·기여도·양 output 산출 — LLM 정성 + metric 수치 결합
 
@@ -76,7 +76,7 @@ P4 수집(collection) layer 는 [ADR-0029](ADR-0029-assessment-collection-orches
 
 ### 긍정
 
-- commit / document / GitHub Issue 가 **단일 평가 계약**(`EvaluationInput` → `generate` → `EvaluationResult`)으로 통일돼 L82(Issue 평가)가 P5 scoring 안에서 자연스럽게 cover 된다 — 수집-side 에 억지로 끼우는 재작업 risk 제거(Q-0027 recommendation 정합).
+- commit / document / GitHub Issue 가 **단일 평가 계약**(`EvaluationInput` → `generate` → `EvaluationResult`)으로 통일돼 82 행(Issue 평가)가 P5 scoring 안에서 자연스럽게 cover 된다 — 수집-side 에 억지로 끼우는 재작업 risk 제거(Q-0027 recommendation 정합).
 - self-follow-up 제외가 평가-side 에 위치해 "어떤 활동을 어떻게 점수화·중복제거하는가"의 책임 일원화 — 수집 layer 는 source-of-truth 유지(ADR-0029 SRP 보존).
 - `LlmHttpGateway.generate` 시그니처 무변경 재사용 + 난이도 routing(ADR-0011) 그대로 활용 — 새 외부 dependency 0, gateway 확장 0.
 - REQ-032 raw-not-stored 가 평가 입력 차원에서도 구조적으로 보존(typed-metadata-only prompt).
