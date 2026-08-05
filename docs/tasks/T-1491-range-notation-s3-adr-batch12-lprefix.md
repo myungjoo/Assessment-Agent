@@ -2,7 +2,7 @@
 id: T-1491
 title: 범위 표기 규약 축 S3 batch 12 — `L` 축 ADR 3 파일 (`ADR-0008` · `ADR-0046` · `ADR-0015`) R5·R4 정규화 + 기판정 면제 좌표 재방문 (res judicata) · 동일 좌표 2 형태 반복 · `§` prefix 좌표 판정 (audit §12.89)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-057]
 estimatedDiff: 110
