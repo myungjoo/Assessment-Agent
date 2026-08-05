@@ -1,0 +1,74 @@
+---
+id: T-1478
+title: 범위 표기 규약 축 S1 — 초안 7 조 반례 실측 검증 후 규약 정본 승격 (audit §12.76)
+phase: P5
+status: PENDING
+commitMode: direct
+coversReq: [REQ-057]
+estimatedDiff: 140
+estimatedFiles: 2
+created: 2026-08-05
+independentStream: uc-doc-audit-resync
+dependsOn: [T-1477]
+touchesFiles:
+  - docs/use-cases/REQ-COVERAGE-AUDIT.md
+  - docs/tasks/T-1478-range-notation-convention-s1-canonical.md
+plannerNote: "uc-doc-audit-resync 90 번째 slice — §12.75 분해안 1 순위 S1 집행. 초안 7 조 반례 검증 후 정본 승격, direct 2 파일"
+---
+
+# T-1478 — 범위 표기 규약 S1: 초안 7 조 반례 검증 + 정본 승격
+
+## Why
+
+[T-1477](T-1477-range-notation-convention-census-and-draft.md) 이 [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) `§ 12.75` 로 범위 표기 규약 축의 **게이트 산출 4/4** (census · 초안 7 조 · 박제 위치 · 분해안) 를 확정했다. 그 분해안이 **1 순위로 지목한 slice 가 S1 = 규약 정본 승격** 이며, 사유는 "조문이 초안인 동안에는 후속 어떤 slice 도 인용할 **정본** 이 없어 축이 진행 불가" 다 (`§ 12.75` AC 4 (d)). 즉 S2 (`CLAUDE.md` §12 pointer) · S3 (ADR 혼용 정규화) 는 본 slice 없이는 인용 대상이 없다.
+
+`§ 12.75` 한계 2 는 초안 7 조가 **미검증 상태** 이며 특히 조문 **(e) `L` prefix 폐지 ↔ 파일 내 일관성 존치** 가 서로 충돌할 수 있음을 S1 몫으로 남겼다. 본 slice 는 그 반례를 **집계값으로 실측** 한 뒤 조문을 확정해 `§ 12.76` 을 **정본** 으로 승격한다. 발효 범위는 `§ 12.75` AC 4 (b) 의 **전면 소급 치환 금지** 판정을 그대로 승계한다 (신규 작성분부터 적용).
+
+[PLAN.md](../PLAN.md) 의 미완 bullet (106 · 108 · 109 · 140 · 151) 은 owner 게이트 · 외부 credential · 새 dependency 게이트라 planner 단독 진행 불가이므로 본 doc stream 이 현 시점 우선순위 최상위다.
+
+## Required Reading
+
+- `docs/use-cases/REQ-COVERAGE-AUDIT.md` — **6846 행 (T-1477 후 실측)**. 다음 좌표만 연다. **`§ 12.15` · `§ 12.44` ~ `§ 12.74` 본문은 열지 않는다** (판정 · 정정 재고 0 · 재판정 금지).
+  - **`### 12.75`** (**6763 ~ 6832 행**) — 직전 slice **전량**. census 표 (AC 1) · 초안 7 조 (AC 2) · 위치 판정 (AC 3) · 분해안 (AC 4) · 한계 4 를 승계한다. 본 slice 의 유일한 조문 원천이다.
+  - **`## 11. References`** 좌표 (**현재 6833 행** — `§ 12.76` 삽입 위치 경계, AC 4 에서 재실측).
+- `CLAUDE.md` — **무편집**. §3.1 표 (commit mode) · §7 (context 절약) · §9 · §12 (언어) 만 참조.
+- **census 대상 파일군 본문은 열지 않는다** — AC 1 반례 검증은 `grep -l` · `grep -c` **집계값과 파일명** 만 쓴다. 파일 본문 열람 금지 (context 보호 · 본 slice 는 편집 대상 문서가 0).
+
+## Acceptance Criteria
+
+- [ ] **AC 1 — 초안 7 조 반례 실측 (최소 3 조 · `(e)` 필수)**: `§ 12.75` AC 2 의 조문 (a) ~ (g) 중 **grep 으로 반증 가능한 3 조 이상** 을 실측한다. **(e) 는 필수** — `L` prefix 를 쓰는 파일 목록을 `grep -lE 'L[0-9]+-[0-9]+'` 로 뽑고, 그 파일들이 **동시에 `~` 표기도 쓰는지** (`grep -cE '[0-9]+ *~ *[0-9]+'`) 를 대조해 **"파일 내 일관성 존치" 조건이 실제로 성립하는 파일 수 / 이미 혼용이라 존치 근거가 없는 파일 수** 를 집계한다. 나머지 2 조 이상은 (a) 최빈 형식 재확인 또는 (d) 금지 대상인 `N~N` (같은 수 반복) 표기의 잔존 건수 등 **집계로 반증 가능한 것** 을 고른다.
+  - 사용한 명령을 그대로 **1 블록** 적고, 결과는 **표 1 개 (조문 · 반례 유무 · 집계값 · 판정)** 로만 박제한다. **파일별 나열은 `L` prefix 파일 목록에 한해 허용** (16 hit · 소수) 하고 그 외 문서군은 합산만.
+  - 반례 검증이 **불가능한 조문** ((b) 경계 포함 · (c) 빈 줄 배제 · (f) 병기 화법 · (g) 시점 기록) 은 "grep 반증 불가 — `§ 12.68` ~ `§ 12.74` 실판정 승계" 를 **각 1 구** 로 적고 새 판정을 만들지 않는다.
+- [ ] **AC 2 — 조문 확정 (초안 → 정본) + 개정 대조**: AC 1 결과를 반영해 **정본 조문 7 개** 를 확정한다. 각 조문은 **① 규범 문장 1 (MUST/SHOULD 상당의 한국어 단정) · ② 예시 1 (올바른 표기 1 개, 필요 시 금지 표기 1 개 병기) · ③ 근거 좌표 1** 3 요소를 갖춘다. 조문 번호는 **`R1` ~ `R7`** 로 부여해 후속 slice 가 `§ 12.76 R3` 형태로 인용할 수 있게 한다.
+  - **개정 대조 1 구 이상** — 초안 (a) ~ (g) 대비 **유지 / 개정 / 조건 추가** 를 조문마다 표기한다 (예: `(e) → R5 조건 추가`). AC 1 이 반례를 찾은 조문은 반드시 개정 사유를 1 구 적는다. 반례가 없으면 "반례 0 — 초안 그대로 승격" 을 적는다.
+  - **조문 수는 7 유지** — 병합 · 신설이 필요하다고 판단되면 실행하지 말고 `파생 영향` 에 후보로만 남긴다 (본 slice 는 승격이지 재설계가 아니다).
+- [ ] **AC 3 — 정본 신분 · 적용 범위 · 발효 선언**: 다음 3 항을 **각 1 ~ 2 구** 로 명문화한다 — ① **정본 좌표 선언**: 본 절 `§ 12.76` 이 범위 표기 규약의 **정본** 이며 `§ 12.75` AC 2 는 **초안 (superseded by `§ 12.76`)** 임을 밝힌다 (`§ 12.75` 본문은 **편집하지 않는다** — append-only, `§ 12.15`). ② **적용 범위**: 모집단 5 문서군 (`§ 12.75` AC 1) · `docs/tasks/*` · `docs/progress/*` 는 범위 밖 (`§ 12.75` 한계 3) · 코드 주석은 범위 밖임을 명시. ③ **발효**: **신규 작성분부터 적용 · 전면 소급 치환 금지** (`§ 12.75` AC 4 (b) 승계) · 소급은 이미 어긋남이 확인된 좌표에 한정하며 그 재고는 **0** (`§ 12.74`).
+- [ ] **AC 4 — audit 절 신설**: [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) 에 **`### 12.76`** 을 `## 11. References` **직전** 에 신설한다 (삽입 직전 `grep -n '^## 11\. References'` 로 좌표 재실측). 구성: 위치 · 계보 (`§ 12.75` 분해안 1 순위 S1) → AC 1 반례 표 + 명령 블록 → AC 2 정본 조문 `R1` ~ `R7` + 개정 대조 → AC 3 정본 · 범위 · 발효 → 진척 · 한계 → 파생 영향 (목록만). **절 ≤ 75 행** — 초과 예상 시 조문 예시를 1 개로 줄이고 그 사유를 1 구 박제한다.
+- [ ] **AC 5 — 무손상 · 범위 검산**: 다음을 모두 확인해 결과를 절 또는 완료 요약에 적는다.
+  - `wc -l docs/use-cases/REQ-COVERAGE-AUDIT.md` 증분 보고 (**6846 → 6846 + 신설 행수**).
+  - `git diff --stat` 이 **정확히 2 파일 · ≤ 300 LOC**.
+  - `git status --short` 로 **`README.md` · `CLAUDE.md` · `docs/requirements.md` · `docs/architecture/` · `docs/decisions/` · `.claude/agents/` · `src/` 가 변경 목록에 없음** 을 명시 검산 (본 slice 의 census · 반례 검증은 **읽기 전용**).
+  - markdown 무손상 — audit 파일 ` ``` ` fence **짝수 개** + 신설 표 **컬럼 수 일치** + `### 12.7x` heading 순번 연속.
+  - doc-only 변경이라 `pnpm test` 불요 ([CLAUDE.md](../../CLAUDE.md) §3.2 direct doc-only 면제).
+
+## Out of Scope
+
+- **규약 소급 실집행 금지** — 어떤 문서의 범위 표기도 고치지 않는다. 편집 대상 문서 **0** (audit 절 신설 + 본 task 파일뿐). S3 (ADR 혼용 정규화) 착수 금지.
+- **`CLAUDE.md` 편집 금지** — §12 pointer 3 줄 · §3.1 rule 5 명문화는 **S2** 몫 (`§ 12.75` 파생 2).
+- **`docs/architecture/` 신설 문서 작성 금지** — S4 는 `pr` mode 라 mode 혼합 금지 (§3.1 rule 3). AC 3 은 후보 ① (audit 절 정본) 판정을 **승계만** 하고 재검토하지 않는다.
+- **`§ 12.75` 및 그 이전 audit 절 편집 금지** — append-only (`§ 12.15`). 초안 절의 supersede 표시도 **`§ 12.76` 안에서 선언** 하고 `§ 12.75` 본문은 건드리지 않는다.
+- **pointer 재판정 · 재정정 금지** — `§ 12.68` ~ `§ 12.71` 의 140 지점 판정과 `§ 12.73` · `§ 12.74` 의 11 행 정정을 다시 다투지 않는다.
+- **census 모집단 확장 금지** — `docs/tasks/*` · `docs/progress/*` 는 AC 3 ② 에서 **범위 밖 선언만** 하고 집계하지 않는다.
+- **조문 재설계 금지** — 병합 · 신설 · 삭제는 하지 않는다 (AC 2 는 7 조 유지 · 개정 수준까지).
+- **anchor 좌표계 이행 (FU14) 착수 금지** — `§ 12.75` 한계 4 의 관계 언급 **1 구** 까지만 허용.
+- **새 REQ 신설 · ADR 신설 · 새 dependency 도입 금지** ([CLAUDE.md](../../CLAUDE.md) §5 게이트).
+- **secret · token · API key 실값 인용 금지** (§9).
+- `docs/STATE.json` · journal write 금지 (driver 소관).
+
+## Suggested Sub-agents
+
+`implementer` 단독 (doc-only · 편집 대상 문서 0 · audit 절 신설 1). 코드 변경 0 이므로 `tester` 불요 ([CLAUDE.md](../../CLAUDE.md) §3.2 direct doc-only 면제).
+
+## Follow-ups
+
+- (실행자가 발견 사항을 여기에 append)
