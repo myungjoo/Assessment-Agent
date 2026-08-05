@@ -2,7 +2,7 @@
 id: T-1502
 title: 실 DB round-trip perf-spec slice 2 — `GET /api/groups` + `:id/persons` (N+1 indirect navigation) p95 실측
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 265
@@ -160,3 +160,23 @@ production code 변경 · schema migration · 새 dependency 가 **전부 0** �
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## Result (2026-08-05)
+
+`Status: DONE` — PR [#1212](https://github.com/myungjoo/Assessment-Agent/pull/1212) squash 머지
+(main `97198504`). 2 파일 +298/-2, production code 변경 0.
+
+- [test/perf/group-read-realdb.perf-spec.ts](../../test/perf/group-read-realdb.perf-spec.ts) 신설 —
+  mock override 0 으로 `createE2EApp()` 부트스트랩 + `moduleRef.get(PrismaService)` seed 하여
+  `GET /api/groups` 목록 · `:id` · `:id/persons` (N+1 indirect navigation) 를 실 DB round-trip 으로
+  p95 실측. 7 test (happy 2 / error 1 / 분기 2 / negative 3 — negative (a) 는 error test 겸용).
+- [test/perf/README.md](../../test/perf/README.md) — slice 목록에 slice 2 추가
+  (임계 3000ms 불변 · baseline 미확정 유지).
+
+AC 1~11 전부 ok (AC 7 baseline 관찰은 AC 11 cap 준수를 위해 AC 3 test 에 흡수 — AC 11 이 허용한 축약).
+로컬 `pnpm lint · build · test:cov` green (429 suite / 12302 test), `test:perf` 는 로컬 Postgres 부재로
+CI `perf test` step 으로 대체 검증 (`PASS test/perf/group-read-realdb.perf-spec.ts`, perf 36 suite /
+284 test green). reviewer VERDICT=APPROVE round 1/7 (BLOCKER·MAJOR·MINOR 0), 4-게이트 모두 충족.
+
+후속: reviewer 관찰 1 건 — 대규모 membership 에서의 N+1 규모 민감도 미측정 (별도 slice 후보).
+문서 3 지점 반영은 T-1503 (direct doc-sync) 로 이월.
