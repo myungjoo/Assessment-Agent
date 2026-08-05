@@ -132,4 +132,12 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 4. **CI 통합** — 부하 harness 를 `.github/workflows/` 에 별도 job(정기/수동 trigger)으로
    편입. 상시 PR CI 와 분리(부하는 무거움).
 5. **baseline 확정 + 임계 fix** — 최초 실측으로 §3 의 "baseline 후 fix" 임계를 실 수치로
-   확정하고 본 문서를 갱신.
+   확정하고 본 문서를 갱신. **첫 실 DB round-trip 실측 도달**(T-1500, main `0395c51e`):
+   [`person-read-realdb.perf-spec.ts`](../../test/perf/person-read-realdb.perf-spec.ts) 가
+   mock override 0 부트스트랩 + 실 Prisma seed 로 `GET /api/persons` **1 endpoint** 의
+   p95 < 3000ms 를 실측했다(정본 서술 =
+   [`test/perf/README.md`](../../test/perf/README.md) 의 `## 실 DB round-trip baseline (첫 slice)`).
+   단 **본 item 은 미완** — `buildBaselineReport` + `formatBaselineLine` 은 **관찰 전용**
+   이고 `writeBaselineFile` / `confirmOrCompareBaseline` 는 미사용이라 baseline 파일 확정이
+   성립하지 않으며, §3 의 "baseline 후 fix" 임계 fix 도 미착수다. **잔여**: baseline 파일
+   확정 · 임계 fix · 측정 endpoint 확대(나머지 read perf-spec 30 개는 service mock 잔존).
