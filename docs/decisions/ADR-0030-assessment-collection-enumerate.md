@@ -21,7 +21,7 @@
 - `GithubInstanceConfig`([src/github/github-instance-config.ts](../../src/github/github-instance-config.ts)) = `{ key, host, orgs: string[], tokenEnc }` — `GITHUB_<KEY>_ORG` env 에서 온 **org 은 있으나 repo 는 없다**(ADR-0017).
 - `GithubInstanceClient.requestAllPagesForInstance(key, path, query)` — `orgs/{org}/repos` 호출로 org 의 repo 목록을 enumerate 할 수 있는 기존 wrapper(새 caller 추가만, dep 0).
 
-README [코드 평가 대상](../../README.md) L15-18 은 3 GitHub instance 각각에 대해 **"지정 Organization 내 전체 Repository, 혹은 지정 Repository"** 두 모드를 product 요구로 박제했다. 즉 무엇을 수집할지(org 전체 / 지정 repo)는 이미 정해져 있고, **어떻게 그 source 를 표현·산출할지** 만 본 ADR 이 결정한다(ambiguity 가 아닌 설계 결정). 본 ADR 은 후속 `collectForPerson` 구현 slice 가 inline architecture 결정을 끌어들이지 않도록 그 enumerate 위상을 선행 박제한다(CLAUDE.md §1 "코드보다 ADR이 먼저").
+README [코드 평가 대상](../../README.md) 15~18 행 은 3 GitHub instance 각각에 대해 **"지정 Organization 내 전체 Repository, 혹은 지정 Repository"** 두 모드를 product 요구로 박제했다. 즉 무엇을 수집할지(org 전체 / 지정 repo)는 이미 정해져 있고, **어떻게 그 source 를 표현·산출할지** 만 본 ADR 이 결정한다(ambiguity 가 아닌 설계 결정). 본 ADR 은 후속 `collectForPerson` 구현 slice 가 inline architecture 결정을 끌어들이지 않도록 그 enumerate 위상을 선행 박제한다(CLAUDE.md §1 "코드보다 ADR이 먼저").
 
 ## Decision
 
@@ -30,7 +30,7 @@ README [코드 평가 대상](../../README.md) L15-18 은 3 GitHub instance 각�
 README 의 두 모드를 **GitHub instance config 의 per-key env 확장**으로 표현한다(ADR-0017 패턴 mirror):
 
 - **모드 B(지정 repo, 우선)** — instance 별 `GITHUB_<KEY>_REPOS` env(comma/space-separated `org/repo` 또는 `repo` 토큰 allowlist). 존재하면 그 repo 만 수집 대상. `GithubInstanceConfig` 에 `repos: string[]`(빈 배열 = 미설정) 필드를 추가하고 `resolveGithubInstances` 가 `_REPOS` suffix 를 파싱하도록 확장(impl slice 책임; ADR 은 shape·suffix 만 박제). schema 변경 0 / 새 dep 0.
-- **모드 A(org 전체, fallback)** — 해당 instance 의 `GITHUB_<KEY>_REPOS` 가 미설정(빈 배열)이면, 그 instance 의 각 org 에 대해 `GithubInstanceClient.requestAllPagesForInstance(key, "orgs/{org}/repos")` 로 repo 목록을 **런타임 enumerate** 한다(기존 wrapper 재사용, 새 caller 1 개 추가). 권한 부족(4xx) repo 는 기존 per-source skip-and-continue 로 흡수(ADR-0029 §3) — README L20 "접근 권한 부족 시 인식·대응" 은 기존 `PermissionDeniedEvent` emit 경로가 충족.
+- **모드 A(org 전체, fallback)** — 해당 instance 의 `GITHUB_<KEY>_REPOS` 가 미설정(빈 배열)이면, 그 instance 의 각 org 에 대해 `GithubInstanceClient.requestAllPagesForInstance(key, "orgs/{org}/repos")` 로 repo 목록을 **런타임 enumerate** 한다(기존 wrapper 재사용, 새 caller 1 개 추가). 권한 부족(4xx) repo 는 기존 per-source skip-and-continue 로 흡수(ADR-0029 §3) — README 20 행 "접근 권한 부족 시 인식·대응" 은 기존 `PermissionDeniedEvent` emit 경로가 충족.
 
 **결합 규칙**: allowlist 가 있으면 allowlist 만(org 전체 enumerate 안 함), 없으면 org 전체 enumerate. 두 모드는 instance 단위로 독립 — 같은 Person 의 instance A 는 allowlist, instance B 는 org 전체일 수 있다.
 
@@ -90,7 +90,7 @@ README 의 두 모드를 **GitHub instance config 의 per-key env 확장**으로
 - [ADR-0017 — GithubModule instance sub-config source](ADR-0017-github-instance-config-source.md) — `GITHUB_INSTANCES` + per-key env 패턴(본 ADR 의 `_REPOS` 확장이 mirror).
 - [ADR-0018 — ConfluenceAdapter HTTP transport 계약](ADR-0018-confluence-adapter-http-transport-contract.md) — `CONFLUENCE_INSTANCES` config shape.
 - [ADR-0021 — GitHub·Confluence live-integration TEST CONTRACT](ADR-0021-github-confluence-live-integration-test-contract.md) — live enumerate 의 env-gated 패턴.
-- [README.md](../../README.md) L15-18 — "지정 Organization 내 전체 Repository, 혹은 지정 Repository" 두 모드 product 요구.
+- [README.md](../../README.md) 15~18 행 — "지정 Organization 내 전체 Repository, 혹은 지정 Repository" 두 모드 product 요구.
 - [src/github/github-instance-config.ts](../../src/github/github-instance-config.ts) — `GithubInstanceConfig` + `resolveGithubInstances`(본 ADR 의 `repos` 필드·`_REPOS` 확장 대상).
 
 Refs: T-0256, ADR-0029, ADR-0017, ADR-0018, ADR-0021, REQ-005, REQ-006, REQ-007, REQ-008, REQ-015, REQ-024, REQ-031

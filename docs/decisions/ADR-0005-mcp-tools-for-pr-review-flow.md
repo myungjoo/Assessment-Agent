@@ -102,7 +102,7 @@ CI workflow (`.github/workflows/ci.yml`) 의 `reviewer agent approval 검증` st
 2. **MCP server 의존** — Anthropic MCP server (또는 Claude Code 의 MCP runtime) 가 일시 불가용하면 본 path 도 BLOCKED. **mitigation**: local /loop fallback path 박제 (gh 가용 환경에서 reviewer/integrator 가 직접 호출 가능). MCP server outage 의 long-horizon 발생 빈도가 cron env 의 gh 부재 (4 회차 / 2 일) 보다 본질적으로 낮음.
 3. **driver 의 책임 surface 증가** — reviewer / integrator sub-agent 의 일부 책임 (외부 사실 박제) 이 driver 로 이전 → driver prompt / loop 절차의 복잡도 증가. **mitigation**: 본 책임 분담을 reviewer.md / integrator.md / CLAUDE.md §3.3 / §4 에 명시 박제 (T-0072 + T-0073).
 4. **4-게이트 평가 도구의 dual-path 유지 비용** — gh / MCP 양 path 모두 1 급 박제로 sub-agent 본문이 길어짐 (양 path 동등 명세 의무). **mitigation**: 본 ADR 의 Tool mapping 표 (아래 §Tool mapping) 가 single source — 각 agent 본문은 표 reference + path 별 차이만 명시.
-5. **`mcp__github__list_check_runs` 의 race 평가 복잡도** — `gh pr checks` 의 latest comment-trigger run 평가 (integrator.md L57-69 박제) 와 MCP `list_check_runs` 의 평가 방식 차이. **mitigation**: T-0073 (integrator.md amend) 에서 MCP path 의 race 평가 절차 명시 박제.
+5. **`mcp__github__list_check_runs` 의 race 평가 복잡도** — `gh pr checks` 의 latest comment-trigger run 평가 (integrator.md 57~69 행 박제) 와 MCP `list_check_runs` 의 평가 방식 차이. **mitigation**: T-0073 (integrator.md amend) 에서 MCP path 의 race 평가 절차 명시 박제.
 
 ### Migration 의무 (후속 task)
 
@@ -133,20 +133,20 @@ CI workflow (`.github/workflows/ci.yml`) 의 `reviewer agent approval 검증` st
 
 | gh subcommand | MCP tool | 책임 단계 | 박제 위치 (gh) |
 | --- | --- | --- | --- |
-| `gh pr diff <num>` | `mcp__github__get_pull_request_diff(pull_number)` | reviewer 8-check (PR diff 분석) | [reviewer.md L24](../../.claude/agents/reviewer.md), [reviewer.md L97](../../.claude/agents/reviewer.md) |
-| `gh pr view <num>` | `mcp__github__get_pull_request(pull_number)` | integrator PR state 조회 | [integrator.md L12](../../.claude/agents/integrator.md) |
-| `gh pr view <num> --json comments` | `mcp__github__list_issue_comments(issue_number)` | 게이트 (b) PR comment 외부 존재 검증 | [integrator.md L12](../../.claude/agents/integrator.md), [integrator.md L46](../../.claude/agents/integrator.md) |
-| `gh pr comment <num> --body-file <path>` | `mcp__github__add_issue_comment(issue_number, body)` | reviewer 의 verdict 외부 박제 (Post 의무 / 게이트 (b) 충족) | [reviewer.md L85](../../.claude/agents/reviewer.md), [reviewer.md L106](../../.claude/agents/reviewer.md), [reviewer.md L141](../../.claude/agents/reviewer.md) |
-| `gh pr checks <num>` | `mcp__github__list_check_runs(ref=head_sha)` | 게이트 (d) CI green 평가 | [integrator.md L12](../../.claude/agents/integrator.md), [integrator.md L48](../../.claude/agents/integrator.md), [integrator.md L54](../../.claude/agents/integrator.md) |
-| `gh pr checks <num> --watch` | `mcp__github__list_check_runs(ref=head_sha)` polling + driver 의 sleep loop | CI 시작 확인 / conclusion 대기 | [integrator.md L20](../../.claude/agents/integrator.md) |
-| `gh pr create --title <t> --body <b>` | `mcp__github__create_pull_request(title, body, head, base)` | PR open | [integrator.md L19](../../.claude/agents/integrator.md) |
-| `gh pr merge <num> --squash --delete-branch` | `mcp__github__merge_pull_request(pull_number, merge_method="squash")` + `mcp__github__delete_branch(ref="claude/T-NNNN-...")` | 게이트 4 통과 후 squash merge + branch cleanup | [integrator.md L75](../../.claude/agents/integrator.md) |
-| `gh run list --workflow=ci.yml --branch=<branch> --limit 5` | `mcp__github__list_workflow_runs(workflow_id="ci.yml", branch=<branch>, per_page=5)` | comment-triggered run 식별 (게이트 (d) race 평가) | [integrator.md L66](../../.claude/agents/integrator.md) |
-| `gh run watch <runId>` | `mcp__github__get_workflow_run(run_id)` polling + driver 의 sleep loop | run conclusion 대기 | [integrator.md L67](../../.claude/agents/integrator.md) |
-| `gh run view <runId> --log-failed` | `mcp__github__get_workflow_run_logs(run_id)` + driver 의 fail step filter | CI fail finding 분석 | [integrator.md L68](../../.claude/agents/integrator.md), [integrator.md L86](../../.claude/agents/integrator.md) |
-| `gh run rerun <firstRunId>` | `mcp__github__rerun_workflow_run(run_id)` | comment-trigger 후 ~60 초 안 second run 미발생 시 self-heal (지양, race-patterns.md fallback) | [integrator.md L69](../../.claude/agents/integrator.md) |
-| `gh pr review --approve` (금지) | `mcp__github__create_pending_pull_request_review` + `mcp__github__submit_pending_pull_request_review` (동일 금지) | reviewer 의 formal approve 호출 금지 (4-게이트 합의 위반) | [reviewer.md L140](../../.claude/agents/reviewer.md) |
-| `gh pr close + reopen` (금지) | (MCP 등가 없음, 동일 금지) | CI retrigger 안티 패턴 | [integrator.md L143](../../.claude/agents/integrator.md) |
+| `gh pr diff <num>` | `mcp__github__get_pull_request_diff(pull_number)` | reviewer 8-check (PR diff 분석) | [reviewer.md 24 행](../../.claude/agents/reviewer.md), [reviewer.md 97 행](../../.claude/agents/reviewer.md) |
+| `gh pr view <num>` | `mcp__github__get_pull_request(pull_number)` | integrator PR state 조회 | [integrator.md 12 행](../../.claude/agents/integrator.md) |
+| `gh pr view <num> --json comments` | `mcp__github__list_issue_comments(issue_number)` | 게이트 (b) PR comment 외부 존재 검증 | [integrator.md 12 행](../../.claude/agents/integrator.md), [integrator.md 46 행](../../.claude/agents/integrator.md) |
+| `gh pr comment <num> --body-file <path>` | `mcp__github__add_issue_comment(issue_number, body)` | reviewer 의 verdict 외부 박제 (Post 의무 / 게이트 (b) 충족) | [reviewer.md 85 행](../../.claude/agents/reviewer.md), [reviewer.md 106 행](../../.claude/agents/reviewer.md), [reviewer.md 141 행](../../.claude/agents/reviewer.md) |
+| `gh pr checks <num>` | `mcp__github__list_check_runs(ref=head_sha)` | 게이트 (d) CI green 평가 | [integrator.md 12 행](../../.claude/agents/integrator.md), [integrator.md 48 행](../../.claude/agents/integrator.md), [integrator.md 54 행](../../.claude/agents/integrator.md) |
+| `gh pr checks <num> --watch` | `mcp__github__list_check_runs(ref=head_sha)` polling + driver 의 sleep loop | CI 시작 확인 / conclusion 대기 | [integrator.md 20 행](../../.claude/agents/integrator.md) |
+| `gh pr create --title <t> --body <b>` | `mcp__github__create_pull_request(title, body, head, base)` | PR open | [integrator.md 19 행](../../.claude/agents/integrator.md) |
+| `gh pr merge <num> --squash --delete-branch` | `mcp__github__merge_pull_request(pull_number, merge_method="squash")` + `mcp__github__delete_branch(ref="claude/T-NNNN-...")` | 게이트 4 통과 후 squash merge + branch cleanup | [integrator.md 75 행](../../.claude/agents/integrator.md) |
+| `gh run list --workflow=ci.yml --branch=<branch> --limit 5` | `mcp__github__list_workflow_runs(workflow_id="ci.yml", branch=<branch>, per_page=5)` | comment-triggered run 식별 (게이트 (d) race 평가) | [integrator.md 66 행](../../.claude/agents/integrator.md) |
+| `gh run watch <runId>` | `mcp__github__get_workflow_run(run_id)` polling + driver 의 sleep loop | run conclusion 대기 | [integrator.md 67 행](../../.claude/agents/integrator.md) |
+| `gh run view <runId> --log-failed` | `mcp__github__get_workflow_run_logs(run_id)` + driver 의 fail step filter | CI fail finding 분석 | [integrator.md 68 행](../../.claude/agents/integrator.md), [integrator.md 86 행](../../.claude/agents/integrator.md) |
+| `gh run rerun <firstRunId>` | `mcp__github__rerun_workflow_run(run_id)` | comment-trigger 후 ~60 초 안 second run 미발생 시 self-heal (지양, race-patterns.md fallback) | [integrator.md 69 행](../../.claude/agents/integrator.md) |
+| `gh pr review --approve` (금지) | `mcp__github__create_pending_pull_request_review` + `mcp__github__submit_pending_pull_request_review` (동일 금지) | reviewer 의 formal approve 호출 금지 (4-게이트 합의 위반) | [reviewer.md 140 행](../../.claude/agents/reviewer.md) |
+| `gh pr close + reopen` (금지) | (MCP 등가 없음, 동일 금지) | CI retrigger 안티 패턴 | [integrator.md 143 행](../../.claude/agents/integrator.md) |
 | `gh api -X DELETE /repos/.../git/refs/heads/<branch>` | `mcp__github__delete_branch(ref="claude/T-NNNN-...")` | worktree race 후 branch cleanup fallback ([race-patterns.md](../architecture/race-patterns.md) §2) | T-0066/T-0067/T-0068/T-0069/T-0071 5 회차 fallback 누적 |
 
 ### 책임 분담 (Path A default)
@@ -163,7 +163,7 @@ CI workflow (`.github/workflows/ci.yml`) 의 `reviewer agent approval 검증` st
 
 ## References
 
-- [README.md](../../README.md) 110–128행 — R-110~R-114 test/CI 규칙 + 116행 reviewer/committer 이중 합의 + 117–128행 8 check
+- [README.md](../../README.md) 110~128행 — R-110~R-114 test/CI 규칙 + 116행 reviewer/committer 이중 합의 + 117~128행 8 check
 - [CLAUDE.md §3.3](../../CLAUDE.md) — Reviewer + Committer 이중 합의 + 4-게이트 정의
 - [CLAUDE.md §4](../../CLAUDE.md) — Sub-agent dispatch + driver context 누적 방지 룰
 - [CLAUDE.md §9](../../CLAUDE.md) — secret / credential 관리 hard rule

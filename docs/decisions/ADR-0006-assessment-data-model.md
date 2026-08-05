@@ -20,12 +20,12 @@ supersedes: null
 
 ### REQ 외력 (본 ADR 이 cover)
 
-- **REQ-029** ([requirements.md L56](../requirements.md), [README.md L56](../../README.md)) — "평가 자료 non-volatile 저장". 본 ADR 의 3 entity 가 PostgreSQL row 로 영속 ([ADR-0002](ADR-0002-db.md)).
-- **REQ-032** ([requirements.md L59](../requirements.md), [README.md L59](../../README.md)) — "🔥 Raw data 저장 금지 — 평가 결과만 보유". requirements.md L59 가 구현 위치를 **"P3 (ADR 필수)"** 로 명시 박제 → 본 ADR 이 그 ADR. raw body column 자체를 정의하지 않는 **schema-level 강제** 결정 (`Decision §4`).
-- **REQ-033** ([requirements.md L60](../requirements.md), [README.md L60](../../README.md)) — "commit/문서 별 기여도·난이도·양 보유". Contribution entity 가 개별 commit/PR/문서 단위로 cover (`Decision §2`).
-- **REQ-034** ([requirements.md L61](../requirements.md), [README.md L61](../../README.md)) — "일별 활동 요약 평가문". Summary entity 의 `period=day` (`Decision §3`).
-- **REQ-035** ([requirements.md L62](../requirements.md), [README.md L62](../../README.md)) — "주간/월간 요약 평가문". Summary entity 의 `period=week/month` (`Decision §3`).
-- **REQ-036** ([requirements.md L63](../requirements.md), [README.md L63](../../README.md)) — "상대 비교 가능 + LLM 정성 + Metric 수치". Assessment + Summary 의 정규화된 수치 컬럼 결정 (`Decision §5`). **본 ADR 은 REQ-036 을 사용** — data-model.md §2 Assessment 행이 인용한 REQ-063 은 stale (REQ-063 은 [requirements.md L82](../requirements.md) 의 "PR review" 매핑). 본 ADR 은 canonical REQ-036 으로 정정 cross-reference.
+- **REQ-029** ([requirements.md 56 행](../requirements.md), [README.md 56 행](../../README.md)) — "평가 자료 non-volatile 저장". 본 ADR 의 3 entity 가 PostgreSQL row 로 영속 ([ADR-0002](ADR-0002-db.md)).
+- **REQ-032** ([requirements.md 59 행](../requirements.md), [README.md 59 행](../../README.md)) — "🔥 Raw data 저장 금지 — 평가 결과만 보유". requirements.md 59 행 이 구현 위치를 **"P3 (ADR 필수)"** 로 명시 박제 → 본 ADR 이 그 ADR. raw body column 자체를 정의하지 않는 **schema-level 강제** 결정 (`Decision §4`).
+- **REQ-033** ([requirements.md 60 행](../requirements.md), [README.md 60 행](../../README.md)) — "commit/문서 별 기여도·난이도·양 보유". Contribution entity 가 개별 commit/PR/문서 단위로 cover (`Decision §2`).
+- **REQ-034** ([requirements.md 61 행](../requirements.md), [README.md 61 행](../../README.md)) — "일별 활동 요약 평가문". Summary entity 의 `period=day` (`Decision §3`).
+- **REQ-035** ([requirements.md 62 행](../requirements.md), [README.md 62 행](../../README.md)) — "주간/월간 요약 평가문". Summary entity 의 `period=week/month` (`Decision §3`).
+- **REQ-036** ([requirements.md 63 행](../requirements.md), [README.md 63 행](../../README.md)) — "상대 비교 가능 + LLM 정성 + Metric 수치". Assessment + Summary 의 정규화된 수치 컬럼 결정 (`Decision §5`). **본 ADR 은 REQ-036 을 사용** — data-model.md §2 Assessment 행이 인용한 REQ-063 은 stale (REQ-063 은 [requirements.md 82 행](../requirements.md) 의 "PR review" 매핑). 본 ADR 은 canonical REQ-036 으로 정정 cross-reference.
 
 ### 진척 정합 (옵션 (c) hybrid-parallel)
 
@@ -98,7 +98,7 @@ supersedes: null
 
 ### Decision §4 — raw 미저장 (R-59) schema-level 강제
 
-본 ADR 의 핵심 architectural invariant — [README.md L59](../../README.md) + REQ-032 박제.
+본 ADR 의 핵심 architectural invariant — [README.md 59 행](../../README.md) + REQ-032 박제.
 
 - **강제 방식 = column 부재** — Assessment / Contribution / Summary 어디에도 raw commit body / diff / 문서 본문 / Confluence page 본문 컬럼을 **정의하지 않는다**. "저장하지 않는다" 를 application-layer 검증이 아닌 **schema 차원 (컬럼 자체의 부재)** 으로 보장 — schema 에 자리가 없으면 저장 자체가 불가.
 - **LLM 평가문 (`narrative`) 은 raw 아님** — LLM 이 생성한 정성 평가 결과물이므로 R-59 적용 외. 단 평가문 안에 raw 본문이 quote 형태로 섞이지 않도록 하는 **prompt 설계 책임은 P5 의 LLM gateway / evaluation pipeline** (본 ADR scope 외 — `Consequences` 참조).
@@ -162,7 +162,7 @@ supersedes: null
 | 대안 | 장점 | 단점 / 정합도 | 채택 여부 |
 | --- | --- | --- | --- |
 | **(0) Assessment/Contribution/Summary 3 entity 분리 + raw 미저장 column 부재** (채택) | R-59 schema-level 강제 / aggregate(Assessment) ↔ 개별(Contribution) ↔ 요약(Summary) 단위 명확 분리 / 재수집 정합 / 상대 비교 정규화 수치 즉시 가능 | 재수집 의존 / LLM prompt 책임 전가 / enum-as-String 값 invariant 가 service-layer 책임 | **✓ 채택** |
-| **(a) raw 본문 저장 후 평가** (commit body / diff / 문서 본문 컬럼 보유) | 재수집 불요 (저장된 본문으로 재평가) / export 에 본문 포함 가능 / 외부 outage 무관 | **R-59 정면 위반** ([README.md L59](../../README.md) "🔥 Raw data 저장 금지") / 저장 비용 폭증 (100~200명 × 50~100 repo 의 commit 본문) / 보안 surface 확대 (raw 본문 유출 risk) / REQ-032 박제와 정합 0 | 기각 — R-59 정면 위반 |
+| **(a) raw 본문 저장 후 평가** (commit body / diff / 문서 본문 컬럼 보유) | 재수집 불요 (저장된 본문으로 재평가) / export 에 본문 포함 가능 / 외부 outage 무관 | **R-59 정면 위반** ([README.md 59 행](../../README.md) "🔥 Raw data 저장 금지") / 저장 비용 폭증 (100~200명 × 50~100 repo 의 commit 본문) / 보안 surface 확대 (raw 본문 유출 risk) / REQ-032 박제와 정합 0 | 기각 — R-59 정면 위반 |
 | **(b) Assessment / Contribution 단일 테이블 통합** (scope 컬럼으로 구분) | 테이블 1 개로 단순 / join 불요 / 단일 query | aggregate(일/주/월) 단위와 개별(commit/문서) 단위가 한 테이블에 섞여 **aggregate 단위 분리 손실** / `@@unique` 의미 모호 (개별 row 와 aggregate row 가 동일 unique 축 공유 불가) / Contribution N:1 Assessment 관계 표현 불가 | 기각 — aggregate 단위 분리 손실 |
 | **(c) Summary 를 별도 GroupSummary / PartSummary entity 로** | Group/Part 단위 요약을 미리 계산·저장 → 조회 성능 / aggregate 전용 metric 보유 가능 | entity 폭발 (Person/Group/Part × 일/주/월) / 요구 미확정 상태에서 조기 schema 박제 / view-time 계산으로 충분한 초기 규모 (100~200명) | **defer** — view-time 계산으로 시작, 성능/요구 압박 시 P5+ 도입 (data-model.md §7 Out of scope 정합) |
 | **(d) `narrative` 도 별도 entity (EvaluationNarrative) 로 분리** | 평가문 버전 관리 / 다국어 / 재생성 이력 보유 가능 | 초기 단순성 손실 / Assessment 1:1 narrative 가 대부분 → 분리 ROI 낮음 / 요구 미확정 | 미채택 (deferred) — Assessment/Summary 의 컬럼으로 시작, 버전/이력 요구 발생 시 별도 ADR |
@@ -170,8 +170,8 @@ supersedes: null
 ## References
 
 - [docs/architecture/data-model.md](../architecture/data-model.md) §2 / §3 (관계 4·5·6) / §4 (raw 미저장 invariant) / §5 (cross-cutting field) / §7 (Out of scope) — 본 ADR 의 conceptual source. §4 의 "본 invariant 위반은 ADR 신설 필수" 가 가리키는 ADR = 본 ADR-0006.
-- [docs/requirements.md L56–63](../requirements.md) — REQ-029/032/033/034/035/036 source of truth. REQ-032 의 구현 위치 "P3 (ADR 필수)" 박제.
-- [README.md L56–63](../../README.md) — 평가 자료 저장 / raw 금지 / commit·문서 단위 / 일·주·월 요약 / 상대 비교 외력.
+- [docs/requirements.md 56~63 행](../requirements.md) — REQ-029/032/033/034/035/036 source of truth. REQ-032 의 구현 위치 "P3 (ADR 필수)" 박제.
+- [README.md 56~63 행](../../README.md) — 평가 자료 저장 / raw 금지 / commit·문서 단위 / 일·주·월 요약 / 상대 비교 외력.
 - [docs/architecture/p3-to-p4-transition.md §2.6 / §4.1 / §5](../architecture/p3-to-p4-transition.md) — 옵션 (c) hybrid-parallel 의 Assessment+Contribution+Summary backbone 위치 + ~3 task estimate.
 - [docs/decisions/ADR-0002-db.md](ADR-0002-db.md) — PostgreSQL + Prisma (본 schema 결정의 실 구현 form).
 - [docs/decisions/ADR-0003-deployment.md §1](ADR-0003-deployment.md) — monolithic / 단일 DB (본 3 entity 거주).
