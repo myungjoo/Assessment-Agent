@@ -17,8 +17,8 @@ Assessment-Agent는 long-horizon 자율 에이전트가 README 명세를 따라 
 
 선택을 지배하는 외력은 다음과 같다.
 
-- **README §성능 특성** (88–92행): 평가 대상자 100–200명, GitHub repo 50–100개, Confluence page 1000여건을 1시간 이내에 처리. 즉 I/O 다발 / 동시성 다발 워크로드. CPU-bound 가 아니므로 Node.js 의 이벤트 루프 모델이 자연스러운 fit 이다.
-- **README §구현 과정에 대한 제약** (106–116행): well-known & well-maintained 라이브러리 사용, 중복 dependency 금지, unit + smoke + e2e 테스트 모두 CI 에서 자동 실행, PR 이 만들어지면 다른 agent 가 review.
+- **README §성능 특성** (88~92행): 평가 대상자 100–200명, GitHub repo 50–100개, Confluence page 1000여건을 1시간 이내에 처리. 즉 I/O 다발 / 동시성 다발 워크로드. CPU-bound 가 아니므로 Node.js 의 이벤트 루프 모델이 자연스러운 fit 이다.
+- **README §구현 과정에 대한 제약** (106~116행): well-known & well-maintained 라이브러리 사용, 중복 dependency 금지, unit + smoke + e2e 테스트 모두 CI 에서 자동 실행, PR 이 만들어지면 다른 agent 가 review.
 - **에이전트 친화성**: 에이전트(LLM)가 코드를 생성·읽을 때 타입 힌트가 강하면 환각이 줄어든다. 동시에 framework 의 convention 이 명확할수록 "어디에 무엇을 둬야 하는지"를 에이전트가 추론 없이 결정할 수 있다.
 - **단일 운영자 환경**: 본 프로젝트는 single-operator (myungjoo) 가 자기 머신에서 long-horizon 으로 굴린다. 무거운 인프라(Kubernetes, 별도 빌드 서비스) 는 부담이다.
 
@@ -135,8 +135,8 @@ CircleCI 등 외부 CI 는 무료 quota 와 기능이 GitHub Actions 와 비슷�
 - [CLAUDE.md](../../CLAUDE.md) §5 — HITL 정책 (새 dependency / 외부 자격증명 BLOCKED 룰)
 - [CLAUDE.md](../../CLAUDE.md) §9 — 안전장치 (새 dependency 추가 BLOCKED)
 - [CLAUDE.md](../../CLAUDE.md) §12 — 언어 정책
-- [README.md](../../README.md) §성능 특성 (88–92행) — I/O 다발 워크로드 특성
-- [README.md](../../README.md) §구현 과정에 대한 제약 (106–116행) — 라이브러리 / 테스트 / CI 요구사항
+- [README.md](../../README.md) §성능 특성 (88~92행) — I/O 다발 워크로드 특성
+- [README.md](../../README.md) §구현 과정에 대한 제약 (106~116행) — 라이브러리 / 테스트 / CI 요구사항
 - [T-0001](../tasks/T-0001-bootstrap-stack-and-ci.md) — 원본 부트스트랩 task (T-0002~T-0005 로 split 되기 전)
 - [T-0002](../tasks/T-0002-adr-0001-stack.md) — 본 ADR 을 만든 task
 - NestJS docs: <https://docs.nestjs.com/>

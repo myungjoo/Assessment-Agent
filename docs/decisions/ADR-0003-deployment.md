@@ -17,11 +17,11 @@ Assessment-Agent 의 운영 토폴로지는 **process 구조 (단일 vs worker �
 
 본 ADR 이 cover 하는 REQ ([docs/requirements.md](../requirements.md) / [README.md](../../README.md)):
 
-- **REQ-005/006/007** (README 15–18 행) — 3 GitHub instance (github.com / github.sec.samsung.net / github.ecodesamsung.com) → Decision §4 직접 motivation.
+- **REQ-005/006/007** (README 15~18 행) — 3 GitHub instance (github.com / github.sec.samsung.net / github.ecodesamsung.com) → Decision §4 직접 motivation.
 - **REQ-016** (README 33–41 행 표기 · 실 대응 31 · 34 행 불연속) — Confluence (confluence.sec.samsung.net 등) → Decision §4 동반.
 - **REQ-020** (README 20 행) — 권한 부족 통지 → Decision §2 secret 흐름 + Decision §4 4xx catch.
-- **REQ-039 / REQ-040** (README 72–73 행) — Admin UI cron 주기 / manual trigger → Decision §3 직접 motivation.
-- **REQ-047** (README 88–92 행) — 100~200 명 / 50~100 repo / 1 h NFR → Decision §1 직접 motivation.
+- **REQ-039 / REQ-040** (README 72~73 행) — Admin UI cron 주기 / manual trigger → Decision §3 직접 motivation.
+- **REQ-047** (README 88~92 행) — 100~200 명 / 50~100 repo / 1 h NFR → Decision §1 직접 motivation.
 
 추가 외력 — **single-operator long-horizon** ([CLAUDE.md](../../CLAUDE.md) §1 / §10, 무거운 인프라 ROI 낮음) / **새 dependency BLOCKED** ([CLAUDE.md](../../CLAUDE.md) §5 / §9, 본 ADR 은 정책 박제만, 실제 패키지 도입은 P3/P4/P7 별도 task) / **Agent 친화성** (NestJS 표준 module 의 docs 풍부, framework convention 응집).
 
@@ -165,7 +165,7 @@ Assessment-Agent 의 운영 토폴로지는 **process 구조 (단일 vs worker �
 
 - [CLAUDE.md](../../CLAUDE.md) §1 / §5 / §9 / §10 / §12 — 스택 / 새 dependency BLOCKED / single-operator / 한국어 정책
 - [ADR-0001](ADR-0001-stack.md) / [ADR-0002](ADR-0002-db.md) — 선행 ADR (스택 / DB)
-- [README.md](../../README.md) — 15–18 (REQ-005~007 GitHub) / 20 (REQ-020 권한) / 33–41 표기 · 실 대응 31 · 34 불연속 (REQ-016 Confluence) / 72–73 (REQ-039/040 schedule) / 88–92 (REQ-047 NFR)
+- [README.md](../../README.md) — 15~18 (REQ-005~007 GitHub) / 20 (REQ-020 권한) / 33–41 표기 · 실 대응 31 · 34 불연속 (REQ-016 Confluence) / 72~73 (REQ-039/040 schedule) / 88~92 (REQ-047 NFR)
 - [docs/requirements.md](../requirements.md) — REQ table source of truth
 - [docs/architecture/INDEX.md](../architecture/INDEX.md) / [docs/architecture/deployment.md](../architecture/deployment.md) — view layer
 - NestJS docs (<https://docs.nestjs.com/techniques/configuration> / <https://docs.nestjs.com/techniques/task-scheduling>) / 12-factor app (<https://12factor.net/config>)
