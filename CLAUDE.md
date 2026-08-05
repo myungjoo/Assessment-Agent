@@ -451,7 +451,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 ### 범위 좌표 표기 (행 범위)
 
-- **정본 pointer** — 문서 안에서 행 범위를 가리키는 표기의 정본은 [docs/use-cases/REQ-COVERAGE-AUDIT.md](docs/use-cases/REQ-COVERAGE-AUDIT.md) `§ 12.76` 의 조문 `R1` ~ `R7` 이며, 인용은 `§ 12.76 R3` 형태로 한다. 본 소절은 **pointer 일 뿐 정본이 아니다** — 조문 전문 · 예시 · 근거는 이곳에 복제하지 않는다 (복제하면 규약이 막으려는 drift 를 규약 자체가 만든다).
+- **정본 pointer** — 문서 안에서 행 범위를 가리키는 표기의 정본은 [docs/use-cases/REQ-COVERAGE-AUDIT.md](docs/use-cases/REQ-COVERAGE-AUDIT.md) `§ 12.76` 의 조문 `R1` ~ `R7` 이며, 인용은 `§ 12.76 R3` 형태로 한다. 단 `R5` 는 `§ 12.91` 이 개정 (존치 조건 삭제) 했으므로 그 조문만 `§ 12.76 R5 (§ 12.91 개정)` 형태로 인용한다. 본 소절은 **pointer 일 뿐 정본이 아니다** — 조문 전문 · 예시 · 근거는 이곳에 복제하지 않는다 (복제하면 규약이 막으려는 drift 를 규약 자체가 만든다).
 - **실무 요약 3 점** (조문 번호 참조를 동반한 축약) — ① 구분자는 물결 `~` 하나 (`R1`). ② 단일 행은 `20 행` 으로 적고 `20~20` 은 쓰지 않는다 (`R4`). ③ 신규 표기에 `L` prefix 를 쓰지 않는다 (`R5`).
 - **적용 범위 · 발효** — 5 문서군 (`README.md` + `CLAUDE.md` / `docs/requirements.md` / `docs/architecture/*.md` / `docs/decisions/ADR-*.md` / `.claude/agents/*.md`) 한정이며 `docs/tasks/*` · `docs/progress/*` · 코드 주석은 범위 밖이다. **신규 작성분부터 적용** 하고 **전면 소급 치환은 금지** 한다 (`§ 12.76` AC 3 승계).
 
