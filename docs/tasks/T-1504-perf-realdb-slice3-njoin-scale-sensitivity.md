@@ -2,8 +2,9 @@
 id: T-1504
 title: 실 DB round-trip perf-spec slice 3 — `GET /api/groups/:id/persons` N+1 규모 민감도(소규모 vs 대규모 membership) 실측
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1213
 coversReq: [REQ-048]
 estimatedDiff: 275
 estimatedFiles: 2
@@ -171,3 +172,9 @@ REQ-047 의 실 scale(100~200명 / 50~100 repo) 부하 검증이 **아니다** �
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 기록
+
+- 완료: 2026-08-05T18:02Z (PR [#1213](https://github.com/myungjoo/Assessment-Agent/pull/1213) round 1 APPROVE 후 squash 머지, main `a8bc1e28`).
+- 결과: `test/perf/group-persons-scale-realdb.perf-spec.ts` 신설 (7 test — happy 2(membership 5·60) / 분기 1(membership 0) / negative 4) + `test/perf/README.md` slice 3 갱신. 2 파일 +299/-1.
+- 검증: PR CI run 31032382433 success (perf test step 포함), post-merge main run 31032834466 success. AC 1~10 전부 ok (AC 4 규모 비교 관찰은 AC 10 cap 준수를 위해 AC 3 test 에 흡수).
