@@ -2,7 +2,7 @@
 id: T-1513
 title: 실 DB round-trip slice 7(T-1512) 비-index FK 역방향 Part 소속 조회 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 55
@@ -155,3 +155,15 @@ FK 역방향**: 필터 컬럼 `Person.partId` 는 `@unique` 도 `@@index` 도 �
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-06T06:45Z DONE)
+
+- direct-mode. main `5ae46df3` 단일 commit (3 파일 +20/-7 — cap 300 LOC / 5 파일 이내).
+- `docs/PLAN.md` `142 행` 잔여 ① 을 slice 7 실측 반영으로 갱신 — 실측 endpoint **5 → 6**
+  (조회 route **10 → 12**), read glob **35 → 36**.
+- `docs/ops/load-resilience-test-plan.md` `§ 5` item 5 에 비-index FK 역방향 조회 · 상수 2-query ·
+  soft-delete 필터 3 축을 박제.
+- `docs/requirements.md` REQ-048 재판정 갱신. **mock 잔존 30 개 · 미완 결론 · 잔여 4 축 ·
+  checkbox `[ ]` · IN_PROGRESS 는 불변** (AC 2 · AC 7 · AC 8 계수 함정 검산 통과).
+- REQ-047 (S1 배치 부하) 행 · 행 좌표 소급 정규화 는 Out of Scope 대로 미변경 (AC 6 · AC 9).
+- 코드 변경 0 의 doc-only 이므로 R-110 tester 의무 면제. main CI 는 push 직후 실행.
