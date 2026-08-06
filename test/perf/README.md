@@ -565,8 +565,21 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   (leftmost prefix) 두 경로와 매칭 0 의 빈 배열을 덮고, 401 은 **cookie 부재** 와 **변조 토큰** 두
   조건으로 각각 도달해 guard 생존도 확인한다. slice 4·5 처럼 `afterEach` 는 truncate 후 actor 를
   **원본 id 그대로** 재-seed 하며, 여기서도 **측정만 한다**.
-- **잔여** — 실측 범위는 endpoint 5 개(조회 route 10)뿐이다. read 계열 glob 35 개 중 실 DB round-trip 은
-  5 개(slice 1·2·4·5·6)이고 나머지 **mock 잔존 30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께
+- **slice 7** — `part-read-realdb.perf-spec.ts` (T-1512) — 실측 대상을 **여섯 번째 endpoint 도메인**
+  인 `PartController` 로 넓혀 조회 2 route(`GET /api/parts` · `GET /api/parts/:id/persons`)를
+  측정한다. 앞 slice 와의 차이는 **조회 구조 축 3 개** 다 — ① **비-index FK 역방향**: 필터 컬럼
+  `Person.partId` 는 `@unique` 도 `@@index` 도 선언되지 않은 유일한 실측 필터 컬럼이라(slice 4 =
+  composite `@@index`, slice 5 = composite unique 의 prefix, slice 6 = unique·index 중복 tuple),
+  **index 미보장 경로에서도 REQ-048 임계가 성립하는지** 의 첫 증거다. ② **요청당 상수 2 query**:
+  `PartService.findPersonsByPartId` 가 부모 존재 검증(`findById`) 후 자식 조회(`findByPartId`)를
+  하므로 slice 2 의 membership 비례 N+1 과도, 앞 slice 들의 단일 SELECT 와도 다르다. ③
+  **soft-delete 필터**: 자식 조회가 `activeOnly` 기본값으로 `where: { partId, active: true }`
+  (REQ-026)를 타므로, 비활성 row 를 섞은 seed 에서 걸러짐과 latency 를 함께 관측한다. 소속 0 인
+  Part 의 200 + 빈 배열, 대조군 Part 소속의 비혼입, 미존재 id 의 404 를 함께 덮으며,
+  `PartController` 는 guard 미부착이라 slice 1~3 처럼 인증 노이즈가 0 이다. 여기서도
+  **측정만 하며 production code 와 mock 짝은 불변** 이다(`Person.partId` 에 index 추가 금지).
+- **잔여** — 실측 범위는 endpoint 6 개(조회 route 12)뿐이다. read 계열 glob 36 개 중 실 DB round-trip 은
+  6 개(slice 1·2·4·5·6·7)이고 나머지 **mock 잔존 30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께
   1 씩 증가). 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
   뿐, 다른 endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의
   실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
