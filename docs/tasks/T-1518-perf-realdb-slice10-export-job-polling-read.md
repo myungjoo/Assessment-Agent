@@ -2,7 +2,10 @@
 id: T-1518
 title: 실 DB round-trip perf-spec slice 10 — Export job polling 조회 p95 실측
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-08-06T11:54:20Z
+prNumber: 1220
+mergeCommit: c1630d402f99d2910b0530536301c55238113144
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 295
