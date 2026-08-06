@@ -2,9 +2,10 @@
 id: T-1522
 title: 실 DB round-trip perf-spec slice 12 — ImportController 조회 2 route(0-query modes · RUNNING job 목록) p95 실측
 phase: P7
-status: IN_PROGRESS
-commitMode: pr
+status: DONE
 prNumber: 1222
+completedAt: 2026-08-06T17:38:59Z
+commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 290
 estimatedFiles: 2
@@ -96,3 +97,20 @@ rule 3(direct·pr mixed 금지) 에 따라 **머지 후 별도 direct doc-sync t
 ## Follow-ups
 
 (작성 시 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가한다.)
+
+## Result (2026-08-06)
+
+`Status: DONE` — PR [#1222](https://github.com/myungjoo/Assessment-Agent/pull/1222) squash merge (`cc8b9f36`).
+`test/perf/import-read-realdb.perf-spec.ts` 신설(+273) + `test/perf/README.md` slice 12 bullet · 잔여 계수
+갱신(2 파일 / +297-3). happy 2 · error 1 (P2025 → 404) · 분기 3 (RUNNING 0 건 빈 배열 / 비-RUNNING 미혼입 /
+modes seed-무관 2 원소) · negative 4 (401 ×2 · 403 ×2) 로 R-112 4 종 cover. 0-query 동기 route 의 배선-only
+latency floor 와 DB round-trip route 를 같은 fixture 에서 병렬 관측(대소 관계 미단언), `afterEach` 는
+`truncateAll` + `reseedAuthenticatedActors`. reviewer round 1/7 APPROVE, 4-게이트 PASS.
+
+게이트 (4) 는 두 fire 에 걸쳐 해소됐다. 직전 fire 에서 `배포 산출물 검증(Docker 빌드 + 런타임 smoke)` job 이
+step 0 개로 15 분 timeout cancelled (`not acquired by Runner of type hosted`) 되기를 5 회 반복했으나, 본 fire 가
+같은 시각 main push run `31122598009` 의 **동일 job 이 9 step success** 임을 확인해 **hosted runner 전역 장애가
+아니라 stuck run-attempt 에 갇힌 단일-job `rerun-failed-jobs` 경로** 임을 확정했다. 재실행을
+`gh run rerun <runId>`(full-run) 로 전환하니 즉시 runner 확보 → 두 job 모두 success
+(기본 검사 35 step 4m36s · 배포 산출물 검증 9 step 2m12s), run `31118242293` conclusion `success`.
+코드 결함 0 이었으므로 `ci.consecutiveFails` 는 끝까지 0. doc-sync 는 `T-1523`(direct) 로 이월.
