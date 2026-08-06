@@ -670,8 +670,29 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   함께 덮고, `afterEach` 는 truncate 후 actor 를 **원본 id 그대로** 재-seed 한다(`ImportJob` 은
   `"User"` TRUNCATE CASCADE 로 정리 — `db-truncate.ts` 수정 0). 여기서도 **측정만 하며 소규모 표본
   이라 REQ-047 실 scale 부하가 아니다**(production code · schema · 임계값 불변).
-- **잔여** — 실측 범위는 endpoint 11 개(조회 route 21)뿐이다. perf-spec 46 개 중 read 계열 glob 은 41 개
-  이고 그 중 실 DB round-trip 은 11 개(slice 1·2·4·5·6·7·8·9·10·11·12)이며 나머지 **mock 잔존 30 개는
+- **slice 13** — `difficulty-mapping-read-realdb.perf-spec.ts` (T-1524) — 실측 대상을 **열두 번째 endpoint
+  도메인** 인 `DifficultyMappingController` 로 넓혀 조회 1 route(`GET /api/llm/difficulty-mappings`)를
+  측정한다. 앞 slice 와의 차이는 **구조 축 3 개** 다 — ① **nullable 관계형 FK 의 NULL / 비-NULL 혼재 +
+  `include` 0 미조인 조회**: `llmProviderConfigId` 는 `String?` 이라 슬롯마다 지정 / 미지정이 갈리는데,
+  앞 12 slice 의 payload 축에는 **관계형 FK 자체가 nullable 인 경로가 없었다**(slice 10 의 `Json?` 2 컬럼은
+  구조화 scalar, slice 12 의 `Int?` / `String?` 은 비-관계 scalar). 부모 row 가 실재해도 `findMany()` 가
+  `include` 를 주지 않아 **join 0 · FK 는 문자열 컬럼으로만 직렬화** 된다. ② **부모–자식 두 테이블이 각각
+  별도 slice 로 실측되는 첫 페어 + `onDelete: Restrict` 로 정리 순서가 강제되는 첫 실 DB slice**: 부모
+  `LlmProviderConfig` 는 slice 11(T-1520)에서 이미 쟀고 본 slice 는 그 **자식** 을 잰다. 두 테이블 모두
+  `truncateAll` 명단 밖이라 spec-local `deleteMany` 가 필요하고 **자식 먼저** 순서를 지켜야 한다(역순은
+  `Restrict` 위반 — negative 로 직접 증거화). ③ **schema 로 카디널리티가 상한된 고정 슬롯 테이블**:
+  `@@unique([difficulty])` + easy/medium/hard 3 슬롯 고정(ADR-0011 §1)이라 결과 집합이 구조적으로 3 을
+  넘을 수 없다 — 앞 slice 의 대상은 모두 원리상 무한 증가 가능한 테이블이었으므로 **규모 민감도가 schema 로
+  bounded 인 첫 실측 경로** 다. `@Roles("Admin")` guard 레벨 403 은 slice 10·11·12 와 동일해 **새 축으로
+  주장하지 않고**, 무필터 전량 `findMany()` 도 slice 11 과 같아 새 축이 아니다. 슬롯 0 건의 빈 배열
+  (404 아님) · 3 슬롯 전량 반환 · FK NULL 슬롯과 비-NULL 슬롯의 한 응답 공존(비-NULL 값이 seed 한 부모
+  config id 와 일치) · 응답 원소의 중첩 관계 객체 키(`llmProviderConfig`) 부재와 부모 payload 미유출 ·
+  cookie 부재/변조 토큰 401 · User tier 403 · 자식 잔존 상태의 부모 `deleteMany` 가 `Restrict` 로 거부됨을
+  함께 덮고, `afterEach` 는 **자식 → 부모 → `truncateAll`** 순서로 정리한 뒤 actor 를 **원본 id 그대로**
+  재-seed 한다(`db-truncate.ts` 수정 0). 여기서도 **측정만 하며 소규모 표본이라 REQ-047 실 scale 부하가
+  아니다**(production code · schema · 임계값 불변).
+- **잔여** — 실측 범위는 endpoint 12 개(조회 route 22)뿐이다. perf-spec 47 개 중 read 계열 glob 은 42 개
+  이고 그 중 실 DB round-trip 은 12 개(slice 1·2·4·5·6·7·8·9·10·11·12·13)이며 나머지 **mock 잔존 30 개는
   이번 slice 로도 불변** 이다(피감수와 감수가 함께 1 씩 증가). 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
   뿐, 다른 endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의
   실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
