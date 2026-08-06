@@ -2,7 +2,7 @@
 id: T-1515
 title: 실 DB round-trip slice 8(T-1514) self-OR-Admin 403 분기 User 조회 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 55
@@ -157,3 +157,17 @@ stack 깊이가 다른 두 route** 를 나란히 잰다 (slice 7 의 guard 미�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-06T08:42Z DONE)
+
+- direct doc-sync. main `d22ebcfe` 로 direct commit + push (3 파일 +25/-8 — cap 300 LOC / 5 파일 이내).
+- `docs/PLAN.md` `142 행` · `docs/ops/load-resilience-test-plan.md` `§ 5` item 5 ·
+  `docs/requirements.md` REQ-048 3 지점에 slice 8 실측을 반영 — 실측 endpoint **6 → 7**
+  (조회 route **12 → 14**), perf-spec **41 → 42**, read glob **36 → 37**.
+- 계산식만 `read 37 − 실 DB read 7` 로 갱신하고 **mock 잔존 30 은 불변** (피감수·감수 동시 +1)
+  사유를 세 문서에 각각 1 구절로 남겼다 (AC 2 계수 함정 검산).
+- 3 축 박제: ① self-OR-Admin OR 분기의 **403 인가 거절**(DB 미도달) 첫 실측 ② 같은 controller
+  안 route 별 **guard tier 상이** ③ **인증 principal 테이블** 자체 + 단일 컬럼 `@unique`(email).
+- REQ-048 는 markdown 표 행이라 `isSelf || isAdminPlus` 의 파이프가 셀을 쪼개는 것을 검산에서
+  잡아 `` `isSelf` 와 `isAdminPlus` 의 OR 분기 `` 표기로 교체 (표 구조 보존, 파이프 8 개 유지).
+- 코드 · schema · 임계값 0 LOC 변경. 완료 선언 0 (AC 8) · 행 좌표 표기 소급 정규화 0 (AC 9).
