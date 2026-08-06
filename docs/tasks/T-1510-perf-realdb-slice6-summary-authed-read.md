@@ -2,7 +2,7 @@
 id: T-1510
 title: 실 DB round-trip perf-spec slice 6 — 인증 경유 summary 시계열 조회 p95 실측
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 285
@@ -10,6 +10,7 @@ estimatedFiles: 2
 created: 2026-08-06
 independentStream: p7-perf-realdb-baseline
 dependsOn: [T-1509]
+prNumber: 1216
 touchesFiles:
   - test/perf/summary-read-realdb.perf-spec.ts
   - test/perf/README.md
@@ -113,3 +114,23 @@ long text 라 응답 payload 가 앞 slice 보다 크다 — **payload 크기 �
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-06T03:54Z DONE)
+
+- pr-mode. PR [#1216](https://github.com/myungjoo/Assessment-Agent/pull/1216) squash merge `403a1240` (main).
+  2 파일 +297/-2, production code 변경 0 LOC.
+- `test/perf/summary-read-realdb.perf-spec.ts` 신설 (284 행 / 10 test) — 실 `PrismaService`
+  경유 `SummaryController` 조회 2 route (목록 `GET /api/summaries?personId`, 상세 `GET /api/summaries/:id`)
+  의 p95 를 mock·guard override 0 으로 실측. `Person → Summary` 시계열 seed (week 4 + month 2,
+  `periodStart` 명시) 로 `@@unique([personId, period, periodStart])` 와 동일 tuple `@@index` 가
+  **중복 정의된 유일 entity** 축 + `narrative` long-text payload 축을 처음 관측.
+- R-112 cover 10 test: happy 2 (시계열 목록 · 상세) · 분기 3 (period 지정 · 미지정 · 매칭 0 빈 배열) ·
+  error 1 (미존재 :id → 404) · negative 4 (personId 누락 400 · period=year 400 · cookie 부재 401 ·
+  변조 토큰 401).
+- `afterEach` truncate 후 actor User 를 **원본 id 로 재-seed** (slice 5 승계 — FK 재사용 함정 차단).
+- 4-게이트 PASS: reviewer VERDICT=APPROVE round 1/7 (PR comment 외부 박제) · integrator 자체 점검 ·
+  CI green (unit · smoke · e2e · perf).
+- 실측 검산(driver 재확인): `test/perf/*.perf-spec.ts` **40 개** · `*read*` **35 개** ·
+  `*read-realdb*` **5 개** · `summary-read-realdb.perf-spec.ts` **10 test**.
+- 문서 반영(PLAN `142 행` · 부하계획 `§ 5` item 5 · REQ-048)은 Out of Scope — direct doc-sync
+  [T-1511](T-1511-perf-realdb-slice6-doc-sync.md) 로 이월.
