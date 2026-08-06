@@ -2,7 +2,9 @@
 id: T-1523
 title: 실 DB round-trip slice 12(T-1522) ImportController 조회 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-08-06T18:05:15Z
+resultCommit: c9db935a
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 55
@@ -169,3 +171,25 @@ service 미경유 · Prisma delegate 호출 **0** 이라, 실 DB 부트스트랩
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 요약 (2026-08-06T18:05:15Z, direct commit `c9db935a`)
+
+`docs/PLAN.md` `142 행` · `docs/ops/load-resilience-test-plan.md` `§ 5` item 5 ·
+`docs/requirements.md` REQ-048 3 지점에 [T-1522](T-1522-perf-realdb-slice12-import-modes-running-read.md)
+의 `ImportController` 조회 2 route 실측을 반영했다 (3 파일 +33/-9).
+
+- **계수 갱신** — 실측 endpoint 10 → **11 개** (조회 route 19 → **21**), perf-spec **46** /
+  read glob **41** / 실 DB perf-spec **12**(그중 read **11**). mock 잔존 read perf-spec **30 개**
+  는 피감수(40→41) · 감수(10→11) 동반 증가로 **불변** — 세 문서 모두 계산식만 조정했다 (AC 2).
+- **새 3 축 박제** — ① DB 미도달 0-query 동기 handler 의 배선-only latency floor ② 같은
+  controller · 같은 fixture 안에서 0-query route 와 DB round-trip route 의 성분 병렬 관측
+  (대소 관계 미단언) ③ 한 요청에 Prisma enum 2 종(`JobStatus` 필터 축 + `ImportMode` payload 축)
+  + nullable scalar 혼재.
+- **완료 선언 0 유지** — PLAN `140 행` `[ ]` · REQ-048 `IN_PROGRESS` · 부하계획 item 5 "미완"
+  그대로. 잔여 4 축(mock 30 · 규모 민감도 미측정 · baseline/임계 fix 미완 · web 렌더 부재) 생존
+  (AC 8 · AC 9).
+- **정본 인용만** — `test/perf/README.md` 와 perf-spec 은 T-1522 가 이미 동기해 **수정 0**.
+  REQ-047 행 · 표 구조 · 행 좌표 표기 규약 모두 무수정 (AC 6 · AC 7 · AC 10).
+
+AC 1~10 전부 `ok`. Follow-ups 없음 — 다음 slice 13(`DifficultyMappingController`)은
+[T-1524](T-1524-perf-realdb-slice13-difficulty-mapping-read.md) 로 큐잉됐다.
