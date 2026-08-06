@@ -2,7 +2,7 @@
 id: T-1511
 title: 실 DB round-trip slice 6(T-1510) summary 시계열 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 55
@@ -151,3 +151,16 @@ doc-sync 는 이 둘을 3 문서에 박제하고 잔여 서술을 남은 축으�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-06T04:40Z DONE)
+
+- direct-mode. main `42aa7b5f` 단일 commit — 3 파일 +18/-7 (cap 300 LOC / 5 파일 이내).
+- PLAN `142 행` 잔여 ① 의 실측 endpoint **4 개 → 5 개** (조회 route **8 → 10**) 갱신,
+  부하계획 `§ 5` item 5 · REQ-048 재판정 행에 slice 6 축 (동일 tuple `@@unique`·`@@index`
+  중복 index · `narrative` long-text payload) 을 병기.
+- 계수 함정 검산: perf-spec `39 → 40` · read `34 → 35` · 실 DB read `5` 로 갱신하되,
+  **mock 기반 30 은 불변** (`35 − 5 = 30`) 임을 각 문서에 1 구절로 남겨 오독을 차단.
+- REQ-047 (S1 배치 부하) `66 행` 불변 · 잔여 축 4 종 보존 · 완료 선언 0 (AC 6~8 검산 ok).
+- doc-only 이므로 tester 면제 (CLAUDE.md `§ 3.2` R-110 단서) — 코드 · CI 변경 0 LOC.
+- 다음 slice 는 [T-1512](T-1512-perf-realdb-slice7-part-fk-reverse-read.md) (`PartController`
+  조회 2 route — 비-index FK 필터 · 상수 2-query · soft-delete 축) 로 planner 가 큐잉.
