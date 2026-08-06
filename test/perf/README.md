@@ -555,8 +555,19 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   index 의 prefix** 를 탄다. ② **3-level FK chain seed**(`Person → Assessment → Contribution`, 자식은
   row 마다 다른 `sourceRef` + 명시 `createdAt`). slice 4 처럼 인증·RBAC guard 를 실 JWT 로 통과하며,
   여기서도 **측정만 하며 production code 와 mock 짝은 불변** 이다.
-- **잔여** — 실측 범위는 endpoint 4 개(조회 route 8)뿐이고 나머지 read perf-spec 은 여전히 service mock
-  이다. 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
+- **slice 6** — `summary-read-realdb.perf-spec.ts` (T-1510) — 실측 대상을 **다섯 번째 endpoint 도메인**
+  인 `SummaryController` 로 넓혀 조회 2 route(`GET /api/summaries?personId=&period=` ·
+  `GET /api/summaries/:id`)를 측정한다. 앞 slice 와의 차이는 **조회 구조 축 2 개** 다 — ① **동일 tuple
+  중복 index**: `Summary` 는 `@@unique([personId, period, periodStart])` 와 `@@index(...)` 가 같은
+  tuple 로 중복 정의된 유일 entity 라(slice 4 는 unique 가 `scope` 포함 4 컬럼, slice 5 는 명시 index
+  부재), optimizer 가 어느 index 를 타든 REQ-048 임계가 성립하는지의 첫 증거다. ② **payload 크기**:
+  `narrative` 가 서술형 long text 라 응답 본문이 앞 slice 보다 크다. period 지정(2 컬럼) · 미지정
+  (leftmost prefix) 두 경로와 매칭 0 의 빈 배열을 덮고, 401 은 **cookie 부재** 와 **변조 토큰** 두
+  조건으로 각각 도달해 guard 생존도 확인한다. slice 4·5 처럼 `afterEach` 는 truncate 후 actor 를
+  **원본 id 그대로** 재-seed 하며, 여기서도 **측정만 한다**.
+- **잔여** — 실측 범위는 endpoint 5 개(조회 route 10)뿐이다. read 계열 glob 35 개 중 실 DB round-trip 은
+  5 개(slice 1·2·4·5·6)이고 나머지 **mock 잔존 30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께
+  1 씩 증가). 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
   뿐, 다른 endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의
   실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
 - **로컬 실행 전제** — `docker compose up -d postgres` + `DATABASE_URL`(예:
