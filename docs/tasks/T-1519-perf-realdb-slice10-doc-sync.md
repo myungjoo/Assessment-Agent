@@ -2,7 +2,8 @@
 id: T-1519
 title: 실 DB round-trip slice 10(T-1518) export job polling 조회 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-08-06T12:52:00Z
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 55
