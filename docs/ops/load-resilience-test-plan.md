@@ -132,7 +132,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 4. **CI 통합** — 부하 harness 를 `.github/workflows/` 에 별도 job(정기/수동 trigger)으로
    편입. 상시 PR CI 와 분리(부하는 무거움).
 5. **baseline 확정 + 임계 fix** — 최초 실측으로 §3 의 "baseline 후 fix" 임계를 실 수치로
-   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 4 까지 도달**: slice 1(T-1500, main
+   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 5 까지 도달**: slice 1(T-1500, main
    `0395c51e`) 의 [`person-read-realdb.perf-spec.ts`](../../test/perf/person-read-realdb.perf-spec.ts)
    가 mock override 0 부트스트랩 + 실 Prisma seed 로 `GET /api/persons` 의 p95 < 3000ms 를 실측했고,
    slice 2(T-1502, main `97198504`) 의
@@ -150,13 +150,22 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    `JwtAuthGuard` + `RolesGuard` 를 통과하며** 측정해 인증 layer + DB round-trip 을 모두 포함한
    경로에서도 p95 < 3000ms 임을 실측했다(401 분기로 guard 생존 확인, `@@index([personId, period,
    periodStart])` 를 타는 필터 + 다중 row 경로라 앞 slice 의 flat 목록 · N+1 loop 와 구조가 다르다).
-   slice 4 는 route 폭을 늘렸으므로 실측 범위는 **3 endpoint (조회 6 route)** 다(정본
+   그다음 slice 5(T-1508, main `b15ffb0e`) 의
+   [`contribution-read-realdb.perf-spec.ts`](../../test/perf/contribution-read-realdb.perf-spec.ts)
+   (10 test) 가 네 번째 endpoint 도메인인 `ContributionController` 의 조회 2 route
+   (`GET /api/contributions?assessmentId=` · `GET /api/contributions/:id`) 를 slice 4 에 이어
+   **실 JWT 로 guard 를 통과하며** 측정해 **부모→자식 FK fan-out** 경로에서도 p95 < 3000ms 임을
+   실측했다(필터가 명시 `@@index` 가 아니라 `@@unique([assessmentId, sourceRef])` composite unique
+   index 의 **prefix** 를 타고, seed 는 `Person → Assessment → Contribution` **3-level FK chain** 의
+   상대 비교용 소규모 표본 `PRIMARY_CHILDREN = 5` · `OTHER_CHILDREN = 3` 이라 REQ-047 의 실 scale
+   부하 검증이 아니다). slice 4·5 가 route 폭을 늘렸으므로 실측 범위는
+   **4 endpoint (조회 8 route)** 다(정본
    서술 = [`test/perf/README.md`](../../test/perf/README.md) 의
    `## 실 DB round-trip baseline (slice 목록)`).
    단 **본 item 은 미완** — `buildBaselineReport` + `formatBaselineLine` 은 **관찰 전용**
    이고 `writeBaselineFile` / `confirmOrCompareBaseline` 는 미사용이라 baseline 파일 확정이
    성립하지 않으며, §3 의 "baseline 후 fix" 임계 fix 도 미착수다. **잔여**: baseline 파일
    확정 · 임계 fix · 측정 endpoint 확대(나머지 read perf-spec 30 개는 service mock 잔존 —
-   계산식은 read 33 개 − 실 DB read 3 개이며, slice 4 는 파일명에 `read` 가 있어 피감수와 감수가
-   함께 1 씩 늘어 차이 30 은 불변이다) · **다른 endpoint 의 규모
-   민감도**(규모 축 실측은 `:id/persons` 한 route 에 한해 도달).
+   계산식은 read 34 개 − 실 DB read 4 개이며, slice 5 도 파일명에 `read` 가 있어 피감수와 감수가
+   함께 1 씩 늘어 차이 30 은 불변이다) · **다른 endpoint(slice 5 의 contribution fan-out 포함) 의
+   규모 민감도**(규모 축 실측은 `:id/persons` 한 route 에 한해 도달).
