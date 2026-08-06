@@ -649,9 +649,30 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   403 · 미존재 id 404 를 함께 덮고, `afterEach` 는 truncate 후 actor 를 **원본 id 그대로** 재-seed 한다
   (seed 는 Prisma 직접 insert 라 실 `LlmApiKeyCipher` · 암호화 key env 에 의존 0). 여기서도 **측정만 하며
   소규모 표본이라 REQ-047 실 scale 부하가 아니다**(production code · schema · 임계값 불변).
-- **잔여** — 실측 범위는 endpoint 10 개(조회 route 19)뿐이다. read 계열 glob 40 개 중 실 DB round-trip 은
-  10 개(slice 1·2·4·5·6·7·8·9·10·11)이고 나머지 **mock 잔존 30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께
-  1 씩 증가). 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
+- **slice 12** — `import-read-realdb.perf-spec.ts` (T-1522) — 실측 대상을 **열한 번째 endpoint 도메인**
+  인 `ImportController` 로 넓혀 조회 2 route(`GET /api/admin/import/modes` ·
+  `GET /api/admin/import/running`)를 측정한다. 앞 slice 와의 차이는 **구조 축 3 개** 다 —
+  ① **DB 미도달 0-query route 의 첫 실측**: `modes` 는 handler 가 `async` 도 아닌 **동기 반환** 이고
+  service 미경유 · Prisma delegate 호출 **0**(고정 2 mode enum 을 `describeImportMode` helper 로 서술
+  변환해 반환)이라 **guard stack + 라우팅 + 직렬화만의 배선 latency floor** 를 처음 분리 관측한다(앞
+  11 slice 의 측정 route 는 예외 없이 최소 1 query 를 발화했다). ② **같은 controller · 같은 fixture
+  안에서 0-query route 와 DB round-trip route 를 나란히 측정**: `running` 은 실 `ImportJob` 을
+  `status: "RUNNING"` 으로 거르는 실 query 경로라 **DB 성분과 배선 성분의 상대 관측 기록** 이 처음
+  남는다(두 표본의 대소 관계는 **단언하지 않고 관찰만** 한다 — slice 3 선례). ③ **한 요청에 Prisma
+  enum 2 종(필터 축 + payload 축) 혼재**: slice 10 `ExportJob` 의 정합 쌍이라 `@@index([status,
+  createdAt])` leading-edge · `JobStatus` enum 필터 · `Restrict` FK 는 같지만 payload 축이
+  `mode`(`ImportMode`)라는 **두 번째 enum 컬럼** + `restoredRowCount`(`Int?`) + `error` /
+  `artifactRef`(`String?`)의 **nullable scalar 혼재** 다(slice 10 은 `Json?` 2 컬럼 JSONB 축이었다).
+  403 layer 는 slice 10·11 과 같은 `@Roles("Admin")` guard 레벨이라 **새 축으로 주장하지 않는다**.
+  `RUNNING` 0 개의 빈 배열(404 아님) · status 혼재의 비혼입 · RUNNING 2 row 의 mode enum 2 값 공존과
+  nullable scalar NULL/비-NULL 혼재 · `modes` 응답이 seed 0 건과 혼재 다건에서 **동일한 2 원소**
+  임(DB 미도달 축의 직접 증거) · cookie 부재/변조 토큰 401 · User tier 403 2 종 · 미존재 id 404 를
+  함께 덮고, `afterEach` 는 truncate 후 actor 를 **원본 id 그대로** 재-seed 한다(`ImportJob` 은
+  `"User"` TRUNCATE CASCADE 로 정리 — `db-truncate.ts` 수정 0). 여기서도 **측정만 하며 소규모 표본
+  이라 REQ-047 실 scale 부하가 아니다**(production code · schema · 임계값 불변).
+- **잔여** — 실측 범위는 endpoint 11 개(조회 route 21)뿐이다. perf-spec 46 개 중 read 계열 glob 은 41 개
+  이고 그 중 실 DB round-trip 은 11 개(slice 1·2·4·5·6·7·8·9·10·11·12)이며 나머지 **mock 잔존 30 개는
+  이번 slice 로도 불변** 이다(피감수와 감수가 함께 1 씩 증가). 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
   뿐, 다른 endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의
   실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
 - **로컬 실행 전제** — `docker compose up -d postgres` + `DATABASE_URL`(예:
