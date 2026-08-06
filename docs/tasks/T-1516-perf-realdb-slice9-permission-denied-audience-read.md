@@ -2,7 +2,10 @@
 id: T-1516
 title: 실 DB round-trip perf-spec slice 9 — audience 차등 audit 조회 p95 실측
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-08-06T10:11:56Z
+prNumber: 1219
+mergeCommit: 87a1bcb807a7b965c76814039f993f46a7a1aa5a
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 292
