@@ -2,8 +2,9 @@
 id: T-1522
 title: 실 DB round-trip perf-spec slice 12 — ImportController 조회 2 route(0-query modes · RUNNING job 목록) p95 실측
 phase: P7
-status: PENDING
+status: IN_PROGRESS
 commitMode: pr
+prNumber: 1222
 coversReq: [REQ-048]
 estimatedDiff: 290
 estimatedFiles: 2
