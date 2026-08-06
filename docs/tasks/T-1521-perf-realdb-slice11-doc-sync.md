@@ -2,7 +2,7 @@
 id: T-1521
 title: 실 DB round-trip slice 11(T-1520) LLM provider config 조회 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 55
@@ -169,3 +169,7 @@ service 가 row 마다 명시 field pick 으로 `apiKey`(AES-256-GCM envelope ci
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## Result (2026-08-06T14:45Z)
+
+`Status: DONE`. main direct commit `a5391911` (3 파일 +31/-8) — `docs/PLAN.md` `142 행` · `docs/ops/load-resilience-test-plan.md` `§ 5` item 5 · `docs/requirements.md` REQ-048 에 slice 11 (`LlmProviderConfigController` 조회 2 route) 실측을 반영. 실측 endpoint 9→10 (조회 route 19) · perf-spec 45 / read glob 40 / 실 DB 11 (read 10) 로 갱신하되 mock 잔존 30 은 계산식만 조정해 불변 유지. 새 3 축 (secondary index 0 테이블 full-scan / service per-row sanitize 로 DB payload > 응답 payload / `findUnique` null 분기 404) 박제. AC 1~10 전부 ok, 완료 선언 0 (PLAN `140 행` `[ ]` · REQ-048 `IN_PROGRESS` · item 5 미완 유지).
