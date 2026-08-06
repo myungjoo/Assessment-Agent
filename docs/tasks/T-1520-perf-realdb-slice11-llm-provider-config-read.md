@@ -2,7 +2,9 @@
 id: T-1520
 title: 실 DB round-trip perf-spec slice 11 — LLM provider config 조회 p95 실측
 phase: P7
-status: PENDING
+status: DONE
+prNumber: 1221
+completedAt: 2026-08-06T13:53:21Z
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 290
@@ -165,3 +167,13 @@ code · schema · 임계값은 건드리지 않는다**.
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## Result (2026-08-06)
+
+`Status: DONE` — PR [#1221](https://github.com/myungjoo/Assessment-Agent/pull/1221) squash merge (`a3703964`).
+`test/perf/llm-provider-config-read-realdb.perf-spec.ts` 신설(+286) + `test/perf/README.md` slice 11 bullet ·
+잔여 계수 갱신(-2 포함, 2 파일 / 288 행). happy 2 · 분기 3 · negative 4 (총 9 `it`) 로 R-112 4 종 cover,
+truncate 미커버 테이블이라 spec-local `deleteMany` 로 정리하고 seed 는 Prisma 직접 insert 라 실 cipher ·
+key env 의존 0. reviewer round 1/7 APPROVE (Nit 1 건 — `assertS2Threshold` 중복 호출, 차단 아님),
+4-게이트 PASS, CI green(`perf` step 포함). mock 잔존 30 불변(40 read glob − 10 실 DB). doc-sync 는
+`T-1521`(direct) 로 이월.
