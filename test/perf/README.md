@@ -578,8 +578,23 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   Part 의 200 + 빈 배열, 대조군 Part 소속의 비혼입, 미존재 id 의 404 를 함께 덮으며,
   `PartController` 는 guard 미부착이라 slice 1~3 처럼 인증 노이즈가 0 이다. 여기서도
   **측정만 하며 production code 와 mock 짝은 불변** 이다(`Person.partId` 에 index 추가 금지).
-- **잔여** — 실측 범위는 endpoint 6 개(조회 route 12)뿐이다. read 계열 glob 36 개 중 실 DB round-trip 은
-  6 개(slice 1·2·4·5·6·7)이고 나머지 **mock 잔존 30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께
+- **slice 8** — `user-read-realdb.perf-spec.ts` (T-1514) — 실측 대상을 **일곱 번째 endpoint 도메인**
+  인 `UserController` 로 넓혀 조회 2 route(`GET /api/users` · `GET /api/users/:id`)를 측정한다.
+  앞 slice 와의 차이는 **구조 축 3 개** 다 — ① **403 인가 분기의 첫 실측**: slice 4~6 은 guard 통과와
+  401 두 상태만 봤으나, 상세 route 는 `isSelf || isAdminPlus` OR 분기를 controller 가 판정해
+  **권한 부족 403** 과 **존재 부재 404** 가 의미상 분리된 유일한 경로이고, 403 은 `service.findById`
+  호출이 0 이라 **DB 를 타지 않는 거절 경로의 latency** 를 처음 관측한다. ② **route 별 상이 guard
+  tier**: 목록은 `JwtAuthGuard + RolesGuard`(`@Roles("Admin")`), 상세는 `JwtAuthGuard` 만 +
+  controller 분기라 같은 controller 안에서 **guard stack 깊이가 다른 두 route** 를 나란히 잰다.
+  ③ **인증 principal 테이블 자체가 측정 대상**: 결과 집합이 곧 actor 가 속한 테이블이고 필터 축도
+  **단일 컬럼 `@unique`(`User.email`)** + 목록의 **무필터 전량 SELECT** 다(slice 4 = composite
+  `@@index`, 5 = composite unique prefix, 6 = unique·index 중복 tuple, 7 = 무-index). self/Admin+/
+  거절 세 분기 · 미존재 id 404 · 목록의 User tier 403 · cookie 부재/변조 토큰 401 · 응답의
+  `hashedPassword` 부재를 함께 덮고 `afterEach` 는 truncate 후 actor 를 **원본 id 그대로** 재-seed
+  한다. 여기서도 **측정만 하며 소규모 표본이라 REQ-047 실 scale 부하가 아니다**(production code ·
+  mock 짝 · `User` schema 불변).
+- **잔여** — 실측 범위는 endpoint 7 개(조회 route 14)뿐이다. read 계열 glob 37 개 중 실 DB round-trip 은
+  7 개(slice 1·2·4·5·6·7·8)이고 나머지 **mock 잔존 30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께
   1 씩 증가). 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
   뿐, 다른 endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의
   실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
