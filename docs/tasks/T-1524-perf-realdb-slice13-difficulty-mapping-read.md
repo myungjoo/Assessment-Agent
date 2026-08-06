@@ -2,8 +2,9 @@
 id: T-1524
 title: 실 DB round-trip perf-spec slice 13 — DifficultyMappingController 조회 route(nullable FK 3 슬롯 목록) p95 실측
 phase: P7
-status: PENDING
+status: IN_PROGRESS
 commitMode: pr
+prNumber: 1223
 coversReq: [REQ-048]
 estimatedDiff: 285
 estimatedFiles: 2
