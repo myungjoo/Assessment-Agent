@@ -628,8 +628,29 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   후 actor 를 **원본 id 그대로** 재-seed 한다(`ExportJob` 은 `"User"` TRUNCATE CASCADE 로 정리 —
   `db-truncate.ts` 수정 0). 여기서도 **측정만 하며 소규모 표본이라 REQ-047 실 scale 부하가 아니다**
   (production code · schema · 임계값 불변).
-- **잔여** — 실측 범위는 endpoint 9 개(조회 route 17)뿐이다. read 계열 glob 39 개 중 실 DB round-trip 은
-  9 개(slice 1·2·4·5·6·7·8·9·10)이고 나머지 **mock 잔존 30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께
+- **slice 11** — `llm-provider-config-read-realdb.perf-spec.ts` (T-1520) — 실측 대상을 **열 번째 endpoint
+  도메인** 인 `LlmProviderConfigController` 로 넓혀 조회 2 route(`GET /api/llm/providers` ·
+  `GET /api/llm/providers/:id`)를 측정한다. 앞 slice 와의 차이는 **구조 축 3 개** 다 —
+  ① **secondary index 0 테이블**: `LlmProviderConfig` 는 `@id` 외에 `@unique` · `@@unique` · `@@index` 가
+  **하나도 없는 첫 실측 대상** 이고, 목록은 무필터 전량 `findMany()` · 단건은 **PK 직행
+  `findUnique`** 다(slice 7 은 필터 컬럼만 무-index 이고 테이블에는 다른 index 가 있었으며, 8 = 단일 컬럼
+  `@unique`, 9 = index 후보 2 개, 10 = `@@index` 선두 컬럼). ② **service per-row sanitize 로 DB payload >
+  응답 payload**: 앞 10 slice 는 repository row 를 그대로 직렬화 forward 했지만 본 경로는 service 가 row
+  마다 명시 field pick 으로 `apiKey`(AES-256-GCM envelope ciphertext)를 버린 **새 view 객체** 를 만든다 —
+  읽어서 버리는 컬럼이 있어 **row 수 비례 변환 CPU** 가 latency 에 처음 섞인다. ③ **`findUnique` null 분기
+  기반 404**: slice 10 의 404 는 `findUniqueOrThrow` 의 **P2025 예외 기반** 변환이었지만 본 경로는
+  repository 가 null 을 반환하고 service 가 그 null 을 분기해 `NotFoundException` 을 던지는 **application
+  분기 기반** 이다(같은 404 여도 발생 메커니즘이 다르다). 부수 축은 대상 테이블이 `truncateAll` 명단에
+  **없고** `"User"` FK 도 없어 **spec-local `deleteMany` 정리가 필요한 첫 대상**(`db-truncate.ts` 수정 0) ·
+  역방향 relation(`DifficultyMapping[]`, `onDelete: Restrict`)이 있는데도 `include` 0 인 **미조인 SELECT** ·
+  도메인 데이터가 아닌 **운영 secret 보관 config 테이블** 이다. 두 route 모두 `@Roles("Admin")` 이라 403
+  layer 는 slice 10 과 동일해 **새 축으로 주장하지 않고** negative cover 로만 유지한다. 0 건의 빈 배열
+  (404 아님) · 3 건 전량 반환 · 목록/단건 body 의 `apiKey` 키 부재 · cookie 부재/변조 토큰 401 · User tier
+  403 · 미존재 id 404 를 함께 덮고, `afterEach` 는 truncate 후 actor 를 **원본 id 그대로** 재-seed 한다
+  (seed 는 Prisma 직접 insert 라 실 `LlmApiKeyCipher` · 암호화 key env 에 의존 0). 여기서도 **측정만 하며
+  소규모 표본이라 REQ-047 실 scale 부하가 아니다**(production code · schema · 임계값 불변).
+- **잔여** — 실측 범위는 endpoint 10 개(조회 route 19)뿐이다. read 계열 glob 40 개 중 실 DB round-trip 은
+  10 개(slice 1·2·4·5·6·7·8·9·10·11)이고 나머지 **mock 잔존 30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께
   1 씩 증가). 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
   뿐, 다른 endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의
   실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
