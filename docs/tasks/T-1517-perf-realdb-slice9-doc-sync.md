@@ -2,7 +2,8 @@
 id: T-1517
 title: 실 DB round-trip slice 9(T-1516) audience 차등 audit 조회 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-08-06T10:42:00Z
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 55
