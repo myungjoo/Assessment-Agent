@@ -2,7 +2,8 @@
 id: T-1514
 title: 실 DB round-trip perf-spec slice 8 — self-OR-Admin 분기 User 조회 p95 실측
 phase: P7
-status: PENDING
+status: DONE
+prNumber: 1218
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 285
@@ -89,3 +90,20 @@ REQ-048 (조회 p95 < 3s) 의 실 DB 증거를 한 도메인 더 넓히는 것�
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가)
+
+## 결과 (2026-08-06T08:03Z DONE)
+
+- pr-mode. PR [#1218](https://github.com/myungjoo/Assessment-Agent/pull/1218) round 1 APPROVE →
+  squash 머지 (main `7bcb2c81`), feature branch 삭제 완료.
+- `test/perf/user-read-realdb.perf-spec.ts` 신설 (+298/-2, 2 파일 — cap 300 LOC / 5 파일 이내).
+  slice 6 구조 승계 (`createAuthenticatedE2EApp` + 실 JWT 2 actor + `afterEach truncateAll` 후
+  원본 id 그대로 actor 재-seed), mock override 0 인 실 DB round-trip.
+- R-112 4 종 충족: happy 2 (Admin 목록 · Admin 의 타 user 상세, seed 값 일치 + p95 < 3000ms) ·
+  분기 3 (`isSelf` 200 · `isAdminPlus` 200 · 둘 다 false 403) · error 1 (미존재 id → 404) ·
+  negative 4 (목록을 User tier 로 403 · cookie 부재 401 · 변조 토큰 401 · `hashedPassword` 미노출).
+  403 인가 거절은 DB 미도달 경로라 `p95MaxMs` 0 으로 측정 시간 무의존 단언.
+- `test/perf/README.md` slice 목록에 slice 8 항목 + 잔여 계수 갱신 — 실측 endpoint **6 → 7**
+  (조회 route **12 → 14**), read glob **36 → 37**, **mock 잔존 30 은 불변** (피감수·감수 동시 +1).
+- production code · schema · 임계값 0 LOC 변경 (측정 전용). CI `perf test` step 이 실 DB 로 green.
+- PLAN `142 행` · 부하계획 `§ 5` · REQ-048 3 문서 doc-sync 는 `§ 3.1` rule 3 로 분리 —
+  [T-1515](T-1515-perf-realdb-slice8-doc-sync.md) 로 planner 가 큐잉.
