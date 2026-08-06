@@ -609,8 +609,27 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   omit(400 아님) · 매칭 0 의 빈 배열 · cookie 부재/변조 토큰 401 을 함께 덮고, `afterEach` 는 truncate
   후 actor 를 **원본 id 그대로** 재-seed 한다(binding 은 `"User"` CASCADE 로 정리). 여기서도 **측정만
   하며 소규모 표본이라 REQ-047 실 scale 부하가 아니다**(production code · mock 짝 · schema 불변).
-- **잔여** — 실측 범위는 endpoint 8 개(조회 route 15)뿐이다. read 계열 glob 38 개 중 실 DB round-trip 은
-  8 개(slice 1·2·4·5·6·7·8·9)이고 나머지 **mock 잔존 30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께
+- **slice 10** — `export-read-realdb.perf-spec.ts` (T-1518) — 실측 대상을 **아홉 번째 endpoint 도메인**
+  인 `ExportController` 로 넓혀 조회 2 route(`GET /api/admin/export/running` ·
+  `GET /api/admin/export/:id`)를 측정한다. 앞 slice 와의 차이는 **구조 축 3 개** 다 —
+  ① **Prisma enum 필터 + index 선두 컬럼**: `findRunning` 이 `where: { status: "RUNNING" }` 로
+  `@@index([status, createdAt])` 의 **leading-edge 1 컬럼만** 타고, 그 필터 타입이 String/Int 가 아니라
+  **Prisma enum(`JobStatus`)** 인 첫 실측이다(slice 4 = composite `@@index` 전량, 5 = composite unique
+  prefix, 6 = unique·index 중복 tuple, 7 = 무-index, 8 = 단일 컬럼 `@unique`, 9 = index 후보 2 개).
+  ② **`Json?` 2 컬럼의 JSONB 역직렬화**: `dateRange` · `entitySelector` 가 nullable Json 이라 **구조화
+  payload 의 역직렬화 + NULL/비-NULL 혼재 표본** 을 처음 잰다(slice 6 의 `narrative` long text 는 평문
+  축이라 다르고, 두 표본의 대소 관계는 단언하지 않는다 — slice 3 선례). ③ **guard 레벨 403**: 두 route
+  모두 `@Roles("Admin")` 이라 User tier actor 는 **RolesGuard 단계에서 DB 미도달 403** 이다 — slice 8 의
+  403 은 controller 가 `isSelf || isAdminPlus` 를 판정한 **controller 레벨** 거절이었으므로 같은 403 이어도
+  **발생 layer 가 다르다**. 부수 축으로 도메인 데이터가 아닌 **운영 job 생명주기 테이블** 을 처음 재고,
+  단건 조회가 **`findUniqueOrThrow` 의 P2025 → 404 변환** 경로이며 FK 가 **`onDelete: Restrict`** (앞
+  slice 는 Cascade 또는 FK 부재)다. 4 status 혼재의 비혼입 · `RUNNING` 0 개의 빈 배열 · Json
+  비-NULL/NULL 두 갈래 · cookie 부재/변조 토큰 401 · 미존재 id 404 를 함께 덮고, `afterEach` 는 truncate
+  후 actor 를 **원본 id 그대로** 재-seed 한다(`ExportJob` 은 `"User"` TRUNCATE CASCADE 로 정리 —
+  `db-truncate.ts` 수정 0). 여기서도 **측정만 하며 소규모 표본이라 REQ-047 실 scale 부하가 아니다**
+  (production code · schema · 임계값 불변).
+- **잔여** — 실측 범위는 endpoint 9 개(조회 route 17)뿐이다. read 계열 glob 39 개 중 실 DB round-trip 은
+  9 개(slice 1·2·4·5·6·7·8·9·10)이고 나머지 **mock 잔존 30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께
   1 씩 증가). 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
   뿐, 다른 endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의
   실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
