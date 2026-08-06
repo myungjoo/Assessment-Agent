@@ -2,7 +2,7 @@
 id: T-1509
 title: 실 DB round-trip slice 5(T-1508) fan-out 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 55
@@ -148,3 +148,20 @@ slice 5 의 질적 차이는 개수 증가(endpoint 3 → 4)에 더해 **조회 
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-06T02:44Z DONE)
+
+- direct commit `f6148872` (main). 3 파일 +16/-7, 코드 변경 0 LOC.
+- `docs/PLAN.md` `142 행`: perf-spec 38 → **39 개**, read 경로 33 → **34 개**,
+  실 DB round-trip 실측 도달 범위 slice 4 → **slice 5** (T-0830~T-1508).
+- `docs/ops/load-resilience-test-plan.md` `§ 5` item 5: slice 5 병기 — 네 번째 endpoint
+  도메인(`ContributionController` 조회 2 route), `@@unique([assessmentId, sourceRef])`
+  composite unique index 의 **prefix** 를 타는 필터, `Person → Assessment → Contribution`
+  **3-level FK chain** seed, 실측 범위 3 endpoint(조회 6 route) → **4 endpoint(조회 8 route)**.
+  item 미완 결론(`165 행`) 유지.
+- `docs/requirements.md` REQ-048: 실 DB read 3 → **4**, guard/401 축 병기. `IN_PROGRESS` 불변.
+- 계수 함정 검산: read glob 33 → 34 이지만 실 DB read 3 → 4 라 **mock 잔존 30 개 불변**
+  (피감수·감수가 함께 1 씩 증가) — 이유 구절을 병기.
+- 완료 선언 0 — PLAN `140 행` checkbox `[ ]` · REQ-048 `IN_PROGRESS` · item 5 미완 그대로.
+- 실측 검산(driver 재확인): `test/perf/*.perf-spec.ts` 39 개 · `*read*` 34 개 ·
+  `*read-realdb*` 4 개 · `contribution-read-realdb.perf-spec.ts` 10 test.
