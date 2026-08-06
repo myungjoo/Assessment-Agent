@@ -132,7 +132,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 4. **CI 통합** — 부하 harness 를 `.github/workflows/` 에 별도 job(정기/수동 trigger)으로
    편입. 상시 PR CI 와 분리(부하는 무거움).
 5. **baseline 확정 + 임계 fix** — 최초 실측으로 §3 의 "baseline 후 fix" 임계를 실 수치로
-   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 10 까지 도달**: slice 1(T-1500, main
+   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 11 까지 도달**: slice 1(T-1500, main
    `0395c51e`) 의 [`person-read-realdb.perf-spec.ts`](../../test/perf/person-read-realdb.perf-spec.ts)
    가 mock override 0 부트스트랩 + 실 Prisma seed 로 `GET /api/persons` 의 p95 < 3000ms 를 실측했고,
    slice 2(T-1502, main `97198504`) 의
@@ -235,17 +235,40 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    **`findUniqueOrThrow` 의 P2025 → 404 변환** 경로이며 FK 가 **`onDelete: Restrict`** 다.
    seed 는 `ITERATIONS = 8` · `SHORT_ITERATIONS = 4` · 4 status 혼재 job 소수 row 의 상대
    비교용 소규모 표본이라 REQ-047 의 실 scale 부하 검증이 아니다).
-   slice 4·5·6·7·8·9·10 이 route 폭을 늘렸으므로 실측 범위는
-   **9 endpoint (조회 17 route)** 다(slice 9 는 route 를 1 개만, slice 10 은 2 개를 더한다. 정본
+   그다음 slice 11(T-1520, main `a3703964`) 의
+   [`llm-provider-config-read-realdb.perf-spec.ts`](../../test/perf/llm-provider-config-read-realdb.perf-spec.ts)
+   (9 test) 가 열 번째 endpoint 도메인인 `LlmProviderConfigController` 의 조회 2 route
+   (`GET /api/llm/providers` · `GET /api/llm/providers/:id`) 를 **실 JWT 로** 측정해
+   **운영 secret config 조회** 경로에서도 p95 < 3000ms 임을 실측했다(구조 축 3 개 추가 —
+   ① `LlmProviderConfig` 는 `@id` 외에 `@unique` · `@@unique` · `@@index` 가 **하나도 없는
+   첫 실측 대상** 이라 목록은 무필터 전량 `findMany()` · 단건은 **PK 직행 `findUnique`** 인
+   **secondary index 0 테이블** 이고(slice 7 은 필터 컬럼만 무-index 이고 테이블에는 다른
+   index 가 있었으며, 8 = 단일 컬럼 `@unique`, 9 = index 후보 2 개, 10 = `@@index` 선두 컬럼),
+   ② service 가 row 마다 명시 field pick 으로 `apiKey`(AES-256-GCM envelope ciphertext) 를
+   버린 **새 view 객체** 를 만들어 **DB payload > 응답 payload** 이므로 **row 수 비례 변환
+   CPU** 가 latency 에 처음 섞이며(앞 10 slice 는 repository row 를 그대로 직렬화 forward),
+   ③ 단건 404 가 repository 의 null 을 service 가 분기해 `NotFoundException` 을 던지는
+   **null 분기 기반** 이라 slice 10 의 `findUniqueOrThrow` **P2025 예외 기반** 404 와 같은
+   상태코드여도 **발생 메커니즘이 다르다**. 부수 축으로 대상 테이블이 `truncateAll` 명단에
+   없어 **spec-local `deleteMany` 정리가 필요한 첫 대상** 이고, 역방향
+   relation(`DifficultyMapping[]`, `onDelete: Restrict`) 이 있는데도 `include` 0 인
+   **미조인 SELECT** 이며, 도메인 데이터가 아닌 **운영 secret 보관 config 테이블** 이다.
+   403 layer 는 두 route 모두 `@Roles("Admin")` 이라 slice 10 과 동일해 새 축이 아니다.
+   seed 는 config **0 건(빈 배열) · 3 건 전량** 표본과 `ITERATIONS = 8` ·
+   `SHORT_ITERATIONS = 4` 반복의 상대 비교용 소규모 표본이라 REQ-047 의 실 scale 부하
+   검증이 아니다).
+   slice 4·5·6·7·8·9·10·11 이 route 폭을 늘렸으므로 실측 범위는
+   **10 endpoint (조회 19 route)** 다(slice 9 는 route 를 1 개만, slice 10·11 은 각각 2 개를
+   더한다. 정본
    서술 = [`test/perf/README.md`](../../test/perf/README.md) 의
    `## 실 DB round-trip baseline (slice 목록)`).
    단 **본 item 은 미완** — `buildBaselineReport` + `formatBaselineLine` 은 **관찰 전용**
    이고 `writeBaselineFile` / `confirmOrCompareBaseline` 는 미사용이라 baseline 파일 확정이
    성립하지 않으며, §3 의 "baseline 후 fix" 임계 fix 도 미착수다. **잔여**: baseline 파일
    확정 · 임계 fix · 측정 endpoint 확대(나머지 read perf-spec 30 개는 service mock 잔존 —
-   계산식은 read 39 개 − 실 DB read 9 개이며, slice 10 도 파일명에 `read` 가 있어 피감수(38→39)와
-   감수(8→9)가 함께 1 씩 늘어 차이 30 은 불변이다) · **다른 endpoint(slice 5 의 contribution
+   계산식은 read 40 개 − 실 DB read 10 개이며, slice 11 도 파일명에 `read` 가 있어 피감수(39→40)와
+   감수(9→10)가 함께 1 씩 늘어 차이 30 은 불변이다) · **다른 endpoint(slice 5 의 contribution
    fan-out · slice 6 의 summary 시계열 조회 · slice 7 의 part 소속 조회 · slice 8 의 user 목록
    무필터 전량 SELECT · slice 9 의 permission-denied audit 목록 · slice 10 의 export job
-   polling 포함) 의
+   polling · slice 11 의 LLM provider config 조회 포함) 의
    규모 민감도**(규모 축 실측은 `:id/persons` 한 route 에 한해 도달).
