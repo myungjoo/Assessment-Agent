@@ -593,8 +593,24 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   `hashedPassword` 부재를 함께 덮고 `afterEach` 는 truncate 후 actor 를 **원본 id 그대로** 재-seed
   한다. 여기서도 **측정만 하며 소규모 표본이라 REQ-047 실 scale 부하가 아니다**(production code ·
   mock 짝 · `User` schema 불변).
-- **잔여** — 실측 범위는 endpoint 7 개(조회 route 14)뿐이다. read 계열 glob 37 개 중 실 DB round-trip 은
-  7 개(slice 1·2·4·5·6·7·8)이고 나머지 **mock 잔존 30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께
+- **slice 9** — `permission-denied-read-realdb.perf-spec.ts` (T-1516) — 실측 대상을 **여덟 번째 endpoint
+  도메인** 인 `PermissionDeniedRecordController` 로 넓혀 조회 1 route
+  (`GET /api/permission-denied-records`)를 측정한다. 앞 slice 와의 차이는 **구조 축 3 개** 다 —
+  ① **거부 대신 결과 집합 축소(audience 차등)**: slice 8 이 403 **거부** 를 처음 실측했다면 본 slice 는
+  같은 200 인데 actor 에 따라 발화 query 수가 **1(Admin bypass) / 2(allowlist 조회 + findMany) /
+  1(공집합 early return)** 로 갈리는 첫 경로다(slice 7 의 상수 2 query 와도 다르다).
+  ② **index 후보 2 개 + 정렬 축 공유**: `@@index([instanceRef, createdAt])` 와
+  `@@index([provider, httpStatus, createdAt])` **둘** 에 `@unique` 는 **0** 인 유일 실측 대상이라
+  optimizer 가 필터 조합으로 후보를 고르고 `orderBy: { createdAt: "desc" }` 가 두 index 의 후행 컬럼과
+  **정렬 축을 공유** 한다(두 표본의 대소 관계는 단언하지 않는다 — slice 3 선례). ③ **다축 query param
+  조합 + `IN` 절**: 필터가 query 3 축(`instanceRef` · `provider` · `httpStatus`) 조합이고 non-Admin
+  경로는 allowlist 를 `instanceRef in [...]` 로 주입한다. 아울러 **첫 `src/user/` 외부 module** 이자
+  **append-only audit 테이블** 측정이다. audience 차등 4 갈래 · non-numeric `httpStatus` 의 필터
+  omit(400 아님) · 매칭 0 의 빈 배열 · cookie 부재/변조 토큰 401 을 함께 덮고, `afterEach` 는 truncate
+  후 actor 를 **원본 id 그대로** 재-seed 한다(binding 은 `"User"` CASCADE 로 정리). 여기서도 **측정만
+  하며 소규모 표본이라 REQ-047 실 scale 부하가 아니다**(production code · mock 짝 · schema 불변).
+- **잔여** — 실측 범위는 endpoint 8 개(조회 route 15)뿐이다. read 계열 glob 38 개 중 실 DB round-trip 은
+  8 개(slice 1·2·4·5·6·7·8·9)이고 나머지 **mock 잔존 30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께
   1 씩 증가). 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
   뿐, 다른 endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의
   실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
