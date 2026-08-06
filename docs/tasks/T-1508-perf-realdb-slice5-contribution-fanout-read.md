@@ -2,7 +2,8 @@
 id: T-1508
 title: 실 DB round-trip perf-spec slice 5 — 인증 경유 `GET /api/contributions` 부모→자식 fan-out 조회 p95 실측
 phase: P7
-status: PENDING
+status: DONE
+prNumber: 1215
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 285
@@ -157,3 +158,15 @@ slice 4 대비 새 축은 **조회 구조** 다 — `ContributionRepository.find
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-05T21:58Z DONE)
+
+- PR [#1215](https://github.com/myungjoo/Assessment-Agent/pull/1215) round 1 reviewer APPROVE →
+  4-게이트 충족 후 squash 머지. main `b15ffb0e`.
+- `test/perf/contribution-read-realdb.perf-spec.ts` 신설 + `test/perf/README.md` slice 목록 갱신,
+  2 파일 +299/-1, production code 0 LOC.
+- test 구성: happy 2 / 분기 3 / error 1 / negative 4. seed 는 Person → Assessment 3 개 →
+  Contribution 3-level FK chain, `sourceRef` · `createdAt` 을 row 마다 명시해 정렬 결정론 확보.
+- `afterEach` truncate 가 인증 주체 `User` 를 지우므로 actor 를 원본 id 그대로 재-seed (slice 4 승계).
+- 로컬 Docker · Postgres 부재로 `test:perf` 는 CI `perf test` step 이 검증 (PR CI green).
+  로컬에서는 `pnpm lint` · `pnpm build` · `pnpm test:cov` (429 suite / 12302 test) green.
