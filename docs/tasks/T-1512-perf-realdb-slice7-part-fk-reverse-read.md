@@ -2,7 +2,7 @@
 id: T-1512
 title: 실 DB round-trip perf-spec slice 7 — 비-index FK 역방향 Part 소속 Person 조회 p95 실측
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 275
@@ -124,3 +124,19 @@ slice 2 의 membership 비례 N+1 과도 앞 slice 들의 단일 SELECT 와도 �
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-06T05:48Z DONE)
+
+- pr-mode. PR [#1217](https://github.com/myungjoo/Assessment-Agent/pull/1217) round 1 APPROVE →
+  squash 머지 (main `561f3fdf`), feature branch 삭제 완료.
+- `test/perf/part-read-realdb.perf-spec.ts` 신설 (+287/-2, 2 파일 — cap 300 LOC / 5 파일 이내).
+  slice 2 부트스트랩 구조 승계 (`createE2EApp` + `afterEach truncateAll` + `afterAll` close/`$disconnect`),
+  mock override 0 인 실 DB round-trip.
+- R-112 4 종 충족: happy 2 (목록 · 비-index FK 역방향 조회, seed 값 일치 + p95 < 3000ms) ·
+  분기 3 (`activeOnly` 기본 · 소속 0 → 200 + 빈 배열 · 대조군 비혼입) · error 1 (미존재 id → 404) ·
+  negative 4 (404 반복 errorRate 위반 · `p95MaxMs` 0 · 빈 DB 목록 · 미존재 cuid 형태 404).
+- `test/perf/README.md` 잔여 계수를 `ls` 실검산으로 갱신 — 실측 endpoint **5 → 6**
+  (조회 route **10 → 12**), read glob **35 → 36**, **mock 잔존 30 은 불변**.
+- production code · schema · 임계값 0 LOC 변경 (측정 전용). CI `perf test` step 이 실 DB 로 green.
+- PLAN `142 행` · 부하계획 `§ 5` · REQ-048 3 문서 doc-sync 는 `§ 3.1` rule 3 로 분리 —
+  [T-1513](T-1513-perf-realdb-slice7-doc-sync.md) 로 planner 가 큐잉.
