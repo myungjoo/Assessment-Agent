@@ -691,8 +691,30 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   함께 덮고, `afterEach` 는 **자식 → 부모 → `truncateAll`** 순서로 정리한 뒤 actor 를 **원본 id 그대로**
   재-seed 한다(`db-truncate.ts` 수정 0). 여기서도 **측정만 하며 소규모 표본이라 REQ-047 실 scale 부하가
   아니다**(production code · schema · 임계값 불변).
-- **잔여** — 실측 범위는 endpoint 12 개(조회 route 22)뿐이다. perf-spec 47 개 중 read 계열 glob 은 42 개
-  이고 그 중 실 DB round-trip 은 12 개(slice 1·2·4·5·6·7·8·9·10·11·12·13)이며 나머지 **mock 잔존 30 개는
+- **slice 14** — `auth-me-read-realdb.perf-spec.ts` (T-1526) — 실측 대상을 **열세 번째 endpoint
+  도메인** 인 `AuthController` 로 넓혀 조회 1 route(`GET /api/auth/me`)를 측정한다. 앞 slice 와의
+  차이는 **구조 축 3 개** 다 — ① **조회 키가 요청 표면이 아니라 인증 토큰 payload(`req.user.sub`)
+  에서 나오는 첫 경로**: path param 0 · query 0 이라 요청 표면이 **cookie 뿐** 이고 결과 집합이
+  **actor 자신 1 row** 로 고정된다(앞 13 slice 의 필터 입력은 예외 없이 URL path param 또는 query
+  였다 — slice 8 의 `User` 상세도 path param `:id` 기반). ② **`JwtAuthGuard` 단독 — `RolesGuard`
+  미부착으로 403 분기가 구조적으로 부재**: slice 10~13 은 `@Roles("Admin")` guard 레벨 403, slice 8
+  은 같은 controller 안 route 별 guard tier 차이, slice 7 은 guard **0** 이었고 **인증만 있고 인가
+  0** 인 guard stack 은 본 slice 가 처음이다(401 만 존재). ③ **stale token 404 — 인증 통과 + DB
+  도달 + principal row 부재 조합의 첫 실측**: 서명이 유효한 토큰인데 해당 `User` row 가 삭제되면
+  `userService.findById(sub)` 가 `NotFoundException` → **404** 로 변환된다(slice 10 의 404 는 임의
+  path param id 의 부재였다 — 본 경로는 **actor 자신의 row 부재** 라 401 이 아니라 404 로 갈리는
+  지점이 다르다). 부수 축으로 응답이 `UserResponseDto.fromEntity` 를 거쳐 `hashedPassword` 를
+  차단하는 **단건 sanitize** 를 덮되(slice 11 의 per-row sanitize 는 목록·row 수 비례 변환이라 성격이
+  다르다), PK 직행 조회 자체는 slice 11 과 같아 **새 축으로 주장하지 않는다**. 인증 actor 의 self
+  조회 200(id·email 일치) · 응답 whitelist 5 필드와 `hashedPassword` 부재(DB row 에는 실재) ·
+  role 이 다른 두 actor(User tier · Admin tier)가 **403 없이 각자 자기 row** 만 반환 · stale token
+  404(같은 시점 다른 actor 는 200) · cookie 미부착 401(200 과 혼합 시 부분 errorRate) · 서명 변조
+  401 · 만료/형식 불량/빈 cookie 값 401 · path 변형(`me/extra`) 404 를 함께 덮고, `afterEach` 는
+  `truncateAll` 후 actor 를 **원본 id 그대로** 재-seed 한다(stale token test 가 지운 row 도 이때
+  복원 — `db-truncate.ts` 수정 0). 여기서도 **측정만 하며 소규모 표본이라 REQ-047 실 scale 부하가
+  아니다**(production code · schema · 임계값 불변).
+- **잔여** — 실측 범위는 endpoint 13 개(조회 route 23)뿐이다. perf-spec 48 개 중 read 계열 glob 은 43 개
+  이고 그 중 실 DB round-trip 은 13 개(slice 1·2·4·5·6·7·8·9·10·11·12·13·14)이며 나머지 **mock 잔존 30 개는
   이번 slice 로도 불변** 이다(피감수와 감수가 함께 1 씩 증가). 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
   뿐, 다른 endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의
   실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
