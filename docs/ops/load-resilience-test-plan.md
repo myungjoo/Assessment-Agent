@@ -132,7 +132,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 4. **CI 통합** — 부하 harness 를 `.github/workflows/` 에 별도 job(정기/수동 trigger)으로
    편입. 상시 PR CI 와 분리(부하는 무거움).
 5. **baseline 확정 + 임계 fix** — 최초 실측으로 §3 의 "baseline 후 fix" 임계를 실 수치로
-   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 12 까지 도달**: slice 1(T-1500, main
+   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 13 까지 도달**: slice 1(T-1500, main
    `0395c51e`) 의 [`person-read-realdb.perf-spec.ts`](../../test/perf/person-read-realdb.perf-spec.ts)
    가 mock override 0 부트스트랩 + 실 Prisma seed 로 `GET /api/persons` 의 p95 < 3000ms 를 실측했고,
    slice 2(T-1502, main `97198504`) 의
@@ -280,8 +280,29 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    slice 10·11 과 동일해 새 축이 아니다. seed 는 `ITERATIONS = 8` ·
    `SHORT_ITERATIONS = 4` · status 혼재 import job 소수 row 의 상대 비교용 소규모 표본이라
    REQ-047 의 실 scale 부하 검증이 아니다).
-   slice 4·5·6·7·8·9·10·11·12 가 route 폭을 늘렸으므로 실측 범위는
-   **11 endpoint (조회 21 route)** 다(slice 9 는 route 를 1 개만, slice 10·11·12 는 각각
+   그다음 slice 13(T-1524, main `51c02093`) 의
+   [`difficulty-mapping-read-realdb.perf-spec.ts`](../../test/perf/difficulty-mapping-read-realdb.perf-spec.ts)
+   (8 test) 가 열두 번째 endpoint 도메인인 `DifficultyMappingController` 의 조회 1 route
+   (`GET /api/llm/difficulty-mappings`) 를 **실 JWT 로** 측정해 p95 < 3000ms 임을 실측했다
+   (구조 축 3 개 추가 — ① **nullable 관계형 FK 의 NULL / 비-NULL 혼재 + `include` 0 미조인
+   조회**: `llmProviderConfigId` 가 `String?` 이라 슬롯마다 지정 / 미지정이 갈리는데 앞 12
+   slice 의 payload 축에는 **관계형 FK 자체가 nullable 인 경로가 없었다**(slice 10 의 `Json?`
+   2 컬럼은 구조화 scalar, slice 12 의 `Int?` / `String?` 은 비-관계 scalar). 부모 row 가
+   실재해도 `findMany()` 가 `include` 를 주지 않아 **join 0 · FK 는 문자열 컬럼으로만
+   직렬화** 된다, ② **부모–자식 두 테이블이 각각 별도 slice 로 실측되는 첫 페어이자
+   `onDelete: Restrict` 로 정리 순서가 강제되는 첫 실 DB slice**: 부모 `LlmProviderConfig`
+   는 slice 11(T-1520, main `a3703964`) 에서 이미 쟀고 본 slice 는 그 **자식** 을 잰다. 두
+   테이블 모두 `truncateAll` 명단 밖이라 spec-local `deleteMany` 가 필요하고 **자식 먼저**
+   순서를 지켜야 한다, ③ **schema 로 카디널리티가 상한된 고정 슬롯 테이블**:
+   `@@unique([difficulty])` + easy/medium/hard 3 슬롯 고정
+   ([ADR-0011](../decisions/ADR-0011-difficulty-model-assignment.md) §1) 이라 결과 집합이
+   구조적으로 3 을 넘을 수 없어 **규모 민감도가 schema 로 bounded 인 첫 실측 경로** 다 — 앞
+   slice 의 대상은 모두 원리상 무한 증가 가능한 테이블이었다. `@Roles("Admin")` guard 레벨
+   403 은 slice 10·11·12 와 동일하고 무필터 전량 `findMany()` 도 slice 11 과 같아 둘 다 새
+   축이 아니다. seed 는 슬롯 **0 건(빈 배열) · 3 슬롯 전량** 표본과 반복 소수 회의 상대
+   비교용 소규모 표본이라 REQ-047 의 실 scale 부하 검증이 아니다).
+   slice 4·5·6·7·8·9·10·11·12·13 이 route 폭을 늘렸으므로 실측 범위는
+   **12 endpoint (조회 22 route)** 다(slice 9·13 은 route 를 1 개만, slice 10·11·12 는 각각
    2 개를 더한다. 정본
    서술 = [`test/perf/README.md`](../../test/perf/README.md) 의
    `## 실 DB round-trip baseline (slice 목록)`).
@@ -289,10 +310,12 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    이고 `writeBaselineFile` / `confirmOrCompareBaseline` 는 미사용이라 baseline 파일 확정이
    성립하지 않으며, §3 의 "baseline 후 fix" 임계 fix 도 미착수다. **잔여**: baseline 파일
    확정 · 임계 fix · 측정 endpoint 확대(나머지 read perf-spec 30 개는 service mock 잔존 —
-   계산식은 read 41 개 − 실 DB read 11 개이며, slice 12 도 파일명에 `read` 가 있어 피감수(40→41)와
-   감수(10→11)가 함께 1 씩 늘어 차이 30 은 불변이다) · **다른 endpoint(slice 5 의 contribution
+   계산식은 read 42 개 − 실 DB read 12 개이며, slice 13 도 파일명에 `read` 가 있어 피감수(41→42)와
+   감수(11→12)가 함께 1 씩 늘어 차이 30 은 불변이다) · **다른 endpoint(slice 5 의 contribution
    fan-out · slice 6 의 summary 시계열 조회 · slice 7 의 part 소속 조회 · slice 8 의 user 목록
    무필터 전량 SELECT · slice 9 의 permission-denied audit 목록 · slice 10 의 export job
    polling · slice 11 의 LLM provider config 조회 · slice 12 의 import job polling 과 modes
-   조회 포함) 의
+   조회 · slice 13 의 difficulty mapping 고정 슬롯 조회 포함 — 다만 slice 13 의 대상은
+   `@@unique([difficulty])` 3 슬롯 상한이라 규모가 schema 로 bounded 여서 **규모 축의 의미가
+   다르다**) 의
    규모 민감도**(규모 축 실측은 `:id/persons` 한 route 에 한해 도달).
