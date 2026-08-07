@@ -2,7 +2,8 @@
 id: T-1525
 title: 실 DB round-trip slice 13(T-1524) DifficultyMappingController 조회 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-08-07T00:55:00Z
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 55
@@ -165,3 +166,12 @@ slice 는 그 **자식** 을 잰다. 두 테이블 모두 `truncateAll` 명단 �
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 요약 (2026-08-07T00:55:00Z)
+
+main `45089b1e` 로 direct push 완료 (3 파일 `+31/-8`). 실측 endpoint 11 → **12** 개
+(조회 route 21 → **22**), perf-spec **47** / read glob **42** / 실 DB **13**(그중 read **12**)
+로 갱신했고, mock 잔존 read perf-spec **30** 개는 계산식만 `42 − 12` 로 조정해 불변 유지했다.
+slice 13 의 3 축(nullable 관계형 FK 미조인 조회 · 부모-자식 `Restrict` 페어 ·
+schema 로 3 row 상한된 고정 슬롯)을 3 문서에 박제. AC 1~10 전부 ok, 완료 선언 0
+(PLAN `140 행` `[ ]` · REQ-048 `IN_PROGRESS` · 부하계획 item 5 미완 유지).
