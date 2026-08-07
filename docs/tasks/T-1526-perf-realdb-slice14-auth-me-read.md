@@ -2,7 +2,9 @@
 id: T-1526
 title: 실 DB round-trip perf-spec slice 14 — AuthController `GET /api/auth/me`(토큰 payload 키 self 조회) p95 실측
 phase: P7
-status: PENDING
+status: DONE
+prNumber: 1224
+completedAt: 2026-08-07T02:54:38Z
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 285
@@ -84,3 +86,13 @@ slice 11 과 같으므로 **새 축으로 주장하지 않는다**.
 `implementer → tester`
 
 ## Follow-ups
+
+## Result (2026-08-07)
+
+- **DONE** — PR [#1224](https://github.com/myungjoo/Assessment-Agent/pull/1224) round 1 APPROVE → squash 머지 `d5a5a1b8`. CI green, 4-게이트 전량 충족.
+- 변경 2 파일 `+298/-2` — `test/perf/auth-me-read-realdb.perf-spec.ts` 신설 + `test/perf/README.md` slice 14 bullet.
+- 실 JWT cookie 로 `GET /api/auth/me` self 조회를 `collectLatencySamples` + `assertS2Threshold` 로 측정. test 9 종 (happy 1 · error 1 · 분기 3 · negative 4).
+- `afterEach` 는 `truncateAll` 후 actor 를 **원본 id 로 재-seed** 해 stale token test 가 지운 row 를 복원 (`db-truncate.ts` 수정 0).
+- 잔여 계수 실검산: perf-spec **48** / read glob **43** / 실 DB **14**(그중 read **13**) / mock 잔존 **30** 불변.
+- `pnpm lint && build && test` 전량 통과 (429 suite · 12302 test), `test:cov` line 99.95% · function 100%. `test:perf` 는 CI perf step 이 green 으로 검증.
+- doc-sync (PLAN `142 행` · 부하계획 `§ 5` item 5 · REQ-048) 는 Out of Scope 대로 **머지 후 별도 direct task** 로 이월 (slice 12·13 선례 동형).
