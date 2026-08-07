@@ -132,7 +132,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 4. **CI 통합** — 부하 harness 를 `.github/workflows/` 에 별도 job(정기/수동 trigger)으로
    편입. 상시 PR CI 와 분리(부하는 무거움).
 5. **baseline 확정 + 임계 fix** — 최초 실측으로 §3 의 "baseline 후 fix" 임계를 실 수치로
-   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 13 까지 도달**: slice 1(T-1500, main
+   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 14 까지 도달**: slice 1(T-1500, main
    `0395c51e`) 의 [`person-read-realdb.perf-spec.ts`](../../test/perf/person-read-realdb.perf-spec.ts)
    가 mock override 0 부트스트랩 + 실 Prisma seed 로 `GET /api/persons` 의 p95 < 3000ms 를 실측했고,
    slice 2(T-1502, main `97198504`) 의
@@ -301,8 +301,28 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    403 은 slice 10·11·12 와 동일하고 무필터 전량 `findMany()` 도 slice 11 과 같아 둘 다 새
    축이 아니다. seed 는 슬롯 **0 건(빈 배열) · 3 슬롯 전량** 표본과 반복 소수 회의 상대
    비교용 소규모 표본이라 REQ-047 의 실 scale 부하 검증이 아니다).
-   slice 4·5·6·7·8·9·10·11·12·13 이 route 폭을 늘렸으므로 실측 범위는
-   **12 endpoint (조회 22 route)** 다(slice 9·13 은 route 를 1 개만, slice 10·11·12 는 각각
+   그다음 slice 14(T-1526, main `d5a5a1b8`) 의
+   [`auth-me-read-realdb.perf-spec.ts`](../../test/perf/auth-me-read-realdb.perf-spec.ts)
+   (9 test) 가 열세 번째 endpoint 도메인인 `AuthController` 의 조회 1 route
+   (`GET /api/auth/me`) 를 **실 JWT cookie 로** 측정해 p95 < 3000ms 임을 실측했다
+   (구조 축 3 개 추가 — ① **조회 키가 요청 표면이 아니라 인증 토큰 payload(`req.user.sub`)
+   에서 나오는 첫 경로**: path param 0 · query 0 이라 요청 표면이 **cookie 뿐** 이고 결과
+   집합이 **actor 자신 1 row** 로 고정된다(앞 13 slice 의 필터 입력은 예외 없이 URL path
+   param 또는 query 였고 slice 8 의 `User` 상세도 path param `:id` 기반이었다),
+   ② **`JwtAuthGuard` 단독 — `RolesGuard` 미부착으로 403 분기가 구조적으로 부재**:
+   slice 10~13 은 `@Roles("Admin")` guard 레벨 403, slice 8 은 같은 controller 안 route 별
+   guard tier 차이, slice 7 은 guard 0 이었고 **인증만 있고 인가 0** 인 guard stack 은 본
+   slice 가 처음이라 401 만 존재한다, ③ **stale token 404 — 인증 통과 + DB 도달 +
+   principal row 부재 조합의 첫 실측**: 서명이 유효한 토큰인데 해당 `User` row 가 삭제되면
+   `findById(sub)` 가 `NotFoundException` → 404 로 갈린다(slice 10 의 404 는 **임의 path
+   param id** 의 부재였고 본 경로는 **actor 자신의 row 부재** 라 401 이 아니라 404 로
+   갈리는 지점이 다르다). 부수 축으로 응답이 `UserResponseDto.fromEntity` 를 거쳐
+   `hashedPassword` 를 차단하는 **단건 sanitize** 이고(slice 11 의 per-row sanitize 는
+   목록 · row 수 비례 변환이라 성격이 다르다), PK 직행 `findUnique` 자체는 slice 11 과
+   같아 **새 축이 아니다**. seed 는 actor **2 명(User tier · Admin tier)** 과 반복 소수 회의
+   상대 비교용 소규모 표본이라 REQ-047 의 실 scale 부하 검증이 아니다).
+   slice 4·5·6·7·8·9·10·11·12·13·14 가 route 폭을 늘렸으므로 실측 범위는
+   **13 endpoint (조회 23 route)** 다(slice 9·13·14 는 route 를 1 개만, slice 10·11·12 는 각각
    2 개를 더한다. 정본
    서술 = [`test/perf/README.md`](../../test/perf/README.md) 의
    `## 실 DB round-trip baseline (slice 목록)`).
@@ -310,12 +330,14 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    이고 `writeBaselineFile` / `confirmOrCompareBaseline` 는 미사용이라 baseline 파일 확정이
    성립하지 않으며, §3 의 "baseline 후 fix" 임계 fix 도 미착수다. **잔여**: baseline 파일
    확정 · 임계 fix · 측정 endpoint 확대(나머지 read perf-spec 30 개는 service mock 잔존 —
-   계산식은 read 42 개 − 실 DB read 12 개이며, slice 13 도 파일명에 `read` 가 있어 피감수(41→42)와
-   감수(11→12)가 함께 1 씩 늘어 차이 30 은 불변이다) · **다른 endpoint(slice 5 의 contribution
+   계산식은 read 43 개 − 실 DB read 13 개이며, slice 14 도 파일명에 `read` 가 있어 피감수(42→43)와
+   감수(12→13)가 함께 1 씩 늘어 차이 30 은 불변이다) · **다른 endpoint(slice 5 의 contribution
    fan-out · slice 6 의 summary 시계열 조회 · slice 7 의 part 소속 조회 · slice 8 의 user 목록
    무필터 전량 SELECT · slice 9 의 permission-denied audit 목록 · slice 10 의 export job
    polling · slice 11 의 LLM provider config 조회 · slice 12 의 import job polling 과 modes
-   조회 · slice 13 의 difficulty mapping 고정 슬롯 조회 포함 — 다만 slice 13 의 대상은
+   조회 · slice 13 의 difficulty mapping 고정 슬롯 조회 · slice 14 의 auth me self 조회
+   포함 — 다만 slice 13 의 대상은
    `@@unique([difficulty])` 3 슬롯 상한이라 규모가 schema 로 bounded 여서 **규모 축의 의미가
-   다르다**) 의
+   다르고**, slice 14 의 대상은 결과 집합이 **actor 자신 1 row 로 고정** 이라 **규모 축 자체가
+   성립하지 않는다**) 의
    규모 민감도**(규모 축 실측은 `:id/persons` 한 route 에 한해 도달).
