@@ -2,7 +2,8 @@
 id: T-1527
 title: 실 DB round-trip slice 14(T-1526) AuthController `GET /api/auth/me` 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-08-07T03:50:00Z
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 55
@@ -164,3 +165,13 @@ guard 0 이었다. **인증만 있고 인가 0** 인 guard stack 은 본 slice �
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 요약 (2026-08-07T03:50:00Z)
+
+main `2690b437` 로 direct push 완료 (3 파일 `+31/-9`). 실측 endpoint 12 → **13** 개
+(조회 route 22 → **23**), perf-spec **48** / read glob **43** / 실 DB **14**(그중 read **13**)
+로 갱신했고, mock 잔존 read perf-spec **30** 개는 계산식만 `43 − 13` 으로 조정해 불변 유지했다.
+slice 14 의 3 축(토큰 payload `req.user.sub` 가 조회 키인 self 경로 · `JwtAuthGuard` 단독으로
+인가 분기 0 · stale token 404)을 3 문서에 박제하고, PK 직행 `findUnique` 는 새 축이 아님을
+명시했다. AC 1~10 전부 ok, 완료 선언 0 (PLAN `140 행` `[ ]` · REQ-048 `IN_PROGRESS` ·
+부하계획 item 5 미완 유지).
