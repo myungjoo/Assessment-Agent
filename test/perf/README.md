@@ -713,8 +713,32 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   `truncateAll` 후 actor 를 **원본 id 그대로** 재-seed 한다(stale token test 가 지운 row 도 이때
   복원 — `db-truncate.ts` 수정 0). 여기서도 **측정만 하며 소규모 표본이라 REQ-047 실 scale 부하가
   아니다**(production code · schema · 임계값 불변).
-- **잔여** — 실측 범위는 endpoint 13 개(조회 route 23)뿐이다. perf-spec 48 개 중 read 계열 glob 은 43 개
-  이고 그 중 실 DB round-trip 은 13 개(slice 1·2·4·5·6·7·8·9·10·11·12·13·14)이며 나머지 **mock 잔존 30 개는
+- **slice 15** — `export-status-view-read-realdb.perf-spec.ts` (T-1528) — 실측 대상을 **새 endpoint
+  도메인이 아니라 이미 잰 `ExportController` 의 파생 route**(`GET /api/admin/export/:id/status-view`)
+  로 넓혀 조회 1 route 를 추가 측정한다(도메인 계수는 13 불변, 조회 route 23 → 24). 앞 slice 와의
+  차이는 **구조 축 3 개** 다 — ① **파생 view 반환 — DB row 와 응답 shape 가 완전히 다른 첫 실 DB
+  경로**: 앞 14 slice 는 raw record(slice 1~10·12·13) 또는 whitelist sanitize(slice 11 per-row ·
+  slice 14 단건 — 둘 다 **필드 제거**)였지만, 본 경로는 `phaseLabel` · `stepIndex` · `totalSteps` ·
+  `nextStatus` · `terminal` · `downloadable` · 한국어 `message` 를 **신설** 해 반환하므로 `ExportJob`
+  row 의 어떤 컬럼도 그대로 나오지 않는다(응답에 `id` 조차 없다). ② **DB enum 컬럼 1 개가 응답
+  전체를 결정하는 첫 경로**: `JobStatus` 4 값(`PENDING`/`RUNNING`/`SUCCEEDED`/`FAILED`)이
+  `JOB_STATUS_TO_VIEW` 로 lowercase 매핑된 뒤 `describeExportJobStatus` 가 4 종의 서로 다른 view 를
+  만든다 — slice 10 이 같은 enum 을 **필터 축**(`running` 목록)으로 썼던 것과 달리 본 slice 는 같은
+  enum 을 **payload 결정 축** 으로 쓴다(`SUCCEEDED` → `ready` 는 어휘 자체가 바뀌는 유일한 매핑).
+  ③ **같은 row 를 읽는 두 route 가 각각 별도 slice 로 실측되는 첫 페어**: slice 10 이 `GET :id`(raw
+  record) 를 쟀고 본 slice 가 `GET :id/status-view`(derived view) 를 잰다 — slice 13 의 부모–자식
+  페어는 **두 테이블** 이었지만 본 건은 **동일 테이블·동일 row** 이며, 두 p95 를 모두 3000ms 미만
+  으로 단언하되 **대소 관계는 wall-clock 비결정성 때문에 단언하지 않고 관찰 기록만** 남긴다(slice 3
+  선례). `@Roles("Admin")` guard 레벨 403 과 `findUniqueOrThrow` 의 P2025 → 404 는 slice 10 과 동일해
+  **새 축으로 주장하지 않고** negative cover 로만 유지한다. 파생 view 8 필드 whitelist(그리고 DB
+  컬럼 부재) · 4 status 각각의 분기 · 불변식(`downloadable === true ⟹ status === "ready"`,
+  `nextStatus === null ⟺ terminal === true`) · 404 body 의 raw stack/Prisma 내부 메시지 미노출
+  (REQ-032) · cookie 미부착 401 · 서명 변조 401 · User tier 403(DB 미도달) · `:id` 자리에 형제 route
+  토큰(`running`)을 넣은 path 변형이 500 이 아닌 4xx 로 갈림을 함께 덮고, `afterEach` 는
+  `truncateAll` 후 actor 를 **원본 id 그대로** 재-seed 한다(`db-truncate.ts` 수정 0). 여기서도
+  **측정만 하며 소규모 표본이라 REQ-047 실 scale 부하가 아니다**(production code · schema · 임계값 불변).
+- **잔여** — 실측 범위는 endpoint 13 개(조회 route 24)뿐이다. perf-spec 49 개 중 read 계열 glob 은 44 개
+  이고 그 중 실 DB round-trip 은 14 개(slice 1·2·4·5·6·7·8·9·10·11·12·13·14·15)이며 나머지 **mock 잔존 30 개는
   이번 slice 로도 불변** 이다(피감수와 감수가 함께 1 씩 증가). 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
   뿐, 다른 endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의
   실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
