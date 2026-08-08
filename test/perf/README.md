@@ -795,10 +795,50 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   actor 를 **원본 id 그대로** 재-seed 한다(`ExportJob.requestedById` 가 `User` FK `onDelete: Restrict`
   — `db-truncate.ts` 수정 0). 여기서도 **측정만 하며 소규모 표본이라 REQ-047 실 scale 부하가 아니다**
   (production code · schema · 임계값 불변).
-- **잔여** — 실측 범위는 endpoint 14 개(조회 route 26)뿐이다. perf-spec 51 개 중 read 계열 glob 은 46 개
-  이고 그 중 실 DB round-trip 은 16 개(slice 1·2·4·5·6·7·8·9·10·11·12·13·14·15·16·17)이며 나머지 **mock 잔존
-  30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께 1 씩 증가 — `46 − 16 = 30`). read glob 밖의
-  slice 3(`group-persons-scale-realdb`)까지 더하면 실 DB round-trip spec 은 **17 개** 다. 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
+- **slice 18** — `group-members-read-realdb.perf-spec.ts` (T-1534) — 실측 대상을 **새 endpoint 도메인이
+  아니라 이미 잰 `GroupController` 의 membership row 조회 route**(`GET /api/groups/:id/members`,
+  REQ-028 N:M 다중 소속)로 넓혀 조회 1 route 를 추가 측정한다(도메인 계수는 14 불변 — Group 은
+  slice 2·3 에서 이미 도메인, 조회 route 26 → 27. slice 15·17 과 같은 셈법이며 slice 16 과는 반대다).
+  slice 2 헤더 `⑤ Out of Scope` 가 **명시적으로 제외** 했던 `:id/members` 를 본 slice 가 닫는다.
+  앞 slice 와의 차이는 **구조 축 3 개** 다 — ① **N:M 중간 테이블 row 자체가 응답 payload 인 첫 실 DB
+  경로**: `GroupService.findMembershipsByGroupId` 가 `membershipRepository.findByGroupId` 결과를 **가공
+  0 으로 그대로** 반환하므로 응답 원소가 `PersonGroupMembership`(`id`/`personId`/`groupId`/`createdAt`
+  4 컬럼) 이다 — 앞 17 slice 의 응답은 도메인 entity row(slice 1~10·12·13) · sanitize view(11·14) ·
+  파생 view(15) · in-process 상태(16) · stream artifact(17) 였을 뿐 **관계(join table) row 를 1 급
+  payload 로 내리는 경로는 없었다**(부수적으로 `updatedAt` 조차 없는 **가장 좁은 row shape**).
+  ② **같은 부모 row 를 조인 경로와 비조인 경로로 나란히 재는 첫 페어**: `:id/persons`(slice 2·3)는
+  membership 추출 후 `PersonRepository.findById` 를 loop 호출해 query 가 membership 수에 비례(1 + 1 + N)
+  하지만 `:id/members` 는 부모 검증 + `findMany` 의 **상수 2 query** 다 — **같은 group id · 같은 seed
+  상태** 에서 두 route 를 한 spec 안에서 측정해 구조 차이를 관측 기록으로 남긴다("요청당 상수 2 query"
+  자체는 slice 7(`PartService.findPersonsByPartId`)과 같아 **새 축으로 주장하지 않고**, 새 축은 동일
+  부모·동일 데이터의 두 접근 경로를 **페어로** 잰다는 점이다). ③ **복합 unique tuple 의 후행(non-prefix)
+  컬럼 단독 필터**: 필터 컬럼은 `groupId` 인데 유일한 선언 index 는 `@@unique([personId, groupId])` 이고
+  `groupId` 는 그 **두 번째 컬럼** 이라 prefix 를 탈 수 없다 — slice 5 는 composite unique 의 **prefix**,
+  slice 6 은 unique·index 중복 tuple, slice 7 은 **선언 자체가 0** 인 컬럼이었으므로 **선언된 unique
+  index 가 있는데도 필터가 그 prefix 를 못 타는 경로는 본 slice 가 처음** 이다(slice 7 의 "선언 0 인
+  유일 실측 필터 컬럼" 서술은 그대로 유효). 두 표본(membership 5 건 / 50 건)의 p95 를 모두 3000ms
+  미만으로 단언하되 **두 route 의 대소 관계도, 두 규모의 대소·증가율도 단언하지 않고 관찰 기록만**
+  남긴다(slice 3 선례). 인증·인가 negative 는 `GroupController` 가 **guard 미부착** 이라 401 / 403 분기가
+  **구조적으로 부재** 하므로 slice 4~17 의 cookie 미부착 401 · 서명 변조 401 · tier 403 을 복사하지
+  않는다(그 사실을 spec 헤더에 명시 — guard 부재 자체는 slice 2 와 동일해 **새 축으로 주장하지 않는다**).
+  대신 membership **0 건이 404 가 아닌 200 + 빈 배열** · membership 1+ 전량 반환 · 부모 부재 404 와 그
+  body 의 raw stack/Prisma 메시지 미노출 · Group 2 개 공존 시 **혼입 0**(후행 컬럼 필터가 실제로 갈라냄의
+  증거) · 한 Person 의 **2 Group 동시 소속** 시 각 응답 1 건씩(membership id 는 서로 다름) ·
+  `onDelete: Cascade` 로 Person 삭제가 membership 을 동반 소멸시켜 응답 길이가 줄고 같은 시점
+  `:id/persons` 길이와 일치 · path 변형(`:id/members/extra` · `:id/member`)의 4xx · 비-cuid/빈 문자열
+  대체 토큰 id 의 **500 아닌 404** · 비현실적 임계 주입(`p95MaxMs: 0`)의 결정론적 fail 을 덮는다.
+  응답 `id` 가 `DELETE :id/members/:membershipId` 계약이 요구하는 `PersonGroupMembership.id` 와 같은
+  값임은 **Prisma 직접 조회** 로 확증한다(write route 는 측정 범위 밖). 본 route 는 **mock perf-spec
+  짝이 존재하지 않는 첫 실 DB slice** 다(group 계열 mock 은 `group-read` · `group-detail-read` ·
+  `group-persons-read` 3 개뿐 — mock spec 수 변화 0). `afterEach` 는 `truncateAll` 로 도메인 테이블을
+  비우고 `PersonGroupMembership` 은 `Person`/`Group` CASCADE 로 정리된다(`db-truncate.ts` 수정 0,
+  `Person.email` `@unique` 는 seed 호출별 index 접미로 회피). 여기서도 **측정만 하며 소규모 표본이라
+  REQ-047 실 scale 부하가 아니다**(production code · schema · 임계값 불변 — `@@index([groupId])` 추가
+  판단은 본 실측을 근거로 하는 별도 task).
+- **잔여** — 실측 범위는 endpoint 14 개(조회 route 27)뿐이다. perf-spec 52 개 중 read 계열 glob 은 47 개
+  이고 그 중 실 DB round-trip 은 17 개(slice 1·2·4·5·6·7·8·9·10·11·12·13·14·15·16·17·18)이며 나머지 **mock 잔존
+  30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께 1 씩 증가 — `47 − 17 = 30`). read glob 밖의
+  slice 3(`group-persons-scale-realdb`)까지 더하면 실 DB round-trip spec 은 **18 개** 다. 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
   뿐, 다른 endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의
   실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
 - **로컬 실행 전제** — `docker compose up -d postgres` + `DATABASE_URL`(예:
