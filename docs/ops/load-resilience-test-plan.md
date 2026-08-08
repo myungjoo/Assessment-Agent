@@ -132,7 +132,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 4. **CI 통합** — 부하 harness 를 `.github/workflows/` 에 별도 job(정기/수동 trigger)으로
    편입. 상시 PR CI 와 분리(부하는 무거움).
 5. **baseline 확정 + 임계 fix** — 최초 실측으로 §3 의 "baseline 후 fix" 임계를 실 수치로
-   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 14 까지 도달**: slice 1(T-1500, main
+   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 15 까지 도달**: slice 1(T-1500, main
    `0395c51e`) 의 [`person-read-realdb.perf-spec.ts`](../../test/perf/person-read-realdb.perf-spec.ts)
    가 mock override 0 부트스트랩 + 실 Prisma seed 로 `GET /api/persons` 의 p95 < 3000ms 를 실측했고,
    slice 2(T-1502, main `97198504`) 의
@@ -321,23 +321,42 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    목록 · row 수 비례 변환이라 성격이 다르다), PK 직행 `findUnique` 자체는 slice 11 과
    같아 **새 축이 아니다**. seed 는 actor **2 명(User tier · Admin tier)** 과 반복 소수 회의
    상대 비교용 소규모 표본이라 REQ-047 의 실 scale 부하 검증이 아니다).
+   그다음 slice 15(T-1528, main `8d63f40c`) 의
+   [`export-status-view-read-realdb.perf-spec.ts`](../../test/perf/export-status-view-read-realdb.perf-spec.ts)
+   (12 test) 가 이미 실측된 `ExportController` 의 **파생 view 1 route**
+   (`GET /api/admin/export/:id/status-view`) 를 **실 JWT cookie 로** 측정해 p95 < 3000ms 임을
+   실측했다(**endpoint 도메인을 늘리지 않고 조회 route 만 23 → 24 로 늘리는 첫 slice** —
+   구조 축 3 개 추가: ① **파생 view 반환** 으로 DB row 와 응답 shape 가 완전히 다른 첫 실 DB
+   경로(`phaseLabel` · `stepIndex` · `totalSteps` · `nextStatus` · `terminal` · `downloadable` ·
+   한국어 `message` 를 신설해 반환하므로 `ExportJob` 의 어떤 컬럼도 그대로 나오지 않는다),
+   ② **DB enum 1 컬럼이 응답 전체를 결정**(`JobStatus` 4 값이 `JOB_STATUS_TO_VIEW` 를 거쳐
+   4 종의 서로 다른 view 로 갈린다 — slice 10 이 같은 enum 을 **필터 축** 으로 썼던 것과 달리
+   본 slice 는 **payload 결정 축** 으로 쓴다), ③ **같은 row 를 읽는 두 route 가 각각 별도
+   slice 로 실측되는 첫 페어**(slice 10 의 `GET :id` raw record 와 본 slice 의
+   `:id/status-view` 파생 view — slice 13 의 부모–자식 페어는 두 테이블이었지만 본 건은
+   **동일 테이블 · 동일 row** 이고 두 p95 의 대소 관계는 slice 3 선례대로 단언하지 않는다).
+   `@Roles("Admin")` guard 레벨 403 과 `findUniqueOrThrow` 의 P2025 → 404 는 slice 10 과
+   동일해 새 축이 아니다. seed 는 `JobStatus` 4 값 혼재 job 소수 row 와 반복 소수 회의 상대
+   비교용 소규모 표본이라 REQ-047 의 실 scale 부하 검증이 아니다).
    slice 4·5·6·7·8·9·10·11·12·13·14 가 route 폭을 늘렸으므로 실측 범위는
-   **13 endpoint (조회 23 route)** 다(slice 9·13·14 는 route 를 1 개만, slice 10·11·12 는 각각
-   2 개를 더한다. 정본
+   **13 endpoint (조회 24 route)** 다(slice 9·13·14 는 route 를 1 개만, slice 10·11·12 는 각각
+   2 개를 더하고, slice 15 는 도메인을 늘리지 않고 route 만 1 개 더한다. 정본
    서술 = [`test/perf/README.md`](../../test/perf/README.md) 의
    `## 실 DB round-trip baseline (slice 목록)`).
    단 **본 item 은 미완** — `buildBaselineReport` + `formatBaselineLine` 은 **관찰 전용**
    이고 `writeBaselineFile` / `confirmOrCompareBaseline` 는 미사용이라 baseline 파일 확정이
    성립하지 않으며, §3 의 "baseline 후 fix" 임계 fix 도 미착수다. **잔여**: baseline 파일
    확정 · 임계 fix · 측정 endpoint 확대(나머지 read perf-spec 30 개는 service mock 잔존 —
-   계산식은 read 43 개 − 실 DB read 13 개이며, slice 14 도 파일명에 `read` 가 있어 피감수(42→43)와
-   감수(12→13)가 함께 1 씩 늘어 차이 30 은 불변이다) · **다른 endpoint(slice 5 의 contribution
+   계산식은 read 44 개 − 실 DB read 14 개이며, slice 15 도 파일명에 `read` 가 있어 피감수(43→44)와
+   감수(13→14)가 함께 1 씩 늘어 차이 30 은 불변이다) · **다른 endpoint(slice 5 의 contribution
    fan-out · slice 6 의 summary 시계열 조회 · slice 7 의 part 소속 조회 · slice 8 의 user 목록
    무필터 전량 SELECT · slice 9 의 permission-denied audit 목록 · slice 10 의 export job
    polling · slice 11 의 LLM provider config 조회 · slice 12 의 import job polling 과 modes
-   조회 · slice 13 의 difficulty mapping 고정 슬롯 조회 · slice 14 의 auth me self 조회
+   조회 · slice 13 의 difficulty mapping 고정 슬롯 조회 · slice 14 의 auth me self 조회 ·
+   slice 15 의 export status-view 파생 조회
    포함 — 다만 slice 13 의 대상은
    `@@unique([difficulty])` 3 슬롯 상한이라 규모가 schema 로 bounded 여서 **규모 축의 의미가
    다르고**, slice 14 의 대상은 결과 집합이 **actor 자신 1 row 로 고정** 이라 **규모 축 자체가
-   성립하지 않는다**) 의
+   성립하지 않으며**, slice 15 의 대상도 결과 집합이 **단건 1 row 고정** 이라 규모 축이 row
+   수가 아니라 **`JobStatus` 값의 종류(4 값)** 로만 갈린다) 의
    규모 민감도**(규모 축 실측은 `:id/persons` 한 route 에 한해 도달).
