@@ -2,7 +2,8 @@
 id: T-1531
 title: 실 DB round-trip slice 16(T-1530) cron schedule registry read 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-08T14:52:00Z
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 55
@@ -169,3 +170,16 @@ slice 10~13 과 동일하므로 **새 축으로 적지 않는다**.
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 요약 (2026-08-08T14:52:00Z)
+
+main `6b61dc2e` 로 direct push 완료 (3 파일 `+30/-10`). slice 16 이 첫 `src/scheduling/`
+진입이라 **endpoint 도메인 13 → 14 · 조회 route 24 → 25 가 동시에 증가** 하는 지점을
+PLAN `142 행` · 부하계획 `§5` item 5 · REQ-048 3 곳에 동일하게 박제했다 (slice 15 는
+도메인 불변 + route 만 증가였던 선례라 문장 복사 시 계수 오류가 나는 함정 — AC 3 이
+차단). perf-spec **50** / read glob **45** / 실 DB **16**(그중 read **15**) 로 갱신하고
+mock 잔존 read perf-spec **30** 은 계산식만 `45 − 15` 로 조정해 불변을 유지했다.
+구조 축 3 종(응답이 DB row 가 아닌 in-process `SchedulerRegistry` 상태 · 같은 spec 의
+HTTP write 가 read 표본을 만드는 첫 페어 · 규모 축이 row 수가 아닌 registry 등록 수)을
+기록했다. AC 1~11 전부 ok, 완료 선언 0 (PLAN `142 행` `[ ]` · REQ-048 `IN_PROGRESS` ·
+부하계획 item 5 미완 유지).
