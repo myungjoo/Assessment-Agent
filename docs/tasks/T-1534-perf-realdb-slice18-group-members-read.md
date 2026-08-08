@@ -2,7 +2,10 @@
 id: T-1534
 title: 실 DB perf slice 18 — group membership row 조회 실측
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-08T21:00:13Z
+commitSha: b1da3564
+prNumber: 1228
 commitMode: pr
 coversReq: [REQ-048, REQ-028]
 estimatedDiff: 320
