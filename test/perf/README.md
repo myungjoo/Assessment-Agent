@@ -737,8 +737,34 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   토큰(`running`)을 넣은 path 변형이 500 이 아닌 4xx 로 갈림을 함께 덮고, `afterEach` 는
   `truncateAll` 후 actor 를 **원본 id 그대로** 재-seed 한다(`db-truncate.ts` 수정 0). 여기서도
   **측정만 하며 소규모 표본이라 REQ-047 실 scale 부하가 아니다**(production code · schema · 임계값 불변).
-- **잔여** — 실측 범위는 endpoint 13 개(조회 route 24)뿐이다. perf-spec 49 개 중 read 계열 glob 은 44 개
-  이고 그 중 실 DB round-trip 은 14 개(slice 1·2·4·5·6·7·8·9·10·11·12·13·14·15)이며 나머지 **mock 잔존 30 개는
+- **slice 16** — `cron-schedule-read-realdb.perf-spec.ts` (T-1530) — 실측 대상을 **열네 번째 endpoint
+  도메인**(그리고 **첫 `src/scheduling/` 모듈 route**)인 `CronScheduleController` 로 넓혀 조회 1 route
+  (`GET /api/schedules`, REQ-096 Admin 가시성)를 측정한다. 앞 slice 와의 차이는 **구조 축 3 개** 다 —
+  ① **결과 집합이 DB row 가 아니라 in-process 상태인 첫 실측 경로**: 앞 15 slice 의 응답은 예외 없이
+  Prisma delegate 가 읽은 row(또는 그 row 로 합성한 파생 view — slice 15)였지만, 본 route 는
+  `SchedulerRegistry.getCronJobs()` Map 의 **key 배열** 이라 어떤 테이블도 읽지 않고 프로세스 메모리
+  상태를 직렬화한다(slice 12 의 `GET /api/admin/import/modes` 도 0-query 였으나 그것은 DB·상태와 무관한
+  **고정 2 원소 상수** 였고, 본 응답은 선행 write 로 변하는 **가변 상태** 다). ② **같은 spec 안의
+  write(PUT/DELETE) 가 read 결과를 바꾸는 첫 페어**: `PUT /api/schedules` 로 job 을 등록하면 같은
+  프로세스의 `GET` 결과 배열이 즉시 커지고 `DELETE /api/schedules/:name` 으로 다시 줄어든다 — 앞 15
+  slice 는 seed 를 Prisma 로 **직접** 심고 read 만 쟀으므로 HTTP write 가 read 표본을 만드는 구조는 본
+  slice 가 처음이다(단 PUT/DELETE 는 **상태 준비 수단** 일 뿐 그 자체 p95 는 단언하지 않는다).
+  ③ **규모 축이 DB row 수가 아니라 registry 등록 수인 첫 slice**: 등록 **0 건** 과 **4 건** 두 표본으로
+  p95 를 재 규모 민감도를 관측한다(slice 3 의 규모 축은 membership row 수, slice 13 은 schema 로 3 슬롯
+  bounded, slice 14·15 는 결과 1 row 고정이었다). 두 표본의 p95 를 모두 3000ms 미만으로 단언하되
+  **대소 관계는 wall-clock 비결정성 때문에 단언하지 않고 관찰 기록만** 남긴다(slice 3 선례).
+  `@Roles("Admin")` guard 레벨 403 과 cookie 미부착/서명 변조 401 은 slice 10~13 과 동일해 **새 축으로
+  주장하지 않고** negative cover 로만 유지한다. 등록 0 건의 빈 결과가 404 로 변환되지 않음 · PUT 1 건 후
+  포함(길이 delta +1) · 같은 name 다른 cron 식 PUT 의 교체(길이 불변) · DELETE 후 미포함(delta 0) ·
+  부재 name DELETE 의 404 와 그 실패가 배열을 바꾸지 않음(응답 body 에 raw stack 미노출, REQ-032) ·
+  빈/공백 name 400 · 유효하지 않은 cron 식 400 · 그 400 실패가 **부분 등록 0** 임을 함께 덮는다.
+  baseline 은 절대값이 아니라 **자기 prefix 몫과 길이 delta** 로만 단언해 부트스트랩 시점 registry 에
+  다른 job 이 있어도 깨지지 않게 했고, 등록한 job 은 `afterEach` 에서 전량 `DELETE` 로 회수해 **timer
+  누수 0**(cron 식은 테스트 중 tick 이 발화하지 않는 드문 주기만 사용), `afterEach` 는 `truncateAll`
+  후 actor 를 **원본 id 그대로** 재-seed 한다(`db-truncate.ts` 수정 0). 여기서도 **측정만 하며 소규모
+  표본이라 REQ-047 실 scale 부하가 아니다**(production code · schema · 임계값 불변).
+- **잔여** — 실측 범위는 endpoint 14 개(조회 route 25)뿐이다. perf-spec 50 개 중 read 계열 glob 은 45 개
+  이고 그 중 실 DB round-trip 은 15 개(slice 1·2·4·5·6·7·8·9·10·11·12·13·14·15·16)이며 나머지 **mock 잔존 30 개는
   이번 slice 로도 불변** 이다(피감수와 감수가 함께 1 씩 증가). 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
   뿐, 다른 endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의
   실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
