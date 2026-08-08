@@ -132,7 +132,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 4. **CI 통합** — 부하 harness 를 `.github/workflows/` 에 별도 job(정기/수동 trigger)으로
    편입. 상시 PR CI 와 분리(부하는 무거움).
 5. **baseline 확정 + 임계 fix** — 최초 실측으로 §3 의 "baseline 후 fix" 임계를 실 수치로
-   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 17 까지 도달**: slice 1(T-1500, main
+   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 18 까지 도달**: slice 1(T-1500, main
    `0395c51e`) 의 [`person-read-realdb.perf-spec.ts`](../../test/perf/person-read-realdb.perf-spec.ts)
    가 mock override 0 부트스트랩 + 실 Prisma seed 로 `GET /api/persons` 의 p95 < 3000ms 를 실측했고,
    slice 2(T-1502, main `97198504`) 의
@@ -375,11 +375,35 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    미단언). `@Roles("Admin")` guard 레벨 403 · cookie 미부착·서명 변조 401 · 부재 id 404 는
    slice 10~16 과 동일해 **새 축이 아니다**. 표본은 위 두 seed 와 반복 소수 회의 상대 비교용
    소규모 표본이라 REQ-047 의 실 scale 부하 검증이 아니다).
+   그다음 slice 18(T-1534, main `b1da3564`) 의
+   [`group-members-read-realdb.perf-spec.ts`](../../test/perf/group-members-read-realdb.perf-spec.ts)
+   (12 test) 가 **이미 실측 도메인인 `GroupController` 의 membership 조회 1 route**
+   (`GET /api/groups/:id/members`) 를 실 부트스트랩으로 측정해 p95 < 3000ms 임을 실측했다
+   (**slice 15·17 과 같은 셈법** 이라 endpoint 도메인은 **14 불변** 이고 조회 route 만
+   **26 → 27** 로 늘며 `GroupController` 는 slice 2 · slice 3 에 이어 **세 번째로 재는
+   controller** 다 — 구조 축 3 개 추가: ① **N:M 중간 테이블 row 자체가 응답 payload 인 첫 실 DB
+   경로**(`GroupService.findMembershipsByGroupId` 가 `PersonGroupMembership` row 를 가공 0 으로
+   반환해 `id` / `personId` / `groupId` / `createdAt` 4 컬럼의 가장 좁은 shape 이다 — 앞 17
+   slice 의 응답은 도메인 entity row · sanitize view · 파생 view · in-process registry 상태 ·
+   stream artifact 였을 뿐 관계 자체를 1 급 payload 로 내린 경로가 없었다), ② **같은 부모 row 를
+   조인 경로와 비조인 경로로 나란히 재는 첫 페어**(`:id/persons` 는 membership 추출 후
+   `PersonRepository.findById` loop 라 query 가 membership 수에 비례하고 `:id/members` 는 상수
+   2 query 인데 같은 group id · 같은 seed 에서 두 route 를 한 spec 으로 잰다 — 대소 관계와
+   규모별 증가율은 slice 3 선례대로 미단언이고 "상수 2 query" 자체는 slice 7 과 같아 새 축이
+   아니다), ③ **복합 unique tuple 의 후행(non-prefix) 컬럼 단독 필터**(필터 컬럼 `groupId` 가
+   `@@unique([personId, groupId])` 의 두 번째 컬럼이라 prefix 를 못 탄다 — slice 5 는 prefix 를
+   탔고 slice 7 은 unique 선언 자체가 0 이었으므로 **선언된 unique index 가 있는데도 그 prefix 를
+   못 타는 첫 경로** 다). 401 / 403 은 `GroupController` guard 미부착이라 구조적으로 부재하며
+   slice 2·3 과 동일해 **새 축이 아니다**. 본 slice 는 mock 짝
+   perf-spec(`group-members-read.perf-spec.ts`)이 존재하지 않는 첫 실 DB read slice 라 mock spec
+   총수 변화가 **0** 이다. 표본은 membership 5 건 / 50 건 두 seed 와 반복 소수 회의 상대 비교용
+   소규모 표본이라 REQ-047 의 실 scale 부하 검증이 아니다).
    slice 4·5·6·7·8·9·10·11·12·13·14 가 route 폭을 늘렸고 slice 16 이 도메인과 route 를 함께
    늘렸으므로 실측 범위는
-   **14 endpoint (조회 26 route)** 다(slice 9·13·14 는 route 를 1 개만, slice 10·11·12 는 각각
+   **14 endpoint (조회 27 route)** 다(slice 9·13·14 는 route 를 1 개만, slice 10·11·12 는 각각
    2 개를 더하고, slice 15 는 도메인을 늘리지 않고 route 만 1 개, slice 16 은 도메인과 route 를
    각각 1 개씩 더하며, slice 17 은 다시 slice 15 와 같은 셈법으로 **도메인을 늘리지 않고 route
+   만 1 개** 를 더하고, slice 18 도 **slice 15·17 과 같은 셈법으로 도메인을 늘리지 않고 route
    만 1 개** 를 더한다. 정본
    서술 = [`test/perf/README.md`](../../test/perf/README.md) 의
    `## 실 DB round-trip baseline (slice 목록)`).
@@ -387,15 +411,15 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    이고 `writeBaselineFile` / `confirmOrCompareBaseline` 는 미사용이라 baseline 파일 확정이
    성립하지 않으며, §3 의 "baseline 후 fix" 임계 fix 도 미착수다. **잔여**: baseline 파일
    확정 · 임계 fix · 측정 endpoint 확대(나머지 read perf-spec 30 개는 service mock 잔존 —
-   계산식은 read 46 개 − 실 DB read 16 개이며, slice 17 도 파일명에 `read` 가 있어 피감수(45→46)와
-   감수(15→16)가 함께 1 씩 늘어 차이 30 은 불변이다 — `group-persons-scale-realdb` 는 파일명에
+   계산식은 read 47 개 − 실 DB read 17 개이며, slice 18 도 파일명에 `read` 가 있어 피감수(46→47)와
+   감수(16→17)가 함께 1 씩 늘어 차이 30 은 불변이다 — `group-persons-scale-realdb` 는 파일명에
    `read` 가 없어 양쪽 모두에서 빠진다) · **다른 endpoint(slice 5 의 contribution
    fan-out · slice 6 의 summary 시계열 조회 · slice 7 의 part 소속 조회 · slice 8 의 user 목록
    무필터 전량 SELECT · slice 9 의 permission-denied audit 목록 · slice 10 의 export job
    polling · slice 11 의 LLM provider config 조회 · slice 12 의 import job polling 과 modes
    조회 · slice 13 의 difficulty mapping 고정 슬롯 조회 · slice 14 의 auth me self 조회 ·
    slice 15 의 export status-view 파생 조회 · slice 16 의 cron schedule 레지스트리 조회 ·
-   slice 17 의 export dump download 조회
+   slice 17 의 export dump download 조회 · slice 18 의 group membership 조회
    포함 — 다만 slice 13 의 대상은
    `@@unique([difficulty])` 3 슬롯 상한이라 규모가 schema 로 bounded 여서 **규모 축의 의미가
    다르고**, slice 14 의 대상은 결과 집합이 **actor 자신 1 row 로 고정** 이라 **규모 축 자체가
@@ -405,6 +429,9 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    관측**(대소 관계는 미단언)했으므로 DB 규모 민감도 축 자체가 성립하지 않고, slice 17 의
    대상은 규모 축이 **응답 크기가 아니라 총 DB row 수** 라 slice 17 이 **소규모 seed / 상대적
    대규모 seed 두 표본으로 이미 관측**(대소 관계와 byte 증가량은 미단언)했으나 그 두 표본도
-   **REQ-047 실 scale 부하와는 무관한 소규모 표본** 이라 규모 축이 해소된 것은 아니다 — 미측정
+   **REQ-047 실 scale 부하와는 무관한 소규모 표본** 이라 규모 축이 해소된 것은 아니고, slice 18 의
+   대상도 membership **5 건 / 50 건 두 표본을 관측 기록으로만** 남겼을 뿐(대소 관계·증가율
+   미단언) 그 두 표본 역시 **REQ-047 실 scale 부하와는 무관한 소규모 표본** 이라 규모 축이
+   해소되지 않았다 — 미측정
    목록에 통째로 넣어 오독하지도, 해소된 것처럼 읽지도 않는다) 의
    규모 민감도**(규모 축 실측은 `:id/persons` 한 route 에 한해 도달).
