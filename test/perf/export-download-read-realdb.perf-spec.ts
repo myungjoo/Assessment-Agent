@@ -52,6 +52,8 @@ const BEFORE_START = new Date("2026-04-30T23:00:00.000Z");
 // 상대적 대규모 seed 규모(AC 규모 관찰) — Person / Assessment 각 20 row.
 const LARGE_PERSONS = 20;
 const LARGE_ASSESSMENTS = 20;
+// Assessment 복합 unique(personId, period, scope, periodStart) 회피용 periodStart 간격(1 일).
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 // dump envelope 의 최소 형태 — e2e(T-0520/T-1292) 의 인라인 타입과 동형.
 interface Dump {
@@ -146,13 +148,16 @@ describe("S2 조회 latency perf-spec — 실 DB export dump 다운로드 (GET /
       });
       personIds.push(created.id);
     }
+    // `Assessment` 는 (personId, period, scope, periodStart) 복합 unique 라 person 을 돌려쓰면
+    // 같은 조합이 재발한다(persons < assessments 인 seed). `periodStart` 를 i 일씩 벌려 조합을
+    // 유일하게 만든다 — 선별 축은 `createdAt`(instant) 이라 RANGE 판정에는 영향이 없다.
     for (let i = 0; i < assessments; i += 1) {
       await prisma.assessment.create({
         data: {
           personId: personIds[i % personIds.length],
           period: "week",
           scope: "commit",
-          periodStart: instant,
+          periodStart: new Date(instant.getTime() + i * DAY_MS),
           difficulty: "medium",
           contributionScore: "0.75",
           volume: 10,
