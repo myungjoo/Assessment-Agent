@@ -2,13 +2,14 @@
 id: T-1535
 title: 실 DB round-trip slice 18(T-1534) group membership 조회 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 65
 estimatedFiles: 3
 created: 2026-08-08
 createdAt: 2026-08-08T21:42:00Z
+completedAt: 2026-08-08T22:45:00Z
 independentStream: perf-realdb-slices
 dependsOn: [T-1534]
 touchesFiles:
@@ -185,6 +186,17 @@ prefix 를 못 타는 첫 경로** 다). `GroupController` 는 **guard 미부착
 ## Suggested Sub-agents
 
 `implementer` (architect · tester 불요 — 새 결정 0, 코드 변경 0 의 doc-only 정합).
+
+## 결과 (2026-08-08T22:45Z DONE)
+
+- 3 파일 `+35/-8` direct commit `6ab5c75b` 로 main 반영. AC 1~12 전원 `ok`.
+- 실측 반영: perf-spec `51 -> 52` · read `46 -> 47` · 실 DB read `16 -> 17`, **mock 잔존 30 개 불변**
+  (계산식만 `47 - 17 = 30` 으로 갱신 — 계수 함정 ① 차단).
+- 셈법: endpoint 도메인 **14 불변** · 조회 route `26 -> 27` (slice 15 · 17 과 동형 — `GroupController`
+  세 번째 측정이라 도메인 신규 0).
+- 구조 축 3 개 박제: N:M 중간 테이블 raw row payload / 조인 · 비조인 페어 / unique tuple 후행 컬럼 필터.
+  guard 미부착(401 · 403 분기 부재) 은 새 축 아님 + mock 짝 부재를 병기.
+- 완료 선언 0 유지: PLAN `140 행` `[ ]` · REQ-048 `IN_PROGRESS` · 부하계획 item 5 미완 (잔여 축 4 종 보존).
 
 ## Follow-ups
 
