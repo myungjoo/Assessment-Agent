@@ -763,9 +763,42 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   누수 0**(cron 식은 테스트 중 tick 이 발화하지 않는 드문 주기만 사용), `afterEach` 는 `truncateAll`
   후 actor 를 **원본 id 그대로** 재-seed 한다(`db-truncate.ts` 수정 0). 여기서도 **측정만 하며 소규모
   표본이라 REQ-047 실 scale 부하가 아니다**(production code · schema · 임계값 불변).
-- **잔여** — 실측 범위는 endpoint 14 개(조회 route 25)뿐이다. perf-spec 50 개 중 read 계열 glob 은 45 개
-  이고 그 중 실 DB round-trip 은 15 개(slice 1·2·4·5·6·7·8·9·10·11·12·13·14·15·16)이며 나머지 **mock 잔존 30 개는
-  이번 slice 로도 불변** 이다(피감수와 감수가 함께 1 씩 증가). 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
+- **slice 17** — `export-download-read-realdb.perf-spec.ts` (T-1532) — 실측 대상을 **새 endpoint
+  도메인이 아니라 이미 잰 `ExportController` 의 다운로드 route**(`GET /api/admin/export/:id/download`,
+  REQ-030 Export / REQ-032 raw 미저장 / REQ-045 Admin 전용)로 넓혀 조회 1 route 를 추가 측정한다
+  (도메인 계수는 14 불변 — export 는 slice 10·15 에서 이미 도메인, 조회 route 25 → 26. slice 15 와
+  같은 셈법이며 slice 16 과는 반대다). 앞 slice 와의 차이는 **구조 축 3 개** 다 — ① **한 요청이 서로
+  무관한 5 테이블을 병렬로 읽는 첫 실측 경로**: `materializeFullExportDownload` → `collectFullExportRecords`
+  가 `EXPORT_ENTITY_SOURCES` 5 entity(Assessment · Person · Group · LlmConfig · AuditLog)에 대해
+  `Promise.all` 로 각각 `findMany` 를 던진다 — 앞 16 slice 의 최대 fan-out 은 slice 2·3 의 membership
+  indirect navigation(같은 chain 안 loop)이었고 **서로 무관한 5 테이블을 한 응답으로 합치는 구조는
+  본 slice 가 처음** 이다. ② **응답이 JSON body 가 아니라 stream artifact 인 첫 slice**: handler 가
+  `StreamableFile` 을 반환하고 `serializeExportDownloadHeaders` 가 `Content-Type` /
+  `Content-Disposition` / `Content-Length` 를 세팅하므로 latency 에 **직렬화 + Buffer 수집 + header
+  산출** 비용이 포함되고 **응답 크기가 byte 로 관측 가능한 첫 경로** 다(slice 15 의 status-view 는
+  파생 view 였지만 여전히 작은 JSON object 였다). 여기서 `Content-Length` 가 **실 body byte 길이와
+  일치** 함을 단언해 `byteSizeHint` 를 합성 dump 값이 아니라 실 buffer 길이로 보정하는 경로를
+  확증한다. ③ **DB 읽기량과 응답 크기가 분리되는 첫 경로**: scope 선별(`selectExportRecords`)이 DB
+  가 아니라 **in-process** 라 RANGE / PARTIAL job 은 응답이 작아져도 **읽는 row 수는 FULL 과 동일**
+  하다 — 규모 축이 "응답 크기" 가 아니라 **"총 DB row 수"** 이며, 소규모 seed(entity 당 1~2 row)와
+  상대적 대규모 seed(Person 20 + Assessment 20 누적)의 p95 를 모두 3000ms 미만으로 단언하되
+  **대소 관계와 byte 증가량은 단언하지 않고 관찰 기록만** 남긴다(slice 3 선례). `@Roles("Admin")`
+  guard 레벨 403 · cookie 미부착/서명 변조 401 · 부재 id 404 는 slice 10~16 과 동일해 **새 축으로
+  주장하지 않고** negative cover 로만 유지한다. 저장 scope 3 분기(FULL 전량 포함 / RANGE 의
+  `[start, end)` 반열림에서 **end 정각 row 제외** / PARTIAL `entitySelector: ["Person"]` 의 나머지
+  entity count 0) · envelope 메타 일관성(`recordCount` === `records.length` === `entityCounts` 5 값의
+  합) · 404 body 의 raw stack/Prisma 메시지 미노출(REQ-032) · seed 한 `apiKey` sentinel 의 artifact
+  부재 · **저장 scope 손상 job**(`scope: RANGE` 인데 `dateRange` NULL)이 `@UseFilters(ScopeInputExceptionFilter)`
+  **미부착 경로** 라 400 이 아닌 5xx 로 나타남(현재 동작의 박제일 뿐 400 매핑 판단은 별도 task) ·
+  두 job 을 연달아 호출해도 `entityCounts` 가 각각 자기 scope 기준임을 함께 덮는다. `afterEach` 는
+  `truncateAll` 명단 밖 세 테이블(`ExportJob` · `LlmProviderConfig` · `Assessment`)을 명시 정리한 뒤
+  actor 를 **원본 id 그대로** 재-seed 한다(`ExportJob.requestedById` 가 `User` FK `onDelete: Restrict`
+  — `db-truncate.ts` 수정 0). 여기서도 **측정만 하며 소규모 표본이라 REQ-047 실 scale 부하가 아니다**
+  (production code · schema · 임계값 불변).
+- **잔여** — 실측 범위는 endpoint 14 개(조회 route 26)뿐이다. perf-spec 51 개 중 read 계열 glob 은 46 개
+  이고 그 중 실 DB round-trip 은 16 개(slice 1·2·4·5·6·7·8·9·10·11·12·13·14·15·16·17)이며 나머지 **mock 잔존
+  30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께 1 씩 증가 — `46 − 16 = 30`). read glob 밖의
+  slice 3(`group-persons-scale-realdb`)까지 더하면 실 DB round-trip spec 은 **17 개** 다. 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
   뿐, 다른 endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의
   실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
 - **로컬 실행 전제** — `docker compose up -d postgres` + `DATABASE_URL`(예:
