@@ -2,7 +2,9 @@
 id: T-1528
 title: 실 DB perf slice 15 — export status-view derived read 실측
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 1225
+completedAt: 2026-08-08T09:36:41Z
 commitMode: pr
 coversReq: [REQ-048, REQ-030]
 estimatedDiff: 285
@@ -70,3 +72,14 @@ plannerNote: P5 PLAN 142 행 R-92 조회 3s — 실 DB slice 15(ExportController
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 append)
+
+## Result (2026-08-08)
+
+- **DONE** — PR [#1225](https://github.com/myungjoo/Assessment-Agent/pull/1225) round 1 APPROVE → squash 머지 `8d63f40c`. CI green, 4-게이트 전량 충족.
+- 변경 2 파일 `+339/-2` — `test/perf/export-status-view-read-realdb.perf-spec.ts` 신설 + `test/perf/README.md` slice 15 bullet.
+- 직전 fire 가 도중 사망해 working tree 에 남긴 미커밋 결과물을 **재작성 없이 검수·보강해 승계**했다. 유일한 결함은 README 무관 5 개 행의 들여쓰기 훼손이었고, 이를 원복해 diff 를 slice 15 hunk 2 개로 좁혔다.
+- 실 `PrismaService` 로 `ExportJob` 을 seed 하고 실 JWT cookie 로 `GET /api/admin/export/:id/status-view` 를 `collectLatencySamples` + `assertS2Threshold` 로 측정 (mock override 0). happy 1 · error 1 · `JobStatus` 4 값 분기 cover · negative 5 종 (401 미부착 · 401 서명 변조 · 403 User tier · 404 미존재 id · 형제 route 토큰 path 변형 4xx).
+- 파생 view 불변식 2 종 (`downloadable === true ⟹ status === "ready"`, `nextStatus === null ⟺ terminal === true`) 을 4 응답 전부에서 단언. 같은 row 를 `GET :id`(slice 10 raw record) 와 `:id/status-view`(파생) 로 각각 측정하되 두 p95 의 대소 관계는 wall-clock 비결정성 때문에 **관찰 기록만** (slice 3 선례).
+- 잔여 계수 실검산: perf-spec **49** / read glob **44** / 실 DB **15**(그중 read **14**) / mock 잔존 **30** 불변 · 실측 endpoint 도메인 **13** 불변 · 조회 route **24**.
+- `pnpm lint && build && test` 전량 통과 (429 suite · 12302 test), `test:cov` 임계 유지 (`src/` 변경 0). `test:perf` 는 CI 의 postgres service `perf test` step 이 success 로 확정.
+- doc-sync (PLAN `142 행` · 부하계획 `§ 5` item 5 · REQ-048) 는 Out of Scope 대로 **머지 후 별도 direct task** 로 이월 (slice 12·13·14 선례 T-1523 / T-1525 / T-1527 동형).
