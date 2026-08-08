@@ -2,7 +2,9 @@
 id: T-1533
 title: 실 DB round-trip slice 17(T-1532) export dump download 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-08T18:48:00Z
+commitSha: 4b091c46
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 60
