@@ -2,7 +2,8 @@
 id: T-1529
 title: 실 DB round-trip slice 15(T-1528) export status-view 파생 read 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-08T10:50:00Z
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 55
@@ -170,3 +171,14 @@ record 를, 본 slice 가 `:id/status-view` 파생 view 를 잰다 — slice 13 
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 요약 (2026-08-08T10:50:00Z)
+
+main `654e2299` 로 direct push 완료 (3 파일 `+28/-9`). perf-spec **49** / read glob **44** /
+실 DB **15**(그중 read **14**) 로 갱신하고, mock 잔존 read perf-spec **30** 은 계산식만
+`44 − 14` 로 조정해 불변을 유지했다. slice 15 의 특이점 — `ExportController` 가 slice 10 에서
+이미 도메인으로 잡혀 있어 **조회 route 만 23 → 24 로 늘고 실측 endpoint 도메인 13 은 불변** —
+을 3 문서에 그대로 박제했다. 구조 축 3 종(파생 view 반환 · `JobStatus` enum 이 payload 결정 ·
+같은 row 를 raw/파생 두 route 로 측정하는 페어)을 기록하되 403·404 는 slice 10 과 동일해
+새 축이 아님을 병기했다. AC 1~11 전부 ok, 완료 선언 0 (PLAN `142 행` `[ ]` ·
+REQ-048 `IN_PROGRESS` · 부하계획 item 5 미완 유지).
