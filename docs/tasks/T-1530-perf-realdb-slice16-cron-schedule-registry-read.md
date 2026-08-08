@@ -2,7 +2,9 @@
 id: T-1530
 title: 실 DB perf slice 16 — cron schedule registry read 실측
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 1226
+completedAt: 2026-08-08T12:59:53Z
 commitMode: pr
 coversReq: [REQ-048, REQ-096]
 estimatedDiff: 290
@@ -74,4 +76,11 @@ plannerNote: P5 PLAN 142 행 R-92 조회 3s — 실 DB slice 16(CronScheduleCont
 
 ## Follow-ups
 
-(비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 append)
+- **doc-sync (direct, 다음 slice 전 필요)** — 본 slice 가 Out of Scope 로 이월한 3 문서 동기: [docs/PLAN.md](../PLAN.md) `142 행` · [부하계획](../architecture/load-resilience-test-plan.md) `§ 5` item 5 · [REQ-048](../use-cases/REQ-COVERAGE-AUDIT.md). perf-spec 50 / 실 DB slice 16(read 15) / 실측 endpoint 도메인 14 · 조회 route 25 로 갱신. slice 15(T-1529) 의 doc-sync task 와 동형.
+
+## Result
+
+- **DONE** (2026-08-08 12:59:53Z) — PR **#1226** squash 머지 (`a276beb4`), reviewer round 1 APPROVE + 4-게이트 충족, CI green.
+- 신규 `test/perf/cron-schedule-read-realdb.perf-spec.ts` (13 test) + `test/perf/README.md` slice 16 항목 · 계수 갱신 — 2 파일 `+373/-2` (frontmatter `sizeExempt` 로 LOC 상한 면제, 파일 수 2 유지).
+- 실측: 신규 slice p95 **2.2~4.3 ms** (임계 3000 ms), err 0%. CI `perf test` step 에서 50 suite 전량 pass.
+- 구조 축 3 종 (in-process 상태 직렬화 · 같은 spec 의 write 가 read 표본을 만드는 첫 페어 · 규모 축이 registry 등록 수) 박제, 규모 0 건 vs 4 건 대소 관계는 선례대로 미단언.
