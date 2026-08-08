@@ -132,7 +132,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 4. **CI 통합** — 부하 harness 를 `.github/workflows/` 에 별도 job(정기/수동 trigger)으로
    편입. 상시 PR CI 와 분리(부하는 무거움).
 5. **baseline 확정 + 임계 fix** — 최초 실측으로 §3 의 "baseline 후 fix" 임계를 실 수치로
-   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 15 까지 도달**: slice 1(T-1500, main
+   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 16 까지 도달**: slice 1(T-1500, main
    `0395c51e`) 의 [`person-read-realdb.perf-spec.ts`](../../test/perf/person-read-realdb.perf-spec.ts)
    가 mock override 0 부트스트랩 + 실 Prisma seed 로 `GET /api/persons` 의 p95 < 3000ms 를 실측했고,
    slice 2(T-1502, main `97198504`) 의
@@ -338,25 +338,45 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    `@Roles("Admin")` guard 레벨 403 과 `findUniqueOrThrow` 의 P2025 → 404 는 slice 10 과
    동일해 새 축이 아니다. seed 는 `JobStatus` 4 값 혼재 job 소수 row 와 반복 소수 회의 상대
    비교용 소규모 표본이라 REQ-047 의 실 scale 부하 검증이 아니다).
-   slice 4·5·6·7·8·9·10·11·12·13·14 가 route 폭을 늘렸으므로 실측 범위는
-   **13 endpoint (조회 24 route)** 다(slice 9·13·14 는 route 를 1 개만, slice 10·11·12 는 각각
-   2 개를 더하고, slice 15 는 도메인을 늘리지 않고 route 만 1 개 더한다. 정본
+   그다음 slice 16(T-1530, main `a276beb4`) 의
+   [`cron-schedule-read-realdb.perf-spec.ts`](../../test/perf/cron-schedule-read-realdb.perf-spec.ts)
+   (13 test) 가 **열네 번째 endpoint 도메인이자 첫 `src/scheduling/` 모듈 실측** 인
+   `CronScheduleController` 의 조회 1 route (`GET /api/schedules`) 를 **실 JWT cookie 로**
+   측정해 p95 < 3000ms 임을 실측했다(slice 15 와 반대로 **도메인과 route 를 각각 1 개씩** 더해
+   endpoint 13 → 14 · 조회 route 24 → 25 로 늘린다 — 구조 축 3 개 추가: ① **결과 집합이 DB
+   row 가 아니라 in-process `SchedulerRegistry` 상태인 첫 경로**(`getCronJobs()` Map 의 key
+   배열이라 어떤 테이블도 읽지 않는다 — slice 12 의 0-query `modes` 는 **DB·상태와 무관한
+   고정 2 원소 상수** 였으나 본 응답은 **선행 write 로 변하는 가변 상태** 다), ② **같은 spec
+   안의 HTTP write(`PUT` / `DELETE`)가 read 표본을 만드는 첫 페어**(앞 15 slice 는 Prisma 로
+   seed 를 직접 심고 read 만 쟀다 — write route 자체의 p95 는 단언하지 않고 상태 준비 수단으로만
+   쓴다), ③ **규모 축이 DB row 수가 아니라 registry 등록 수인 첫 slice**(등록 0 건 vs 4 건 두
+   표본이며 대소 관계는 slice 3 선례대로 미단언). `@Roles("Admin")` guard 레벨 403 과 cookie
+   미부착·서명 변조 401 은 slice 10~13 과 동일해 **새 축이 아니다**. 표본은 등록 0 건 · 4 건과
+   반복 소수 회의 상대 비교용 소규모 표본이라 REQ-047 의 실 scale 부하 검증이 아니다).
+   slice 4·5·6·7·8·9·10·11·12·13·14 가 route 폭을 늘렸고 slice 16 이 도메인과 route 를 함께
+   늘렸으므로 실측 범위는
+   **14 endpoint (조회 25 route)** 다(slice 9·13·14 는 route 를 1 개만, slice 10·11·12 는 각각
+   2 개를 더하고, slice 15 는 도메인을 늘리지 않고 route 만 1 개, slice 16 은 도메인과 route 를
+   각각 1 개씩 더한다. 정본
    서술 = [`test/perf/README.md`](../../test/perf/README.md) 의
    `## 실 DB round-trip baseline (slice 목록)`).
    단 **본 item 은 미완** — `buildBaselineReport` + `formatBaselineLine` 은 **관찰 전용**
    이고 `writeBaselineFile` / `confirmOrCompareBaseline` 는 미사용이라 baseline 파일 확정이
    성립하지 않으며, §3 의 "baseline 후 fix" 임계 fix 도 미착수다. **잔여**: baseline 파일
    확정 · 임계 fix · 측정 endpoint 확대(나머지 read perf-spec 30 개는 service mock 잔존 —
-   계산식은 read 44 개 − 실 DB read 14 개이며, slice 15 도 파일명에 `read` 가 있어 피감수(43→44)와
-   감수(13→14)가 함께 1 씩 늘어 차이 30 은 불변이다) · **다른 endpoint(slice 5 의 contribution
+   계산식은 read 45 개 − 실 DB read 15 개이며, slice 16 도 파일명에 `read` 가 있어 피감수(44→45)와
+   감수(14→15)가 함께 1 씩 늘어 차이 30 은 불변이다) · **다른 endpoint(slice 5 의 contribution
    fan-out · slice 6 의 summary 시계열 조회 · slice 7 의 part 소속 조회 · slice 8 의 user 목록
    무필터 전량 SELECT · slice 9 의 permission-denied audit 목록 · slice 10 의 export job
    polling · slice 11 의 LLM provider config 조회 · slice 12 의 import job polling 과 modes
    조회 · slice 13 의 difficulty mapping 고정 슬롯 조회 · slice 14 의 auth me self 조회 ·
-   slice 15 의 export status-view 파생 조회
+   slice 15 의 export status-view 파생 조회 · slice 16 의 cron schedule 레지스트리 조회
    포함 — 다만 slice 13 의 대상은
    `@@unique([difficulty])` 3 슬롯 상한이라 규모가 schema 로 bounded 여서 **규모 축의 의미가
    다르고**, slice 14 의 대상은 결과 집합이 **actor 자신 1 row 로 고정** 이라 **규모 축 자체가
    성립하지 않으며**, slice 15 의 대상도 결과 집합이 **단건 1 row 고정** 이라 규모 축이 row
-   수가 아니라 **`JobStatus` 값의 종류(4 값)** 로만 갈린다) 의
+   수가 아니라 **`JobStatus` 값의 종류(4 값)** 로만 갈리고, slice 16 의 대상은 규모 축이
+   **DB row 수가 아니라 registry 등록 수** 라 slice 16 이 **등록 0 건 / 4 건 두 표본으로 이미
+   관측**(대소 관계는 미단언)했으므로 DB 규모 민감도 축 자체가 성립하지 않는다 — 미측정
+   목록에 통째로 넣어 오독하지 않는다) 의
    규모 민감도**(규모 축 실측은 `:id/persons` 한 route 에 한해 도달).
