@@ -2,7 +2,10 @@
 id: T-1532
 title: 실 DB perf slice 17 — export dump download 실측
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-08T17:06:00Z
+prNumber: 1227
+mergeCommit: 2b632266
 commitMode: pr
 coversReq: [REQ-048, REQ-030, REQ-032, REQ-045]
 estimatedDiff: 330
