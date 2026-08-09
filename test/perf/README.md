@@ -835,10 +835,43 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   `Person.email` `@unique` 는 seed 호출별 index 접미로 회피). 여기서도 **측정만 하며 소규모 표본이라
   REQ-047 실 scale 부하가 아니다**(production code · schema · 임계값 불변 — `@@index([groupId])` 추가
   판단은 본 실측을 근거로 하는 별도 task).
-- **잔여** — 실측 범위는 endpoint 14 개(조회 route 27)뿐이다. perf-spec 52 개 중 read 계열 glob 은 47 개
-  이고 그 중 실 DB round-trip 은 17 개(slice 1·2·4·5·6·7·8·9·10·11·12·13·14·15·16·17·18)이며 나머지 **mock 잔존
-  30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께 1 씩 증가 — `47 − 17 = 30`). read glob 밖의
-  slice 3(`group-persons-scale-realdb`)까지 더하면 실 DB round-trip spec 은 **18 개** 다. 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
+- **slice 19** — `person-detail-read-realdb.perf-spec.ts` (T-1537) — 실측 대상을 **새 endpoint 도메인이
+  아니라 slice 1 이 이미 잰 `PersonController` 의 단건 상세 route**(`GET /api/persons/:id`)로 넓혀 조회
+  1 route 를 추가 측정한다(도메인 계수는 14 불변 — Person 은 slice 1 에서 이미 도메인, 조회 route
+  27 → 28. slice 15·17·18 과 같은 셈법이며 slice 16 과는 반대다). slice 1 은 같은 controller 의 목록
+  route 를 재면서 `:id` 를 **부재 id 의 404 negative 로만** 두드리고 happy-path 를 남겨뒀는데 본 slice 가
+  그 **가장 오래된 미해소 짝** 을 닫고, 아울러 T-1536 잔여 인벤토리가 본 route 를 (B) 후보의 **"보수
+  분류"** 로 유보해 둔 것을 **측정으로 해소** 한다. 앞 slice 와의 차이는 **구조 축 3 개** 다 —
+  ① **한 테이블의 목록 route 와 단건 route 가 서로 다른 가시성 규칙을 갖는 첫 실측**:
+  `PersonService.findActive` 는 `findMany({ activeOnly: true })` 로 REQ-026 soft-delete invariant 를
+  강제하지만 `findById` 는 `findUnique({ where: { id } })` 를 그대로 태워 **필터가 없어 `active: false`
+  row 도 200 으로 반환** 한다 — 같은 시점 같은 row 가 목록에는 **없고** 단건에는 **있다**. 이는 REQ-026
+  위반이 아니라 **route 별 가시성 규칙 차이** 이며(목록은 기본 노출 집합을 좁히고, 단건은 id 를 이미 아는
+  호출자의 직접 지목이라 soft-delete 된 row 의 상태 확인 경로를 남긴다), slice 7 의 soft-delete 는 자식
+  목록에만 걸렸고 대응하는 단건 경로가 없었다. ② **같은 seed 상태에서 목록과 단건을 나란히 재는 첫
+  페어**: slice 18 의 페어는 같은 부모의 두 자식 route(`:id/members` ↔ `:id/persons`)였지만 본 slice 는
+  **같은 테이블의 집합 route 와 단일 row route** 를 한 spec 안에서 잰다(목록은 slice 1 대조군 — slice 1
+  파일 자체는 수정하지 않는다). ③ **규모 축의 의미가 route 마다 갈린다는 관찰**: 목록은 결과 집합이
+  테이블 규모에 비례하지만 단건은 총 row 수와 무관하게 **응답이 1 row 고정** 이라, 총 5 건 / 105 건 두
+  상태에서 **같은 `:id`** 를 조회해 두 p95 를 모두 3000ms 미만으로 단언한다. 두 route 의 대소 관계도, 두
+  규모 표본의 대소·증가율도 **단언하지 않고 관찰 기록만** 남긴다(slice 3 선례 — wall-clock 비결정성).
+  **새 축으로 주장하지 않는** 항목도 함께 박제한다 — PK 직행 `findUnique` 자체는 slice 11·14 와 동일,
+  repository 의 null 분기를 service 가 `NotFoundException` 으로 바꾸는 404 는 slice 11 과 동일,
+  `PersonController` 의 guard 부재는 slice 1·2·7 과 동일, `include` 0 의 미조인 SELECT 는 slice 11 과
+  동일하다. 인증·인가 negative 는 guard 미부착이라 401 / 403 분기가 **구조적으로 부재** 하므로 만들지
+  않고(그 사실을 spec 헤더에 명시), 대신 Person 2 건 공존 시 **혼입 0** · 비-cuid/빈 문자열 대체 토큰
+  id 의 **500 아닌 404** · 삭제된 id 재조회의 **200 → 404 전이** · 응답의 관계 키(`serviceIdentities` ·
+  `memberships` · `part` 등) 부재로 본 `include` 0 증거 · path 변형(`:id/extra`)의 4xx · 비현실적 임계
+  주입(`p95MaxMs: 0`)의 결정론적 fail 을 덮는다. mock 짝은 `person-detail-read.perf-spec.ts`(T-0847)
+  이며 **수정하지 않는다**(그 spec 의 retire·통합 판단은 T-1536 이 명시 유보한 별도 주제 — mock 잔존
+  계수 불변). `afterEach` 는 `truncateAll` 로 도메인 테이블을 비우고 `Person.email` `@unique` 는 seed
+  호출별 index 접미로 회피한다(`db-truncate.ts` 수정 0). 여기서도 **측정만 하며 소규모 표본이라
+  REQ-047 실 scale 부하가 아니다**(production code · schema · 임계값 불변 — `findById` 의 active 필터
+  추가 · index 추가 판단은 본 실측을 근거로 하는 별도 task).
+- **잔여** — 실측 범위는 endpoint 14 개(조회 route 28)뿐이다. perf-spec 53 개 중 read 계열 glob 은 48 개
+  이고 그 중 실 DB round-trip 은 18 개(slice 1·2·4·5·6·7·8·9·10·11·12·13·14·15·16·17·18·19)이며 나머지 **mock 잔존
+  30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께 1 씩 증가 — `48 − 18 = 30`). read glob 밖의
+  slice 3(`group-persons-scale-realdb`)까지 더하면 실 DB round-trip spec 은 **19 개** 다. 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
   뿐, 다른 endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의
   실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
 - **로컬 실행 전제** — `docker compose up -d postgres` + `DATABASE_URL`(예:
