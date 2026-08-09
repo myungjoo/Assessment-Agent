@@ -435,3 +435,83 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    해소되지 않았다 — 미측정
    목록에 통째로 넣어 오독하지도, 해소된 것처럼 읽지도 않는다) 의
    규모 민감도**(규모 축 실측은 `:id/persons` 한 route 에 한해 도달).
+
+   **잔여 read route 인벤토리 (slice 18 시점 확인분, T-1536)** — 바로 위 `**잔여**` 의 "mock 잔존
+   read perf-spec 30 개" 를 **route 단위** 로 펼친 backlog 다. slice 목록의 **정본은
+   [`test/perf/README.md`](../../test/perf/README.md) 의 `## 실 DB round-trip baseline (slice 목록)`**
+   이고 본 절은 **plan 측 backlog (정본의 파생)** 이라 둘이 어긋나면 **정본이 이긴다** (본 인벤토리
+   작성은 정본 파일을 수정하지 않았다 — 인용만 했다). 아래 개수는 모두 편집 전 실측값이다 —
+   `test/perf/*.perf-spec.ts` **52** · `*read*` **47** · `*realdb*` **18** · `*read*realdb*` **17**.
+   범위는 **read (조회) route 한정** 이며 write / trigger route 의 부하 측정은 §5 의 다른 item
+   소관이라 여기서 목록화하지 않는다.
+
+   **(A) route 는 실 DB 실측 완료 · mock spec 만 잔존 — 26 개 (잔여 slice 후보 아님)**
+   (spec 이름은 `.perf-spec.ts` 접미 생략)
+
+   | mock spec | route | 실측 slice (realdb spec) |
+   | --- | --- | --- |
+   | `person-read` | `GET /api/persons` | slice 1 (`person-read-realdb`) |
+   | `group-read` | `GET /api/groups` | slice 2 (`group-read-realdb`) |
+   | `group-detail-read` | `GET /api/groups/:id` | slice 2 (`group-read-realdb`) |
+   | `group-persons-read` | `GET /api/groups/:id/persons` | slice 2·3 (`group-read-realdb` · `group-persons-scale-realdb`) |
+   | `assessment-read` | `GET /api/assessments?personId=&period=` | slice 4 (`assessment-read-realdb`) |
+   | `assessment-detail-read` | `GET /api/assessments/:id` | slice 4 (`assessment-read-realdb`) |
+   | `contribution-read` | `GET /api/contributions?assessmentId=` | slice 5 (`contribution-read-realdb`) |
+   | `contribution-detail-read` | `GET /api/contributions/:id` | slice 5 (`contribution-read-realdb`) |
+   | `summary-read` | `GET /api/summaries?personId=` | slice 6 (`summary-read-realdb`) |
+   | `summary-detail-read` | `GET /api/summaries/:id` | slice 6 (`summary-read-realdb`) |
+   | `part-read` | `GET /api/parts` | slice 7 (`part-read-realdb`) |
+   | `part-persons-read` | `GET /api/parts/:id/persons` | slice 7 (`part-read-realdb`) |
+   | `user-read` | `GET /api/users` | slice 8 (`user-read-realdb`) |
+   | `user-detail-read` | `GET /api/users/:id` | slice 8 (`user-read-realdb`) |
+   | `permission-denied-read` | `GET /api/permission-denied-records` | slice 9 (`permission-denied-read-realdb`) |
+   | `export-running-read` | `GET /api/admin/export/running` | slice 10 (`export-read-realdb`) |
+   | `export-detail-read` | `GET /api/admin/export/:id` | slice 10 (`export-read-realdb`) |
+   | `llm-provider-config-read` | `GET /api/llm/providers` | slice 11 (`llm-provider-config-read-realdb`) |
+   | `llm-provider-config-detail-read` | `GET /api/llm/providers/:id` | slice 11 (`llm-provider-config-read-realdb`) |
+   | `import-modes-read` | `GET /api/admin/import/modes` | slice 12 (`import-read-realdb`) |
+   | `import-running-read` | `GET /api/admin/import/running` | slice 12 (`import-read-realdb`) |
+   | `difficulty-mapping-read` | `GET /api/llm/difficulty-mappings` | slice 13 (`difficulty-mapping-read-realdb`) |
+   | `auth-me-read` | `GET /api/auth/me` | slice 14 (`auth-me-read-realdb`) |
+   | `export-status-view-read` | `GET /api/admin/export/:id/status-view` | slice 15 (`export-status-view-read-realdb`) |
+   | `cron-schedule-read` | `GET /api/schedules` | slice 16 (`cron-schedule-read-realdb`) |
+   | `export-download-read` | `GET /api/admin/export/:id/download` | slice 17 (`export-download-read-realdb`) |
+
+   (A) 부류 mock spec 을 **retire · 삭제 · 통합할지는 별도 판단** 이며 본 절은 그 판단을 하지 않는다
+   (`test/` 변경이라 `pr` 이고, "배선 latency 만 재는" mock 고유 책임이 남아 있는지부터 따져야 한다).
+
+   **(B) route 미측정 · mock spec 존재 — 4 개 (진짜 잔여 slice 후보)**
+
+   - `import-detail-read` → `GET /api/admin/import/:id` — slice 12 는 `modes` · `running` 두 route 만 쟀다.
+   - `part-detail-read` → `GET /api/parts/:id` — slice 7 은 목록과 `:id/persons` 만 쟀다.
+   - `person-detail-read` → `GET /api/persons/:id` — **보수 분류**(아래 단락).
+   - `app-root-read` → `GET /api` (`AppController` root) — 실측 endpoint 도메인 14 개에 `AppController` 가 없다.
+
+   **보수 분류 표기** — `person-detail-read` · `import-detail-read` 두 route 는 realdb spec 이 그 path 를
+   두드리기는 한다(slice 1 의 부재 id 404, slice 12 의 `no-such-job-id` 404). 그러나 둘 다 **errorRate
+   fail 분기용 negative** 라 happy-path 실측 근거를 못 찾았고, 정본 slice bullet 도 이 둘을 조회 route 로
+   세지 않는다 — 그래서 **추측 대신 (B) 로 보수 분류** 했다.
+
+   **(C) perf-spec 자체가 없는데 미측정인 read route — 현 시점 확인분 0 건**
+
+   `grep -rn "@Get(" src/**/*.controller.ts` sweep 기준 controller 20 개의 조회 route 는 **31 개**
+   (`@Get` 이 0 인 write / trigger 전용 controller 5 개 제외) 이고, 이는 **실측 27 + (B) 4 = 31** 과
+   맞물린다 — 즉 **현 시점 (C) 는 0 건** 이다. slice 18 의 `GET /api/groups/:id/members` 가 **(C) 였다가
+   해소된 선례** 다(mock 짝이 없어 "mock 잔존 30" 셈에는 애초에 안 잡히는데 미측정이던 route —
+   T-1534 의 "계수 함정 ②"). `AppController` 의 root read 는 (C) 후보로 보였으나
+   `app-root-read.perf-spec.ts` 가 실존해 **(B) 로 분류** 했다. 본 절은 **완전 열거를 주장하지 않는다** —
+   controller · route 가 늘면 다시 조사해야 하는 **현 시점 확인분** 일 뿐이다.
+
+   **자체 검산** — `A + B = 26 + 4 = 30` 이고 위 `**잔여**` 의 계산식 `read 47 − 실 DB read 17 = 30`
+   도 같은 **30** 이다. 앞은 **route 분류의 합**, 뒤는 **파일 glob 의 차** 라 **서로 다른 셈이 같은 수를
+   가리키는** 교차 검증이 된다. 두 셈이 어긋나면 문서가 아니라 분류를 고친다.
+
+   **오독 차단 — "mock 잔존 30 개" ≠ "잔여 slice 30 개"**. 30 은 **파일 계수** 일 뿐이고 실제 잔여
+   cutover 후보는 **(B) + (C) = 4 + 0 = 4 route** 다. (A) 26 개는 route 가 이미 실측돼 잔여가 아니며,
+   반대로 (C) 부류는 mock 짝이 없어 30 에 **애초에 안 잡히므로** 30 은 잔여의 상한도 하한도 아니다.
+
+   본 인벤토리는 **측정 0 · 새 spec 0 · production code 0** 의 목록화라 REQ-048 재판정도
+   REQ-047(100~200명 / 50~100 repo / ~1000 confluence page / 1h) 진전도 **아니다** — 위 item 5 의
+   **미완** 서술(baseline 파일 확정 · 임계 fix 미착수 · `writeBaselineFile` 미사용)과 규모 민감도 ·
+   실 scale 부하 · 시각화(web) 렌더 측정 축 잔여는 **그대로 유효** 하다. 다음 slice 로 어느 route 를
+   고를지의 **우선순위 부여도 본 절의 몫이 아니다**.
