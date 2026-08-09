@@ -2,7 +2,8 @@
 id: T-1538
 title: 실 DB round-trip slice 19(T-1537) person 단건 상세 조회 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-09T04:47:00Z
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 95
@@ -231,3 +232,17 @@ slice 1·2·7 과 동일** 이라 새 축이 아니다.
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-09T04:47:00Z, DONE)
+
+- `direct` commit **`a13b47d5`** main push 완료 — `docs/PLAN.md` · `docs/ops/load-resilience-test-plan.md` ·
+  `docs/requirements.md` **3 파일 `+50/-21`** (크기 상한 300 LOC / 5 파일 이내).
+- 계수는 전부 실측값만 사용 — perf-spec **53** / read **48** / 실 DB **19**(read **18**) / `it(` **11**.
+  도메인 **14 불변** · 조회 route **27 → 28** · 부하계획 `§ 5` item 5 인벤토리 (A) **26 → 27** /
+  (B) **4 → 3** 재분류 (`person-detail-read` 의 보수 분류 해소). 검산 2 종 통과
+  (A+B = 27+3 = 30 · read 48 − 실 DB read 18 = 30).
+- **완료 선언 0 유지** — PLAN `140 행` checkbox `[ ]` · REQ-048 `IN_PROGRESS` · 부하계획 item 5
+  "미완" 서술 전부 불변 (AC 13 · AC 14). REQ-026 / REQ-047 행은 인용만 하고 미수정 (AC 11 · AC 12).
+- AC 1 ~ AC 15 **전부 ok**. doc-only `direct` 라 tester 면제 (R-110 예외, 코드 변경 0 LOC).
+- CI: 본 commit 의 main run 은 fire 종료 시점 **in_progress** → 다음 fire 첫 단계에서 conclusion
+  재확인 (R-114 위임).
