@@ -2,13 +2,14 @@
 id: T-1536
 title: 실 DB perf cutover 잔여 read route 인벤토리를 부하계획 §5 item 5 에 박제
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 100
 estimatedFiles: 2
 created: 2026-08-08
 createdAt: 2026-08-08T23:40:00Z
+completedAt: 2026-08-09T00:50:00Z
 independentStream: perf-realdb-slices
 dependsOn: [T-1535]
 touchesFiles:
@@ -145,6 +146,19 @@ route 도 있었다 (T-1534 의 "계수 함정 ②"). 즉 **파일 계수와 rou
 ## Suggested Sub-agents
 
 `implementer` (architect · tester 불요 — 새 결정 0, 코드 변경 0 의 doc-only 인벤토리).
+
+## 결과 (2026-08-09T00:50Z DONE)
+
+- 2 파일 `+81/-1` direct commit `17c72384` 로 main 반영. AC 1~12 전원 `ok`.
+- 부하계획 `§ 5` item 5 잔여 절 뒤에 **route 단위 3 분류 인벤토리** append —
+  (A) 실측 완료 · mock 잔존 **26** (표) / (B) mock 짝 없는 미측정 **4** / (C) perf-spec 부재 미측정 **0**.
+- 자체 검산 병기: `A + B = 26 + 4 = 30` ↔ `read 47 - 실 DB read 17 = 30` (계수 무모순).
+- 오독 차단 박제: **"mock 잔존 30 개 != 잔여 slice 30 개"** — (A) 부류는 route 가 이미 실측됐고
+  spec retire 여부는 별도 판단(`test/` 라 `pr`)임을 명시.
+- 정본 경계 명시: 계수 정본은 [test/perf/README.md](../../test/perf/README.md), 본 절은 **파생 backlog** —
+  정본 수정 0 (`§3.1` direct·pr mixed 회피).
+- `docs/PLAN.md` `142 행` 에는 pointer 1 문장만 추가 — 계수 · slice 서술 **불변**, `140 행` `[ ]` 유지
+  (완료 선언 0, 잔여 축 4 종 보존).
 
 ## Follow-ups
 
