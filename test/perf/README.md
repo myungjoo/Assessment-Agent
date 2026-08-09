@@ -901,10 +901,40 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   `Part.name`·`Person.email` 의 `@unique` 는 seed 호출별 index 접미로 회피한다(`db-truncate.ts` 수정 0).
   여기서도 **측정만 하며 소규모 표본이라 REQ-047 실 scale 부하가 아니다**(production code · schema ·
   임계값 불변 — `Part` index 추가 판단은 본 실측을 근거로 하는 별도 task).
-- **잔여** — 실측 범위는 endpoint 14 개(조회 route 29)뿐이다. perf-spec 54 개 중 read 계열 glob 은 49 개
-  이고 그 중 실 DB round-trip 은 19 개(slice 1·2·4·5·6·7·8·9·10·11·12·13·14·15·16·17·18·19·20)이며 나머지 **mock 잔존
-  30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께 1 씩 증가 — `49 − 19 = 30`). read glob 밖의
-  slice 3(`group-persons-scale-realdb`)까지 더하면 실 DB round-trip spec 은 **20 개** 다. 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
+- **slice 21** — `import-detail-read-realdb.perf-spec.ts` (T-1541) — 실측 대상을 **새 endpoint 도메인이
+  아니라 slice 12 가 이미 잰 `ImportController` 의 단건 상세 route**(`GET /api/admin/import/:id`)로 넓혀
+  조회 1 route 를 추가 측정한다(도메인 계수는 14 불변 — Import 는 slice 12 에서 이미 도메인, 조회 route
+  29 → 30. slice 15·17·18·19·20 과 같은 셈법이며 slice 16 과는 반대다). slice 12 는 같은 controller 의
+  정적 route 2 개(`modes` · `running`) 만 재고 단건 `:id` 는 `no-such-job-id` **404 negative** 로만
+  두드려, T-1536 잔여 인벤토리가 본 route 를 (B) 후보의 **"보수 분류"** 로 남겨 뒀는데 본 slice 가 그
+  유보를 **happy-path 실측으로 해소** 한다(slice 19 가 세운 선례의 두 번째 사례이자, slice 20 이 닫은
+  Part 짝 다음으로 오래된 미해소 짝이다). 앞 slice 와의 차이는 **구조 축 1 개** 다 — **같은 depth 의 정적
+  세그먼트 2 종과 동적 `:id` 의 라우팅 우선순위 실측**: `ImportController` 는 `@Get("running")` ·
+  `@Get("modes")` 를 `@Get(":id")` **앞에** 선언해 문자열 `"modes"` / `"running"` 을 id 자리에 넣어도
+  404 가 아니라 **정적 route 가 이겨 200** 이 된다 — 즉 **`:id` 로는 도달 불가능한 id 공간이 존재** 한다
+  (slice 10 의 `ExportController` 는 같은 depth 정적이 `running` 1 종이고 나머지 정적은 `:id` 하위라, 같은
+  depth 정적이 **2 종** 인 대상은 본 slice 가 처음이다). 세 route(단건 `:id` · `modes` · `running`)의 p95 는
+  모두 임계 미만으로 단언하되 **대소 관계는 단언하지 않고 관찰 기록만** 남긴다(slice 3 선례 — wall-clock
+  비결정성). **새 축으로 주장하지 않는** 항목도 함께 박제한다 — `findUniqueOrThrow` 의 P2025 →
+  `NotFoundException` 변환은 slice 10 `ExportJob.findJob` 과 동일, job status enum 4 상태 표본도 slice 10 과
+  동일, `JwtAuthGuard + RolesGuard` + `@Roles("Admin")` 의 401 / 403 layer 는 slice 10·11·12 와 동일,
+  PK 직행 단건 조회 자체는 slice 11·14·19·20 과 동일하며, 한 controller 의 조회 route 전량 실측 도달도
+  Group slice 18 · Person slice 19 · Part slice 20 선례가 있어 새 축이 아니다. negative 는 cookie 부재
+  **401** · 변조 토큰 **401**(403 아님) · User tier **403**(guard 레벨 DB 미도달) · 미존재 id 반복의
+  **errorRate 임계 위반** 과 200 혼합 표본의 `0 < er < 1` · 비현실적 임계 주입(`p95MaxMs: 0`)의 결정론적
+  fail · **빈 DB** 임의 id 의 500 아닌 404 · 비-cuid/빈 대체 토큰 id 의 404 · 대조군 job 공존 시 **id·mode
+  혼입 0** 과 응답의 `requestedBy` 키 부재(미조인 SELECT 증거)로 덮고, 분기 축으로는 nullable scalar 3 개
+  (`error`/`artifactRef`/`restoredRowCount`)가 **전부 NULL 인 job vs 전부 채워진 job** 의 응답이 각각
+  null / 실값으로 갈리면서도 **같은 10 컬럼 shape** 을 유지함을 단언한다. mock 짝은
+  `import-detail-read.perf-spec.ts` 이며 **수정하지 않는다**(그 spec 의 retire·통합 판단은 T-1536 이 명시
+  유보한 별도 주제 — mock 잔존 계수 불변). `afterEach` 는 `truncateAll` 후 actor 를 **원본 id 그대로**
+  재삽입한다(`ImportJob.requestedById` 의 `Restrict` FK 충족 — `db-truncate.ts` 수정 0). 여기서도 **측정만
+  하며 소규모 표본이라 REQ-047 실 scale 부하가 아니다**(production code · schema · 임계값 불변 —
+  `ImportJob` index 추가 판단은 본 실측을 근거로 하는 별도 task).
+- **잔여** — 실측 범위는 endpoint 14 개(조회 route 30)뿐이다. perf-spec 55 개 중 read 계열 glob 은 50 개
+  이고 그 중 실 DB round-trip 은 20 개(slice 1·2·4·5·6·7·8·9·10·11·12·13·14·15·16·17·18·19·20·21)이며 나머지 **mock 잔존
+  30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께 1 씩 증가 — `50 − 20 = 30`). read glob 밖의
+  slice 3(`group-persons-scale-realdb`)까지 더하면 실 DB round-trip spec 은 **21 개** 다. 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
   뿐, 다른 endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의
   실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
 - **로컬 실행 전제** — `docker compose up -d postgres` + `DATABASE_URL`(예:
