@@ -968,19 +968,43 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   그대로** 재삽입한다(분기 대조 쌍이 test 중간에 전량 truncate 를 수행하므로 — `db-truncate.ts` 수정 0).
   여기서도 **측정만 하며 소규모 표본이라 REQ-047 실 scale 부하가 아니다**(production code · schema ·
   임계값 불변 — health endpoint 에 guard 가 없다는 사실도 보안 결함으로 재판정하지 않는다).
-- **잔여** — 실측 범위는 endpoint 15 개(조회 route 31)뿐이다. perf-spec 56 개 중 read 계열 glob 은 51 개
-  이고 그 중 실 DB round-trip 은 21 개(slice 1·2·4·5·6·7·8·9·10·11·12·13·14·15·16·17·18·19·20·21·22)이며 나머지 **mock 잔존
-  30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께 1 씩 증가 — 계산식만 `read 51 개 − 실 DB
-  read 21 개` 로 갱신됐고 결과가 같은 이유는, 신규 파일명에도 `read` 가 들어 `*read*` glob 이 50 → 51 로
-  늘지만 실 DB read 도 20 → 21 로 함께 늘기 때문이다). read glob 밖의
-  slice 3(`group-persons-scale-realdb`)까지 더하면 실 DB round-trip spec 은 **22 개** 다. 본 slice 로
-  부하계획 `§ 5` item 5 인벤토리의 (B) 가 **1 → 0** 이 되고 조회 route 실측이 인벤토리 열거 총계와 같은
-  31 에 도달하지만, 이는 **조회 성능 검증이 끝났다는 뜻이 아니다** — ① 인벤토리 자체가 완전 열거를
-  주장하지 않고(부하계획 `587 행`), ② (A) 부류 mock perf-spec **30 개의 retire 판단은 미착수** 이며,
+- **slice 23** — `person-list-scale-realdb.perf-spec.ts` (T-1545) — slice 1 과 **같은 route**
+  (`GET /api/persons`)를 **다른 규모** 로 측정한다. 따라서 **새 endpoint 도 새 도메인도 아니며**
+  실측 도메인 **15 불변** · 조회 route **31 불변** · 부하계획 `§ 5` item 5 인벤토리 (A) **30** /
+  (B) **0** / (C) **0** 도 **전부 불변** 이다(slice 22 처럼 도메인·route 가 늘던 셈법이 아니다).
+  slice 1 의 고정 20 row 한 표본을 소규모(**20 row**) vs 대규모(**200 row**) 두 표본으로 넓힌
+  **규모 축** 이며, 같은 규모 축인 slice 3 과 **비용 항목이 다르다** — slice 3 은 membership 수 =
+  요청당 query 수인 **N+1 축** 이었고, `findActive` 는 단일 SELECT 라 query 수가 1 로 고정이고
+  **결과 집합 크기(직렬화·전송 비용)** 만 커진다. 여기에 `active: true` **120 row** + `active: false`
+  **80 row** 혼합 표본을 더해 **응답 크기(120)와 스캔 대상(200)이 분리** 되는 **필터 선택도** 축을
+  실 DB slice 중 처음 증거화한다(`PersonController` 는 guard 미부착 · 필수 query-param 분기 0 이라
+  인증·권한 노이즈 0 에서 row 수 → latency 만 분리 관측된다). 본 spec 도 **어떤 wall-clock 값끼리도
+  대소를 단언하지 않는다**(`large > small` 금지 — slice 3·22 와 동일 이유). 허용 단언은 고정 임계
+  3000ms 대비 pass 와 주입 임계 `p95MaxMs: 0` 대비 fail 뿐이고 규모 비교는 `buildBaselineReport` +
+  `formatBaselineLine` 관찰 3 줄로만 남긴다(디스크 write 0). 본 route 는 에러 경로가 **구조적으로
+  부재**(항상 200)라 errorRate 위반 분기는 **인위 non-2xx 주입**(전량 503 → er=1, 실 200 혼합 →
+  0 < er < 1)으로 도달시키고, negative 는 (a) 빈 테이블 **200 + `[]`**(404 아님) · (b) 전량 inactive
+  **200 + `[]`**(테이블 row 는 잔존) · (c) 위 인위 non-2xx 2 종 · (d) 대규모 표본의 **truncate 전/후
+  대조 쌍**(응답 200 건 → 0 건, 둘 다 status 200) · (e) `p95MaxMs: 0` 주입의 결정론적 fail 로 덮는다.
+  slice 1·3 파일과 mock 짝 `person-read.perf-spec.ts` 는 **수정하지 않는다**(retire 판단은 T-1536 이
+  명시 유보한 별도 주제 — mock 잔존 계수 불변). 여기서도 **측정만 하며** index 추가 · 쿼리 최적화 ·
+  페이지네이션은 관측 결과와 무관하게 범위 밖이고, 본 slice 의 "대규모" 는 **상대 비교용 표본** 일
+  뿐 **REQ-047 실 scale 부하 검증이 아니다**.
+- **잔여** — 실측 범위는 endpoint 15 개(조회 route 31)뿐이다. perf-spec 57 개 중 read 계열 glob 은 51 개
+  이고 그 중 실 DB round-trip 은 21 개(slice 1·2·4·5·6·7·8·9·10·11·12·13·14·15·16·17·18·19·20·21·22)이며
+  나머지 **mock 잔존 30 개는 이번 slice 로도 불변** 이다 — 신규 파일명(`person-list-scale-realdb`)에는
+  `read` 가 **없어** `*read*` glob **51 불변** · `*read*realdb*` **21 불변** 이라 피감수·감수가 둘 다
+  그대로이기 때문이다(**slice 3 과 같은 셈법**). read glob 밖의 slice 3·23 까지 더하면 실 DB
+  round-trip spec 은 **23 개**, perf-spec 총계는 **57 개** 다. 부하계획 `§ 5` item 5 인벤토리의 (B) 는
+  slice 22 에서 이미 **0** 이고 본 slice 는 새 route 가 아니라 (A) 30 / (B) 0 / (C) 0 · 도메인 15 ·
+  조회 route 31 을 **전부 불변** 으로 둔다. 조회 route 실측이 인벤토리 열거 총계와 같은 31 이라는
+  사실은 **조회 성능 검증이 끝났다는 뜻이 아니다** — ① 인벤토리 자체가 완전 열거를 주장하지
+  않고(부하계획 `587 행`), ② (A) 부류 mock perf-spec **30 개의 retire 판단은 미착수** 이며,
   ③ **write / trigger route 는 애초에 이 목록 밖** 이고, ④ REQ-047 실 scale 부하 · baseline 확정 ·
-  임계 fix · web 렌더 측정의 **4 잔여 축이 그대로 존속** 한다. 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
-  뿐, 다른 endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의
-  실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
+  임계 fix · web 렌더 측정의 **4 잔여 축이 그대로 존속** 한다. 규모 축도 slice 3(`:id/persons` 의 N+1
+  규모)·slice 23(`/api/persons` 의 결과 집합 규모 + 필터 선택도) **두 route 에 도달했을 뿐**, 나머지
+  endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의 실 DB
+  cutover 는 endpoint 단위 후속 slice 로 이어간다.
 - **로컬 실행 전제** — `docker compose up -d postgres` + `DATABASE_URL`(예:
   `postgresql://postgres:postgres@localhost:5432/assessment_test?schema=public`) export +
   `pnpm prisma migrate deploy` 후 `pnpm test:perf`. CI 는 `perf test` step 이
