@@ -2,13 +2,15 @@
 id: T-1545
 title: 실 DB perf slice 23 — GET /api/persons 의 row 수 규모 민감도 실측 (소규모 vs 대규모 + active 필터 선택도)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 290
 estimatedFiles: 3
 created: 2026-08-09
 createdAt: 2026-08-09T17:40:00Z
+completedAt: 2026-08-09T18:57:33Z
+prNumber: 1233
 independentStream: perf-realdb-slices
 dependsOn: [T-1544]
 touchesFiles:
