@@ -132,7 +132,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 4. **CI 통합** — 부하 harness 를 `.github/workflows/` 에 별도 job(정기/수동 trigger)으로
    편입. 상시 PR CI 와 분리(부하는 무거움).
 5. **baseline 확정 + 임계 fix** — 최초 실측으로 §3 의 "baseline 후 fix" 임계를 실 수치로
-   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 21 까지 도달**: slice 1(T-1500, main
+   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 22 까지 도달**: slice 1(T-1500, main
    `0395c51e`) 의 [`person-read-realdb.perf-spec.ts`](../../test/perf/person-read-realdb.perf-spec.ts)
    가 mock override 0 부트스트랩 + 실 Prisma seed 로 `GET /api/persons` 의 p95 < 3000ms 를 실측했고,
    slice 2(T-1502, main `97198504`) 의
@@ -464,9 +464,28 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    아래 **보수 분류** 로 유보돼 있던 자리를 happy-path 로 해소한 것이라 **보수 분류 유보 해소로는
    slice 19 에 이은 두 번째** 다. 표본은 `JobStatus` 4 값 혼재 job **4 row** 수준과 반복 소수
    회의 상대 비교용 소규모 표본이라 REQ-047 의 실 scale 부하 검증이 아니다).
-   slice 4·5·6·7·8·9·10·11·12·13·14 가 route 폭을 늘렸고 slice 16 이 도메인과 route 를 함께
-   늘렸으므로 실측 범위는
-   **14 endpoint (조회 30 route)** 다(slice 9·13·14 는 route 를 1 개만, slice 10·11·12 는 각각
+   그다음 slice 22(T-1543, main `56771076`) 의
+   [`app-root-read-realdb.perf-spec.ts`](../../test/perf/app-root-read-realdb.perf-spec.ts)
+   (11 test) 가 **`AppController` 의 root health read 1 route**(`GET /api`) 를 mock override 0 인
+   실 부트스트랩으로 측정해 p95 < 3000ms 임을 실측했다(**slice 16 과 같은 셈법** 이라 endpoint
+   도메인이 **14 → 15**, 조회 route 가 **30 → 31** 로 **둘 다 +1** 이다 — slice 15·17·18·19·20·21 의
+   "도메인 불변 · route 만 +1" 셈법이 아니다. 구조 축은 **2 개** 다: ① **DB 미접촉 route 의
+   latency floor**(`getRoot()` 이 상수 `APP_STATUS_MESSAGE` 를 동기 반환할 뿐이라 실 Prisma 연결이
+   살아 있어도 요청 경로가 DB 를 **전혀 건드리지 않으므로** 같은 harness 조건에서의 **framework +
+   HTTP 왕복만의 하한** 이자 slice 1~21 p95 의 대조 기준선 — DB 미접촉은 전량 truncate 전 / 후
+   응답 불변으로 실증), ② **guard layer 가 아예 없는 첫 실 DB slice**(`JwtAuthGuard` ·
+   `RolesGuard` 미적용이라 쿠키 없이도 200 · 변조 쿠키도 200 · User tier 도 200 — 본 문서는 현재
+   동작을 **판단 없이 인용만** 하며 결함 · 보안 재판정이 아니다). collector / assert 배선 ·
+   `p95MaxMs: 0` 주입 fail 분기 · 인위 non-2xx errorRate 분기 · `buildBaselineReport` 관찰 전용은
+   slice 1~21 과 동일해 넷 다 **새 축이 아니다**. 본 slice 도 mock 짝 perf-spec
+   (`app-root-read.perf-spec.ts`, T-0859) 이 **실존** 해 그 route 가 아래 인벤토리에서 **(B) → (A)
+   로 옮겨가는 네 번째 재분류** 이나(mock spec 총수 변화는 **0**), slice 19·21 과 달리 **보수 분류
+   유보의 해소는 아니다** — `app-root-read` 는 애초에 유보가 아니라 "mock spec 실존 + 실측 도메인
+   14 개에 `AppController` 부재" 라는 **확정 근거** 로 (B) 였다. 표본은 반복 소수 회의 상대 비교용
+   소규모이고 **본 route 는 DB 를 접촉조차 하지 않아** REQ-047 의 실 scale 부하 축과 무관하다).
+   slice 4·5·6·7·8·9·10·11·12·13·14 가 route 폭을 늘렸고 slice 16 과 slice 22 가 도메인과 route 를
+   함께 늘렸으므로 실측 범위는
+   **15 endpoint (조회 31 route)** 다(slice 9·13·14 는 route 를 1 개만, slice 10·11·12 는 각각
    2 개를 더하고, slice 15 는 도메인을 늘리지 않고 route 만 1 개, slice 16 은 도메인과 route 를
    각각 1 개씩 더하며, slice 17 은 다시 slice 15 와 같은 셈법으로 **도메인을 늘리지 않고 route
    만 1 개** 를 더하고, slice 18 도 **slice 15·17 과 같은 셈법으로 도메인을 늘리지 않고 route
@@ -475,15 +494,16 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    slice 20 도 **slice 15·17·18·19 와 같은 셈법으로 도메인을 늘리지 않고 route 만 1 개**(이미
    실측 도메인 `PartController` 를 두 번째로 재는 slice) 를 더하고, slice 21 도 **slice
    15·17·18·19·20 과 같은 셈법으로 도메인을 늘리지 않고 route 만 1 개**(이미 실측 도메인
-   `ImportController` 를 두 번째로 재는 slice) 를 더한다. 정본
+   `ImportController` 를 두 번째로 재는 slice) 를 더하고, slice 22 는 다시 **slice 16 과 같은
+   셈법으로 도메인과 route 를 각각 1 개씩**(도메인 14 에 없던 `AppController`) 를 더한다. 정본
    서술 = [`test/perf/README.md`](../../test/perf/README.md) 의
    `## 실 DB round-trip baseline (slice 목록)`).
    단 **본 item 은 미완** — `buildBaselineReport` + `formatBaselineLine` 은 **관찰 전용**
    이고 `writeBaselineFile` / `confirmOrCompareBaseline` 는 미사용이라 baseline 파일 확정이
    성립하지 않으며, §3 의 "baseline 후 fix" 임계 fix 도 미착수다. **잔여**: baseline 파일
    확정 · 임계 fix · 측정 endpoint 확대(나머지 read perf-spec 30 개는 service mock 잔존 —
-   계산식은 read 50 개 − 실 DB read 20 개이며, slice 21 도 파일명에 `read` 가 있어 피감수(49→50)와
-   감수(19→20)가 함께 1 씩 늘어 차이 30 은 불변이다 — `group-persons-scale-realdb` 는 파일명에
+   계산식은 read 51 개 − 실 DB read 21 개이며, slice 22 도 파일명에 `read` 가 있어 피감수(50→51)와
+   감수(20→21)가 함께 1 씩 늘어 차이 30 은 불변이다 — `group-persons-scale-realdb` 는 파일명에
    `read` 가 없어 양쪽 모두에서 빠진다) · **다른 endpoint(slice 5 의 contribution
    fan-out · slice 6 의 summary 시계열 조회 · slice 7 의 part 소속 조회 · slice 8 의 user 목록
    무필터 전량 SELECT · slice 9 의 permission-denied audit 목록 · slice 10 의 export job
@@ -492,7 +512,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    slice 15 의 export status-view 파생 조회 · slice 16 의 cron schedule 레지스트리 조회 ·
    slice 17 의 export dump download 조회 · slice 18 의 group membership 조회 ·
    slice 19 의 person 단건 상세 조회 · slice 20 의 part 단건 상세 조회 ·
-   slice 21 의 import job 단건 상세 조회
+   slice 21 의 import job 단건 상세 조회 · slice 22 의 `GET /api` root read
    포함 — 다만 slice 13 의 대상은
    `@@unique([difficulty])` 3 슬롯 상한이라 규모가 schema 로 bounded 여서 **규모 축의 의미가
    다르고**, slice 14 의 대상은 결과 집합이 **actor 자신 1 row 로 고정** 이라 **규모 축 자체가
@@ -513,20 +533,22 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    남겼을 뿐(대소·증가율 미단언) 그 두 표본 역시 **REQ-047 실 scale 부하와는 무관한 소규모
    표본** 이고, slice 21 의 대상도 응답이 **단건 1 row 고정** 이라 규모 축을 별도 표본으로 재지
    않았으며 그 표본(job **4 row** 수준 · 반복 소수 회)도 **REQ-047 실 scale 부하와는 무관한
-   소규모** 라 규모 축이 해소된 것이 아니다 — 미측정
+   소규모** 라 규모 축이 해소된 것이 아니고, slice 22 의 대상은 응답이 **DB 를 접촉하지 않는 상수
+   문자열** 이라 **규모 축 자체가 성립하지 않으므로** 규모 축이 해소된 것으로 읽어서는 안 된다 —
+   미측정
    목록에 통째로 넣어 오독하지도, 해소된 것처럼 읽지도 않는다) 의
    규모 민감도**(규모 축 실측은 `:id/persons` 한 route 에 한해 도달).
 
-   **잔여 read route 인벤토리 (slice 21 시점 확인분, T-1536 작성 → T-1542 갱신)** — 바로 위 `**잔여**` 의 "mock 잔존
+   **잔여 read route 인벤토리 (slice 22 시점 확인분, T-1536 작성 → T-1544 갱신)** — 바로 위 `**잔여**` 의 "mock 잔존
    read perf-spec 30 개" 를 **route 단위** 로 펼친 backlog 다. slice 목록의 **정본은
    [`test/perf/README.md`](../../test/perf/README.md) 의 `## 실 DB round-trip baseline (slice 목록)`**
    이고 본 절은 **plan 측 backlog (정본의 파생)** 이라 둘이 어긋나면 **정본이 이긴다** (본 인벤토리
    작성은 정본 파일을 수정하지 않았다 — 인용만 했다). 아래 개수는 모두 편집 전 실측값이다 —
-   `test/perf/*.perf-spec.ts` **55** · `*read*` **50** · `*realdb*` **21** · `*read*realdb*` **20**.
+   `test/perf/*.perf-spec.ts` **56** · `*read*` **51** · `*realdb*` **22** · `*read*realdb*` **21**.
    범위는 **read (조회) route 한정** 이며 write / trigger route 의 부하 측정은 §5 의 다른 item
    소관이라 여기서 목록화하지 않는다.
 
-   **(A) route 는 실 DB 실측 완료 · mock spec 만 잔존 — 29 개 (잔여 slice 후보 아님)**
+   **(A) route 는 실 DB 실측 완료 · mock spec 만 잔존 — 30 개 (잔여 slice 후보 아님)**
    (spec 이름은 `.perf-spec.ts` 접미 생략)
 
    | mock spec | route | 실측 slice (realdb spec) |
@@ -560,13 +582,18 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    | `person-detail-read` | `GET /api/persons/:id` | slice 19 (`person-detail-read-realdb`) |
    | `part-detail-read` | `GET /api/parts/:id` | slice 20 (`part-detail-read-realdb`) |
    | `import-detail-read` | `GET /api/admin/import/:id` | slice 21 (`import-detail-read-realdb`) |
+   | `app-root-read` | `GET /api` | slice 22 (`app-root-read-realdb`) |
 
    (A) 부류 mock spec 을 **retire · 삭제 · 통합할지는 별도 판단** 이며 본 절은 그 판단을 하지 않는다
    (`test/` 변경이라 `pr` 이고, "배선 latency 만 재는" mock 고유 책임이 남아 있는지부터 따져야 한다).
 
-   **(B) route 미측정 · mock spec 존재 — 1 개 (진짜 잔여 slice 후보)**
+   **(B) route 미측정 · mock spec 존재 — 0 개**
 
-   - `app-root-read` → `GET /api` (`AppController` root) — 실측 endpoint 도메인 14 개에 `AppController` 가 없다.
+   slice 22(T-1543) 가 마지막 1 건이던 `app-root-read` → `GET /api` 를 실측해 (A) 로 옮기면서
+   **현 시점 이 목록에 남은 (B) 후보는 0 건** 이다. 이는 **본 인벤토리가 열거한 범위 안에서** 그렇다는
+   뜻일 뿐 잔여가 소진됐다는 뜻이 아니다 — 본 절은 완전 열거를 주장하지 않고((C) 절 참조),
+   (A) 부류 mock spec 30 개의 retire 판단은 미착수이며, write / trigger route 는 애초에 이 목록
+   밖이다. 다음 slice 후보를 어디서 고를지는 별도 판단 몫이다.
 
    **보수 분류 표기** — **현재 보수 분류 잔여는 0 건** 이다. `import-detail-read` 는 realdb spec 이 그
    path 를 두드리기는 하지만(slice 12 의 `no-such-job-id` 404) **errorRate fail 분기용 negative** 라
@@ -580,22 +607,26 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    **(C) perf-spec 자체가 없는데 미측정인 read route — 현 시점 확인분 0 건**
 
    `grep -rn "@Get(" src/**/*.controller.ts` sweep 기준 controller 20 개의 조회 route 는 **31 개**
-   (`@Get` 이 0 인 write / trigger 전용 controller 5 개 제외) 이고, 이는 **실측 30 + (B) 1 = 31** 과
+   (`@Get` 이 0 인 write / trigger 전용 controller 5 개 제외) 이고, 이는 **실측 31 + (B) 0 = 31** 과
    맞물린다 — 즉 **현 시점 (C) 는 0 건** 이다. slice 18 의 `GET /api/groups/:id/members` 가 **(C) 였다가
    해소된 선례** 다(mock 짝이 없어 "mock 잔존 30" 셈에는 애초에 안 잡히는데 미측정이던 route —
    T-1534 의 "계수 함정 ②"). `AppController` 의 root read 는 (C) 후보로 보였으나
-   `app-root-read.perf-spec.ts` 가 실존해 **(B) 로 분류** 했다. 본 절은 **완전 열거를 주장하지 않는다** —
+   `app-root-read.perf-spec.ts` 가 실존해 **(B) 로 분류** 했었고, **slice 22(T-1543) 의 실측으로 (A) 로
+   옮겨갔다**. 본 절은 **완전 열거를 주장하지 않는다** —
    controller · route 가 늘면 다시 조사해야 하는 **현 시점 확인분** 일 뿐이다.
 
-   **자체 검산** — `A + B = 29 + 1 = 30` 이고 위 `**잔여**` 의 계산식 `read 50 − 실 DB read 20 = 30`
+   **자체 검산** — `A + B = 30 + 0 = 30` 이고 위 `**잔여**` 의 계산식 `read 51 − 실 DB read 21 = 30`
    도 같은 **30** 이다. 앞은 **route 분류의 합**, 뒤는 **파일 glob 의 차** 라 **서로 다른 셈이 같은 수를
    가리키는** 교차 검증이 된다. 두 셈이 어긋나면 문서가 아니라 분류를 고친다.
 
    **오독 차단 — "mock 잔존 30 개" ≠ "잔여 slice 30 개"**. 30 은 **파일 계수** 일 뿐이고 실제 잔여
-   cutover 후보는 **(B) + (C) = 1 + 0 = 1 route** 다((A) 로 1 건이 더 옮겨가 1 이 됐다고 해서 잔여가 곧
-   소진 임박인 것은 아니다 — (A) 부류 mock spec 의 retire 판단은 여전히 미착수이고 write / trigger
+   cutover 후보는 **(B) + (C) = 0 + 0 = 0 route** 다((A) 로 1 건이 더 옮겨가 0 이 됐다고 해서 잔여가
+   소진된 것은 아니다 — (A) 부류 mock spec 의 retire 판단은 여전히 미착수이고 write / trigger
    route 는 애초에 본 목록 밖이며, REQ-047 실 scale 부하 · baseline 확정 · 임계 fix · 시각화(web)
-   렌더 측정 4 잔여 축은 그대로다). (A) 29 개는 route 가 이미 실측돼 잔여가 아니며,
+   렌더 측정 4 잔여 축은 그대로다). **(B) 0 은 이 인벤토리가 열거한 범위가 소진됐다는 뜻일 뿐 조회
+   성능 검증이 완료됐다는 뜻이 아니다** — 근거는 넷이다: 본 절이 완전 열거를 주장하지 않고,
+   (A) 30 개의 retire 판단이 미착수이며, write / trigger route 가 목록 밖이고, 위 4 잔여 축이 그대로
+   존속한다. (A) 30 개는 route 가 이미 실측돼 잔여가 아니며,
    반대로 (C) 부류는 mock 짝이 없어 30 에 **애초에 안 잡히므로** 30 은 잔여의 상한도 하한도 아니다.
 
    본 인벤토리는 **측정 0 · 새 spec 0 · production code 0** 의 목록화라 REQ-048 재판정도

@@ -2,7 +2,7 @@
 id: T-1544
 title: 실 DB round-trip slice 22(T-1543) GET /api DB 미접촉 floor 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 130
@@ -237,4 +237,22 @@ slice 1~21 p95 를 읽을 때의 대조 기준선) + **guard layer 가 아예 �
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- **perf slice 23 의 대상 선정** — 인벤토리 (B) 가 0 이 된 뒤 다음 축을 write / trigger route
+  인벤토리화 · (A) 부류 mock spec 30 개 retire 판단 · baseline 확정 · web 렌더 측정 중 어디로
+  잡을지는 planner 의 다음 호출 몫이다 (본 task 는 결론을 문서에 적지 않았다).
+- **`app-root-read.perf-spec.ts` · `app-root-measure-confirm.perf-spec.ts` 의 retire · 통합 판단**
+  — T-1536 이 명시 유보한 별도 주제이고 `test/` 변경이라 `pr` task 다.
+
+## 결과 (2026-08-10, DONE)
+
+- `direct` commit (main) — `docs/PLAN.md` + `docs/ops/load-resilience-test-plan.md`
+  + `docs/requirements.md` + 본 task 파일 **4 파일 / 100 LOC 미만** (cap 300 LOC / 5 파일 이내).
+- 편집 전 실측 계수 (AC 1): perf-spec **56** · `*read*` **51** · `*realdb*` **22** ·
+  `*read*realdb*` **21**, `it(` 실측 **11 test**, main SHA `56771076` (PR #1232).
+- 반영: 도메인 **14 → 15** · 조회 route **30 → 31** (slice 16 과 같은 셈법) · mock 잔존
+  **30 불변** (`51 − 21 = 30`, AC 2) · 인벤토리 (A) **29 → 30** · (B) **1 → 0** ·
+  (C) 검산식 `실측 31 + (B) 0 = 31` (0 건 불변) · 자체 검산 `A + B = 30 + 0 = 30`.
+- 보수 분류 단락 **불변** (AC 4 — `app-root-read` 는 애초에 유보가 아니라 확정 근거로 (B) 였다).
+- 완료 선언 **0 유지** (AC 9 · AC 14) — PLAN `140 행` checkbox `[ ]` · REQ-048 `IN_PROGRESS` ·
+  부하계획 item 5 "본 item 은 미완" · 잔여 축 4 종 보존. REQ-047 · REQ-057 행 미수정.
+- AC 1~15 전부 ok. 코드 변경 0 의 doc-only 라 architect · tester 미호출 (§3.2 R-110 direct 면제).
