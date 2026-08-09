@@ -2,13 +2,14 @@
 id: T-1540
 title: 실 DB round-trip slice 20(T-1539) part 단건 상세 조회 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 110
 estimatedFiles: 3
 created: 2026-08-09
 createdAt: 2026-08-09T07:40:00Z
+completedAt: 2026-08-09T08:52:00Z
 independentStream: perf-realdb-slices
 dependsOn: [T-1539]
 touchesFiles:
@@ -227,3 +228,18 @@ plannerNote: "T-1539 Follow-ups 가 이월한 direct doc-sync — PLAN 142 행 s
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-09T08:52:00Z, DONE)
+
+- `direct` commit **`ab24d3c8`** main push 완료 — `docs/PLAN.md` · `docs/ops/load-resilience-test-plan.md` ·
+  `docs/requirements.md` **3 파일 `+48/-18`** (크기 상한 300 LOC / 5 파일 이내).
+- 계수는 전부 실측값만 사용 — perf-spec **54** / read **49** / 실 DB **20**(read **19**) / `it(` **12**.
+  도메인 **14 불변** · 조회 route **28 → 29** · 부하계획 `§ 5` item 5 인벤토리 (A) **27 → 28** /
+  (B) **3 → 2** 재분류. 검산 2 종 통과 (A+B = 28+2 = 30 · read 49 − 실 DB read 19 = 30).
+- **보수 분류 단락 불변** (AC 4) — `part-detail-read` 는 애초에 유보 대상이 아니었으므로 T-1538 의
+  "유보 해소" 문형을 복사하지 않았다. 잔여 `import-detail-read` 1 건 서술도 원문 보존.
+- **완료 선언 0 유지** — PLAN `140 행` checkbox `[ ]` · REQ-048 `IN_PROGRESS` · 부하계획 item 5
+  "미완" 서술 전부 불변 (AC 14). AC 1 ~ AC 15 **전부 ok**. doc-only `direct` 라 tester 면제
+  (R-110 예외, 코드 변경 0 LOC).
+- CI: 본 commit 의 main run(`31304281629`)은 fire 종료 시점 **in_progress** → 다음 fire 첫 단계에서
+  conclusion 재확인 (R-114 위임).
