@@ -2,7 +2,9 @@
 id: T-1543
 title: 실 DB perf slice 22 — GET /api health read 의 DB 미접촉 latency floor 실측
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-09T14:56:12Z
+prNumber: 1232
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 420
@@ -200,3 +202,10 @@ T-0881 이 주입 clock 으로 결정론화** 해야 했다. 본 slice 는 "floo
 후속 test 의 actor `User` 가 사라진다 — 발급 순서를 truncate 이후로 두거나 actor 를 재seed 한다.
 (2) 머지 후 **PLAN `142 행` · 부하계획 `§ 5` item 5 인벤토리 (B) 1 → 0 · REQ-048 3 문서 doc-sync** 를
 별도 `direct` task 로 이월한다.
+
+## 결과 요약 (2026-08-09 완료)
+
+- PR [#1232](https://github.com/myungjoo/AA_S1/pull/1232) round 1 에서 reviewer APPROVE + CI green → squash merge (main `56771076`).
+- `test/perf/app-root-read-realdb.perf-spec.ts` 신설 (test 11 개 — happy 1 · error 1 · 분기 1 · 새 축 1 · negative 7), `test/perf/README.md` 계수 갱신 (+447/-4).
+- 실 `AppModule` 부트스트랩 하 `GET /api` 의 **DB 미접촉 latency floor** 실측 — 인벤토리 (B) 잔여 1 → 0, 도메인 14 → 15 · 조회 route 30 → 31.
+- AC 1~15 전부 ok. 후속: PLAN `142 행` · 부하계획 `§ 5` item 5 · REQ-048 3 문서 doc-sync 는 별도 `direct` task 로 이월.
