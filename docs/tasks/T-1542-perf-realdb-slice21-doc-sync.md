@@ -2,7 +2,7 @@
 id: T-1542
 title: 실 DB round-trip slice 21(T-1541) import job 단건 상세 조회 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 120
@@ -237,3 +237,14 @@ controller 의 조회 route 전량 실측 도달도 slice 18·19·20 선례가 �
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-09T12:41:00Z, DONE)
+
+- commit `42d4de30` (`direct`, main) — `docs/PLAN.md` + `docs/ops/load-resilience-test-plan.md`
+  + `docs/requirements.md` **3 파일 `+50/-21`** (cap 300 LOC / 5 파일 이내).
+- 실측 계수 반영: perf-spec **55** / read glob **50** / 실 DB **21**(read **20**) / 도메인 **14 불변**
+  / mock 잔존 **30 불변** / 조회 route **29 → 30**.
+- 부하계획 `§ 5` item 5 인벤토리 (A) **28 → 29** · (B) **2 → 1** 재분류 + **보수 분류 잔여 1 → 0**
+  (해소 이력 2 건 보존), (C) 검산식 `실측 30 + (B) 1 = 31` 갱신 (0 건 불변).
+- 완료 선언 **0 유지** — PLAN `142 행` checkbox `[ ]` · REQ-048 `IN_PROGRESS` · 잔여 축 4 종 보존.
+- AC 1~15 전부 ok. 코드 변경 0 의 doc-only 라 architect · tester 미호출.
