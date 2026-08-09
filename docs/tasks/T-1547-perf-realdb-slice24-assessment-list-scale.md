@@ -2,13 +2,15 @@
 id: T-1547
 title: 실 DB perf slice 24 — GET /api/assessments 규모 민감도 실측 (index prefix 필터 + 인증 경유)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 290
 estimatedFiles: 3
 created: 2026-08-09
 createdAt: 2026-08-09T21:45:00Z
+completedAt: 2026-08-09T23:01:48Z
+prNumber: 1234
 independentStream: perf-realdb-slices
 dependsOn: [T-1546]
 touchesFiles:
