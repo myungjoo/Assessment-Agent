@@ -2,13 +2,15 @@
 id: T-1537
 title: 실 DB perf slice 19 — person 단건 상세 조회 실측
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048, REQ-026]
 estimatedDiff: 320
 estimatedFiles: 2
 created: 2026-08-09
 createdAt: 2026-08-09T01:10:00Z
+completedAt: 2026-08-09T02:52:51Z
+prNumber: 1229
 independentStream: perf-realdb-slices
 dependsOn: [T-1536]
 sizeExempt: true
@@ -156,6 +158,17 @@ Person 은 slice 1 의 도메인이므로 **실측 endpoint 도메인은 14 불�
 ## Suggested Sub-agents
 
 `implementer → tester`
+
+## Result (2026-08-09)
+
+- PR **#1229** squash merge (main `9466d76d`) — reviewer APPROVE + CI green 4-게이트 충족, round 1 종결.
+- 산출 2 파일 `+552/-4` — `test/perf/person-detail-read-realdb.perf-spec.ts` 신설(mock override 0,
+  실 Prisma seed) + `test/perf/README.md` slice 19 append · 잔여 계수 실검산 갱신.
+- **soft-delete 가시성 비대칭 첫 실측** — 목록(`active: true` 강제)에서 부재하는 row 가 단건 `:id`
+  에서는 200 + `active:false` 로 노출됨을 spec 으로 박제. 페어 측정(목록 vs 단건)은 대소 미단언.
+- 분기 3 종(200 / 404 / active:false 200) + negative 6 종 cover, 임계 3000ms 불변 · baseline 미확정
+  (디스크 write 0). CI perf step 에서 신규 spec PASS(perf 53 suites / 457 tests).
+- 계수: perf-spec 53 / read 48 / 실 DB 19(read 18) / 도메인 14 불변 / 조회 route 27 → 28.
 
 ## Follow-ups
 
