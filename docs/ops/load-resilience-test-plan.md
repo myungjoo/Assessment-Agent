@@ -132,7 +132,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 4. **CI 통합** — 부하 harness 를 `.github/workflows/` 에 별도 job(정기/수동 trigger)으로
    편입. 상시 PR CI 와 분리(부하는 무거움).
 5. **baseline 확정 + 임계 fix** — 최초 실측으로 §3 의 "baseline 후 fix" 임계를 실 수치로
-   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 22 까지 도달**: slice 1(T-1500, main
+   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 23 까지 도달**: slice 1(T-1500, main
    `0395c51e`) 의 [`person-read-realdb.perf-spec.ts`](../../test/perf/person-read-realdb.perf-spec.ts)
    가 mock override 0 부트스트랩 + 실 Prisma seed 로 `GET /api/persons` 의 p95 < 3000ms 를 실측했고,
    slice 2(T-1502, main `97198504`) 의
@@ -483,6 +483,20 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    유보의 해소는 아니다** — `app-root-read` 는 애초에 유보가 아니라 "mock spec 실존 + 실측 도메인
    14 개에 `AppController` 부재" 라는 **확정 근거** 로 (B) 였다. 표본은 반복 소수 회의 상대 비교용
    소규모이고 **본 route 는 DB 를 접촉조차 하지 않아** REQ-047 의 실 scale 부하 축과 무관하다).
+   이어 slice 23(T-1545, main `68d319e8`) 의
+   [`person-list-scale-realdb.perf-spec.ts`](../../test/perf/person-list-scale-realdb.perf-spec.ts)
+   (8 test) 가 slice 1 과 **같은 route**(`GET /api/persons`) 를 **20 row(소규모) vs 200 row(대규모)**
+   두 표본과 `active` 120 / `inactive` 80 혼합 표본으로 재어 **p95 < 3000ms** 를 유지함을 실측했다 —
+   구조 축은 ① **같은 route 의 테이블 총 row 수 규모**(slice 3 의 규모 축은 요청당 query 수가 늘어나는
+   N+1 축이었으나 `findActive` 는 단일 SELECT 라 query 수가 1 로 고정이고 **결과 집합 크기(직렬화 ·
+   전송 비용)** 만 커진다 — 목록 route 자체의 총 row 수를 키운 첫 사례) 와 ② **필터 선택도**(응답
+   row 수 120 과 스캔 대상 200 이 분리되는 축의 첫 실 DB 증거) **2 개** 이고, collector / assert 배선 ·
+   `p95MaxMs: 0` 주입 fail 분기 · 인위 non-2xx errorRate 분기 · `buildBaselineReport` 관찰 전용은
+   slice 1~22 와 동일해 넷 다 **새 축이 아니다**. 두 표본의 **대소 관계는 wall-clock 비결정성 때문에
+   단언하지 않는 관찰 기록** 이며(slice 3 과 동일), 그 “대규모” 200 row 도 **상대 비교용 소규모 표본**
+   이라 REQ-047 의 실 scale 부하 검증이 아니다(person row 수만 키웠을 뿐 repo · confluence page ·
+   1h 배치 시간 축은 부재다). slice 23 은 slice 1 이 이미 실측한 route 라 **실측 범위 15 endpoint
+   (조회 31 route) 가 불변** 이고 아래 인벤토리의 (A) 30 / (B) 0 / (C) 0 도 전부 불변이다.
    slice 4·5·6·7·8·9·10·11·12·13·14 가 route 폭을 늘렸고 slice 16 과 slice 22 가 도메인과 route 를
    함께 늘렸으므로 실측 범위는
    **15 endpoint (조회 31 route)** 다(slice 9·13·14 는 route 를 1 개만, slice 10·11·12 는 각각
@@ -495,7 +509,10 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    실측 도메인 `PartController` 를 두 번째로 재는 slice) 를 더하고, slice 21 도 **slice
    15·17·18·19·20 과 같은 셈법으로 도메인을 늘리지 않고 route 만 1 개**(이미 실측 도메인
    `ImportController` 를 두 번째로 재는 slice) 를 더하고, slice 22 는 다시 **slice 16 과 같은
-   셈법으로 도메인과 route 를 각각 1 개씩**(도메인 14 에 없던 `AppController`) 를 더한다. 정본
+   셈법으로 도메인과 route 를 각각 1 개씩**(도메인 14 에 없던 `AppController`) 를 더하지만, slice 23 은
+   **도메인도 조회 route 도 늘리지 않는다** — 이 열거 안에서는 처음이고 slice 3 이래 두 번째 사례로,
+   이미 실측한 route(`GET /api/persons`, slice 1) 를 **다른 축(규모 · 필터 선택도)** 으로 다시 잰
+   slice 이기 때문이다. 정본
    서술 = [`test/perf/README.md`](../../test/perf/README.md) 의
    `## 실 DB round-trip baseline (slice 목록)`).
    단 **본 item 은 미완** — `buildBaselineReport` + `formatBaselineLine` 은 **관찰 전용**
@@ -504,7 +521,9 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    확정 · 임계 fix · 측정 endpoint 확대(나머지 read perf-spec 30 개는 service mock 잔존 —
    계산식은 read 51 개 − 실 DB read 21 개이며, slice 22 도 파일명에 `read` 가 있어 피감수(50→51)와
    감수(20→21)가 함께 1 씩 늘어 차이 30 은 불변이다 — `group-persons-scale-realdb` 는 파일명에
-   `read` 가 없어 양쪽 모두에서 빠진다) · **다른 endpoint(slice 5 의 contribution
+   `read` 가 없어 양쪽 모두에서 빠진다; slice 23 의 `person-list-scale-realdb` 도 같은 이유로 양쪽에서
+   빠져 이번에는 **피감수도 감수도 늘지 않아** 51 − 21 = 30 이 식도 결과도 그대로다 — slice 3 에 이은
+   두 번째 사례다) · **다른 endpoint(slice 5 의 contribution
    fan-out · slice 6 의 summary 시계열 조회 · slice 7 의 part 소속 조회 · slice 8 의 user 목록
    무필터 전량 SELECT · slice 9 의 permission-denied audit 목록 · slice 10 의 export job
    polling · slice 11 의 LLM provider config 조회 · slice 12 의 import job polling 과 modes
@@ -534,17 +553,24 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    표본** 이고, slice 21 의 대상도 응답이 **단건 1 row 고정** 이라 규모 축을 별도 표본으로 재지
    않았으며 그 표본(job **4 row** 수준 · 반복 소수 회)도 **REQ-047 실 scale 부하와는 무관한
    소규모** 라 규모 축이 해소된 것이 아니고, slice 22 의 대상은 응답이 **DB 를 접촉하지 않는 상수
-   문자열** 이라 **규모 축 자체가 성립하지 않으므로** 규모 축이 해소된 것으로 읽어서는 안 된다 —
+   문자열** 이라 **규모 축 자체가 성립하지 않으므로** 규모 축이 해소된 것으로 읽어서는 안 되며,
+   slice 23 의 대상은 slice 1 과 **같은 route** 라 본 목록의 “다른 endpoint” 가 아니고 총 row 수
+   **20 vs 200** 과 **필터 선택도**(active 120 / inactive 80) 두 축으로 규모 축을 실측했으나 그 표본
+   역시 **REQ-047 실 scale 부하와는 무관한 소규모** 라 규모 축이 해소된 것은 아니다 —
    미측정
    목록에 통째로 넣어 오독하지도, 해소된 것처럼 읽지도 않는다) 의
-   규모 민감도**(규모 축 실측은 `:id/persons` 한 route 에 한해 도달).
+   규모 민감도**(규모 축 실측은 `:id/persons` 와 `GET /api/persons` **두 route 에 도달** — slice 23 이
+   목록 route 자체의 **테이블 총 row 수 20 vs 200** 과 **필터 선택도**(active 120 / inactive 80) 축을
+   더해 1 → 2 route 가 됐다. 다만 **규모 축이 해소된 것은 아니다** — 나머지 endpoint 는 여전히
+   미측정이고, 두 route 의 표본 모두 상대 비교용 **소규모** 이며, 두 표본의 대소 관계는 **wall-clock
+   비결정성 때문에 미단언** 이다).
 
-   **잔여 read route 인벤토리 (slice 22 시점 확인분, T-1536 작성 → T-1544 갱신)** — 바로 위 `**잔여**` 의 "mock 잔존
+   **잔여 read route 인벤토리 (slice 23 시점 확인분, T-1536 작성 → T-1546 갱신)** — 바로 위 `**잔여**` 의 "mock 잔존
    read perf-spec 30 개" 를 **route 단위** 로 펼친 backlog 다. slice 목록의 **정본은
    [`test/perf/README.md`](../../test/perf/README.md) 의 `## 실 DB round-trip baseline (slice 목록)`**
    이고 본 절은 **plan 측 backlog (정본의 파생)** 이라 둘이 어긋나면 **정본이 이긴다** (본 인벤토리
    작성은 정본 파일을 수정하지 않았다 — 인용만 했다). 아래 개수는 모두 편집 전 실측값이다 —
-   `test/perf/*.perf-spec.ts` **56** · `*read*` **51** · `*realdb*` **22** · `*read*realdb*` **21**.
+   `test/perf/*.perf-spec.ts` **57** · `*read*` **51** · `*realdb*` **23** · `*read*realdb*` **21**.
    범위는 **read (조회) route 한정** 이며 write / trigger route 의 부하 측정은 §5 의 다른 item
    소관이라 여기서 목록화하지 않는다.
 
@@ -623,7 +649,9 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    cutover 후보는 **(B) + (C) = 0 + 0 = 0 route** 다((A) 로 1 건이 더 옮겨가 0 이 됐다고 해서 잔여가
    소진된 것은 아니다 — (A) 부류 mock spec 의 retire 판단은 여전히 미착수이고 write / trigger
    route 는 애초에 본 목록 밖이며, REQ-047 실 scale 부하 · baseline 확정 · 임계 fix · 시각화(web)
-   렌더 측정 4 잔여 축은 그대로다). **(B) 0 은 이 인벤토리가 열거한 범위가 소진됐다는 뜻일 뿐 조회
+   렌더 측정 4 잔여 축은 그대로다). **규모 축이 slice 23 으로 `:id/persons` 와 `GET /api/persons` 2 route 로
+   넓어진 것 역시 잔여 소진이 아니다** — 나머지 endpoint 의 규모 민감도는 미측정이고 두 route 의 표본도
+   상대 비교용 소규모다. **(B) 0 은 이 인벤토리가 열거한 범위가 소진됐다는 뜻일 뿐 조회
    성능 검증이 완료됐다는 뜻이 아니다** — 근거는 넷이다: 본 절이 완전 열거를 주장하지 않고,
    (A) 30 개의 retire 판단이 미착수이며, write / trigger route 가 목록 밖이고, 위 4 잔여 축이 그대로
    존속한다. (A) 30 개는 route 가 이미 실측돼 잔여가 아니며,
