@@ -2,7 +2,7 @@
 id: T-1539
 title: 실 DB perf slice 20 — part 단건 상세 조회 실측
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 340
@@ -124,3 +124,25 @@ route** 다. 즉 합성 route 의 **구성 성분 query 를 분리해 재는 첫
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가)
+
+## 결과 (2026-08-09T06:50:21Z, DONE)
+
+- `pr` mode — feature branch `claude/T-1539-perf-realdb-slice20-part-detail-read` → **PR #1230**
+  round 1 에 4-게이트 (reviewer APPROVE + PR comment 외부 존재 + integrator 자체 점검 + CI green)
+  전부 통과 후 squash merge **`915f7859`**. 변경 **2 파일 `+565/-4`**
+  (`sizeExempt: true` — perf-spec 계열 구조상 LOC 만 초과, 파일 수 2 유지).
+- 신설 `test/perf/part-detail-read-realdb.perf-spec.ts` 는 slice 7 의 부트스트랩 · seed ·
+  `truncateAll` 구조를 승계하되 **mock override 0** 인 실 `AppModule` + 실 Prisma seed 로
+  `GET /api/parts/:id` 를 단독 측정 — slice 7 이 합성 route (`:id/persons`) 로만 재고 남겼던
+  **단건 상세** 축을 분리했다. test **12 종** (happy 1 + error 1 + 새 축 3 + negative 7).
+- `test/perf/README.md` 계수는 전부 `ls` glob 실측 — perf-spec **54** / read glob **49** /
+  실 DB read **19** / 실 DB 총 **20** / mock **30 불변**.
+- CI: PR run **green** (perf step 에서 실 Postgres PASS, perf 469 test). 기본 `pnpm test` 에
+  본 perf spec 이 미picking 되는 것도 확인. merge 후 main run 은 fire 종료 시점 **in_progress**
+  → 다음 fire 첫 단계에서 conclusion 재확인 (R-114 위임).
+- AC 전부 ok.
+
+## Follow-ups (실행 후 추가)
+
+- PLAN `142 행` · `docs/ops/load-resilience-test-plan.md` `§ 5` item 5 인벤토리 (B) **3 → 2**
+  재분류 doc-sync — `§3.1` rule 3 (direct · pr mixed 금지) 에 따라 **별도 `direct` task 로 이월**.
