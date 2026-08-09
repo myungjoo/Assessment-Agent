@@ -2,7 +2,7 @@
 id: T-1541
 title: 실 DB perf slice 21 — import job 단건 status polling 조회 실측
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 380
@@ -140,3 +140,30 @@ slice 19 가 세운 "보수 분류는 happy-path 실측으로 푼다" 선례를 
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가)
+
+## 결과 (2026-08-09T11:03:21Z, DONE)
+
+- `pr` mode — feature branch `claude/T-1541-perf-realdb-slice21-import-detail-read` → **PR #1231**
+  round 1 에 4-게이트 (reviewer APPROVE + PR comment 외부 존재 + integrator 자체 점검 + CI green)
+  전부 통과 후 squash merge **`212b82b9`**. 변경 **2 파일 `+583/-4`**
+  (`sizeExempt: true` — perf-spec 계열 구조상 LOC 만 초과, 파일 수 2 유지).
+- 신설 `test/perf/import-detail-read-realdb.perf-spec.ts` 는 **mock override 0** 인 실 `AppModule`
+  + 실 Prisma seed (`JOB_SEEDS` 4 status) 로 `GET /api/admin/import/:id` 를 측정. test **9 종**
+  (happy 1 · error 1 · 분기 1 · 새 축 1 · negative 5(8 종 상황)). 함정 3 종 회피 — P2025 → 404 는
+  slice 10 선례라 새 축 주장 없이 error path 로만 두었고, `truncateAll` 후 actor `User` 재seed 로
+  `ImportJob.requestedById` Restrict FK 를 살렸다.
+- 고유 축 = 같은 depth **정적 route 2 종 (`modes` · `running`) vs `:id` 라우팅 우선순위** — 정적 route
+  200 을 확인하되 `:id` 와의 **대소 관계는 미단언** (새 축 중복 주장 금지).
+- `test/perf/README.md` 계수는 전부 실측 — perf-spec **55** / read glob **50** / 실 DB read **20** /
+  실 DB 총 **21** / mock 잔존 **30 불변** / 조회 route **30** / 도메인 **14 불변**.
+- CI: PR run **green** (head `18afee4e` — perf step 실 Postgres PASS, 기본 `pnpm test` 미picking 확인).
+  merge 후 main run 은 fire 종료 시점 **in_progress** → 다음 fire 첫 단계에서 conclusion 재확인
+  (R-114 위임).
+- 임계 **3000ms 불변** · baseline 파일 미확정 (디스크 write 0) · 완료 선언 **0 유지**
+  (PLAN `140 행` `[ ]` · REQ-048 `IN_PROGRESS`).
+- AC 전부 ok.
+
+## Follow-ups (실행 후 추가)
+
+- PLAN `142 행` · `docs/ops/load-resilience-test-plan.md` `§ 5` item 5 인벤토리 (B) **2 → 1**
+  재분류 doc-sync — `§3.1` rule 3 (direct · pr mixed 금지) 에 따라 **별도 `direct` task 로 이월**.
