@@ -931,10 +931,54 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   재삽입한다(`ImportJob.requestedById` 의 `Restrict` FK 충족 — `db-truncate.ts` 수정 0). 여기서도 **측정만
   하며 소규모 표본이라 REQ-047 실 scale 부하가 아니다**(production code · schema · 임계값 불변 —
   `ImportJob` index 추가 판단은 본 실측을 근거로 하는 별도 task).
-- **잔여** — 실측 범위는 endpoint 14 개(조회 route 30)뿐이다. perf-spec 55 개 중 read 계열 glob 은 50 개
-  이고 그 중 실 DB round-trip 은 20 개(slice 1·2·4·5·6·7·8·9·10·11·12·13·14·15·16·17·18·19·20·21)이며 나머지 **mock 잔존
-  30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께 1 씩 증가 — `50 − 20 = 30`). read glob 밖의
-  slice 3(`group-persons-scale-realdb`)까지 더하면 실 DB round-trip spec 은 **21 개** 다. 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
+- **slice 22** — `app-root-read-realdb.perf-spec.ts` (T-1543) — 실측 대상을 `AppController` 의 root
+  health read(`GET /api`)로 넓혀 조회 1 route 를 추가 측정하고, 부하계획 `§ 5` item 5 인벤토리의
+  **(B) 후보 1 건** 을 측정으로 해소해 (B) 를 **1 → 0** 으로 만든다. `AppController` 는 실측 endpoint
+  도메인 14 개에 **없던 새 도메인** 이라 도메인 **14 → 15** · 조회 route **30 → 31** 로 **둘 다 +1**
+  이다(도메인·route 가 함께 늘던 **slice 16 과 같은 셈법** — "도메인 불변 · route 만 +1" 이던
+  slice 15·17·18·19·20·21 셈법이 아니다). 앞 slice 와의 차이는 **구조 축 2 개** 다 — ① **DB 미접촉
+  route 의 latency floor**: slice 1~21 은 전부 요청 경로가 실 Prisma round-trip 을 최소 1 회 수행했지만
+  `getRoot()` 는 `AppService.getStatus()` 의 고정 상수 `APP_STATUS_MESSAGE` 를 동기 반환할 뿐이라 실
+  `AppModule` + 실 Prisma 연결이 살아 있어도 요청 경로가 DB 를 **전혀 건드리지 않는다** — 따라서 본
+  실측값은 같은 harness · 같은 부트스트랩 조건에서의 **framework + HTTP 왕복만의 하한** 이며, 앞선
+  21 slice 의 p95 를 읽을 때 "얼마가 DB 몫인가" 를 가늠할 대조 기준선이 된다(DB 미접촉 사실 자체는
+  **전량 truncate 전 / 후 응답 불변** 으로 실증한다). mock 판 `app-root-read.perf-spec.ts`(T-0859)는
+  `AppService` 를 mock 으로 갈아끼운 **collector 배선 floor** 였을 뿐 실 부트스트랩 floor 가 아니었다.
+  ② **guard layer 가 아예 없는 첫 실 DB slice**: slice 1~21 은 모두 `JwtAuthGuard`(+ 상당수는
+  `RolesGuard` + `@Roles("Admin")`)를 통과하는 route 라 cookie 발급이 전제였는데, 본 route 는 인증 없이
+  200 이고 변조 쿠키를 붙여도 401 이 아니며 User tier actor 도 403 이 아니다 — **다른 slice 와 정반대의
+  negative** 다. 본 spec 은 **어떤 wall-clock 값끼리도 대소를 단언하지 않는다** — 다른 route · 다른
+  slice · 같은 spec 안의 두 측정 구간끼리도 마찬가지이며 "floor 이므로 더 빠르다" 류 단언은 금지다
+  (T-0877 이 `app-root-measure-confirm.perf-spec.ts` 에서 wall-clock 대소를 단언해 T-0880 의 PR CI 를
+  2 회 연속 red 로 만들고 T-0881 이 주입 clock 으로 결정론화해야 했던 이력). 허용되는 latency 단언은
+  **고정 임계 3000ms 대비 pass** 와 **주입 임계 0 대비 fail** 뿐이고 floor 성격은 주석과 본 서술로만
+  표현한다. **새 축으로 주장하지 않는** 항목도 함께 박제한다 — collector / assert 배선 재사용은
+  slice 1~21 과 동일, `p95MaxMs: 0` 주입 fail 분기와 인위 non-2xx 주입 errorRate 분기는 mock slice
+  시절부터의 관용 수단이며, `buildBaselineReport` 관찰 전용(디스크 write 0)도 전 slice 공통이고,
+  guard 미부착 controller 자체도 slice 1·2·7·19·20 선례가 있다. error path 는 `getRoot()` 에 예외 경로가
+  **구조적으로 부재** 하므로(항상 200 상수 반환) **인접 미매칭 경로**(`GET /api/no-such-route`)의 404 ·
+  500 아님 · raw stack 미노출로 커버하고, 분기 cover 는 `assertS2Threshold` 의 pass / fail 양쪽 도달과
+  **truncate 전 / 후 대조 쌍** 으로 채운다(`getRoot()` 자체는 분기 0). negative 는 (a) cookie 부재
+  **200**(401 아님) · (b) 변조 토큰 **200**(401 / 403 아님) · (c) User tier **200**(403 아님, Admin 과
+  동일 응답) · (d) `p95MaxMs: 0` 주입의 결정론적 fail · (e) 인위 non-2xx(500 · 503) 주입의 errorRate
+  위반과 200 혼합 표본의 `0 < er < 1` · (f) query string 부착(`GET /api?x=1`)의 200 + 동일 문자열 ·
+  (g) `POST /api` 의 405 아닌 **404** 7 종으로 덮는다. mock 짝 `app-root-read.perf-spec.ts` 와
+  `app-root-measure-confirm.perf-spec.ts` 는 **수정하지 않는다**(그 spec 들의 retire·통합 판단은 T-1536 이
+  명시 유보한 별도 주제 — mock 잔존 계수 불변). `afterEach` 는 `truncateAll` 후 actor 를 **원본 id
+  그대로** 재삽입한다(분기 대조 쌍이 test 중간에 전량 truncate 를 수행하므로 — `db-truncate.ts` 수정 0).
+  여기서도 **측정만 하며 소규모 표본이라 REQ-047 실 scale 부하가 아니다**(production code · schema ·
+  임계값 불변 — health endpoint 에 guard 가 없다는 사실도 보안 결함으로 재판정하지 않는다).
+- **잔여** — 실측 범위는 endpoint 15 개(조회 route 31)뿐이다. perf-spec 56 개 중 read 계열 glob 은 51 개
+  이고 그 중 실 DB round-trip 은 21 개(slice 1·2·4·5·6·7·8·9·10·11·12·13·14·15·16·17·18·19·20·21·22)이며 나머지 **mock 잔존
+  30 개는 이번 slice 로도 불변** 이다(피감수와 감수가 함께 1 씩 증가 — 계산식만 `read 51 개 − 실 DB
+  read 21 개` 로 갱신됐고 결과가 같은 이유는, 신규 파일명에도 `read` 가 들어 `*read*` glob 이 50 → 51 로
+  늘지만 실 DB read 도 20 → 21 로 함께 늘기 때문이다). read glob 밖의
+  slice 3(`group-persons-scale-realdb`)까지 더하면 실 DB round-trip spec 은 **22 개** 다. 본 slice 로
+  부하계획 `§ 5` item 5 인벤토리의 (B) 가 **1 → 0** 이 되고 조회 route 실측이 인벤토리 열거 총계와 같은
+  31 에 도달하지만, 이는 **조회 성능 검증이 끝났다는 뜻이 아니다** — ① 인벤토리 자체가 완전 열거를
+  주장하지 않고(부하계획 `587 행`), ② (A) 부류 mock perf-spec **30 개의 retire 판단은 미착수** 이며,
+  ③ **write / trigger route 는 애초에 이 목록 밖** 이고, ④ REQ-047 실 scale 부하 · baseline 확정 ·
+  임계 fix · web 렌더 측정의 **4 잔여 축이 그대로 존속** 한다. 규모 축은 slice 3 이 `:id/persons` 한 route 에 한해 소규모·대규모 두 표본까지 도달했을
   뿐, 다른 endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의
   실 DB cutover 는 endpoint 단위 후속 slice 로 이어간다.
 - **로컬 실행 전제** — `docker compose up -d postgres` + `DATABASE_URL`(예:
