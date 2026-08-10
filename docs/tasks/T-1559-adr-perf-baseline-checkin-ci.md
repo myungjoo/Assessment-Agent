@@ -2,7 +2,8 @@
 id: T-1559
 title: ADR — perf 체크인 baseline 정책 (저장 위치 · 갱신 주체 · 회귀 시 CI fail 여부 · CI 편입 방식)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-10T22:54:36Z
 commitMode: pr
 coversReq: [REQ-048, REQ-047]
 estimatedDiff: 210
@@ -131,3 +132,26 @@ plannerNote: "P5 성능 검증 bullet — slice 29 까지 3 연속 follow-up 이
 ## Follow-ups
 
 (생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가한다.)
+
+## Result (2026-08-10T22:54Z)
+
+- **DONE** — `pr` mode PR **#1240** squash merge (`41b4eb45`, main). 변경 **1 파일 `+230/-0`**
+  (cap `300 LOC / 5 파일` 이내): `docs/decisions/ADR-0056-perf-baseline-checkin-ci.md` 신설.
+- 결정 5 축 박제 — ① 저장 위치 `test/perf/baselines/` 단일 baseDir(파일명 규약은 후속 위임 ·
+  환경별 분기 귀결 명시), ② 갱신 주체는 **pr-mode task 전용**(CI 자동 commit 비채택),
+  ③ **절대 임계 fail / 상대 회귀 관찰** 분리(승격은 20-run 분포 조건 충족 시), ④ CI 편입은
+  기존 perf test step 재사용(신규 job 0 · PR 소요시간 영향 명시), ⑤ 임계 fix 는 20-run 분포
+  기반 + over-fitting 방지 절차.
+- AC 13 항목 전부 ok — Consequences 부정 귀결 **4 건** · Alternatives 미채택 **5 건** ·
+  Follow-ups (a)~(d) 는 dependency-free 로 cap·R-112 병기.
+- 4-게이트 충족 — reviewer `VERDICT: APPROVE` PR comment 외화(round 1) + integrator 자체 점검 +
+  PR CI **2 job 전부 pass**(기본 검사 / 배포 산출물 검증) + squash merge. 코드 변경 **0** 이라
+  R-112 4 항목 미적용이나 R-110 은 tester 의 `pnpm lint · build · test · test:cov` 실행으로 충족
+  (429 suite / 12302 test, line 99.95% · function 100% — 게이트 80/80 유지).
+- **완료 선언 0 유지** — PLAN `140 행` `[ ]` · REQ-048 `IN_PROGRESS` 보존. baseline JSON 생성 ·
+  `src/` · `test/` · `.github/workflows/` · `package.json` 변경 **0**.
+- **claim `prNumber` 미동기(sync=warn)** — driver 가 executor 에 claim 조작 금지를 지시해
+  `scripts/sync-claim-pr.sh` 호출이 생략됐다. 본 turn 안에서 머지까지 완결돼 dup-PR risk 는
+  실현되지 않았고, driver 가 bookkeeping 에서 claim 을 직접 prune 했다.
+- CI: main run(`41b4eb45`, `31440237007`) 은 turn 종료 시점 **in_progress** → 다음 fire 가
+  conclusion 재확인(R-114 위임).
