@@ -2,13 +2,15 @@
 id: T-1555
 title: 실 DB perf slice 28 — GET /api(app root) measure→confirm baseline loop 을 실 AppModule 부트스트랩 위에 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 285
 estimatedFiles: 2
 created: 2026-08-10
 createdAt: 2026-08-10T13:05:00Z
+completedAt: 2026-08-10T14:51:27Z
+prNumber: 1238
 independentStream: perf-realdb-slices
 dependsOn: [T-1553, T-1554]
 touchesFiles:
@@ -170,3 +172,10 @@ wall-clock 대소를 단언해 T-0880 의 PR CI 를 2 회 연속 red 로 만든 
   planner 가 판단할 시점이 됐다.
 - **인벤토리 머리말 갱신 조건 박제** (T-1546 → T-1554 이월) — 재분류 0 slice 가 6 연속이 되며 근거가
   더 두터워졌다.
+
+## 결과 (2026-08-10T14:51:27Z DONE)
+
+- PR **#1238** squash-merged (`4f444198`, branch 삭제). reviewer round **1** VERDICT `APPROVE` + PR comment 외화 + integrator self-check + PR CI green = 4-게이트 충족.
+- 산출 **2 파일 `+288/-10`**(cap 이내): `test/perf/app-root-measure-confirm-realdb.perf-spec.ts` 신규(it **11** 개 — happy 2 · 분기 2 · error 2 · negative 5) + `test/perf/README.md` slice 28 bullet · 계수 갱신.
+- mock(`useValue`) **0** · `overrideGuard` **0** 으로 실 `AppModule` 부트스트랩. baseline 은 임시 디렉토리 1 회성이라 저장소 오염 **0**.
+- 계수 = perf-spec **61 → 62** · `*realdb*` **27 → 28**, `*read*` **51** · 실 DB read **21** 불변(일곱 번째) → 재분류 **0** 이 6 연속. 완료 선언 **0** 유지.
