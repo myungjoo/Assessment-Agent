@@ -2,7 +2,10 @@
 id: T-1549
 title: 실 DB perf slice 25 — measure→confirm-or-compare baseline loop 를 실 DB round-trip 에 첫 배선 (GET /api/summaries)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-10T03:14:29Z
+prNumber: 1235
+mergeCommit: cb8cc456
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 290
