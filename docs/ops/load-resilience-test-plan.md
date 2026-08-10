@@ -132,7 +132,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 4. **CI 통합** — 부하 harness 를 `.github/workflows/` 에 별도 job(정기/수동 trigger)으로
    편입. 상시 PR CI 와 분리(부하는 무거움).
 5. **baseline 확정 + 임계 fix** — 최초 실측으로 §3 의 "baseline 후 fix" 임계를 실 수치로
-   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 27 까지 도달**: slice 1(T-1500, main
+   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 28 까지 도달**: slice 1(T-1500, main
    `0395c51e`) 의 [`person-read-realdb.perf-spec.ts`](../../test/perf/person-read-realdb.perf-spec.ts)
    가 mock override 0 부트스트랩 + 실 Prisma seed 로 `GET /api/persons` 의 p95 < 3000ms 를 실측했고,
    slice 2(T-1502, main `97198504`) 의
@@ -573,6 +573,31 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    slice 23 · 24 · 25 · 26 에 이어 5 연속** 이며, 애초에 **규모 축 slice 가 아니라**(부모 A 5 건 vs
    부모 B 3 건은 규모 비교가 아니라 **부모 필터 분해력** 관측이다) 소규모 seed 위의 측정이라
    REQ-047 의 실 scale 부하 검증이 아니다.
+   이어 slice 28(T-1555, main `4f444198`) 의
+   [`app-root-measure-confirm-realdb.perf-spec.ts`](../../test/perf/app-root-measure-confirm-realdb.perf-spec.ts)
+   (11 test) 가 slice 25 가 열고 slice 26 · 27 이 이어받은 **baseline 확정 축의 네 번째 route** 로서
+   같은 `measureAndConfirmBaseline` harness 를 `AppController` 의 root health read `GET /api`(slice 22
+   와 **같은 route · 다른 harness**) 로 넓혀, measure → confirm-or-compare top loop 의
+   **established(최초 확정 write)** 와 **compared(로드 · 비교)** 양 국면을 실 `AppModule` 부트스트랩
+   위에서 성립시키고 **p95 < 3000ms** 를 유지함을 실측했다 — 고유 축은 두 가지다. ① **DB 미접촉
+   route 위의 첫 baseline 확정** — `getRoot()` 는 `AppService.getStatus()` 의 고정 상수를 동기 반환할
+   뿐이라 실 Prisma 연결이 살아 있어도 요청 경로가 DB 를 **전혀 건드리지 않아**, 본 baseline 은
+   **framework + HTTP 왕복만의 하한** 이고 앞 세 route 의 baseline 에서 "얼마가 DB 몫인가" 를 가늠할
+   **대조 기준선** 이 된다(전량 truncate **전 / 후** 양쪽에서 established · compared 두 국면 도달 +
+   200 · 상수 문자열 불변으로 실증했고, 같은 route 를 **collector 개별 배선** 으로만 쟀던 slice 22
+   위에 top loop + 실 fs baseline round-trip 을 처음 태웠다). ② **guard layer 가 없는 첫
+   measure→confirm 실 DB slice** — cookie 미부착도 변조 토큰 쿠키도 401 · 403 이 아니라 **200** 이라
+   앞 세 slice 와 **정반대의 negative** 이고, 인접 미매칭 경로는 404(500 아님) · `POST /api` 도
+   405 가 아닌 404 로 수렴한다. 이로써 measure→confirm mock spec **4 개(summary · assessment ·
+   contribution · app-root) 전부** 가 실 DB 짝을 갖지만 이는 잔여 축 (c) 의 **네 번째 route** 일 뿐
+   **축의 해소가 아니다** — 그 baseline 도 **임시 디렉토리 1 회성** 이라 저장소 체크인 기준 baseline
+   파일 확정(아래 #5) · CI job 편입(#4) · 임계 fix 는 **전부 미착수 그대로** 다. 두 run 의 대소
+   관계도 `comparison.regressed` 값도 **단언하지 않는 관찰 기록** 이고, collector / assert 배선 ·
+   `p95MaxMs: 0` 주입 fail 분기 · 인위 non-2xx errorRate 분기는 slice 1~27 과 동일해 **새 축이
+   아니다**. slice 28 도 slice 22 가 이미 실측한 route 라 **실측 범위 15 endpoint (조회 31 route) 가
+   불변** 이고 인벤토리 (A) 30 / (B) 0 / (C) 0 도 전부 불변이라 **재분류 0 이 slice 23 · 24 · 25 ·
+   26 · 27 에 이어 6 연속** 이며, 애초에 **규모 축 slice 가 아니라**(seed 자체가 불요한 DB 미접촉
+   route 다) 소규모 표본 위의 측정이라 REQ-047 의 실 scale 부하 검증이 아니다.
    slice 4·5·6·7·8·9·10·11·12·13·14 가 route 폭을 늘렸고 slice 16 과 slice 22 가 도메인과 route 를
    함께 늘렸으므로 실측 범위는
    **15 endpoint (조회 31 route)** 다(slice 9·13·14 는 route 를 1 개만, slice 10·11·12 는 각각
@@ -597,13 +622,15 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    harness 로 다시 잰 slice) **재분류 0 이 4 연속** 이다. slice 27 도 같은 셈법으로 **도메인도 조회
    route 도 늘리지 않아**(이미 실측한 `GET /api/contributions?assessmentId=`, slice 5 를
    **measure→confirm baseline loop** 라는 다른 harness 로 다시 잰 slice) **재분류 0 이 5 연속** 이다.
+   slice 28 도 같은 셈법으로 **도메인도 조회 route 도 늘리지 않아**(이미 실측한 `GET /api`, slice 22
+   를 **measure→confirm baseline loop** 라는 다른 harness 로 다시 잰 slice) **재분류 0 이 6 연속** 이다.
    정본
    서술 = [`test/perf/README.md`](../../test/perf/README.md) 의
    `## 실 DB round-trip baseline (slice 목록)`).
    단 **본 item 은 미완** — `buildBaselineReport` + `formatBaselineLine` 은 **관찰 전용**
    이고 `writeBaselineFile` / `confirmOrCompareBaseline` 는 **slice 25(T-1549) 와 slice 26(T-1551) 과
-   slice 27(T-1553) 세 route 만 예외적으로 `measureAndConfirmBaseline` 로 호출해 baseline 을 확정했을
-   뿐 그것도 셋 다 임시 디렉토리 1 회성** 이라 저장소 체크인
+   slice 27(T-1553) 과 slice 28(T-1555) 네 route 만 예외적으로 `measureAndConfirmBaseline` 로 호출해
+   baseline 을 확정했을 뿐 그것도 넷 다 임시 디렉토리 1 회성** 이라 저장소 체크인
    기준 baseline 파일 확정은 여전히 성립하지 않으며, §3 의 "baseline 후 fix" 임계 fix 도 미착수다. **잔여**: baseline 파일
    확정 · 임계 fix · 측정 endpoint 확대(나머지 read perf-spec 30 개는 service mock 잔존 —
    계산식은 read 51 개 − 실 DB read 21 개이며, slice 22 도 파일명에 `read` 가 있어 피감수(50→51)와
@@ -618,7 +645,10 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    이번에도 51 − 21 = 30 이 **식도 결과도 그대로** 이며 slice 3 · 23 · 24 · 25 에 이은 **다섯 번째
    사례** 다; slice 27 의 `contribution-measure-confirm-realdb` 도 파일명에 `read` 가 **없어** 양쪽에서
    빠지므로 이번에도 51 − 21 = 30 이 **식도 결과도 그대로** 이며 slice 3 · 23 · 24 · 25 · 26 에 이은
-   **여섯 번째 사례** 다 — 늘어난 것은 `*.perf-spec.ts` 60 → 61 과 `*realdb*` 26 → 27 뿐이다)
+   **여섯 번째 사례** 다; slice 28 의 `app-root-measure-confirm-realdb` 도 파일명에 `read` 가 **없어**
+   양쪽에서 빠지므로 이번에도 51 − 21 = 30 이 **식도 결과도 그대로** 이며 slice 3 · 23 · 24 · 25 ·
+   26 · 27 에 이은 **일곱 번째 사례** 다 — 늘어난 것은 `*.perf-spec.ts` 61 → 62 와 `*realdb*`
+   27 → 28 뿐이다)
    · **다른 endpoint(slice 5 의 contribution
    fan-out · slice 6 의 summary 시계열 조회 · slice 7 의 part 소속 조회 · slice 8 의 user 목록
    무필터 전량 SELECT · slice 9 의 permission-denied audit 목록 · slice 10 의 export job
@@ -663,7 +693,10 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    route 와 같다는 사실을 "규모 축이 넓어졌다" 로 읽지 않는다), slice 27 의 대상도 slice 5 와
    **같은 route** 라 본 목록의 "다른 endpoint" 가 아니고 마찬가지로 **규모 축 slice 가 아니어서**
    규모 축을 넓히지 않는다(부모 A **5 건** vs 부모 B **3 건** 은 규모 표본이 아니라 **부모 필터
-   분해력** 관측이므로 "규모 민감도 표본" 으로 읽지 않는다) —
+   분해력** 관측이므로 "규모 민감도 표본" 으로 읽지 않는다), slice 28 의 대상도 slice 22 와
+   **같은 route** 라 본 목록의 "다른 endpoint" 가 아니고 마찬가지로 **규모 축 slice 가 아니어서**
+   규모 축을 넓히지 않는다(seed 자체가 불요한 **DB 미접촉 route** 라 규모 축이 애초에 성립하지
+   않는다) —
    미측정
    목록에 통째로 넣어 오독하지도, 해소된 것처럼 읽지도 않는다) 의
    규모 민감도**(규모 축 실측은 `:id/persons` · `GET /api/persons` · `GET /api/assessments`
@@ -671,21 +704,22 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    선택도**(active 120 / inactive 80) 축을 더해 1 → 2 route 로, slice 24 가 **인증 · 인가
    layer(`JwtAuthGuard` + `RolesGuard` + `@Roles("User")`) 를 통과하는 첫 규모 축** 과 **composite
    index prefix 2 단 선택도**(타 person 150 row 배제 → `period=week` 로 재차 축소, 총 row 350 대비
-   응답은 소규모) 축을 더해 2 → 3 route 로 넓혔다. **slice 25 도 slice 26 도 slice 27 도 규모 축
-   slice 가 아니라 baseline loop 배선이므로 이 세 route 를 늘리지 않는다**(slice 26 의 대상이
+   응답은 소규모) 축을 더해 2 → 3 route 로 넓혔다. **slice 25 도 slice 26 도 slice 27 도 slice 28 도
+   규모 축 slice 가 아니라 baseline loop 배선이므로 이 세 route 를 늘리지 않는다**(slice 26 의 대상이
    slice 24 의 규모 축 route 와 같더라도 잰 축이 달라 규모 축은 **3 route 그대로** 이고, slice 27 의
    부모 A 5 건 vs 부모 B 3 건도 규모 표본이 아니라 부모 필터 분해력 관측이라 역시 **3 route
-   그대로** 다). 다만 **규모 축이 해소된 것은
+   그대로** 이며, slice 28 은 **seed 자체가 불요한 DB 미접촉 route** 라 규모 축이 애초에 성립하지
+   않아 이번에도 **3 route 그대로** 다 — "규모 축이 4 route 로 늘었다" 로 읽지 않는다). 다만 **규모 축이 해소된 것은
    아니다** — 나머지
    endpoint 는 여전히 미측정이고, 세 route 의 표본 모두 상대 비교용 **소규모** 이며, 두 표본의 대소
    관계는 **wall-clock 비결정성 때문에 미단언** 이다).
 
-   **잔여 read route 인벤토리 (slice 27 시점 확인분, T-1536 작성 → T-1554 갱신)** — 바로 위 `**잔여**` 의 "mock 잔존
+   **잔여 read route 인벤토리 (slice 28 시점 확인분, T-1536 작성 → T-1556 갱신)** — 바로 위 `**잔여**` 의 "mock 잔존
    read perf-spec 30 개" 를 **route 단위** 로 펼친 backlog 다. slice 목록의 **정본은
    [`test/perf/README.md`](../../test/perf/README.md) 의 `## 실 DB round-trip baseline (slice 목록)`**
    이고 본 절은 **plan 측 backlog (정본의 파생)** 이라 둘이 어긋나면 **정본이 이긴다** (본 인벤토리
    작성은 정본 파일을 수정하지 않았다 — 인용만 했다). 아래 개수는 모두 편집 전 실측값이다 —
-   `test/perf/*.perf-spec.ts` **61** · `*read*` **51** · `*realdb*` **27** · `*read*realdb*` **21**.
+   `test/perf/*.perf-spec.ts` **62** · `*read*` **51** · `*realdb*` **28** · `*read*realdb*` **21**.
    범위는 **read (조회) route 한정** 이며 write / trigger route 의 부하 측정은 §5 의 다른 item
    소관이라 여기서 목록화하지 않는다.
 
@@ -767,13 +801,18 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    렌더 측정 4 잔여 축은 그대로다). **규모 축이 slice 24 로 `:id/persons` · `GET /api/persons` ·
    `GET /api/assessments` 3 route 로 넓어진 것 역시 잔여 소진이 아니다** — 나머지 endpoint 의 규모
    민감도는 미측정이고 세 route 의 표본도 상대 비교용 소규모다(slice 25 도 slice 26 도 slice 27 도
-   규모 축 slice 가 아니라 3 route 그대로다). **slice 25 가 baseline 확정 축에 첫 진입 한 것 역시 잔여 소진이
+   slice 28 도 규모 축 slice 가 아니라 3 route 그대로다 — slice 28 은 seed 자체가 불요한 **DB 미접촉
+   route** 라 규모 축이 성립조차 하지 않는다). **slice 25 가 baseline 확정 축에 첫 진입 한 것 역시 잔여 소진이
    아니다** — 그 baseline 은 **임시 디렉토리 1 회성** 이라 저장소 체크인 기준 baseline · CI job 편입 ·
    임계 fix 는 전부 미착수다. **slice 26 이 그 축에 route 를 하나 더 더해 두 번째 route 가 된 것
    역시 잔여 소진이 아니다** — 그 baseline 도 임시 디렉토리 1 회성이라 위 세 미착수가 그대로다.
    **slice 27 이 다시 route 를 하나 더 더해 세 번째 route 가 된 것 또한 잔여 소진이 아니다** — 그
    baseline 역시 임시 디렉토리 1 회성이라 위 세 미착수가 그대로이고, route 가 3 개로 늘어난 사실을
-   "잔여 축 (c) 해소" 로 읽지 않는다. **(B) 0 은 이 인벤토리가 열거한 범위가 소진됐다는 뜻일 뿐 조회
+   "잔여 축 (c) 해소" 로 읽지 않는다. **slice 28 이 네 번째 route 를 더해 measure→confirm mock spec
+   4 개(summary · assessment · contribution · app-root) 전부가 실 DB 짝을 갖게 된 것 또한 잔여 소진이
+   아니다** — 그 baseline 도 임시 디렉토리 1 회성이라 위 세 미착수가 그대로이고, "mock 짝이 다
+   갖춰졌다" 를 "(c) 축 해소" 로 읽지 않는다. slice 28 은 애초에 **규모 축 slice 가 아니어서**(seed
+   자체가 불요한 DB 미접촉 route) 규모 축은 여전히 **3 route** 이며 4 로 늘지 않는다. **(B) 0 은 이 인벤토리가 열거한 범위가 소진됐다는 뜻일 뿐 조회
    성능 검증이 완료됐다는 뜻이 아니다** — 근거는 넷이다: 본 절이 완전 열거를 주장하지 않고,
    (A) 30 개의 retire 판단이 미착수이며, write / trigger route 가 목록 밖이고, 위 4 잔여 축이 그대로
    존속한다. (A) 30 개는 route 가 이미 실측돼 잔여가 아니며,
@@ -781,7 +820,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 
    본 인벤토리는 **측정 0 · 새 spec 0 · production code 0** 의 목록화라 REQ-048 재판정도
    REQ-047(100~200명 / 50~100 repo / ~1000 confluence page / 1h) 진전도 **아니다** — 위 item 5 의
-   **미완** 서술(baseline 파일 확정 · 임계 fix 미착수 · `writeBaselineFile` 은 slice 25 · 26 · 27 의
-   임시 디렉토리 1 회성 호출뿐)과 규모 민감도 ·
+   **미완** 서술(baseline 파일 확정 · 임계 fix 미착수 · `writeBaselineFile` 은 slice 25 · 26 · 27 ·
+   28 의 임시 디렉토리 1 회성 호출뿐)과 규모 민감도 ·
    실 scale 부하 · 시각화(web) 렌더 측정 축 잔여는 **그대로 유효** 하다. 다음 slice 로 어느 route 를
    고를지의 **우선순위 부여도 본 절의 몫이 아니다**.
