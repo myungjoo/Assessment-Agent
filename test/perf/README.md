@@ -1071,23 +1071,53 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   은 **임시 디렉토리 1 회성** 이라 저장소 오염 0 이고 **체크인 기준 baseline(`§ 5` #5) · CI job 편입
   (`§ 5` #4) · 임계 fix 는 미착수 그대로** 다. 여기서도 **측정만 하며** production code · schema ·
   임계값 불변이고 **REQ-047 실 scale 부하 검증이 아니다**.
-- **잔여** — 실측 범위는 endpoint 15 개(조회 route 31)뿐이다. perf-spec 61 개 중 read 계열 glob 은 51 개
+- **slice 28** — `app-root-measure-confirm-realdb.perf-spec.ts` (T-1555) — **baseline 확정 축의 네 번째
+  route** 다. 같은 `measureAndConfirmBaseline` harness 를 `AppController` 의 root health read
+  `GET /api`(slice 22 와 같은 route, 다른 harness)로 넓히며, 고유 축은 두 가지다. ① **DB 미접촉 route
+  위의 첫 baseline 확정** — slice 25 ~ 27 의 표본은 전부 요청 경로가 실 Prisma round-trip 을 최소
+  1 회 수행했지만 `getRoot()` 는 `AppService.getStatus()` 의 고정 상수를 동기 반환할 뿐이라, 실
+  `AppModule` + 실 Prisma 연결이 살아 있어도 요청 경로가 DB 를 **전혀 건드리지 않는다**. 따라서 본
+  baseline 은 **framework + HTTP 왕복만의 하한** 이고 앞 세 route 의 baseline 에서 "얼마가 DB 몫인가"
+  를 가늠할 대조 기준선이 된다(slice 22 는 같은 route 를 **collector 개별 배선** 으로만 쟀고, 그 위의
+  top loop + 실 fs baseline round-trip 은 본 slice 가 처음이다). ② **guard layer 가 없는 첫
+  measure→confirm 실 DB slice** — cookie 미부착도 변조 쿠키도 401/403 이 아니라 **200** 이라 앞 세
+  slice 와 **정반대의 negative** 다. 검증은 **전량 truncate 전 / 후 양쪽에서 established · compared
+  두 국면 모두 도달 + 200·상수 문자열 불변** 으로 DB 미접촉을 실증하며(분기 판정은 baseline 파일
+  존재 여부라 latency 무의존), **wall-clock 대소도 `comparison.regressed` 값도 단언하지 않는다**(관찰
+  기록만 — T-0877/T-0880 flaky 사고 재발 차단). error path 2 종(공백-only `baseDir` 의 `RangeError` +
+  **그때 파일 생성 0** · 손상 JSON 의 `SyntaxError`)은 slice 25 ~ 27 을 승계하고, negative 5 종은
+  (a) cookie 미부착 **200** · (b) 변조 토큰 쿠키 **200** · (c) 인접 미매칭 경로 **404**(500 아님) ·
+  성공 표본 0 · raw stack 미노출 · (d) 인위 non-2xx 의 `errorRate = 1` 과 200 혼합의
+  `0 < errorRate < 1` · (e) `POST /api` 의 **404**(405 아님) 로 본 route 에 맞춰 갈아 끼웠다. 계수는
+  perf-spec 총계 **61 → 62** · `*realdb*` **27 → 28** 만 늘고 신규 파일명에 `read` 가 없어 `*read*`
+  **51 불변** · `*read*realdb*` **21 불변**(slice 3 · 23 · 24 · 25 · 26 · 27 에 이은 **일곱 번째**
+  사례), 같은 route 재측정이라 재분류 0 이 **6 연속** 이다 — 도메인 **15** · 조회 route **31** ·
+  (A) **30** / (B) **0** / (C) **0** · mock 잔존 **30** · **규모 축 route 3** 전부 불변(본 slice 는
+  seed 자체가 불요한 DB 미접촉 route 라 규모 축이 아니다). 이로써 measure→confirm mock spec
+  **4 개(summary · assessment · contribution · app-root) 전부** 가 실 DB 짝을 갖는다 — 다만 그 사실은
+  **축의 소진이 아니다**: 본 baseline 도 **임시 디렉토리 1 회성** 이고 **체크인 기준 baseline
+  (`§ 5` #5) · CI job 편입(`§ 5` #4) · 임계 fix 는 전부 미착수 그대로** 이며 잔여 4 축이 그대로
+  존속한다. mock 짝(T-0877) · slice 22 는 **수정하지 않으며**(대체 아닌 보완 — retire 판단은 T-1536
+  유보), 여기서도 **측정만 하며** production code · schema · 임계값 불변이고 **REQ-047 실 scale 부하
+  검증이 아니다**.
+- **잔여** — 실측 범위는 endpoint 15 개(조회 route 31)뿐이다. perf-spec 62 개 중 read 계열 glob 은 51 개
   이고 그 중 실 DB round-trip 은 21 개(slice 1·2·4·5·6·7·8·9·10·11·12·13·14·15·16·17·18·19·20·21·22)이며
-  나머지 **mock 잔존 30 개는 이번 slice 로도 불변** 이다 — 신규 파일명(`contribution-measure-confirm-realdb`)에는
+  나머지 **mock 잔존 30 개는 이번 slice 로도 불변** 이다 — 신규 파일명(`app-root-measure-confirm-realdb`)에는
   `read` 가 **없어** `*read*` glob **51 불변** · `*read*realdb*` **21 불변** 이라 피감수·감수가 둘 다
-  그대로이기 때문이다(**slice 3 과 같은 셈법의 여섯 번째 사례**). read glob 밖의 slice 3·23·24·25·26·27 까지
-  더하면 실 DB round-trip spec 은 **27 개**, perf-spec 총계는 **61 개** 다. 부하계획 `§ 5` item 5 인벤토리의 (B) 는
+  그대로이기 때문이다(**slice 3 과 같은 셈법의 일곱 번째 사례**). read glob 밖의 slice 3·23·24·25·26·27·28 까지
+  더하면 실 DB round-trip spec 은 **28 개**, perf-spec 총계는 **62 개** 다. 부하계획 `§ 5` item 5 인벤토리의 (B) 는
   slice 22 에서 이미 **0** 이고 본 slice 는 새 route 가 아니라 (A) 30 / (B) 0 / (C) 0 · 도메인 15 ·
   조회 route 31 을 **전부 불변** 으로 둔다. 조회 route 실측이 인벤토리 열거 총계와 같은 31 이라는
   사실은 **조회 성능 검증이 끝났다는 뜻이 아니다** — ① 인벤토리 자체가 완전 열거를 주장하지
   않고(부하계획 `587 행`), ② (A) 부류 mock perf-spec **30 개의 retire 판단은 미착수** 이며,
   ③ **write / trigger route 는 애초에 이 목록 밖** 이고, ④ REQ-047 실 scale 부하 · baseline 확정 ·
   임계 fix · web 렌더 측정의 **4 잔여 축이 그대로 존속** 한다 — baseline 확정 축은 slice 25 의 **첫
-  진입** · slice 26 · 27 의 **두·세 번째 route** 를 태웠을 뿐이고, 세 baseline 모두 **임시 디렉토리
-  1 회성** 이라 축은 **소진되지 않았다**(체크인 기준 baseline · CI job 편입 · 임계 fix 미착수). 규모 축도
+  진입** · slice 26 · 27 · 28 의 **두·세·네 번째 route** 를 태웠을 뿐이고, 네 baseline 모두 **임시
+  디렉토리 1 회성** 이라 축은 **소진되지 않았다**(체크인 기준 baseline · CI job 편입 · 임계 fix
+  미착수 — measure→confirm mock 4 개가 전부 실 DB 짝을 가진 것과 축의 해소는 별개다). 규모 축도
   slice 3(`:id/persons` 의 N+1 규모)·slice 23(`/api/persons` 의 결과 집합 규모 + 필터 선택도)·
   slice 24(`/api/assessments` 의 인증 경유 + index prefix 2 단 선택도) **세 route 에 도달했을 뿐**
-  이고(slice 25·26·27 은 규모 축이 아니라 3 불변), 나머지
+  이고(slice 25·26·27·28 은 규모 축이 아니라 3 불변), 나머지
   endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의 실 DB
   cutover 는 endpoint 단위 후속 slice 로 이어간다.
 - **로컬 실행 전제** — `docker compose up -d postgres` + `DATABASE_URL`(예:
@@ -1096,9 +1126,9 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   `services.postgres` + migrate deploy + e2e **이후**라 전제를 자동 충족한다(workflow 편집
   불요 — 기존 `testRegex` 가 새 spec 을 자동 picking).
 - **임계값 3000ms 는 불변** — `DEFAULT_P95_MAX_MS = 3000`(REQ-048)을 바꾸지 않는다. slice 1~24 는
-  `buildBaselineReport` + `formatBaselineLine` 한 줄 **관찰 전용** 이고, **slice 25·26·27 만** `GET
-  /api/summaries` · `GET /api/assessments` · `GET /api/contributions` 를 `confirmOrCompareBaseline` 로
-  **임시 디렉토리 1 회성** 확정·비교한다(저장소에
+  `buildBaselineReport` + `formatBaselineLine` 한 줄 **관찰 전용** 이고, **slice 25·26·27·28 만** `GET
+  /api/summaries` · `GET /api/assessments` · `GET /api/contributions` · `GET /api` 를
+  `confirmOrCompareBaseline` 로 **임시 디렉토리 1 회성** 확정·비교한다(저장소에
   baseline JSON 은 남지 않는다). 임계 fix · 체크인 기준 baseline · 나머지 cutover 는 별도 slice.
 
 ## 후속 harness (DB-backed baseline / S1·S3)
