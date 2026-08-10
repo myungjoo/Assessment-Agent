@@ -43,10 +43,10 @@
     "note": "/loop (dynamic, turn cap 2) — t1(본 turn): nextTask=T-0826(직전 cron@aa-local-573e053a fire 가 큐잉) → acquire-lock CAS(loop@aa-local-4171392e) → executor→implementer: docs/ops/load-resilience-test-plan.md 신설(§1~§5, 시나리오 3종·임계·도구 후보) + runbook cross-link + PLAN line148 확장(checkbox [ ] 유지) → content commit ad0b6f83 main push → DONE bookkeeping counters 818. t2: ScheduleWakeup 로 다음 turn → planner dispatch(nextTask=null) 예정. cap 2 도달 시 종료 + lock tombstone release."
   },
   "ci": {
-    "status": "green",
+    "status": "running",
     "consecutiveFails": 0,
     "lastRun": "2026-08-10T12:47:29Z",
-    "note": "driver fire(cron@aa-local-2da40dc8) — planner 큐잉 fire, T-1555 nextTask 박제. 직전 fire R-114 위임분 2건 모두 해소: 콘텐츠 commit 5a6af52d main run(31389515939) conclusion success, bookkeeping commit 2da40dc8 main run(31389679262) conclusion success. 본 fire 큐잉 commit 의 main run 은 종료 시점 in_progress 예상 → 다음 fire 첫 단계에서 conclusion 재확인(R-114 위임)."
+    "note": "driver fire(cron@aa-local-2da40dc8) — planner 큐잉 fire, T-1555 nextTask 박제. 직전 fire R-114 위임분 2건 모두 해소: 콘텐츠 commit 5a6af52d main run(31389515939) conclusion success, bookkeeping commit 2da40dc8 main run(31389679262) conclusion success. 본 fire 큐잉 commit e0d8420a 의 main run(31394312679) 은 종료 시점 in_progress → 다음 fire 첫 단계에서 conclusion 재확인(R-114 위임)."
   },
   "reviewRounds": {
     "T-1551": 1,
