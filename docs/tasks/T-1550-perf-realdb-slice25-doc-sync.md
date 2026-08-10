@@ -2,7 +2,8 @@
 id: T-1550
 title: 실 DB perf slice 25(T-1549) GET /api/summaries measure→confirm baseline 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-10T04:52:00Z
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 110
