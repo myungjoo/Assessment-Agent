@@ -2,7 +2,8 @@
 id: T-1557
 title: 실 DB perf slice 29 — GET /api/persons measure→confirm baseline 을 guard 미부착 + DB 접촉 route 위에 배선
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-10T18:54:37Z
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 285
@@ -163,3 +164,20 @@ baseline(`§ 5` #5) · CI job 편입(`§ 5` #4) · 임계 fix 는 전부 미착�
   **ADR 1 개**(baseline 저장 위치 · 갱신 주체 · 회귀 판정 시 CI fail 여부)로 결정을 먼저 박제할 것.
 - **인벤토리 머리말 갱신 조건 박제** (T-1546 → T-1554 → T-1555 이월) — 재분류 0 slice 가 7 연속이 되며
   근거가 더 두터워졌다.
+
+## Result (2026-08-10T18:54Z)
+
+- **DONE** — `pr` mode PR **#1239** squash merge (`b77e944e`, main). 변경 **2 파일 `+292/-7`**
+  (cap `300 LOC / 5 파일` 이내): `test/perf/person-measure-confirm-realdb.perf-spec.ts` 신규 255 LOC
+  (`it` 11 개), `test/perf/README.md` slice 29 bullet + 잔여 절 계수 갱신.
+- baseline 확정 축의 **다섯 번째 route** = `GET /api/persons` — guard 미부착 + DB 접촉(soft-delete
+  필터) 조합. mock **0** · `overrideGuard` **0** 으로 `createE2EApp` 부트스트랩해 실 Postgres 왕복만 계측.
+- AC 12 항목 전부 ok — happy 2 국면(established 확정 write / compared 도달), soft-delete 두 국면 분기
+  대조, error path 2 종(`RangeError` · `SyntaxError`), negative 5 종, 임계 검증(기본 pass ·
+  `p95MaxMs=0` fail), 저장소 오염 0(tmpdir 1 회성 + `afterEach` 재귀 삭제).
+- 4-게이트 충족 — reviewer `VERDICT: APPROVE` PR comment 외화(round 1) + integrator 자체 점검 +
+  PR CI **2 job 전부 pass**(기본 검사 / 배포 산출물 검증) + merge. `pnpm lint · build · test:cov`
+  통과(429 suite / 12302 test, line·function ≥ 80% 유지).
+- **완료 선언 0 유지** — PLAN `140 행` `[ ]` · REQ-048 `IN_PROGRESS` 보존. 계수 doc-sync 는
+  Follow-ups 의 별도 direct task 로 이월(`§3.1` rule 3 — direct·pr mixed 금지).
+- CI: main run(`b77e944e`) 은 turn 종료 시점 **in_progress** → 다음 fire 가 conclusion 재확인(R-114 위임).
