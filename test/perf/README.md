@@ -1007,20 +1007,44 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   으로 덮는다. slice 4 · 23 파일과 mock 짝은 **수정하지 않고** 여기서도 **측정만 한다** — index 추가 ·
   쿼리 최적화 · 페이지네이션은 범위 밖이고 "대규모" 는 **상대 비교용 표본** 일 뿐 **REQ-047 실 scale
   부하 검증이 아니다**.
-- **잔여** — 실측 범위는 endpoint 15 개(조회 route 31)뿐이다. perf-spec 58 개 중 read 계열 glob 은 51 개
+- **slice 25** — `summary-measure-confirm-realdb.perf-spec.ts` (T-1549) — slice 6 과 **같은 route**
+  (`GET /api/summaries?personId=`)를 **다른 harness** 로 잰다. 고유 축은
+  **`measureAndConfirmBaseline`(measure→confirm-or-compare top loop)의 첫 실 DB 배선** 이다 — 기존
+  measure→confirm spec 4 개(T-0877 · T-0880 · assessment · contribution)는 전부 service `useValue`
+  mock + `overrideGuard` 라, 기준 부재의 **최초 확정 write(established)** 와 존재 시 **로드·비교
+  (compared)** 두 국면이 **실 Postgres round-trip 지연을 포함한 표본** 에서 성립하는지는 미관측이었다.
+  slice 6 은 같은 route 를 실 DB 로 쟀지만 **관찰 전용** 이라 baseline 을 디스크에 쓰지 않았고, 본
+  slice 가 **route 하나에 한해** 그 경계를 처음 넘는다. 계수는 perf-spec 총계 **58 → 59** 와
+  `*realdb*` **24 → 25** 만 늘고(신규 파일명에 `read` 가 없어 `*read*` **51 불변** · `*read*realdb*`
+  **21 불변** — slice 3 · 23 · 24 와 같은 셈법), 같은 route 재측정이라 재분류 0 이 slice 23 · 24 에
+  이어 **3 연속** 이다 — 실측 도메인 **15 불변** · 조회 route **31 불변** · 인벤토리 (A) **30** /
+  (B) **0** / (C) **0** · mock 잔존 **30 불변** · **규모 축 route 3 불변**(본 slice 는 규모 축이 아니다).
+  검증은 **응답 길이가 seed row 수(week 3 + month 2)와 정확히 일치** 함으로 실 query 발화를 입증하고,
+  **wall-clock 대소도 `comparison.regressed` 값도 단언하지 않는다**(관찰 기록만 — flaky 차단).
+  error path 는 공백-only `baseDir` 의 `RangeError` + **그때 파일 생성 0**(순서 계약의 write 부작용 0
+  실증) · 손상 JSON 의 `SyntaxError` 2 종, negative 는 (a) `personId` 누락 **400** 표본도 확정 write
+  수행 · (b) 매칭 0 건 **200 + `[]`** · (c) cookie 미부착 **401** · (d) 인위 non-2xx 의 `errorRate = 1`
+  과 200 혼합의 `0 < errorRate < 1` · (e) truncate 전/후 대조 쌍(5 → 0 건, 둘 다 200) 5 종이다. mock
+  짝과 slice 6 파일은 **수정하지 않으며**(대체 아닌 보완 — retire 판단은 T-1536 유보), 본 baseline 은
+  **임시 디렉토리 1 회성** 이라 저장소 오염 0 이고 **저장소 체크인 기준 baseline(`§ 5` #5) · CI job
+  편입(`§ 5` #4) · 임계 fix 는 전부 미착수 그대로** 다. 여기서도 **측정만 하며** production code ·
+  schema · 임계값 불변이고 **REQ-047 실 scale 부하 검증이 아니다**.
+- **잔여** — 실측 범위는 endpoint 15 개(조회 route 31)뿐이다. perf-spec 59 개 중 read 계열 glob 은 51 개
   이고 그 중 실 DB round-trip 은 21 개(slice 1·2·4·5·6·7·8·9·10·11·12·13·14·15·16·17·18·19·20·21·22)이며
-  나머지 **mock 잔존 30 개는 이번 slice 로도 불변** 이다 — 신규 파일명(`assessment-list-scale-realdb`)에는
+  나머지 **mock 잔존 30 개는 이번 slice 로도 불변** 이다 — 신규 파일명(`summary-measure-confirm-realdb`)에는
   `read` 가 **없어** `*read*` glob **51 불변** · `*read*realdb*` **21 불변** 이라 피감수·감수가 둘 다
-  그대로이기 때문이다(**slice 3 과 같은 셈법**). read glob 밖의 slice 3·23·24 까지 더하면 실 DB
-  round-trip spec 은 **24 개**, perf-spec 총계는 **58 개** 다. 부하계획 `§ 5` item 5 인벤토리의 (B) 는
+  그대로이기 때문이다(**slice 3 과 같은 셈법**). read glob 밖의 slice 3·23·24·25 까지 더하면 실 DB
+  round-trip spec 은 **25 개**, perf-spec 총계는 **59 개** 다. 부하계획 `§ 5` item 5 인벤토리의 (B) 는
   slice 22 에서 이미 **0** 이고 본 slice 는 새 route 가 아니라 (A) 30 / (B) 0 / (C) 0 · 도메인 15 ·
   조회 route 31 을 **전부 불변** 으로 둔다. 조회 route 실측이 인벤토리 열거 총계와 같은 31 이라는
   사실은 **조회 성능 검증이 끝났다는 뜻이 아니다** — ① 인벤토리 자체가 완전 열거를 주장하지
   않고(부하계획 `587 행`), ② (A) 부류 mock perf-spec **30 개의 retire 판단은 미착수** 이며,
   ③ **write / trigger route 는 애초에 이 목록 밖** 이고, ④ REQ-047 실 scale 부하 · baseline 확정 ·
-  임계 fix · web 렌더 측정의 **4 잔여 축이 그대로 존속** 한다. 규모 축도 slice 3(`:id/persons` 의 N+1
-  규모)·slice 23(`/api/persons` 의 결과 집합 규모 + 필터 선택도)·slice 24(`/api/assessments` 의 인증
-  경유 + index prefix 2 단 선택도) **세 route 에 도달했을 뿐**, 나머지
+  임계 fix · web 렌더 측정의 **4 잔여 축이 그대로 존속** 한다 — slice 25 가 baseline 확정 축에 **첫
+  진입** 했으나 그 baseline 은 **임시 디렉토리 1 회성** 이라 축은 **소진되지 않았다**. 규모 축도
+  slice 3(`:id/persons` 의 N+1 규모)·slice 23(`/api/persons` 의 결과 집합 규모 + 필터 선택도)·
+  slice 24(`/api/assessments` 의 인증 경유 + index prefix 2 단 선택도) **세 route 에 도달했을 뿐**
+  이고(slice 25 는 규모 축이 아니라 3 불변), 나머지
   endpoint 의 규모 민감도와 REQ-047 실 scale 부하는 여전히 미측정이다. 남은 endpoint 의 실 DB
   cutover 는 endpoint 단위 후속 slice 로 이어간다.
 - **로컬 실행 전제** — `docker compose up -d postgres` + `DATABASE_URL`(예:
@@ -1028,10 +1052,10 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   `pnpm prisma migrate deploy` 후 `pnpm test:perf`. CI 는 `perf test` step 이
   `services.postgres` + migrate deploy + e2e **이후**라 전제를 자동 충족한다(workflow 편집
   불요 — 기존 `testRegex` 가 새 spec 을 자동 picking).
-- **임계값 3000ms 는 불변** — `DEFAULT_P95_MAX_MS = 3000`(REQ-048)을 바꾸지 않고
-  `writeBaselineFile`/`confirmOrCompareBaseline` 로 baseline 을 확정하지도 않는다
-  (`buildBaselineReport` + `formatBaselineLine` 한 줄 **관찰 전용**). 임계 fix · baseline 확정 ·
-  나머지 endpoint 의 실 DB cutover 는 별도 slice.
+- **임계값 3000ms 는 불변** — `DEFAULT_P95_MAX_MS = 3000`(REQ-048)을 바꾸지 않는다. slice 1~24 는
+  `buildBaselineReport` + `formatBaselineLine` 한 줄 **관찰 전용** 이고, **slice 25 만** `GET
+  /api/summaries` 하나를 `confirmOrCompareBaseline` 로 **임시 디렉토리 1 회성** 확정·비교한다(저장소에
+  baseline JSON 은 남지 않는다). 임계 fix · 체크인 기준 baseline · 나머지 cutover 는 별도 slice.
 
 ## 후속 harness (DB-backed baseline / S1·S3)
 
