@@ -7,8 +7,8 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-1556",
-  "backlogNoteResolved": "▶ **T-0880 BLOCKED (ci-repeat-fail) — PR #774 OPEN, 머지 보류; T-0881 이 unblock 선행** — S2 measure→confirm-or-compare 를 SummaryController GET /api/summaries?personId 에 배선한 두 번째 통합 perf-spec(구현 commit 27693524, cron@cloud-6ba9 가 4h 전 구현·push 했으나 PR open 전 사망 → 본 fire cron@aa-local-2ff3 가 orphan claim reclaim 후 PR #774 open). reviewer APPROVE + 게이트 (a)(b)(c) PASS, **게이트 (d) CI FAIL**: `test:perf` 가 2회(초회+rerun) 연속 fail. 실패 지점은 T-0880 신규 spec 이 아니라 **pre-existing `test/perf/app-root-measure-confirm.perf-spec.ts:217`**(T-0877 compared 분기 `regressed=false` wall-clock 비결정 단언) — 동일 head_sha main CI 는 green 이므로 T-0880 코드 결함 0, T-0880 이 추가한 perf-spec 부하가 T-0877 timing-fragile 단언을 노출. self-heal 불가(fix 대상이 T-0880 touchesFiles/Out-of-Scope 밖). **처리**: planner 가 **T-0881**(pr-mode, app-root compared 분기를 주입 clock=stepClock 으로 결정론화) 큐잉, T-0880 claim prune(release — pr-mode T-0881 이 0-active-claim gate 통과하도록), PR #774 는 OPEN 유지 + T-0880 task frontmatter 에 prNumber:774 박제(향후 fire 가 LOOP [2] frontmatter-prNumber resume 로 중복 PR 없이 rebase+re-CI). **시퀀스**: T-0881 merge → 그 fire 가 T-0880 을 nextTask 로 재큐잉 → PR #774 rebase+re-CI → 4-게이트 재확인 → merge. `close+reopen`/`--admin` bypass 금지.",
+  "nextTask": null,
+  "backlogNoteResolved": "▶ **T-1556 DONE (direct commit d94c5d4c) — 실 DB perf slice 28(T-1555) 결과 doc-sync 완결; PLAN · 부하계획 · REQ-048 3 문서 동기** — T-1555 가 CLAUDE.md §3.1 rule 3 (direct·pr mixed 금지) 로 이월한 doc-sync. 실측 계수만 사용 — perf-spec 62 / read 51 / 실 DB 28 / read 실 DB 21. read glob 두 개 다 불변(일곱 번째 사례) 로 51 − 21 = 30 식도 결과도 보존, 재분류 0 이 6 연속(도메인 15 · 조회 route 31 · (A)30/(B)0/(C)0 · mock 잔존 30 · 규모 축 3 route 전부 불변). baseline 확정 축은 네 번째 route(GET /api — DB 미접촉 floor, guard 미적용으로 negative 국면이 앞 세 slice 와 정반대). 3 파일 +55/-16. 완료 선언 0 유지(PLAN 140 행 [ ] · REQ-048 IN_PROGRESS · item 5 미완). **다음** — currentTask·nextTask 둘 다 null → 다음 fire 가 planner dispatch. 유력 후보 = baseline 확정 축의 다음 단계 판정(measure→confirm mock 4 개가 전부 실 DB 짝을 가진 시점 — repo 체크인 baseline + CI job 편입 vs 다섯 번째 route) 또는 인벤토리 머리말 갱신 조건 박제(재분류 0 이 6 연속으로 근거 축적).",
   "backlogNoteT0881": "▶ **T-0881 DONE (PR #775 merged, squash 67955a76) — T-0880 unblock 완결; 다음 fire 가 T-0880/PR #774 resume** — app-root compared 분기 perf-spec(test/perf/app-root-measure-confirm.perf-spec.ts) 의 compared happy-path(b) 1차·2차 measure 에 stepClock(50) 주입해 regressed 비결정성 제거(+13/-6, 1 file). 이로써 T-0880 PR #774 를 2회 fail 시킨 T-0877 timing-fragile 단언(:217 wall-clock regressed=false)이 결정론화됨. reviewer APPROVE round 1/7(0 BLOCKER·0 MAJOR·0 MINOR), 4-게이트 PASS(reviewer comment external, CI test:perf 포함 green, ADR-0036 §8(c) head 최신 main 포함), squash 67955a76 + branch delete. R-112: compared happy-path 결정론(ok) + 회귀 분기는 기존 flow(336~356)/negative(414~433) 가 stepClock+tolerance:0 로 이미 커버, src 0 LOC 변경이라 test:cov 무영향. fineGrainedConcurrency ON(stage 5b) claim-pickup fire(cron@aa-local-33f5). **다음 시퀀스**: nextTask=T-0880 → 다음 fire 가 currentTask 로 옮겨 LOOP [2] frontmatter-prNumber(774) resume 분기로 PR #774 checkout+rebase(최신 main 이제 T-0881 fix 포함)+re-CI(test:perf 이제 green 기대)+4-게이트 재확인 → merge. 중복 PR 금지(prNumber:774 resume).",
   "backlogNoteT0880": "▶ **T-0880 DONE (PR #774 merged, squash effb2b6c) — S2 조회 endpoint 두 번째 통합 perf-spec 배선 완결** — SummaryController GET /api/summaries?personId 를 measureAndConfirmBaseline top loop 에 배선한 두 번째 통합 perf-spec. T-0881→T-0880 unblock 시퀀스 완결.",
   "backlogNote": "▶ **T-1540 DONE (direct commit ab24d3c8) — 실 DB perf slice 20(T-1539) 결과 doc-sync 완결; PLAN·부하계획·REQ-048 3 문서 동기** — T-1539 가 CLAUDE.md §3.1 rule 3 (direct·pr mixed 금지) 로 이월한 doc-sync. 실측 계수만 사용 — perf-spec 54 / read 49 / 실 DB 20(read 19) / it( 12. PLAN 142 행 slice 19 → 20 · 도메인 14 불변 · 조회 route 28 → 29, 부하계획 §5 item 5 인벤토리 (A) 27 → 28 / (B) 3 → 2 재분류(검산 2 종 통과 — A+B = 30 · read 49 − 실 DB read 19 = 30), REQ-048 한계 서술 3 축 병기. 계수 함정 3 종 회피 — mock 잔존 30 불변 · 도메인 14 불변 · 보수 분류 단락 불변(part-detail-read 는 애초에 유보 대상이 아니라 T-1538 의 \"유보 해소\" 문형 복사 금지). 완료 선언 0 유지(PLAN 140 행 [ ] · REQ-048 IN_PROGRESS · item 5 미완). 3 파일 +48/-18. **다음** — currentTask·nextTask 둘 다 null → 다음 fire 가 planner dispatch. 유력 후보 = 부하계획 §5 item 5 의 (B) 미측정 잔여 2 route 중 하나를 실 DB 로 측정하는 perf slice 21.",
@@ -43,10 +43,10 @@
     "note": "/loop (dynamic, turn cap 2) — t1(본 turn): nextTask=T-0826(직전 cron@aa-local-573e053a fire 가 큐잉) → acquire-lock CAS(loop@aa-local-4171392e) → executor→implementer: docs/ops/load-resilience-test-plan.md 신설(§1~§5, 시나리오 3종·임계·도구 후보) + runbook cross-link + PLAN line148 확장(checkbox [ ] 유지) → content commit ad0b6f83 main push → DONE bookkeeping counters 818. t2: ScheduleWakeup 로 다음 turn → planner dispatch(nextTask=null) 예정. cap 2 도달 시 종료 + lock tombstone release."
   },
   "ci": {
-    "status": "green",
+    "status": "running",
     "consecutiveFails": 0,
-    "lastRun": "2026-08-10T15:41:43Z",
-    "note": "driver fire(cron@aa-local-3fc71211) - planner queueing fire. 직전 fire R-114 위임분 해소: 머지 commit 4f444198 main run(31400437829) + bookkeeping commit 3fc71211 main run(31400657544) 모두 conclusion success. 본 fire 는 task 수행 0 (planner 가 T-1556 큐잉만) - 본 bookkeeping commit 의 main run 은 다음 fire 첫 단계에서 conclusion 확인(R-114 위임)."
+    "lastRun": "2026-08-10T16:45:00Z",
+    "note": "driver fire(cron@aa-local-e17978103) - T-1556 DONE(direct doc-sync). 직전 fire R-114 위임분(bookkeeping commit e1792d0e main run 31405058433) conclusion success 확인. 본 fire 콘텐츠 commit d94c5d4c main run(31410609796)은 종료 시점 in_progress - 본 bookkeeping commit run 과 함께 다음 fire 첫 단계에서 conclusion 확인(R-114 위임)."
   },
   "reviewRounds": {
     "T-1551": 1,
@@ -1687,7 +1687,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 1546,
+    "tasksCompleted": 1547,
     "tasksBlocked": 9,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

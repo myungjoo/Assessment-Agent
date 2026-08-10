@@ -2,7 +2,8 @@
 id: T-1556
 title: 실 DB perf slice 28(T-1555) GET /api(app root) measure→confirm baseline 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-10T16:45:00Z
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 110
@@ -127,3 +128,20 @@ checkbox `[ ]` · REQ-048 `IN_PROGRESS` · 부하계획 item 5 미완 결론을 
 
 - **baseline 확정 축의 다음 단계 판정** (T-1555 이월) — measure→confirm mock 4 개가 전부 실 DB 짝을 가진 시점이므로, (c) 축의 다음 진전이 "repo 체크인 baseline + CI job 편입 + 임계 fix"(부하계획 `§ 5` #4 · #5) 인지 다섯 번째 route 인지를 planner 가 판단할 시점이다.
 - **인벤토리 머리말 갱신 조건 박제** (T-1546 → T-1554 → 본 task 이월) — 재분류 0 slice 가 7 연속이 되면 "재분류 0 이 N 연속" 문형 누적 대신 머리말을 한 번 재작성할 조건을 정할 것.
+
+## Result (2026-08-10T16:45Z)
+
+- **DONE** — `direct` doc-only commit `d94c5d4c` (main). 변경 **3 파일 `+55/-16`** (cap 이내):
+  `docs/PLAN.md` `142 행` 계수 · 범위 표기 · slice 28 서술, `docs/ops/load-resilience-test-plan.md`
+  `§ 5` item 5 머리말 · slice 28 절 · 오독 차단 단락, `docs/requirements.md` REQ-048 행 재판정.
+- 계수 실측 = `*.perf-spec.ts` **62** · `*read*` **51** · `*realdb*` **28** · `*read*realdb*` **21**
+  (driver 재검산 일치). perf-spec **61 → 62** · 실 DB round-trip **27 → 28** 만 증가하고 `read` glob
+  두 개는 **불변**(일곱 번째 사례) → `51 − 21 = 30` 식도 결과도 보존, 재분류 0 이 **6 연속**.
+- baseline 확정 축에 **네 번째 route**(`GET /api`, DB 미접촉 floor — framework + HTTP 왕복만의 하한)
+  를 병기하고, guard 미적용이라 negative 국면이 앞 세 slice 와 **정반대**(무-cookie · 변조 토큰도 200)
+  임을 명시. 규모 축은 seed 불요 route 라 **3 route 불변**.
+- **완료 선언 0 유지** — PLAN `140 행` `[ ]` · REQ-048 `IN_PROGRESS` · 부하계획 `§ 5` item 5 미완
+  (잔여 4 축) 3 지점 보존. 정본 `test/perf/README.md` 는 인용만 하고 미수정(`§3.1` rule 3 정합).
+- AC 전 항목 ok. **R-110 면제** — 코드 · spec 변경 0 의 direct doc-only. glob 실측 4 종 +
+  `git diff --stat` 검산으로 대체.
+- CI: main run `31410609796` 은 turn 종료 시점 **in_progress** → 다음 fire 가 conclusion 재확인 (R-114 위임).
