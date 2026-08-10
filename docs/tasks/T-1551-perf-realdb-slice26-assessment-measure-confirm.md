@@ -2,7 +2,7 @@
 id: T-1551
 title: 실 DB perf slice 26 — measureAndConfirmBaseline 을 GET /api/assessments(period optional 분기 포함) 실 Postgres 에 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 285
@@ -14,6 +14,9 @@ dependsOn: [T-1549]
 touchesFiles:
   - test/perf/assessment-measure-confirm-realdb.perf-spec.ts
   - test/perf/README.md
+completedAt: 2026-08-10T07:05:15Z
+prNumber: 1236
+mergeCommit: 91a11dc3
 plannerNote: "PLAN 142 행 잔여 축 (c) baseline 확정 두 번째 route — slice 25(summary) 다음으로 period optional 분기를 가진 assessments 배선, perf-spec 59 → 60"
 ---
 
@@ -93,3 +96,10 @@ route 31 · 인벤토리 (A) 30 / (B) 0 / (C) 0 · mock 잔존 30 · 규모 축 
 ## Follow-ups
 
 (생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 결과 (2026-08-10)
+
+- PR #1236 squash-merged (`91a11dc3`), reviewer round 1 APPROVE, CI green (PR check 기준).
+- 신규 `test/perf/assessment-measure-confirm-realdb.perf-spec.ts` — happy 2 · 분기 2 · error 2 · negative 5, mock 0 · guard 우회 0, baseline 은 `os.tmpdir()` 1 회성이라 저장소 오염 0.
+- `test/perf/README.md` 계수 갱신 (perf-spec 59→60 · realdb 25→26 · read glob 51/21 불변), 완료 선언 0 유지.
+- 변경 2 파일 `+299/-9` — cap 준수.
