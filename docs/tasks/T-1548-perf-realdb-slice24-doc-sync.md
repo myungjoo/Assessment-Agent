@@ -2,13 +2,14 @@
 id: T-1548
 title: 실 DB perf slice 24(T-1547) GET /api/assessments 규모 민감도 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 120
 estimatedFiles: 3
 created: 2026-08-09
 createdAt: 2026-08-09T23:40:00Z
+completedAt: 2026-08-10T00:44:20Z
 independentStream: perf-realdb-slices
 dependsOn: [T-1547]
 touchesFiles:
@@ -104,25 +105,25 @@ slice 4 가 이미 덮은 축이라 새 축이 아니다.
 
 ## Acceptance Criteria
 
-- [ ] **AC 1 — 수치 실측 확인 (편집 전).** `ls test/perf/*.perf-spec.ts | wc -l` ·
+- [x] **AC 1 — 수치 실측 확인 (편집 전).** `ls test/perf/*.perf-spec.ts | wc -l` ·
   `ls test/perf/*read*.perf-spec.ts | wc -l` · `ls test/perf/*realdb*.perf-spec.ts | wc -l` ·
   `ls test/perf/*read*realdb*.perf-spec.ts | wc -l` 을 실행해 각각 **58** · **51** · **24** ·
   **21** 임을 확인하고, 문서에 적는 개수는 이 실측값만 쓴다 (추정 금지). main SHA 는 `723441cd`
   (PR #1234) 이고, test 수는
   `grep -c "^\s*it(" test/perf/assessment-list-scale-realdb.perf-spec.ts` 의 **실측값** 을 쓴다.
-- [ ] **AC 2 — 계수 함정 ① 검산 (glob 두 개 다 불변).** slice 24 파일명에 `read` 가 **없어**
+- [x] **AC 2 — 계수 함정 ① 검산 (glob 두 개 다 불변).** slice 24 파일명에 `read` 가 **없어**
   `*read*` 는 **51 불변** · `*read*realdb*` 는 **21 불변** 이고, 따라서 계산식
   `read 51 개 − 실 DB read 21 개 = 30` 이 **식도 결과도 그대로** 다. 세 문서에서 이 계산식과 30 을
   건드리지 않되, **파일명에 `read` 가 없는 세 번째 사례**(slice 3 · 23 에 이어) 임을 부하계획
   glob 셈법 서술(`522~524 행`) 에 1 구절로 덧붙인다. T-1544 의 "둘 다 늘어 결과가 같다" 문형은
   **복사 금지**.
-- [ ] **AC 3 — 계수 함정 ② (재분류 0, 2 연속) 반영.** slice 24 의 대상 `GET /api/assessments` 는
+- [x] **AC 3 — 계수 함정 ② (재분류 0, 2 연속) 반영.** slice 24 의 대상 `GET /api/assessments` 는
   **slice 4 가 이미 실측한 route** 이므로 도메인 **15 불변** · 조회 route **31 불변** · 인벤토리
   (A) **30 불변** · (B) **0 불변** · (C) **0 불변** · 자체 검산 `A + B = 30 + 0 = 30` **불변** ·
   (C) 검산식 `실측 31 + (B) 0 = 31` **불변** 이다. **(A) 표에 행을 추가하지 않고**, 재분류 이력 ·
   셈법 서술(`498 행` · `512 행` 부근)에 slice 24 가 **재분류 0 인 두 번째 연속 slice** 임을 1 구절로
   덧붙인다 — T-1546 이 쓴 **"첫 slice" 문형을 복사하지 않는다**.
-- [ ] **AC 4 — 규모 축 2 → 3 route 갱신 (본 task 고유).** 부하계획 `§ 5` item 5 의 규모 민감도
+- [x] **AC 4 — 규모 축 2 → 3 route 갱신 (본 task 고유).** 부하계획 `§ 5` item 5 의 규모 민감도
   단락(`557 행` · `562 행` 부근) 의 "규모 축 실측은 `:id/persons` 와 `GET /api/persons` **두 route
   에 도달**" 을 **`GET /api/assessments` 를 더한 세 route** 로 갱신하고, slice 24 의 질적 차이
   2 종 — ① **인증 · 인가 layer(`JwtAuthGuard` + `RolesGuard` + `@Roles("User")`)를 통과하는 첫
@@ -130,7 +131,7 @@ slice 4 가 이미 덮은 축이라 새 축이 아니다.
   배제 → `period=week` 로 재차 축소, 총 row 350 대비 응답 소규모) — 를 1 ~ 2 문장으로 적는다.
   동시에 **규모 축이 해소된 것이 아님** 을 같은 자리에 명시한다 — 나머지 endpoint 미측정 · 표본은
   상대 비교용 소규모 · 대소 관계는 **wall-clock 비결정성 때문에 미단언**(slice 3 · 23 과 동일).
-- [ ] **AC 5 — PLAN `142 행` 갱신.** ① perf-spec 개수 `57` → **58**, read 경로는 **51 그대로 두되**
+- [x] **AC 5 — PLAN `142 행` 갱신.** ① perf-spec 개수 `57` → **58**, read 경로는 **51 그대로 두되**
   괄호 안 설명을 **slice 24 기준**(파일명 `assessment-list-scale-realdb.perf-spec.ts` 에 `read` 가
   없어 glob 51 불변)으로 정정, 범위 표기 `T-0830~T-1545` → **`T-0830~T-1547`**, ② "실 DB
   round-trip 실측이 **slice 23 까지 도달**" → **slice 24 까지 도달** 로 확장하고
@@ -142,7 +143,7 @@ slice 4 가 이미 덮은 축이라 새 축이 아니다.
   baseline 관찰 전용 · 401 guard 생존은 slice 1~23 과 동일해 새 축 아님** 1 구절), ③ 말미 계수
   나열을 **perf-spec 58 / read 51 / 실 DB 24 / read 21 / 도메인 15 / 조회 route 31** 로 갱신,
   ④ task 링크 목록에 T-1547 추가. **checkbox `[ ]` 는 유지** (완료 선언 금지).
-- [ ] **AC 6 — 부하계획 `§ 5` item 5 본문 갱신.** "slice 23 까지 도달" 서술(`135 행`)에 slice 24
+- [x] **AC 6 — 부하계획 `§ 5` item 5 본문 갱신.** "slice 23 까지 도달" 서술(`135 행`)에 slice 24
   (T-1547, main `723441cd`, `it(` 실측 수) 를 **1 ~ 2 문장으로 병기** 하되 실측 범위
   **15 endpoint (조회 31 route)** 는 **불변** 임을 명시한다. `486 행` · `498 행` 부근 셈법 서술에는
   slice 24 도 **도메인도 route 도 늘리지 않는다**(같은 route 의 다른 축) 는 점을 AC 3 의 "2 연속"
@@ -150,20 +151,20 @@ slice 4 가 이미 덮은 축이라 새 축이 아니다.
   (`522 행` 부근) 은 **문구 그대로 두고** AC 2 의 이유 1 구절만 덧붙인다. **"본 item 은 미완" 결론
   유지** — `buildBaselineReport` 관찰 전용 · baseline 미확정 · 임계 fix 미착수 서술을 삭제하거나
   완화하지 않는다.
-- [ ] **AC 7 — 인벤토리 머리말만 갱신, 표 · 분류는 전부 불변.** `568 행` 의
+- [x] **AC 7 — 인벤토리 머리말만 갱신, 표 · 분류는 전부 불변.** `568 행` 의
   "(slice 23 시점 확인분, T-1536 작성 → T-1546 갱신)" 을
   **"(slice 24 시점 확인분, T-1536 작성 → T-1548 갱신)"** 으로 고치고 머리말의 편집 전 실측 개수
   4 종 (`57`·`51`·`23`·`21`) 을 **`58`·`51`·`24`·`21`** 로 갱신한다. 그 외 (A) 제목 · (A) 표 30 행 ·
   (B) 절(0 개) · **보수 분류 단락** · (C) 절(`633 행` 부근, 0 건 + 검산식) · 현 시점 확인분 단락
   (`642 행`) · 자체 검산(`644 행` 부근) 은 **한 글자도 의미를 바꾸지 않는다** (AC 3).
-- [ ] **AC 8 — 오독 차단 단락 보존 + 완료 선언 0 (계수 함정 ③).** 오독 차단 단락(`652 행` 부근) 의
+- [x] **AC 8 — 오독 차단 단락 보존 + 완료 선언 0 (계수 함정 ③).** 오독 차단 단락(`652 행` 부근) 의
   `(B) + (C) = 0 + 0 = 0 route` 와 그 유보 문장 — (A) 부류 mock spec **30 개 retire 판단 미착수** ·
   **write / trigger route 는 목록 밖** · **30 은 잔여의 상한도 하한도 아님** · **(B) 0 은 조회 성능
   검증 완료가 아님** — 을 **전부 보존** 하고, 같은 단락의 "규모 축이 slice 23 으로 2 route" 서술을
   **3 route** 로 갱신하면서 그것 역시 **잔여 소진이 아님** 을 1 문장으로 유지한다. 세 문서 어디에도
   **"잔여 소진" · "전량 실측 달성" · "규모 축 해소" · "성능 검증 완료"** 로 읽히는 표현을 쓰지
   않는다.
-- [ ] **AC 9 — REQ-048 재판정 갱신 + 표 구조 보존.** `docs/requirements.md` REQ-048 행(`67 행`)의
+- [x] **AC 9 — REQ-048 재판정 갱신 + 표 구조 보존.** `docs/requirements.md` REQ-048 행(`67 행`)의
   "한계 — 실 DB 축은 부분 해소" 문장에 slice 24 를 반영한다 — 파일명 · task · main SHA ·
   test 수(`it(` 실측) · **질적 차이(인증 guard 경유 첫 규모 축 + index prefix 2 단 선택도)** ·
   **endpoint 수 15 · 조회 31 route 불변** · 계산식 `read 51 개 − 실 DB read 21 개` (차이 30,
@@ -171,18 +172,18 @@ slice 4 가 이미 덮은 축이라 새 축이 아니다.
   미검증" · "baseline 확정 · 임계 fix 미완" 서술도 불변. 새로 넣는 문장에 **파이프 `|` 문자를 쓰지
   않고**(필요하면 "OR" 로 풀어 쓴다), 편집 후 `sed -n '67p' docs/requirements.md` 로 **1 행 유지** 와
   파이프 개수 **8 불변** 을 확인한다.
-- [ ] **AC 10 — REQ-047 오독 차단.** 세 문서 어디에도 slice 24 의 **200 row(+ 타 person 150 row)
+- [x] **AC 10 — REQ-047 오독 차단.** 세 문서 어디에도 slice 24 의 **200 row(+ 타 person 150 row)
   표본** 이 REQ-047 실 scale 부하 (100~200명 / 50~100 repo / ~1000 confluence page / 1h) 충족으로
   읽히는 표현을 쓰지 않는다 — 표본은 **상대 비교용 소규모** 이고 assessment row 수만 키웠을 뿐
   repo · confluence · 배치 시간 축은 부재임을 오독 여지 없이 서술하며, REQ-047 행 (`66 행`) 은
   **수정하지 않는다**.
-- [ ] **AC 11 — 잔여 축 보존 검산.** 갱신 후에도 세 문서에 다음 4 잔여가 살아 있어야 한다 —
+- [x] **AC 11 — 잔여 축 보존 검산.** 갱신 후에도 세 문서에 다음 4 잔여가 살아 있어야 한다 —
   (a) 나머지 read perf-spec 30 개 mock 잔존, (b) **규모 축은 3 route 한정 · 다른 endpoint 미측정**,
   (c) baseline 파일 확정 · 임계 fix 미완, (d) 시각화(web) 렌더 측정 축 부재 + REQ-047 실 scale
   부하 미검증. 하나라도 삭제됐으면 되돌린다. 아울러 PLAN `140 행` 성능 검증 checkbox 가 `[ ]`
   그대로 · REQ-048 status 가 `IN_PROGRESS` 그대로 · 부하계획 `§ 5` item 5 가 여전히 미완으로
   읽히는지 세 지점을 각각 확인한다.
-- [ ] **AC 12 — 범위 표기 규약 준수 + 크기 검산.** 본 task 가 **새로 추가하는** 행 좌표 표기는
+- [x] **AC 12 — 범위 표기 규약 준수 + 크기 검산.** 본 task 가 **새로 추가하는** 행 좌표 표기는
   [CLAUDE.md](../../CLAUDE.md) §12 "범위 좌표 표기" (`§ 12.76` `R1` · `R4` · `R5 (§ 12.91 개정)`) 를
   따른다 — 구분자는 `~`, 단일 행은 `142 행`, `L` prefix 금지, **기존 행의 소급 치환 금지**.
   마지막에 `git diff --stat` 이 **3 파일(+ 본 task 파일) / ≤ 300 LOC** 임을 확인한다 (코드 변경 0
