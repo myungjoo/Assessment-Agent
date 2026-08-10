@@ -2,7 +2,8 @@
 id: T-1558
 title: 실 DB perf slice 29(T-1557) GET /api/persons measure→confirm baseline 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-10T20:56:00Z
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 110
@@ -212,3 +213,24 @@ negative)은 production code 변경이 없어 **적용 대상 아님** — 해�
   시점이 가까워졌다 (본 task 는 결론 0 — planner 몫).
 - **mock 짝 대체 판단** — measure→confirm harness 가 mock · 실 DB 두 판본을 갖는 route 가 5 개로
   늘었다. mock 판본 retire 여부는 T-1536 유보 축과 함께 판단한다.
+
+## Result (2026-08-10T20:56Z)
+
+- **DONE** — `direct` doc-only commit `8b3f927b` (main push, PR 없음). 3 파일 `+50/-11`
+  (cap `300 LOC / 5 파일` 이내): `docs/PLAN.md` `142 행` 계수 · 범위 · slice 29 절,
+  `docs/ops/load-resilience-test-plan.md` 머리말 · `§ 5` item 5 · 셈법 · glob 셈법 · 규모 축 ·
+  인벤토리 머리말 · 오독 차단 단락, `docs/requirements.md` REQ-048 행 재판정.
+- 계수 실측 = `*.perf-spec.ts` **63** · `*read*` **51** · `*realdb*` **29** · `*read*realdb*` **21**.
+  perf-spec **62 → 63** · 실 DB round-trip **28 → 29** 만 증가하고 `read` glob 두 개는 **불변**
+  (**여덟 번째** 사례) → `51 − 21 = 30` 식도 결과도 보존, 재분류 0 이 **7 연속**.
+- baseline 확정 축에 **다섯 번째 route**(`GET /api/persons` — guard 미부착 + DB 접촉 조합의 첫
+  baseline)를 병기해 slice 28 의 DB 미접촉 floor 와 같은 harness 위에서 대조 가능함을 명시.
+  규모 축은 **3 route 불변**(필터 분해력 관측만 추가).
+- 정본 `test/perf/README.md` 는 T-1557 이 이미 slice 29 계수를 박제한 상태라 **인용만 하고 미수정**
+  (`§3.1` rule 3 정합 — README 수정은 pr 로 갈려 direct · pr mixed 를 만든다).
+- **완료 선언 0 유지** — PLAN `140 행` `[ ]` · REQ-048 `IN_PROGRESS` · 부하계획 `§ 5` item 5 미완
+  (잔여 4 축) 3 지점 보존.
+- AC 12 항목 전부 ok. **R-110 면제** — 코드 · spec 변경 0 의 direct doc-only. glob 실측 4 종 +
+  `git diff --stat` 검산으로 대체.
+- CI: main run `31430809321` 은 turn 종료 시점 **in_progress** → 다음 fire 가 conclusion 재확인
+  (R-114 위임).
