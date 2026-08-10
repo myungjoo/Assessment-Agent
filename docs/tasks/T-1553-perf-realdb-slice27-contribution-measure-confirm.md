@@ -2,7 +2,7 @@
 id: T-1553
 title: 실 DB perf slice 27 — measureAndConfirmBaseline 을 GET /api/contributions(3-level FK chain) 실 Postgres 에 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 285
@@ -97,4 +97,25 @@ route 전부 불변).
 
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- **slice 27 doc-sync (direct)** — 본 slice 실측을 `docs/PLAN.md` `142 행` · `docs/ops/load-resilience-test-plan.md`
+  `§ 5` item 5 · `docs/requirements.md` REQ-048 3 문서에 반영한다. [CLAUDE.md](../../CLAUDE.md) `§3.1`
+  rule 3(direct · pr mixed 금지) 에 따른 별도 direct task — slice 25 → T-1550, slice 26 → T-1552 와 동형.
+- **인벤토리 머리말 갱신 조건 박제** (T-1546 → T-1548 → T-1550 → T-1552 이월) — 재분류 0 인 slice 가
+  **5 연속** 이 됐다. `잔여 read route 인벤토리` 머리말의 "slice N 시점 확인분" 과 계수만 갱신되는
+  doc-sync 반복을 인벤토리 절 자체에 조건 1 구절로 박제할지 판단한다 (근거가 5 연속으로 더 두터워졌다).
+- **mock 짝 대체 판단** — slice 25 · 26 · 27 로 measure→confirm harness 가 mock · 실 DB 두 판본을 갖는
+  route 가 **3 개** 로 늘었다. mock 판본 retire 여부는 T-1536 유보 축과 함께 판단한다.
+
+## Result (2026-08-10T11:10Z)
+
+- **DONE** — `pr` PR **#1237** squash-merged (`856687bf`, branch 삭제). 변경 **2 파일 `+300/-9`**(cap 이내):
+  `test/perf/contribution-measure-confirm-realdb.perf-spec.ts` 신규 + `test/perf/README.md` 계수 갱신.
+- mock 0 · `overrideGuard` 0 실 `AppModule` + 실 JWT 로 `GET /api/contributions` 를
+  `measureAndConfirmBaseline` 에 배선. 응답 길이 **5 vs 3** 으로 3-level FK 부모 필터 분해력 입증.
+- test 구성 = happy **2** · 분기 **2** · error **2** · negative **5** = **11 test** (R-112 4 종 충족).
+  baseline 은 `os.tmpdir()` 1 회성이라 저장소 오염 0.
+- 계수 = perf-spec **60 → 61** · `*realdb*` **26 → 27**, `*read*` **51 불변** · 실 DB read **21 불변**
+  → 재분류 0 이 **5 연속**. **완료 선언 0 유지** (4 잔여 축 존속 문구 보존).
+- **4-게이트 충족** — reviewer round **1** `APPROVE` + PR comment 외화 + integrator self-check + CI green.
+- CI: 머지 commit `856687bf` 의 main run(`31381779217`) 은 turn 종료 시점 **in_progress** → 다음 fire 가
+  conclusion 재확인 (R-114 위임).
