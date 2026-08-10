@@ -2,7 +2,7 @@
 id: T-1552
 title: 실 DB perf slice 26(T-1551) GET /api/assessments measure→confirm baseline 실측을 PLAN·부하계획·REQ-048 3 문서에 반영
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 110
@@ -245,3 +245,16 @@ checkbox `[ ]` · REQ-048 `IN_PROGRESS` · 부하계획 item 5 "본 item 은 미
   판단 필요 (4 연속으로 근거가 더 두터워졌다).
 - **mock 짝 대체 판단** — slice 25 · 26 으로 measure→confirm harness 가 mock · 실 DB 두 판본을 갖는
   route 가 **2 개** 로 늘었다. mock 판본 retire 여부는 T-1536 유보 축과 함께 판단한다.
+
+## Result (2026-08-10T08:52Z)
+
+- **DONE** — `direct` doc-only commit `1a1847e4` (main). 변경 **3 파일 `+49/-17`** (cap 이내):
+  `docs/PLAN.md` `142 행` 계수 · slice 26 서술 · task 링크, `docs/ops/load-resilience-test-plan.md`
+  `§ 5` item 5 본문 · glob 셈법 · 규모 축 · 인벤토리 머리말 · 오독 차단, `docs/requirements.md`
+  REQ-048 재판정.
+- 계수 = perf-spec **59 → 60** · 실 DB round-trip **25 → 26**, `*read*` **51 불변**(다섯 번째 사례) ·
+  실 DB read **21 불변** → 재분류 0 이 **4 연속**. 정본 `test/perf/README.md` 는 인용만 하고 미수정
+  (`§3.1` rule 3 정합).
+- **완료 선언 0 유지** — PLAN `140 행` `[ ]` · REQ-048 `IN_PROGRESS` · 부하계획 item 5 미완(잔여 4 축) 보존.
+- AC 1~13 전부 ok. **R-110 면제** — 코드 변경 0 의 direct doc-only.
+- CI: main run `31371431157` 은 turn 종료 시점 **in_progress** → 다음 fire 가 conclusion 재확인 (R-114 위임).
