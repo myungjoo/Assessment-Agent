@@ -2,8 +2,10 @@
 id: T-1568
 title: 체크인 baseline 배선 describe 를 공유 suite factory 로 추출
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-11T17:09:35Z
 commitMode: pr
+prNumber: 1249
 coversReq: [REQ-048]
 estimatedDiff: 270
 estimatedFiles: 2
@@ -87,3 +89,12 @@ assessment 두 spec 도 후속 slice 에서 같은 호출로 수렴시킬 수 �
 - 후속 slice 후보 1 — `summary` · `assessment` 두 spec 의 배선 describe 를 본 factory 호출로 수렴(순삭 diff 예상).
 - 후속 slice 후보 2 — `contribution` · `app-root` measure→confirm perf-spec 에 factory 호출 배선(spec 당 ~10 LOC 이라 묶음 가능).
 - 후속 slice 후보 3 — `*-realdb` 계열 5 spec 배선. DB 부재 시 skip 게이트와 국면 등록의 상호작용을 먼저 확인할 것.
+- nit (본 PR 미처리 — 300 LOC cap 정확히 소진) — `negative (b)` 국면의 `jest.spyOn` 을 `try/finally` 로 감싸 spy 복원을 실패 경로에서도 보장.
+
+## 완료 기록
+
+- **DONE** — 2026-08-11T17:09:35Z, PR [#1249](https://github.com/myungjoo/Assessment-Agent/pull/1249) squash merge (`1ff2dd8b`), reviewer APPROVE round 1 + CI green(PR run `31515698094` success).
+- 산출 — `test/perf/checkin-baseline-spec-suite.ts`(suite factory) + `test/perf/checkin-baseline-spec-suite.spec.ts`(colocated spec) **신규 2 파일 `+300/-0`** (cap `300 LOC / 5 파일` 이내). 기존 perf-spec 편집 **0**.
+- factory 는 `options`(envMeta · measure · tempDir · 선택 title)만 받아 describe 1 개 + 국면 7 개를 등록하고 label 배열을 반환 — 경로 문자열 리터럴 **0 줄**(전량 T-1566 helper 위임), jest 전역은 호출 시점 `globalThis` 조회.
+- 검증 — colocated spec **23 test**(실등록 7 국면 + 관찰 16) pass, `pnpm lint` · `build` · `test`(436 suite / 12475 test) · `test:cov`(line · function 임계 80% 통과) 통과. `test:perf` 는 로컬 비-realdb 34 suite 통과(realdb 는 DB 부재) → CI perf step green, 저장소 실경로 `test/perf/baselines` **미생성**(오염 0).
+- Out of Scope 보존 — 기존 perf-spec 5 개 미변경 · baseline JSON 생성 0 · `ci.yml` 편집 0 · helper 시그니처 변경 0 · PLAN/REQ-048 상태 변경 0.
