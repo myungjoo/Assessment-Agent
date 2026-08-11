@@ -2,7 +2,7 @@
 id: T-1562
 title: 체크인 baseline 비교 진입 판정 helper 박제 (ADR-0056 Follow-up (b) 선행 slice)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 285
@@ -14,6 +14,9 @@ dependsOn: [T-1560, T-1561]
 touchesFiles:
   - test/perf/checkin-baseline-plan.ts
   - test/perf/checkin-baseline-plan.spec.ts
+completedAt: 2026-08-11T05:02:15Z
+prNumber: 1243
+mergeCommit: "19049655"
 plannerNote: "P5 성능 검증 bullet — ADR-0056 Follow-up (b) 순수 선행 slice: 체크인 baseline 비교 진입 판정 (helper+spec × 1.5)"
 ---
 
@@ -82,3 +85,21 @@ Follow-up (b) 중 **workflow · 기존 perf-spec · 파일 시스템을 전혀 �
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 요약 (2026-08-11)
+
+`pr` mode PR **#1243** squash merge `19049655` — **2 파일 `+300/-0`**(cap `300 LOC / 5 파일` 이내).
+`test/perf/checkin-baseline-plan.ts` 4 종 export(`CHECKIN_BASELINE_ENV_FLAG` 상수 ·
+`isCheckinBaselineEnabled` · `CheckinBaselinePlan` union · `planCheckinBaselineCheck`) +
+colocated spec 44 case. 판정 순서 = input 형태 → 토글 → exists → 경로 위임.
+ADR-0056 `§Decision 2` 집행 — **write 모드 부재**(baseline 부재 시 자기 승인 분기 차단) ·
+경로 계산은 `checkin-baseline-store.ts` 위임(재구현 0) · `fs` / `path` / 전역 환경변수
+직접 접근 **0 건**(grep 0 줄).
+
+4-게이트 충족 — reviewer APPROVE(round 1) PR comment 외화 + integrator 자체 점검 +
+PR CI 2 job(`기본 검사` 4m47s · `배포 산출물 검증` 1m34s) pass(run `31460023000`) + squash merge.
+R-110/R-112 충족 — unit **432 suite / 12399 test** pass, `test:cov` line **99.95%** ·
+function **100%**(임계 80% 충족).
+
+**완료 선언 0 유지** — PLAN · REQ-048 상태 미변경, `ci.yml` 편집 **0** · baseline JSON 생성 **0** ·
+기존 perf-spec 미변경 — Out of Scope 전부 보존.
