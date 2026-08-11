@@ -2,7 +2,7 @@
 id: T-1564
 title: 체크인 baseline 기본값 바인딩 어댑터 박제 (fs 존재 조회 + 기본 compare 결선)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 285
@@ -14,6 +14,9 @@ dependsOn: [T-1560, T-1561, T-1562, T-1563]
 touchesFiles:
   - test/perf/checkin-baseline-adapter.ts
   - test/perf/checkin-baseline-adapter.spec.ts
+completedAt: 2026-08-11T09:00:58Z
+prNumber: 1245
+mergeCommit: "f6941358"
 plannerNote: "P5 성능 검증 bullet — ADR-0056 Follow-up (b) 배선 직전 slice: 조립 진입점의 exists/compare/repoRoot 기본값 결선 (helper+spec × 1.5)"
 ---
 
@@ -88,3 +91,23 @@ repo root · `fs` 존재 조회 · 기본 비교 함수)을 모듈 1 개로 모�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 요약 (2026-08-11)
+
+`pr` mode PR **#1245** squash merge `f6941358` — **2 파일 `+296/-0`**(cap `300 LOC / 5 파일`
+이내). `test/perf/checkin-baseline-adapter.ts` 4 종 export(`resolveRepoRootFromPerfDir` ·
+`defaultCheckinRepoRoot` · `CheckinBaselineDefaultsInput` · `runCheckinBaselineCheckWithDefaults`) +
+colocated spec 18 case(happy 3 국면 · error 5 종 · 토글×존재 4 갈래 · repoRoot/processEnv/compare/
+options 명시·미지정 · regressed true/false · negative 6 종). 기본값 결선 = `process.env` ·
+모듈 위치 기반 repo root · `readCompareBaselineFile` 이며, **토글 on 일 때만** `baselineFileExists`
+를 조회한 뒤 T-1563 조립 진입점에 위임한다(반환 가공 0 · write 국면 0).
+
+**신규 판정 로직 0** · **부작용 최소** — 토글 off 면 `fs.existsSync` 호출 **0 회**(spy 검증),
+어떤 국면에서도 파일 · 디렉토리 미생성, 위임 예외는 래핑 없이 전파, `regressed=true` 여도
+throw 0(ADR-0056 `§Decision 3 (b)` 관찰 비-fail 유지).
+
+4-게이트 충족 — reviewer APPROVE(round 1) PR comment 외화 + integrator 자체 점검 +
+PR CI 2 job(`기본 검사` 5m00s · `배포 산출물 검증` 1m17s) pass(run `31475369012`) + squash merge.
+R-110/R-112 — unit 전량 **434 suite / 12441 test** pass, `test:cov` line·function 임계 80% 통과.
+**완료 선언 0 유지** — PLAN · REQ-048 상태 미변경, `ci.yml` 편집 **0** · baseline JSON 생성 **0** ·
+기존 perf-spec 배선 **0**(Out of Scope 전부 보존).
