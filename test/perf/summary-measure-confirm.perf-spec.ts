@@ -53,6 +53,12 @@
 //   - `jest-perf.json`(`testRegex: test/perf/.*\.perf-spec\.ts$`)에 매칭돼 `pnpm test:perf`
 //     로만 실행된다(기본 `pnpm test` 는 `.spec.ts$` 만 매칭 → picking 0).
 //
+// 체크인 baseline 확인 배선 (T-1565, ADR-0056 §Follow-ups (b) 첫 배선):
+//   - 마지막 describe 가 `runCheckinBaselineCheckWithDefaults` 를 **호출 1 회 + 로그 출력**으로만
+//     태운다. 판정·경로·로그는 전량 어댑터 위임(재구현 0)이고, 토글(`PERF_CHECKIN_BASELINE`)이
+//     꺼진 기본 상태에서는 fs 조회조차 없어 기존 `perf test` step 동작이 바뀌지 않는다.
+//     회귀는 관찰만 하고 exit code 를 바꾸지 않는다(§Decision 3 (b)).
+//
 // 관찰·리포트 전용:
 //   - `measureAndConfirmBaseline` 자체는 회귀/임계를 throw 하지 않고 `ConfirmOrCompareResult`
 //     판별 union 만 반환한다. S2 pass/fail·회귀 강제는 본 spec 의 `expect` 가 반환 union 을
@@ -79,10 +85,24 @@ import { SummaryController } from "../../src/user/summary.controller";
 import { SummaryService } from "../../src/user/summary.service";
 
 import {
+  type CheckinBaselineDefaultsInput,
+  defaultCheckinRepoRoot,
+  runCheckinBaselineCheckWithDefaults,
+} from "./checkin-baseline-adapter";
+import { CHECKIN_BASELINE_ENV_FLAG } from "./checkin-baseline-plan";
+import { CHECKIN_LOG_PREFIX } from "./checkin-baseline-report";
+import type { CheckinBaselineRunOutcome } from "./checkin-baseline-run";
+import {
+  resolveCheckinBaselineDir,
+  resolveCheckinBaselinePath,
+} from "./checkin-baseline-store";
+import {
   type BaselineEnvMeta,
+  type BaselineReport,
   parseBaselineReport,
   resolveBaselinePath,
 } from "./latency-baseline";
+import * as baselineIo from "./latency-baseline-io";
 import {
   measureAndConfirmBaseline,
   measureBaselineCandidate,
@@ -552,6 +572,198 @@ describe("S2 measure→confirm-or-compare perf-spec — SummaryController 조회
           fs.readFileSync(result.path, "utf-8"),
         );
         expect(persisted).toEqual(expectedCandidate);
+      }
+    });
+  });
+
+  // 체크인(repo 안 commit) baseline 확인 배선 — ADR-0056 §Follow-ups (b) 본체의 **첫 배선**.
+  // 부품(경로 해석 · 진입 판정 · 조립 · 기본값 바인딩)은 T-1560~T-1564 로 이미 박제됐고, 본
+  // describe 는 그 어댑터를 **호출 1 회 + 로그 출력**으로만 태운다(판정 · 경로 · 로그 재구현 0).
+  // 토글(`PERF_CHECKIN_BASELINE`)이 꺼진 기본 상태에서는 fs 조회조차 없어 기존 `perf test` step
+  // 동작이 바뀌지 않고(§Decision 4 기존 step 재사용), 회귀는 관찰만 하며 exit code 를 바꾸지
+  // 않는다(§Decision 3 (b)). write / establish 국면은 어댑터에 아예 없다(§Decision 2).
+  describe("체크인 baseline 확인 배선 (ADR-0056 §Follow-ups (b)) — 위임 1 회 · 관찰 전용", () => {
+    /** 전역 토글 원복용 — 기본값 바인딩이 실 `process.env` 를 읽으므로 국면마다 격리한다. */
+    let savedFlag: string | undefined;
+    /** 임시 repo root — 체크인 baseline 파일은 이 디렉토리 안에서만 만든다(실경로 무오염). */
+    let repoRoot: string;
+
+    beforeEach(() => {
+      savedFlag = process.env[CHECKIN_BASELINE_ENV_FLAG];
+      delete process.env[CHECKIN_BASELINE_ENV_FLAG];
+      repoRoot = baselineDir("repo");
+    });
+
+    afterEach(() => {
+      if (savedFlag === undefined) {
+        delete process.env[CHECKIN_BASELINE_ENV_FLAG];
+      } else {
+        process.env[CHECKIN_BASELINE_ENV_FLAG] = savedFlag;
+      }
+    });
+
+    /**
+     * **본 slice 가 확정하는 배선 형태** — 방금 측정한 candidate 를
+     * `runCheckinBaselineCheckWithDefaults` 에 **정확히 1 회** 넘기고 반환 `log` 를 **그대로**
+     * 출력한다(문자열 재조립 금지 — 포매터 위임). 후속 slice 는 이 형태를 복제한다.
+     */
+    function checkCheckinBaseline(
+      candidate: BaselineReport,
+      overrides: Partial<CheckinBaselineDefaultsInput> = {},
+    ): CheckinBaselineRunOutcome {
+      const outcome = runCheckinBaselineCheckWithDefaults({
+        envMeta: env,
+        candidate,
+        ...overrides,
+      });
+      console.log(outcome.log);
+      return outcome;
+    }
+
+    /** 방금 측정한 candidate — 측정은 collector 위임(주입 clock 으로 결정론화). */
+    const measureCandidate = (stepMs = 10, iterations = 3) =>
+      measureBaselineCandidate(readRequest(), env, {
+        iterations,
+        now: stepClock(stepMs),
+      });
+
+    /** 임시 repoRoot 안에만 체크인 baseline JSON 을 심는다(경로는 helper 위임). */
+    function seedCheckinBaseline(report: BaselineReport): string {
+      const target = resolveCheckinBaselinePath(env, repoRoot);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, JSON.stringify(report), { encoding: "utf-8" });
+      return target;
+    }
+
+    it("happy (a) 토글 off 기본 상태 → skipped/disabled, log 가 CHECKIN_LOG_PREFIX 로 시작(기본값 바인딩 그대로)", async () => {
+      const outcome = checkCheckinBaseline(await measureCandidate());
+      expect(outcome.status).toBe("skipped");
+      if (outcome.status === "skipped") {
+        expect(outcome.reason).toBe("disabled");
+      }
+      expect(outcome.log.startsWith(CHECKIN_LOG_PREFIX)).toBe(true);
+    });
+
+    it("happy (b) 토글 on × baseline 존재(임시 repoRoot) → compared + regressed boolean", async () => {
+      process.env[CHECKIN_BASELINE_ENV_FLAG] = "1";
+      const seeded = seedCheckinBaseline(await measureCandidate(10));
+      // 기준과 동일 합성 latency 라 기본 tolerance 에서 무회귀가 결정론적으로 성립.
+      const outcome = checkCheckinBaseline(await measureCandidate(10), {
+        repoRoot,
+      });
+      expect(outcome.status).toBe("compared");
+      if (outcome.status === "compared") {
+        expect(typeof outcome.regressed).toBe("boolean");
+        expect(outcome.regressed).toBe(false);
+        expect(outcome.log.startsWith(CHECKIN_LOG_PREFIX)).toBe(true);
+      }
+      // 비교 대상 파일은 임시 디렉토리 안에만 존재(읽기 전용 — 재기록 없음).
+      expect(fs.existsSync(seeded)).toBe(true);
+    });
+
+    it("분기 (c) 토글 on × baseline 부재 → skipped/absent, 비교 함수 미호출 + log 에 경로 표기", async () => {
+      process.env[CHECKIN_BASELINE_ENV_FLAG] = "true";
+      const compare = jest.fn();
+      const outcome = checkCheckinBaseline(await measureCandidate(), {
+        repoRoot,
+        compare,
+      });
+      expect(compare).not.toHaveBeenCalled();
+      expect(outcome.status).toBe("skipped");
+      if (outcome.status === "skipped") {
+        expect(outcome.reason).toBe("absent");
+      }
+      expect(outcome.log).toContain(resolveCheckinBaselinePath(env, repoRoot));
+    });
+
+    it("error (1) envMeta.label 빈 문자열 → RangeError 가 래핑 없이 전파, 파일 미생성", async () => {
+      process.env[CHECKIN_BASELINE_ENV_FLAG] = "1";
+      const candidate = await measureCandidate();
+      expect(() =>
+        checkCheckinBaseline(candidate, {
+          envMeta: { label: "", concurrency: 1 },
+          repoRoot,
+        }),
+      ).toThrow(RangeError);
+      expect(fs.existsSync(resolveCheckinBaselineDir(repoRoot))).toBe(false);
+    });
+
+    it("error (2) input non-object(null) → TypeError 가 래핑 없이 전파", () => {
+      expect(() =>
+        runCheckinBaselineCheckWithDefaults(
+          null as unknown as CheckinBaselineDefaultsInput,
+        ),
+      ).toThrow(TypeError);
+    });
+
+    it("negative (a) regressed=true 여도 throw 0 — spec 이 fail 하지 않고 관찰만(exit code 불변)", async () => {
+      process.env[CHECKIN_BASELINE_ENV_FLAG] = "yes";
+      seedCheckinBaseline(await measureCandidate(10));
+      // 인위로 느린 candidate(100ms) + tolerance 0 → 회귀. 그래도 반환은 정상(throw 0).
+      const outcome = checkCheckinBaseline(await measureCandidate(100), {
+        repoRoot,
+        options: { latencyTolerance: 0 },
+      });
+      expect(outcome.status).toBe("compared");
+      if (outcome.status === "compared") {
+        expect(outcome.regressed).toBe(true);
+      }
+    });
+
+    it("negative (b) 토글 off 국면에서 fs 존재 조회(baselineFileExists 위임)가 0 회(부작용 0)", async () => {
+      // `fs.existsSync` 는 Node 런타임에서 재정의 불가라, 어댑터가 존재 조회를 위임하는 유일한
+      // 경계인 io 진입점에 spy 를 건다(토글 off 면 이 위임 자체가 일어나지 않아야 한다).
+      const existsSpy = jest.spyOn(baselineIo, "baselineFileExists");
+      const candidate = await measureCandidate();
+      existsSpy.mockClear();
+      const outcome = checkCheckinBaseline(candidate);
+      expect(existsSpy).not.toHaveBeenCalled();
+      expect(outcome.status).toBe("skipped");
+      existsSpy.mockRestore();
+    });
+
+    it("negative (c) 어떤 국면에서도 저장소 실경로 test/perf/baselines 아래 내용이 변하지 않음", async () => {
+      const realDir = resolveCheckinBaselineDir(defaultCheckinRepoRoot());
+      const before = fs.existsSync(realDir)
+        ? fs.readdirSync(realDir).sort()
+        : null;
+      const candidate = await measureCandidate();
+      // 토글 off(기본 repoRoot = 실 저장소) · 토글 on(임시 repoRoot) 두 국면 모두 통과시킨다.
+      checkCheckinBaseline(candidate);
+      process.env[CHECKIN_BASELINE_ENV_FLAG] = "1";
+      checkCheckinBaseline(candidate, { repoRoot });
+      const after = fs.existsSync(realDir)
+        ? fs.readdirSync(realDir).sort()
+        : null;
+      expect(after).toEqual(before);
+    });
+
+    it("negative (d) 배선을 끼워도 임시 baseDir established→compared round-trip 이 그대로 통과(회귀 없음)", async () => {
+      const baseDir = baselineDir("baselines");
+      const opts = { measure: { iterations: 3, now: stepClock(50) } };
+      const first = await measureAndConfirmBaseline(
+        readRequest(),
+        env,
+        baseDir,
+        opts,
+      );
+      expect(first.outcome).toBe("established");
+      if (first.outcome === "established") {
+        // 방금 확정된 candidate 를 그대로 체크인 확인에 태운다(측정 재실행 0).
+        const candidate = parseBaselineReport(
+          fs.readFileSync(first.path, "utf-8"),
+        );
+        expect(checkCheckinBaseline(candidate).status).toBe("skipped");
+      }
+      const second = await measureAndConfirmBaseline(
+        readRequest(),
+        env,
+        baseDir,
+        { measure: { iterations: 3, now: stepClock(50) } },
+      );
+      expect(second.outcome).toBe("compared");
+      if (second.outcome === "compared") {
+        expect(second.comparison.regressed).toBe(false);
       }
     });
   });
