@@ -2,7 +2,9 @@
 id: T-1569
 title: summary perf-spec 의 체크인 baseline 배선 describe 를 suite factory 호출로 수렴
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-11T19:05:00Z
+prNumber: 1250
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 230
@@ -87,3 +89,22 @@ factory 는 colocated spec 안에서만 실행되고 실제 perf-spec 두 개
 - 후속 slice 후보 1 — `assessment` measure→confirm perf-spec 을 같은 형태로 수렴(본 task 가 실증한 호출 형태 재사용).
 - 후속 slice 후보 2 — `contribution` · `app-root` measure→confirm perf-spec 에 factory 호출 배선(spec 당 ~10 LOC 이라 묶음 가능).
 - 후속 slice 후보 3 — `*-realdb` 계열 5 spec 배선. DB 부재 시 skip 게이트와 국면 등록의 상호작용을 먼저 확인할 것.
+
+## 결과 (2026-08-11 DONE)
+
+`pr` mode PR **#1250** squash merge `8c846ced`. `test/perf/summary-measure-confirm.perf-spec.ts`
+**1 파일 `+52/-145`** — 배선 describe 의 국면 7 개를 T-1568 factory
+(`registerCheckinBaselineWiringSuite`) 호출 **1 회**로 수렴시킨 순삭 diff.
+지역 `savedFlag` 저장·원복을 삭제(이중 원복 0)하고, spec 에 남긴 통합 국면 2 개는
+`processEnv` 주입으로 토글을 격리했다. 미사용 import 3 종 제거 —
+`lint --max-warnings=0` 통과. **판정·경로·로그 재구현 0 줄**(전량 factory / helper 위임),
+등록 시점 `TypeError` 검증은 factory colocated spec 책임임을 본문 주석에 명시.
+
+**test 총수 불변** — 파일 28 test 유지(배선 국면 9 >= 9). 전체 **436 suite / 12475 test**
+pass, `test:cov` line **99.95%** · function **100%**. `test:perf` 대상 spec 28 개 전량 통과 +
+실행 후 저장소 실경로 `test/perf/baselines` **미생성**(오염 0).
+
+4-게이트 충족 — reviewer APPROVE(round 1, MINOR 1 건 비차단) PR comment 외화 +
+integrator 자체 점검 + PR CI pass + squash merge. **완료 선언 0 유지** —
+PLAN · REQ-048 상태 미변경, `ci.yml` 편집 **0** · baseline JSON 생성 **0** ·
+`assessment` 등 잔여 perf-spec 미변경(Out of Scope 전부 보존).
