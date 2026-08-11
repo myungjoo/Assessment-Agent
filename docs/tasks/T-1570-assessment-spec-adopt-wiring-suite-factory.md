@@ -2,7 +2,7 @@
 id: T-1570
 title: assessment perf-spec 의 체크인 baseline 배선 describe 를 suite factory 호출로 수렴
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 230
@@ -13,6 +13,8 @@ independentStream: perf-baseline-checkin
 dependsOn: [T-1566, T-1567, T-1568, T-1569]
 touchesFiles:
   - test/perf/assessment-measure-confirm.perf-spec.ts
+prNumber: 1251
+completedAt: 2026-08-11T20:58:53Z
 plannerNote: "P5 성능 검증 — ADR-0056 §Follow-ups (b) 회수 slice 2: T-1569 가 실증한 factory 호출 형태를 assessment spec 에 적용(순삭 diff, 1 파일)"
 ---
 
@@ -88,3 +90,9 @@ plannerNote: "P5 성능 검증 — ADR-0056 §Follow-ups (b) 회수 slice 2: T-1
 - 후속 slice 후보 1 — `contribution` · `app-root` measure→confirm perf-spec 에 factory 호출 배선(spec 당 ~10 LOC 이라 묶음 가능).
 - 후속 slice 후보 2 — `*-realdb` 계열 spec 배선. DB 부재 시 skip 게이트와 국면 등록의 상호작용을 먼저 확인할 것.
 - 후속 slice 후보 3 — ADR-0056 `§Follow-ups (b)` 의 `ci.yml` 편입(기존 `perf test` step 재사용). drift-guard smoke 동반 수정 여부를 사전 산정할 것.
+
+## 결과 (2026-08-11)
+
+- **DONE** — `pr` mode PR **#1251** squash merge `fc57f017`. `test/perf/assessment-measure-confirm.perf-spec.ts` **1 파일 `+54/-138`** 순삭 diff (cap `300 LOC / 5 파일` 이내).
+- 배선 describe 의 국면 7 개 지역 사본을 삭제하고 `registerCheckinBaselineWiringSuite` 호출 1 회로 수렴. spec 고유 통합 국면 2 개만 잔류(`processEnv` 주입으로 토글 격리), 지역 `savedFlag` 삭제(이중 원복 0), 미사용 import 3 개 제거.
+- reviewer round 1 **APPROVE**(MINOR 1 건 — `measureCandidate` 기본값 전용 파라미터는 §Out of Scope 이월), CI green(unit 12475 · smoke 2954 · e2e 312 · perf 580), 4-게이트 충족 후 머지.
