@@ -69,6 +69,7 @@ import request from "supertest";
 import { AppController } from "../../src/app.controller";
 import { AppService } from "../../src/app.service";
 
+import { registerCheckinBaselineWiringSuite } from "./checkin-baseline-spec-suite";
 import {
   type BaselineEnvMeta,
   parseBaselineReport,
@@ -483,5 +484,28 @@ describe("S2 measure→confirm-or-compare perf-spec — AppController health-rea
         expect(persisted).toEqual(expectedCandidate);
       }
     });
+  });
+
+  // 체크인(repo 안 commit) baseline 확인 배선 — ADR-0056 §Follow-ups (b). 배선 국면 7 개
+  // (happy 2 · error 2 · 분기 1 · negative 2)는 **공유 suite factory 호출 1 회**로 등록하고
+  // spec 은 고유분(`envMeta` · 측정 조립 · 임시 디렉토리)만 주입한다 — 지역 사본 0 이고 판정 ·
+  // 경로 문자열 · 로그 형식 · seed 재구현도 0 이다(전량 helper 위임). 전역 토글 저장 · 원복도
+  // factory 의 beforeEach / afterEach 소관이라 지역 savedFlag 처리를 두지 않는다(이중 원복 0).
+  // 토글 off 기본 상태에서는 `fs` 조회 0 · write 0 이라 기존 `perf test` step 동작이 그대로고,
+  // 회귀는 관찰만 하며 exit code 를 바꾸지 않는다. 잘못된 options(non-object · non-function)로
+  // 인한 **등록 시점 TypeError** 국면은 factory colocated spec
+  // (`checkin-baseline-spec-suite.spec.ts`)의 책임이라 여기서 중복 작성하지 않는다 — 본 spec 은
+  // factory 를 **유효 options 로만** 호출한다.
+  registerCheckinBaselineWiringSuite({
+    envMeta: env,
+    // 측정은 collector 위임(주입 clock 으로 결정론화) — `readRequest` 는 이 spec 에서 함수 호출이
+    // 아니라 `RequestFn` **값**이라 그대로 넘긴다(다른 spec 의 `readRequest()` 형태와 다름).
+    measure: (stepMs) =>
+      measureBaselineCandidate(readRequest, env, {
+        iterations: 3,
+        now: stepClock(stepMs),
+      }),
+    // 임시 repo root — 체크인 baseline 파일은 이 디렉토리 안에서만 만든다(실경로 무오염).
+    tempDir: (name) => baselineDir(name),
   });
 });
