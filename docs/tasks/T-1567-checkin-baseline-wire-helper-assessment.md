@@ -2,7 +2,10 @@
 id: T-1567
 title: 체크인 baseline 배선을 summary 는 helper 위임으로 교체하고 assessment perf-spec 에 첫 복제
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-11T14:56:29Z
+prNumber: 1248
+mergeCommit: 151a5c4c
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 215
@@ -80,3 +83,11 @@ plannerNote: "P5 성능 검증 bullet — ADR-0056 Follow-up (b) 배선 적용 s
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 기록
+
+- **DONE** — 2026-08-11T14:56:29Z, PR [#1248](https://github.com/myungjoo/Assessment-Agent/pull/1248) squash merge (`151a5c4c`), reviewer APPROVE round 1 + CI green(PR 2 job pass).
+- 산출 — `test/perf/summary-measure-confirm.perf-spec.ts` 지역 관용구 2 개(`checkCheckinBaseline` · `seedCheckinBaseline`) 삭제 + 호출부 전량 T-1566 helper 위임 교체, `test/perf/assessment-measure-confirm.perf-spec.ts` 에 helper 기반 배선 describe 1 개(test 8 개) **첫 복제**. **2 파일 `+247/-59`** (cap `300 LOC / 5 파일` 이내).
+- 판정 · 경로 · 로그 **재구현 0** — 전량 `checkin-baseline-spec-wiring.ts` 위임. 실행 후 저장소 실경로 `test/perf/baselines` **미생성**(오염 0) 확인.
+- 검증 — `pnpm lint --max-warnings=0` · `build` · `test`(435 suite / 12452 test) · `test:cov`(line · function 임계 80% 통과) · `test:perf` 대상 2 spec 57 test pass.
+- Out of Scope 보존 — 잔여 3 개 measure→confirm perf-spec 배선 · baseline JSON 최초 생성 · `ci.yml` 편집 · helper 시그니처 변경 **전부 0**.
