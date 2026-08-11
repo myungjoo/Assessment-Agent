@@ -728,10 +728,15 @@ describe("S2 measure→confirm-or-compare perf-spec — SummaryController 조회
         ? fs.readdirSync(realDir).sort()
         : null;
       const candidate = await measureCandidate();
-      // 토글 off(기본 repoRoot = 실 저장소) · 토글 on(임시 repoRoot) 두 국면 모두 통과시킨다.
+      // 세 국면 모두 통과시킨다 — 토글 off(기본 repoRoot = 실 저장소) · 토글 on × 부재 ·
+      // 토글 on × 존재(비교 진입). 어느 쪽도 실 저장소 경로를 건드리지 않아야 한다.
       checkCheckinBaseline(candidate);
       process.env[CHECKIN_BASELINE_ENV_FLAG] = "1";
       checkCheckinBaseline(candidate, { repoRoot });
+      seedCheckinBaseline(candidate);
+      expect(checkCheckinBaseline(candidate, { repoRoot }).status).toBe(
+        "compared",
+      );
       const after = fs.existsSync(realDir)
         ? fs.readdirSync(realDir).sort()
         : null;
