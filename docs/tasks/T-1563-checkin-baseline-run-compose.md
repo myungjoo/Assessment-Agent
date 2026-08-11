@@ -2,7 +2,7 @@
 id: T-1563
 title: 체크인 baseline 판정→비교→로그 조립 진입점 박제 (ADR-0056 Follow-up (b) 배선 선행)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 290
@@ -14,6 +14,9 @@ dependsOn: [T-1560, T-1561, T-1562]
 touchesFiles:
   - test/perf/checkin-baseline-run.ts
   - test/perf/checkin-baseline-run.spec.ts
+completedAt: 2026-08-11T07:02:56Z
+prNumber: 1244
+mergeCommit: "6fb3d3a3"
 plannerNote: "P5 성능 검증 bullet — ADR-0056 Follow-up (b): plan+compare+format 을 잇는 순수 조립 진입점 (helper+spec × 1.5)"
 ---
 
@@ -86,3 +89,21 @@ baseline 비교를 기존 `perf test` step 에 편입하되 상대 회귀를 **�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 요약 (2026-08-11)
+
+`pr` mode PR **#1244** squash merge `6fb3d3a3` — **2 파일 `+300/-0`**(cap `300 LOC / 5 파일`
+정확히 준수). `test/perf/checkin-baseline-run.ts` 4 종 export(타입 3 + 조립 함수 1) +
+colocated spec 24 case(happy 3 국면 · error 4 종 · 토글×exists 4 갈래 · regressed/options ·
+negative 6 종). 조립 순서 = 판정(`planCheckinBaselineCheck`) → (compare 국면일 때만) 비교 1 회
+→ 로그 포매터. **신규 판정 로직 0**(전부 T-1560~T-1562 helper 에 위임) · **부작용 0**
+(`fs` / `path` / 전역 환경변수 접근 grep 0 줄) · **exit code 불변**(`regressed=true` 여도 throw 0 —
+ADR-0056 `§Decision 3 (b)` 관찰 비-fail 준수). compare 형태 검사는 비교 진입이 확정된 뒤에만
+수행하고 skip 국면에서는 단락(JSDoc 명시). 초안 416 LOC 를 AC 지침대로 JSDoc 축약 +
+`it.each` 병합으로 300 LOC 까지 축소 — R-112 4 종 손실 0.
+
+4-게이트 충족 — reviewer APPROVE(round 1) PR comment 외화 + integrator 자체 점검 +
+PR CI 2 job(`기본 검사` 5m02s · `배포 산출물 검증` 1m30s) pass(run `31467023344`) + squash merge.
+R-110/R-112 — unit 전량 **12423 test** pass, `test:cov` line·function 임계 80% 통과.
+**완료 선언 0 유지** — PLAN · REQ-048 상태 미변경, `ci.yml` 편집 **0** · baseline JSON 생성 **0** ·
+기존 perf-spec 미변경(Out of Scope 전부 보존).
