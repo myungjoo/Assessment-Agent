@@ -2,7 +2,9 @@
 id: T-1561
 title: 체크인 baseline confirm/compare outcome CI 로그 포매터 박제 (ADR-0056 Follow-up (b) 선행 slice)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-11T02:55:24Z
+prNumber: 1242
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 255
@@ -94,3 +96,13 @@ outcome → 한 줄 로그 문자열 변환을 모듈 1 개로 박제한다. 상
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 append)
+
+## 결과 (2026-08-11 완료)
+
+- **DONE** — `pr` mode PR **#1242** squash merge (`9fb32a7f`). 변경 **2 파일 `+289/-0`** (cap `300 LOC / 5 파일` 이내).
+- 산출: `test/perf/checkin-baseline-report.ts` (신규 3 export — `CHECKIN_LOG_PREFIX` 상수 · `formatCheckinOutcomeLine` · `formatCheckinOutcomeBlock`) + colocated spec `test/perf/checkin-baseline-report.spec.ts` (happy/error/branch/negative 4 종).
+- 형태 검증을 `requireOutcome` / `requireNonBlankString` 공유 helper 로 모아 line/block 의 예외 계약(TypeError/RangeError) 을 일치시켰다.
+- 상세 비교 리포트 **재구현 0** (`result.report` 위임) · **부작용 0** (`fs` / `process.env` 무의존) · exit code 불변 (`regressed=true` 여도 throw 0).
+- 4-게이트 충족 — reviewer APPROVE (round 1) PR comment 외화 + integrator 자체 점검 + PR CI 2 job pass (run `31453532518`) + squash merge.
+- R-110/R-112 충족: unit **431 suite / 12355 test** pass, `test:cov` line·function 임계 80% 통과.
+- Out of Scope 보존 — `ci.yml` 편집 0 · 기존 perf-spec 미변경 · baseline JSON 생성 0 · PLAN / REQ-048 재판정 0.
