@@ -2,7 +2,7 @@
 id: T-1566
 title: 체크인 baseline perf-spec 배선 관용구를 공유 helper 로 추출
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 255
@@ -14,6 +14,9 @@ dependsOn: [T-1560, T-1561, T-1562, T-1563, T-1564, T-1565]
 touchesFiles:
   - test/perf/checkin-baseline-spec-wiring.ts
   - test/perf/checkin-baseline-spec-wiring.spec.ts
+completedAt: 2026-08-11T12:51:29Z
+prNumber: 1247
+mergeCommit: "370b23ae"
 plannerNote: "P5 성능 검증 bullet — ADR-0056 Follow-up (b) 잔여 4 spec 복제 전 관용구 helper 선행 (부품 slice, perf-spec 편집 0)"
 ---
 
@@ -84,3 +87,27 @@ drift 표면 5 배).
 - 잔여 4 개 measure→confirm perf-spec(assessment · contribution · app-root · person 계열)에
   helper 기반 배선 복제 — helper 도입으로 spec 당 변경이 작아져 2 개씩 묶어 slice 가능.
 - ADR-0056 `§Follow-ups (a)` — 체크인 baseline JSON 최초 생성 · commit(실측 + 사람 눈 확인 전제).
+
+## 결과 (2026-08-11 완료)
+
+`pr` mode PR **#1247** squash merge `370b23ae` — **2 파일 `+273/-0`** (cap `300 LOC / 5 파일`
+이내). `test/perf/checkin-baseline-spec-wiring.ts` 신규 helper (export = 함수 2 개 + 입력 타입
+1 개) + colocated `checkin-baseline-spec-wiring.spec.ts`. **perf-spec 편집 0** — T-1565 가 확정한
+배선 관용구(어댑터 위임 1 회 + `outcome.log` 원문 출력 / 임시 `repoRoot` seed + 실경로 오염 가드)
+만 부품으로 추출했고, summary 리팩터 · 잔여 4 spec 배선은 후속 slice 로 남겼다.
+
+**신규 판정 로직 0** — 토글 판정 · 경로 계산 · 존재 조회 · 비교 · 로그 문자열은 전량 기존 5 모듈
+위임. helper 책임은 (1) 위임 1 회 + 로그 출력 결선, (2) 픽스처 seed 의 실경로 오염 차단 가드
+두 가지뿐. 로거 형태 검사를 위임보다 **앞에** 둬 무효 로거 국면에서 위임 호출 **0 회**, seed 는
+실경로 정규화 일치 시 `RangeError` 로 write · mkdir **0 회**.
+
+colocated spec **11 case** — happy 2(토글 off → `skipped`/`disabled` + 로거 원문 1 회 / seed 경로
+일치 · round-trip 파싱) · error 2(위임 예외 래핑 없이 전파 + 로거 0 회 / 실경로 가드 `RangeError`
++ 실 디렉토리 목록 불변) · 분기 3(로거 주입 · 미지정 / 토글 on × 부재 / 토글 on × 존재) ·
+negative 4(`log` non-function · `regressed=true` throw 0 · 토글 off 시 fs 조회 0 회 · 입력 불변).
+
+4-게이트 충족 — reviewer APPROVE(round 1) PR comment 외화 + integrator 자체 점검 + PR CI
+pass(run `31492810011`) + squash merge. R-110/R-112 — 전체 **435 suite / 12452 test** pass,
+`test:cov` line **99.95%** · function **100%**(임계 80% 상회). **완료 선언 0 유지** — PLAN ·
+REQ-048 상태 미변경, `ci.yml` 편집 **0** · baseline JSON 생성 **0** · 기존 perf-spec 5 개 전부
+미변경(Out of Scope 전부 보존).
