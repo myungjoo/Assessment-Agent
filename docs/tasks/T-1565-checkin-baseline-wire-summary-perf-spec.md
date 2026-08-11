@@ -2,7 +2,7 @@
 id: T-1565
 title: 체크인 baseline 확인을 summary measure→confirm perf-spec 에 첫 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 170
@@ -13,6 +13,9 @@ independentStream: perf-baseline-checkin
 dependsOn: [T-1560, T-1561, T-1562, T-1563, T-1564]
 touchesFiles:
   - test/perf/summary-measure-confirm.perf-spec.ts
+completedAt: 2026-08-11T10:56:34Z
+prNumber: 1246
+mergeCommit: "32bc4e33"
 plannerNote: "P5 성능 검증 bullet — ADR-0056 Follow-up (b) 본체 첫 배선 slice: route 1 개(GET /api/summaries) 만 어댑터에 태움 (spec 1 파일)"
 ---
 
@@ -71,4 +74,27 @@ plannerNote: "P5 성능 검증 bullet — ADR-0056 Follow-up (b) 본체 첫 배�
 
 ## Follow-ups
 
-(작성 시 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- 나머지 4 개 measure→confirm perf-spec (slice 26~29) 에 본 slice 가 확정한 배선 형태를
+  복제 — ADR-0056 `§Follow-ups (b)` 잔여분. spec 당 1 파일이라 cap 안에서 2~4 개씩 묶어
+  slice 가능.
+- ADR-0056 `§Follow-ups (a)` — 체크인 baseline JSON 최초 생성 · commit (실측 + 사람 눈
+  확인 전제라 자동 진행 부적합, 별도 결정 필요).
+
+## 결과 (2026-08-11 완료)
+
+`pr` mode PR **#1246** squash merge `32bc4e33` — **1 파일 `+217/-0`** (cap `300 LOC / 5 파일`
+이내). `test/perf/summary-measure-confirm.perf-spec.ts` 에 T-1564 어댑터를 **정확히 1 회**
+호출하고 T-1561 포매터의 `outcome.log` 를 그대로 출력하는 배선 헬퍼 + 임시 `repoRoot` seed
+헬퍼를 추가했다. 판정 · 경로 · 로그 **재구현 0**, 저장소 실경로 `test/perf/baselines` 무오염.
+
+배선 describe 8 test — happy 2 국면(토글 off → `skipped`/`disabled` + `CHECKIN_LOG_PREFIX`
+시작 / 토글 on × baseline 존재(임시 repoRoot) → `compared` + `regressed` boolean) · error
+2 종(위임 예외 `RangeError` · `TypeError` 래핑 없이 전파 + 파일 미생성) · 분기 3 국면
+(`disabled` · `absent` · `compared`) · negative 4 종(`regressed` 비-fail · 토글 off 시 존재
+조회 0 회 · 실경로 무오염 · round-trip 회귀 없음).
+
+4-게이트 충족 — reviewer APPROVE(round 1) PR comment 외화 + integrator 자체 점검 +
+PR CI 2 job(`기본 검사` 5m06s · `배포 산출물 검증` 1m23s) pass(run `31483995439`) + squash merge.
+R-110/R-112 — 대상 spec 28/28, unit 전량 **12441 test** pass, `test:cov` line·function 임계
+80% 통과. **완료 선언 0 유지** — PLAN · REQ-048 상태 미변경, `ci.yml` 편집 **0** · baseline
+JSON 생성 **0** · 나머지 4 개 perf-spec 미변경(Out of Scope 전부 보존).
