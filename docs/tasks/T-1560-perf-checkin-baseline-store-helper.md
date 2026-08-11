@@ -2,7 +2,10 @@
 id: T-1560
 title: perf 체크인 baseline 경로 helper 박제 (ADR-0056 Follow-up (a) 선행 slice)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-11T00:49:27Z
+prNumber: 1241
+mergeCommit: ea62686cb0ba5e97a66f6ffa9333a908f823b50c
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 240
@@ -77,3 +80,12 @@ ADR 의 Follow-up **(a) 체크인 JSON 최초 생성** 과 **(b) `ci.yml` 편입
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 append)
+
+## 결과 (2026-08-11 완료)
+
+- **DONE** — `pr` mode PR **#1241** squash merge (`ea62686c`). 변경 **2 파일 `+285/-0`** (cap `300 LOC / 5 파일` 이내).
+- 산출: `test/perf/checkin-baseline-store.ts` (신규 helper 3 export — `CHECKIN_BASELINE_DIR` 상수 · `resolveCheckinBaselineDir` · `resolveCheckinBaselinePath`) + colocated spec `test/perf/checkin-baseline-store.spec.ts` (29 case, happy/error/branch/negative 4 종).
+- 파일명 규약은 기존 `resolveBaselinePath` 에 위임 — **재구현 0** (파일명 리터럴 grep 0 건), **부작용 0** (`fs` import grep 0 건).
+- 4-게이트 충족 — reviewer APPROVE (round 1) PR comment 외화 + integrator 자체 점검 + PR CI 2 job pass + squash merge.
+- R-110/R-112 충족: unit 430 suite / 12331 test pass, `test:cov` line 99.95% · function 100% (임계 80% 충족).
+- Out of Scope 보존 — `test/perf/baselines/` 실제 baseline JSON 생성 0 · `ci.yml` 편집 0 · 기존 perf-spec 5 개 미변경.
