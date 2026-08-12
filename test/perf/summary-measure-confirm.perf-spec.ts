@@ -56,7 +56,9 @@
 // 체크인 baseline 확인 배선 (T-1565 첫 배선 → T-1567 helper 위임 교체 → T-1569 공유 suite
 // factory 수렴, ADR-0056 §Follow-ups (b)):
 //   - 배선 국면 7 개는 `registerCheckinBaselineWiringSuite` **호출 1 회**로 등록하고, spec 에는
-//     고유 통합 국면 2 개만 남긴다(지역 사본 0 — 판본은 `checkin-baseline-spec-suite.ts` 하나뿐).
+//     고유 통합 국면만 남긴다(지역 사본 0 — 판본은 `checkin-baseline-spec-suite.ts` 하나뿐).
+//     T-1572 가 그 고유분에 **토글 on × 저장소 실경로 기본 바인딩** 국면 5 개를 더해, factory 가
+//     닫지 못하는 마지막 seam(어댑터가 토글 on 일 때 실경로로 존재 조회를 위임하는 분기)을 닫는다.
 //     판정·경로·로그는 전량 어댑터 위임(재구현 0)이고, 토글(`PERF_CHECKIN_BASELINE`)이
 //     꺼진 기본 상태에서는 fs 조회조차 없어 기존 `perf test` step 동작이 바뀌지 않는다.
 //     회귀는 관찰만 하고 exit code 를 바꾸지 않는다(§Decision 3 (b)).
@@ -88,17 +90,22 @@ import { SummaryService } from "../../src/user/summary.service";
 
 import { defaultCheckinRepoRoot } from "./checkin-baseline-adapter";
 import { CHECKIN_BASELINE_ENV_FLAG } from "./checkin-baseline-plan";
+import { CHECKIN_LOG_PREFIX } from "./checkin-baseline-report";
 import { registerCheckinBaselineWiringSuite } from "./checkin-baseline-spec-suite";
 import {
   checkCheckinBaselineForSpec,
   seedCheckinBaselineFixture,
 } from "./checkin-baseline-spec-wiring";
-import { resolveCheckinBaselineDir } from "./checkin-baseline-store";
+import {
+  resolveCheckinBaselineDir,
+  resolveCheckinBaselinePath,
+} from "./checkin-baseline-store";
 import {
   type BaselineEnvMeta,
   parseBaselineReport,
   resolveBaselinePath,
 } from "./latency-baseline";
+import * as baselineIo from "./latency-baseline-io";
 import {
   measureAndConfirmBaseline,
   measureBaselineCandidate,
@@ -593,9 +600,11 @@ describe("S2 measure→confirm-or-compare perf-spec — SummaryController 조회
     tempDir: (name) => baselineDir(name),
   });
 
-  // factory 국면과 겹치지 않는 **spec 고유 통합 국면 2 개**만 남긴다. 토글은 전역 변수 대신
-  // `processEnv` 주입으로 태워(기본값 바인딩이 명시 값을 우선) 전역 오염 · 원복 책임을 아예
-  // 만들지 않는다 — factory 의 토글 hook 과 이중으로 겹치지 않는다.
+  // factory 국면과 겹치지 않는 **spec 고유 통합 국면 7 개**(주입 토글 2 + 기본 바인딩 5)를
+  // 남긴다. 앞 2 개는 토글을 전역 변수 대신 `processEnv` 주입으로 태워(기본값 바인딩이 명시 값을
+  // 우선) 전역 오염 · 원복 책임을 아예 만들지 않는다 — factory 의 토글 hook 과 이중으로 겹치지
+  // 않는다. 뒤 5 개(T-1572)는 반대로 **기본 바인딩** 자체를 검증 대상으로 삼아 전역 토글을
+  // `withGlobalFlag` 의 `try/finally` 안에서만 세팅하고 진입 전 값으로 정확히 원복한다.
   describe("체크인 baseline 확인 배선 — spec 고유 통합 국면 (ADR-0056 §Follow-ups (b))", () => {
     /** 토글 on 을 표현하는 주입 env — 전역 `process.env` 는 건드리지 않는다. */
     const enabledEnv = { [CHECKIN_BASELINE_ENV_FLAG]: "1" };
@@ -668,6 +677,181 @@ describe("S2 measure→confirm-or-compare perf-spec — SummaryController 조회
       if (second.outcome === "compared") {
         expect(second.comparison.regressed).toBe(false);
       }
+    });
+
+    // ── T-1572 고유분 — **토글 on × 저장소 실경로 기본 바인딩** 국면 5 개 ──
+    // 아래 국면들은 `repoRoot` · `processEnv` 를 **생략**해 어댑터 기본값(전역 `process.env` ×
+    // `defaultCheckinRepoRoot()`)을 그대로 탄다. factory 국면 7 개는 토글 on 이면 전부 임시
+    // `repoRoot` 주입이고 실경로 국면은 전부 토글 off 라, 어댑터가 토글 on 일 때 실경로로
+    // `baselineFileExists` 를 위임하는 분기는 본 국면들에서만 실행된다(중복 0).
+
+    /** 기본 바인딩이 실제로 보는 저장소 실경로 체크인 baseline 디렉토리. */
+    const realCheckinDir = (): string =>
+      resolveCheckinBaselineDir(defaultCheckinRepoRoot());
+
+    /** 실경로 목록 스냅샷 — 미존재는 `null`(디렉토리 생성 자체가 오염이라 구분한다). */
+    const realDirSnapshot = (): string[] | null =>
+      fs.existsSync(realCheckinDir())
+        ? fs.readdirSync(realCheckinDir()).sort()
+        : null;
+
+    /**
+     * 전역 토글을 국면 안에서만 세팅하고 **진입 전 값으로 정확히 원복**하는 실행 wrapper
+     * (`value === undefined` 는 플래그 삭제 = 토글 off). body 가 던져도 `finally` 로 원복한다.
+     */
+    const withGlobalFlag = async <T>(
+      value: string | undefined,
+      body: () => Promise<T> | T,
+    ): Promise<T> => {
+      const saved = process.env[CHECKIN_BASELINE_ENV_FLAG];
+      if (value === undefined) {
+        delete process.env[CHECKIN_BASELINE_ENV_FLAG];
+      } else {
+        process.env[CHECKIN_BASELINE_ENV_FLAG] = value;
+      }
+      try {
+        return await body();
+      } finally {
+        if (saved === undefined) {
+          delete process.env[CHECKIN_BASELINE_ENV_FLAG];
+        } else {
+          process.env[CHECKIN_BASELINE_ENV_FLAG] = saved;
+        }
+      }
+    };
+
+    it("happy (e) 토글 on × 기본 바인딩(실경로) → throw 0 + prefix 로그 1 회, 기대 status 는 실행 시점 파일 존재로 계산", async () => {
+      const candidate = await measureCandidate();
+      // 기대 status 를 하드코딩하지 않는다 — ADR-0056 §Follow-ups (a) 로 실 baseline 이 체크인된
+      // 뒤에도 본 국면이 그대로 성립해야 하므로 실행 시점 존재 여부로 분기한다.
+      const expectedPath = resolveCheckinBaselinePath(
+        env,
+        defaultCheckinRepoRoot(),
+      );
+      const exists = fs.existsSync(expectedPath);
+      const logs: string[] = [];
+
+      const outcome = await withGlobalFlag("1", () =>
+        checkCheckinBaselineForSpec({
+          envMeta: env,
+          candidate,
+          log: (message) => logs.push(message),
+        }),
+      );
+
+      expect(outcome.log.startsWith(CHECKIN_LOG_PREFIX)).toBe(true);
+      expect(logs).toEqual([outcome.log]);
+      if (exists) {
+        expect(outcome.status).toBe("compared");
+      } else {
+        expect(outcome).toMatchObject({ status: "skipped", reason: "absent" });
+        expect(outcome.log).toContain(expectedPath);
+      }
+    });
+
+    it("error (f) 토글 on × 기본 바인딩 × envMeta.label 빈 값 → RangeError 전파 + 실경로 목록 불변(생성 0)", async () => {
+      const candidate = await measureCandidate();
+      const before = realDirSnapshot();
+
+      await withGlobalFlag("1", () => {
+        expect(() =>
+          checkCheckinBaselineForSpec({
+            envMeta: { label: "", concurrency: 1 },
+            candidate,
+            log: () => undefined,
+          }),
+        ).toThrow(RangeError);
+      });
+
+      // 경로 해석이 fs 접근보다 앞서므로 디렉토리 생성 · 파일 write 가 0 이어야 한다.
+      expect(realDirSnapshot()).toEqual(before);
+    });
+
+    it("분기 (g) 기본 바인딩 존재-조회 경계 — 토글 on 은 baselineFileExists 1 회(실경로 인자) · off 는 0 회", async () => {
+      const candidate = await measureCandidate();
+      // 어댑터가 존재 조회를 위임하는 유일한 경계 — 토글에 따라 위임 횟수가 갈린다.
+      const spy = jest.spyOn(baselineIo, "baselineFileExists");
+      try {
+        const on = await withGlobalFlag("1", () =>
+          checkCheckinBaselineForSpec({
+            envMeta: env,
+            candidate,
+            log: () => undefined,
+          }),
+        );
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy).toHaveBeenCalledWith(env, realCheckinDir());
+        expect(["compared", "skipped"]).toContain(on.status);
+
+        spy.mockClear();
+        const off = await withGlobalFlag(undefined, () =>
+          checkCheckinBaselineForSpec({
+            envMeta: env,
+            candidate,
+            log: () => undefined,
+          }),
+        );
+        expect(spy).not.toHaveBeenCalled();
+        expect(off).toMatchObject({ status: "skipped", reason: "disabled" });
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    it("negative (h) 기본 바인딩 토글 on/off 연속 호출이 전부 throw 0 으로 반환만 하고 실경로 write 0", async () => {
+      const candidate = await measureCandidate();
+      const before = realDirSnapshot();
+
+      // 토글 truthy 표기 2 종 + off 를 연속으로 태운다. 회귀 판정이든 absent 든 반환만 하고
+      // 예외를 올리지 않아야 exit code 가 불변이다(ADR-0056 §Decision 3 (b)).
+      const statuses: string[] = [];
+      for (const flag of ["1", "yes", undefined]) {
+        const outcome = await withGlobalFlag(flag, () =>
+          checkCheckinBaselineForSpec({
+            envMeta: env,
+            candidate,
+            log: () => undefined,
+          }),
+        );
+        statuses.push(outcome.status);
+      }
+
+      expect(statuses).toHaveLength(3);
+      expect(statuses[2]).toBe("skipped");
+      // write 경로가 애초에 없으므로(§Decision 2) 목록도 디렉토리 존재 여부도 그대로다.
+      expect(realDirSnapshot()).toEqual(before);
+      expect(fs.existsSync(realCheckinDir())).toBe(before !== null);
+    });
+
+    it("negative (i) 국면 종료 후 전역 토글이 진입 전 값과 정확히 동일(정상 · 예외 국면 모두 누출 0)", async () => {
+      const hadFlag = CHECKIN_BASELINE_ENV_FLAG in process.env;
+      const savedFlag = process.env[CHECKIN_BASELINE_ENV_FLAG];
+      const candidate = await measureCandidate();
+
+      await withGlobalFlag("1", () => {
+        // 국면 안에서는 실제로 토글이 켜져 있어야 한다(기본 바인딩이 전역을 읽는다는 증거).
+        expect(process.env[CHECKIN_BASELINE_ENV_FLAG]).toBe("1");
+        return checkCheckinBaselineForSpec({
+          envMeta: env,
+          candidate,
+          log: () => undefined,
+        });
+      });
+      expect(CHECKIN_BASELINE_ENV_FLAG in process.env).toBe(hadFlag);
+      expect(process.env[CHECKIN_BASELINE_ENV_FLAG]).toBe(savedFlag);
+
+      // 예외가 난 국면에서도 finally 로 원복된다(미설정이었으면 undefined 로 복귀).
+      await expect(
+        withGlobalFlag("1", () =>
+          checkCheckinBaselineForSpec({
+            envMeta: { label: "", concurrency: 1 },
+            candidate,
+            log: () => undefined,
+          }),
+        ),
+      ).rejects.toThrow(RangeError);
+      expect(CHECKIN_BASELINE_ENV_FLAG in process.env).toBe(hadFlag);
+      expect(process.env[CHECKIN_BASELINE_ENV_FLAG]).toBe(savedFlag);
     });
   });
 });
