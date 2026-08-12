@@ -2,12 +2,16 @@
 id: T-1572
 title: summary perf-spec 에 토글 on × 저장소 실경로 기본 바인딩 체크인 확인 국면 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 110
 estimatedFiles: 1
 created: 2026-08-12
+createdAt: 2026-08-11T23:40:00Z
+completedAt: 2026-08-12T00:59:42Z
+prNumber: 1253
+mergeCommit: a2c227df0847ad03bfb98a9a6b4f857b4f727b34
 independentStream: perf-baseline-checkin
 dependsOn: [T-1564, T-1568, T-1569]
 touchesFiles:
@@ -68,3 +72,12 @@ pilot 1 spec(`summary`, 배선 chain 의 첫 소비자)에 그 조합의 국면�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 추가)
+
+## 결과 (2026-08-12T00:59:42Z, DONE)
+
+- PR **#1253** squash merge `a2c227df` — `test/perf/summary-measure-confirm.perf-spec.ts` **1 파일 `+189/-5`** (cap `300 LOC / 5 파일` 이내). 기존 국면 삭제 · 수정 **0 줄** — 순수 추가.
+- 기존 "spec 고유 통합 국면" `describe` 안에만 국면 **5 개** append. `repoRoot` · `processEnv` 를 생략해 어댑터 **기본 바인딩**(저장소 실경로 `test/perf/baselines`)을 타고, 전역 토글은 `withGlobalFlag` 의 `try/finally` 로 진입 전 값 원복(누출 0) — ADR-0056 `§Follow-ups (b)` ci.yml 편입 전 마지막 미검증 seam(**토글 on × 실경로**)을 pilot 1 spec 으로 닫았다.
+- R-112 4 종 — happy(실행 시점 `fs.existsSync` 로 기대 `status` 계산: absent→`skipped`/`absent`, 존재→`compared`) · error(`envMeta.label` 빈 값 `RangeError` + 실경로 목록 불변) · 분기(`baselineFileExists` 위임 토글 on 1 회 / off 0 회) · negative 3 종(write 0 · 예외 전파 0 · 전역 토글 누출 0).
+- R-110/R-112 — unit **436 suite / 12475 test** pass, `test:cov` line · function ≥ 80% 임계 통과, 대상 spec **33 국면** pass, `lint --max-warnings=0` 통과. 실행 후 저장소 실경로 `test/perf/baselines` **미생성**(오염 0).
+- 4-게이트 충족 — reviewer APPROVE(round 1) PR comment 외화(`pull/1253#issuecomment-5260792937`) + integrator 자체 점검 + CI green(`issue_comment` run `31551754666`; 직전 `pull_request` run 은 approval-gate step 만 red 인 알려진 benign case — 코드 검사 step 전량 pass) + squash merge · branch 삭제.
+- **완료 선언 0 유지** — PLAN · REQ-048 상태 미변경, `ci.yml` 편집 **0** · baseline JSON 생성 **0** · factory 승격 **0** · 잔여 perf-spec 미변경(Out of Scope 전부 보존).
