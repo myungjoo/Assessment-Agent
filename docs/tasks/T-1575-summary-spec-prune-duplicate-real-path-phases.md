@@ -2,7 +2,7 @@
 id: T-1575
 title: summary perf-spec 의 factory 중복 국면 3 개 정리 (기본 바인딩 고유분 축소)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 135
@@ -96,3 +96,23 @@ slice 로 미뤘다(`## Follow-ups`). 중복 국면은 같은 seam 을 두 번 �
 `implementer → tester`
 
 ## Follow-ups
+
+- `*-realdb` · `*-read` 계열 perf-spec 의 체크인 baseline factory 배선 — 아직 미배선 계열이라
+  별도 slice 로 승계.
+- ADR-0056 `§Follow-ups (a)` 체크인 baseline JSON 최초 생성 · commit(실측 + 사람 눈 확인 전제).
+- ADR-0056 `§Follow-ups (b)` 본체 — `ci.yml` perf step 토글 on 편입.
+
+## 결과 (2026-08-16)
+
+- **DONE** — PR **#1256** squash merge `74784c18`. T-1573 factory 승격으로 1:1 중복화된 국면
+  3 개(`happy (e)` → factory `happy (c)` · `분기 (g)` → `분기 (d)` · `negative (h)` →
+  `negative (c)`) 를 정본 대조 후 삭제 — **1 파일 `+20/-100`**(cap `300 LOC / 5 파일` 이내).
+- 잔존 4 국면(주입 토글 2 + `error (f)` · `negative (i)`) 은 factory 에 없는 고유 seam 이라
+  존치하고 그 근거를 주석으로 박제. 미사용 import 3 종만 정리(`CHECKIN_LOG_PREFIX` ·
+  `resolveCheckinBaselinePath` · `baselineIo`), factory 호출부 · S2 본체 변경 hunk **0**.
+- **R-110/R-112** — 삭제 전용 slice 라 신규 public symbol 0(신규 spec 불요). perf 대상 4 suite
+  **126 → 123 test**(정확히 3 감소) 전량 pass, 전체 unit **436 suite / 12482 test** pass,
+  `test:cov` line 99.95% · function 100%, `lint --max-warnings=0` · `build` 통과,
+  `test/perf/baselines` 실행 전후 미존재(오염 0).
+- **4-게이트** — reviewer APPROVE(round 1) PR comment 외화 + integrator 자체 점검 + CI green +
+  squash merge · branch 삭제. Nit finding 0 이라 nit-in-PR closure 추가 commit 없음.
