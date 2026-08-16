@@ -55,10 +55,11 @@
 //
 // 체크인 baseline 확인 배선 (T-1565 첫 배선 → T-1567 helper 위임 교체 → T-1569 공유 suite
 // factory 수렴, ADR-0056 §Follow-ups (b)):
-//   - 배선 국면 7 개는 `registerCheckinBaselineWiringSuite` **호출 1 회**로 등록하고, spec 에는
+//   - 배선 국면 10 개는 `registerCheckinBaselineWiringSuite` **호출 1 회**로 등록하고, spec 에는
 //     고유 통합 국면만 남긴다(지역 사본 0 — 판본은 `checkin-baseline-spec-suite.ts` 하나뿐).
-//     T-1572 가 그 고유분에 **토글 on × 저장소 실경로 기본 바인딩** 국면 5 개를 더해, factory 가
-//     닫지 못하는 마지막 seam(어댑터가 토글 on 일 때 실경로로 존재 조회를 위임하는 분기)을 닫는다.
+//     T-1572 가 그 고유분에 **토글 on × 저장소 실경로 기본 바인딩** 국면 5 개를 더해 마지막
+//     seam(어댑터가 토글 on 일 때 실경로로 존재 조회를 위임하는 분기)을 닫았고, T-1573 이 같은
+//     성격의 국면 3 개를 factory 로 승격해 지금은 그 5 개가 중복분이다(정리는 별도 slice).
 //     판정·경로·로그는 전량 어댑터 위임(재구현 0)이고, 토글(`PERF_CHECKIN_BASELINE`)이
 //     꺼진 기본 상태에서는 fs 조회조차 없어 기존 `perf test` step 동작이 바뀌지 않는다.
 //     회귀는 관찰만 하고 exit code 를 바꾸지 않는다(§Decision 3 (b)).
@@ -581,7 +582,7 @@ describe("S2 measure→confirm-or-compare perf-spec — SummaryController 조회
 
   // 체크인(repo 안 commit) baseline 확인 배선 — ADR-0056 §Follow-ups (b). T-1565 첫 배선 →
   // T-1567 helper 위임 교체를 거쳐, 본 slice(T-1569)에서 **공유 suite factory 호출 1 회**로
-  // 수렴한다. 배선 국면 7 개(happy 2 · error 2 · 분기 1 · negative 2)는 factory 가 등록하고
+  // 수렴한다. 배선 국면 10 개(happy 3 · error 2 · 분기 2 · negative 3)는 factory 가 등록하고
   // spec 은 고유분(`envMeta` · 측정 조립 · 임시 디렉토리)만 주입한다 — 지역 사본 0 이고
   // 경로 문자열 · 판정 · 로그 형식 재구현도 0 이다(전량 helper 위임). 전역 토글 저장 · 원복도
   // factory 의 beforeEach / afterEach 소관이라 지역 savedFlag 처리를 두지 않는다(이중 원복 0).
@@ -600,7 +601,7 @@ describe("S2 measure→confirm-or-compare perf-spec — SummaryController 조회
     tempDir: (name) => baselineDir(name),
   });
 
-  // factory 국면과 겹치지 않는 **spec 고유 통합 국면 7 개**(주입 토글 2 + 기본 바인딩 5)를
+  // 위 factory 호출과 별도로 **spec 고유 통합 국면**(주입 토글 2 + 기본 바인딩 5, 합 7 개)을
   // 남긴다. 앞 2 개는 토글을 전역 변수 대신 `processEnv` 주입으로 태워(기본값 바인딩이 명시 값을
   // 우선) 전역 오염 · 원복 책임을 아예 만들지 않는다 — factory 의 토글 hook 과 이중으로 겹치지
   // 않는다. 뒤 5 개(T-1572)는 반대로 **기본 바인딩** 자체를 검증 대상으로 삼아 전역 토글을
@@ -681,9 +682,10 @@ describe("S2 measure→confirm-or-compare perf-spec — SummaryController 조회
 
     // ── T-1572 고유분 — **토글 on × 저장소 실경로 기본 바인딩** 국면 5 개 ──
     // 아래 국면들은 `repoRoot` · `processEnv` 를 **생략**해 어댑터 기본값(전역 `process.env` ×
-    // `defaultCheckinRepoRoot()`)을 그대로 탄다. factory 국면 7 개는 토글 on 이면 전부 임시
-    // `repoRoot` 주입이고 실경로 국면은 전부 토글 off 라, 어댑터가 토글 on 일 때 실경로로
-    // `baselineFileExists` 를 위임하는 분기는 본 국면들에서만 실행된다(중복 0).
+    // `defaultCheckinRepoRoot()`)을 그대로 탄다. T-1573 이 같은 성격의 국면 3 개(happy (c) ·
+    // 분기 (d) · negative (c))를 factory 로 승격한 뒤로, 어댑터가 토글 on 일 때 실경로로
+    // `baselineFileExists` 를 위임하는 분기는 factory 국면 10 개에서도 실행된다 — 즉 본 고유분은
+    // 더 이상 유일 경로가 아니라 **중복분**이며, 정리(삭제 · 단언 재배치)는 별도 slice 소관이다.
 
     /** 기본 바인딩이 실제로 보는 저장소 실경로 체크인 baseline 디렉토리. */
     const realCheckinDir = (): string =>
