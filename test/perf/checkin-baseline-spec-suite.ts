@@ -40,10 +40,12 @@ export interface CheckinBaselineWiringSuiteOptions {
 const FN = "registerCheckinBaselineWiringSuite";
 
 /**
- * 국면 **7 개**(happy 2 · error 2 · 분기 1 · negative 2)를 `describe` 1 개로 등록하고 label
- * 배열을 반환한다(spec 고유 통합 국면은 각 spec 에 남긴다). 전역 토글은 등록하는 `beforeEach` /
- * `afterEach` 안에서 저장 · 원복해 **누출 0**. `options` 형태 검사는 jest 전역을 건드리기
- * **전에** 해 무효 인자 국면의 `describe` · `it` 호출을 0 회로 둔다.
+ * 국면 **10 개**(happy 3 · error 2 · 분기 2 · negative 3)를 `describe` 1 개로 등록하고 label
+ * 배열을 반환한다(spec 고유 통합 국면은 각 spec 에 남긴다). 뒤 3 개(T-1573)는 `repoRoot` 를
+ * **생략**해 어댑터 기본 바인딩(저장소 실경로)을 그대로 타는 국면이라 소비자 4 spec 전부가 같은
+ * seam 을 통과한다. 전역 토글은 등록하는 `beforeEach` / `afterEach` 안에서 저장 · 원복해
+ * **누출 0**. `options` 형태 검사는 jest 전역을 건드리기 **전에** 해 무효 인자 국면의
+ * `describe` · `it` 호출을 0 회로 둔다.
  *
  * @throws {TypeError} `options` non-object(`null` 포함) · `measure` · `tempDir` non-function
  *   일 때. `envMeta` 형태는 helper 계약에 맡긴다(중복 throw 금지).
@@ -128,6 +130,76 @@ export function registerCheckinBaselineWiringSuite(
       spy.mockRestore();
       return o;
     },
+    // ── T-1573 승격분 — **토글 on × 기본 바인딩(저장소 실경로)** 국면 3 개 ──
+    // 위 국면 7 개는 토글 on 이면 전부 임시 `repoRoot` 주입이고 실경로 국면은 전부 토글 off 라,
+    // 어댑터가 토글 on 일 때 실경로로 존재 조회를 위임하는 분기가 한 번도 실행되지 않는다. 아래
+    // 3 개는 `repoRoot` 를 생략해 그 분기를 태운다. 토글 세팅만 하고 원복은 `afterEach` 에 맡긴다
+    // (별도 원복 로직 0 — 누출 0 은 colocated spec 의 토글 보존 국면이 검증).
+    "happy (c) 토글 on × 기본 바인딩 → throw 0 + prefix 로그": async () => {
+      process.env[FLAG] = "1";
+      // 기대 status 는 하드코딩하지 않는다 — 실 baseline 이 체크인된(ADR-0056 §Follow-ups
+      // (a)) 뒤에도 성립해야 하므로 실행 시점 파일 존재 여부로 분기한다.
+      const target = resolveCheckinBaselinePath(
+        envMeta,
+        defaultCheckinRepoRoot(),
+      );
+      const exists = fs.existsSync(target);
+      const logs: string[] = [];
+      const o = await call(10, {
+        repoRoot: undefined,
+        log: (message) => logs.push(message),
+      });
+      expect(o.log.startsWith(CHECKIN_LOG_PREFIX)).toBe(true);
+      expect(logs).toEqual([o.log]);
+      if (exists) {
+        expect(o.status).toBe("compared");
+      } else {
+        expect(o).toMatchObject({ status: "skipped", reason: "absent" });
+        expect(o.log).toContain(target);
+      }
+      return o;
+    },
+    "분기 (d) 기본 바인딩 존재-조회 — 토글 on 1 회 · off 0 회": async () => {
+      const candidate = await measure(10);
+      const spy = jest.spyOn(baselineIo, "baselineFileExists");
+      try {
+        process.env[FLAG] = "1";
+        const on = check({ envMeta, candidate, log: () => undefined });
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy).toHaveBeenCalledWith(envMeta, realDir()); // 실경로 인자
+        expect(["compared", "skipped"]).toContain(on.status);
+
+        spy.mockClear();
+        delete process.env[FLAG];
+        const off = check({ envMeta, candidate, log: () => undefined });
+        expect(spy).not.toHaveBeenCalled();
+        expect(off).toMatchObject({ status: "skipped", reason: "disabled" });
+        return off;
+      } finally {
+        spy.mockRestore();
+      }
+    },
+    "negative (c) 기본 바인딩 on/off 연속 → throw 0 + 실경로 write 0":
+      async () => {
+        const candidate = await measure(10);
+        const before = snap();
+        // 토글 truthy 표기 2 종 + off 를 연속으로 태운다. absent 든 회귀든 반환만 하고 예외를
+        // 올리지 않아야 exit code 가 불변이다(ADR-0056 §Decision 3 (b)).
+        const statuses: string[] = [];
+        for (const flag of ["1", "yes", undefined]) {
+          if (flag === undefined) delete process.env[FLAG];
+          else process.env[FLAG] = flag;
+          statuses.push(
+            check({ envMeta, candidate, log: () => undefined }).status,
+          );
+        }
+        expect(statuses).toHaveLength(3);
+        expect(statuses[2]).toBe("skipped");
+        // write 경로가 애초에 없으므로(§Decision 2) 목록도 디렉토리 존재 여부도 그대로다.
+        expect(snap()).toEqual(before);
+        expect(fs.existsSync(realDir())).toBe(before !== null);
+        return statuses;
+      },
   };
 
   // jest 전역은 **호출 시점**에 읽는다(spec 이 교체해 등록 인자를 관찰할 수 있도록).
