@@ -52,7 +52,7 @@
 //
 // 체크인 baseline 확인 배선 (T-1567 helper 위임 첫 복제 → T-1570 공유 suite factory 수렴,
 // ADR-0056 §Follow-ups (b)):
-//   - 배선 국면 7 개는 `registerCheckinBaselineWiringSuite` **호출 1 회**로 등록하고, spec 에는
+//   - 배선 국면 10 개는 `registerCheckinBaselineWiringSuite` **호출 1 회**로 등록하고, spec 에는
 //     고유 통합 국면 2 개만 남긴다(지역 사본 0 — 판본은 `checkin-baseline-spec-suite.ts` 하나).
 //     토글 off 기본 상태는 fs 조회 0 이라 기존 `perf test` step 동작 불변이고, 회귀는 관찰만
 //     하며 exit code 를 바꾸지 않는다.
@@ -627,8 +627,8 @@ describe("S2 measure→confirm-or-compare perf-spec — AssessmentController 조
 
   // 체크인(repo 안 commit) baseline 확인 배선 — ADR-0056 §Follow-ups (b). T-1567 이 helper
   // 위임형 평면 복제로 처음 얹었고, 본 slice(T-1570)에서 T-1569 가 실증한 형태 그대로
-  // **공유 suite factory 호출 1 회**로 수렴한다. 배선 국면 7 개(happy 2 · error 2 · 분기 1 ·
-  // negative 2)는 factory 가 등록하고 spec 은 고유분(`envMeta` · 측정 조립 · 임시 디렉토리)만
+  // **공유 suite factory 호출 1 회**로 수렴한다. 배선 국면 10 개(happy 3 · error 2 · 분기 2 ·
+  // negative 3)는 factory 가 등록하고 spec 은 고유분(`envMeta` · 측정 조립 · 임시 디렉토리)만
   // 주입한다 — 지역 사본 0 이고 경로 문자열 · 판정 · 로그 형식 재구현도 0 이다(전량 helper
   // 위임). 전역 토글 저장 · 원복도 factory 의 beforeEach / afterEach 소관이라 지역 savedFlag
   // 처리를 두지 않는다(이중 원복 0). 잘못된 options(non-object · non-function)로 인한 **등록

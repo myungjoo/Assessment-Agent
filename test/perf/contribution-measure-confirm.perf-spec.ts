@@ -579,8 +579,8 @@ describe("S2 measure→confirm-or-compare perf-spec — ContributionController �
     });
   });
 
-  // 체크인(repo 안 commit) baseline 확인 배선 — ADR-0056 §Follow-ups (b). 배선 국면 7 개
-  // (happy 2 · error 2 · 분기 1 · negative 2)는 **공유 suite factory 호출 1 회**로 등록하고
+  // 체크인(repo 안 commit) baseline 확인 배선 — ADR-0056 §Follow-ups (b). 배선 국면 10 개
+  // (happy 3 · error 2 · 분기 2 · negative 3)는 **공유 suite factory 호출 1 회**로 등록하고
   // spec 은 고유분(`envMeta` · 측정 조립 · 임시 디렉토리)만 주입한다 — 지역 사본 0 이고 판정 ·
   // 경로 문자열 · 로그 형식 · seed 재구현도 0 이다(전량 helper 위임). 전역 토글 저장 · 원복도
   // factory 의 beforeEach / afterEach 소관이라 지역 savedFlag 처리를 두지 않는다(이중 원복 0).
