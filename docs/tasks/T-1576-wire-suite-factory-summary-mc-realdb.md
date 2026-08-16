@@ -2,7 +2,9 @@
 id: T-1576
 title: summary measure→confirm 실 DB perf-spec 에 체크인 baseline 배선 factory 얹기
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 1257
+completedAt: 2026-08-16T23:49:21Z
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 70
