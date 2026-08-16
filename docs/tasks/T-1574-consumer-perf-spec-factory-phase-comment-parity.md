@@ -2,13 +2,15 @@
 id: T-1574
 title: 소비자 4 perf-spec 의 factory 배선 국면 개수 · 조합 주석 parity 갱신
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 45
 estimatedFiles: 4
 created: 2026-08-16
 createdAt: 2026-08-16T18:39:21Z
+completedAt: 2026-08-16T19:56:19Z
+prNumber: 1255
 independentStream: perf-baseline-checkin
 dependsOn: [T-1573]
 touchesFiles:
@@ -84,4 +86,17 @@ T-1573 이 Follow-up 으로 명시하고 Out of Scope 로 미룬 doc-sync slice 
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가)
+- `summary-measure-confirm.perf-spec.ts` 의 T-1572 고유 국면 5 개 **중복 정리** slice — T-1573 factory
+  승격으로 중복화된 국면을 삭제하고 단언을 재배치(코드 삭제 성격이라 본 주석 slice 와 분리).
+
+## 결과 (2026-08-16)
+
+- **DONE** — PR **#1255** squash merge `4e0f6d1d`. 소비자 4 perf-spec 의 배선 국면 표기를 정본
+  단언(`toHaveLength(10)` · `"3,2,2,3"`)과 대조해 **7 개 → 10 개**(happy 3 · error 2 · 분기 2 ·
+  negative 3) 로 갱신 — **주석 전용 변경**(diff hunk 전부 `//`, 실행 코드 0 줄, `+17/-15` · 4 파일).
+- `summary` 의 "유일 경로(중복 0)" 서술은 T-1573 승격 이후 **중복분** 임을 명시하도록 정정.
+- **R-110/R-112** — 주석 전용이라 신규 spec 불요, perf 4 suite **126 test** 변경 전과 동일 pass,
+  전체 unit **436 suite / 12482 test** pass, `test:cov` line · function ≥ 80% 통과,
+  `lint --max-warnings=0` · `build` 통과, `test/perf/baselines` 실행 전후 미존재(오염 0).
+- **4-게이트** — reviewer APPROVE(round 1) PR comment 외화 + integrator 자체 점검 + CI green +
+  squash merge · branch 삭제. Nit finding 0 이라 nit-in-PR closure 추가 commit 없음.
