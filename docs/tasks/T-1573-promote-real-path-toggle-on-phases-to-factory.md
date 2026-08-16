@@ -2,13 +2,16 @@
 id: T-1573
 title: 체크인 baseline 배선 factory 에 토글 on × 저장소 실경로 기본 바인딩 국면 승격
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 140
 estimatedFiles: 2
 created: 2026-08-12
 createdAt: 2026-08-12T01:20:00Z
+completedAt: 2026-08-16T17:54:18Z
+prNumber: 1254
+mergeCommit: 546bb83e91e96ed1affaed78087b4acec17a1de8
 independentStream: perf-baseline-checkin
 dependsOn: [T-1568, T-1572]
 touchesFiles:
@@ -71,4 +74,13 @@ plannerNote: "P5 성능 검증 — T-1572 pilot(토글 on × 실경로) 을 공�
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 추가)
+- 소비자 4 perf-spec(`summary` · `assessment` · `contribution` · `app-root`) 의 주석 표기 "배선 국면 7 개" 가 승격 후 실제 10 개와 어긋난다 — 본 task 의 Out of Scope 로 명시된 **별도 doc-sync slice**. 런타임 단언 의존 0 이고 4 파일 동시 수정은 5 파일 cap 을 깨므로 본 PR 에서 닫지 않았다.
+
+## 결과 (2026-08-16T17:54:18Z, DONE)
+
+- PR **#1254** squash merge `546bb83e` — `test/perf/checkin-baseline-spec-suite.ts` + `.spec.ts` **2 파일 `+132/-10`** (cap `300 LOC / 5 파일` 이내). 기존 국면 0~6 의 인덱스 · label · 등록 순서 **불변**.
+- 공유 factory 의 국면 배열 뒤에 **토글 on × 기본 바인딩(저장소 실경로)** 국면 **3 개**(happy (c) · 분기 (d) · negative (c)) append — T-1572 가 `summary` 1 spec 의 고유 국면으로만 닫았던 seam 을 factory 로 **승격**해 소비자 4 spec 전부가 그 분기를 실행하게 했다. 토글은 `process.env` 세팅만 하고 원복은 기존 `afterEach` 에 위임(별도 원복 로직 0).
+- R-112 4 종 — happy(실행 시점 존재 여부로 기대 `status` 계산) · error(기본 바인딩에서 `RangeError` 전파 + 실경로 목록 불변) · 분기(`baselineFileExists` 위임 토글 on 1 회 / off 0 회) · negative(실경로 목록 불변 · write 0).
+- R-110/R-112 — colocated spec **30 국면** pass, 소비자 perf 4 spec **126 test** pass, 전체 unit **436 suite / 12482 test** pass, `test:cov` line · function ≥ 80% 통과, `lint --max-warnings=0` · `build` 통과. 실행 후 저장소 실경로 `test/perf/baselines` **미생성**(오염 0).
+- 4-게이트 충족 — reviewer APPROVE(round 1) PR comment 외화 + integrator 자체 점검 + CI green(PR head `322ad672` run `31962656699` success) + squash merge · branch 삭제. driver 가 `gh pr view 1254` 로 `state=MERGED` · `mergeCommit=546bb83e` · diff `2 파일 +132/-10` 을 독립 검증.
+- **완료 선언 0 유지** — PLAN · REQ-048 상태 미변경, `ci.yml` 편집 **0** · baseline JSON 생성 **0** · 소비자 spec 본문 미변경(Out of Scope 전부 보존).
