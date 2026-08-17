@@ -27,11 +27,24 @@
 //     fail 분기는 mock 예외(500) 또는 상세 조회 404(NotFoundException)로 도달
 //     (errorRate 위반) — 실 latency 에 의존하지 않는 결정론적 fail.
 //
+// 체크인(repo 안 commit) baseline 확인 배선 (T-1586, ADR-0056 §Follow-ups (b)):
+//   - 본 spec 은 measure→confirm top loop 이 **없는** 순수 관찰형 spec 이라, 앞선 소비자 9 개와
+//     달리 factory 가 쓰는 seam(`measureBaselineCandidate` + 주입 clock)이 spec 안에 미리
+//     조립돼 있지 않다. 그래서 배선은 파일 끝 `registerCheckinBaselineWiringSuite` **호출 1 회**
+//     로만 성립하고(신규 판정·경로·로그·토글 로직 0 — 전량 helper 위임), 기존 국면 6 개의
+//     제목·단언·순서는 전부 불변이다(`*-read` 계열 첫 소비자).
+//   - 토글(`PERF_CHECKIN_BASELINE`)이 꺼진 기본 상태에서는 fs 조회 0 · write 0 이라 기존
+//     `pnpm test:perf` 동작이 그대로고, 회귀는 관찰만 하며 exit code 를 바꾸지 않는다.
+//
 // Out of Scope (task §Out of Scope 정합):
 //   - 실 DB round-trip baseline 실측 / k6 등 부하 발생기 / CI perf job 상시 편입 /
 //     collector·assert 순수 로직 자체 변경 — 본 spec 은 primitive 를 **호출·배선**만 한다.
 //   - POST/PATCH/DELETE 등 write route perf 배선 — 본 spec 은 조회 findActive(+ 404
 //     실증용 findById)에 집중(추가 route 는 후속 slice).
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+
 import type { INestApplication } from "@nestjs/common";
 import { NotFoundException } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
@@ -40,11 +53,17 @@ import request from "supertest";
 import { PersonController } from "../../src/user/person.controller";
 import { PersonService } from "../../src/user/person.service";
 
+import { registerCheckinBaselineWiringSuite } from "./checkin-baseline-spec-suite";
+import type { BaselineEnvMeta } from "./latency-baseline";
 import {
   assertS2Threshold,
   collectLatencySamples,
+  measureBaselineCandidate,
   type RequestFn,
 } from "./latency-collector";
+// 주입 monotonic clock 은 공유 helper 위임(T-1581 승격) — 배선 국면 표본을 결정론화해
+// wall-clock 대소 단언 없이 무회귀 비교가 성립한다.
+import { createStepClock } from "./step-clock";
 
 // mock PersonService — controller 가 주입받는 메서드 중 조회(findActive/findById)만
 // harness 에 필요. 각 test 가 mockResolvedValue / mockRejectedValue 로 응답을 제어해
@@ -59,7 +78,18 @@ describe("S2 조회 latency perf-spec — PersonController 배선 (REQ-048)", ()
   let app: INestApplication;
   let service: MockPersonService;
 
+  /** 배선 국면 전용 결정론 env-meta — label 이 고유해야 체크인 파일명이 다른 spec 과 안 겹친다. */
+  const env: BaselineEnvMeta = { label: "ci-person-read", concurrency: 1 };
+
+  /** 저장소 **밖** 임시 root(파일 전체 1 개) — 정리는 afterAll 한 곳에서만 한다. */
+  let tmpParent: string;
+  /** 매 test 격리 임시 repo root(tmpParent 하위) — 배선 국면은 이 아래에만 파일을 만든다. */
+  let tmpRoot: string;
+
   beforeAll(async () => {
+    tmpParent = fs.mkdtempSync(
+      path.join(os.tmpdir(), "s2-person-read-checkin-"),
+    );
     service = {
       findActive: jest.fn(),
       findById: jest.fn(),
@@ -77,11 +107,19 @@ describe("S2 조회 latency perf-spec — PersonController 배선 (REQ-048)", ()
 
   afterAll(async () => {
     await app.close();
+    // 임시 root 를 통째로 재귀 삭제 — 저장소 실경로(test/perf/baselines/) 오염 0.
+    fs.rmSync(tmpParent, { recursive: true, force: true });
   });
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // 매 test 새 repo root — 배선 국면의 seed 가 다음 국면(부재 분기)으로 새지 않는다.
+    tmpRoot = fs.mkdtempSync(path.join(tmpParent, "case-"));
   });
+
+  /** tmpRoot 하위 POSIX 결합 경로(`resolveCheckinBaselineDir` 와 동일 정규화). */
+  const baselineDir = (segment: string): string =>
+    path.posix.join(tmpRoot.split(path.sep).join("/"), segment);
 
   // active 인원 목록 조회를 1회 호출하고 collector 가 소비할 { status } 를 반환하는 요청
   // 함수. supertest 는 non-2xx 에도 reject 하지 않고 response 를 resolve 하므로 status 로
@@ -215,5 +253,32 @@ describe("S2 조회 latency perf-spec — PersonController 배선 (REQ-048)", ()
       expect(assertS2Threshold(result).pass).toBe(true);
       expect(service.findActive).toHaveBeenCalledTimes(1);
     });
+  });
+
+  // 체크인 baseline 확인 배선 — ADR-0056 §Follow-ups (b). 국면 10 개(happy 3 · error 2 ·
+  // 분기 2 · negative 3)를 **공유 suite factory 호출 1 회**로 등록하고, spec 은 고유분
+  // (`envMeta` · 측정 조립 · 임시 디렉토리)만 주입한다 — 판정 · baseline 경로 조립 · 로그 형식 ·
+  // 토글 저장/원복의 지역 재구현 0(전량 helper 위임, 토글 원복도 factory 의 beforeEach /
+  // afterEach 소관이라 지역 savedFlag 를 두지 않는다). 등록은 별도 nested describe 라 위 국면
+  // 6 개의 mock 호출 횟수 단언(`toHaveBeenCalledTimes`)과 test 경계를 공유하지 않는다.
+  // 무효 options(non-object · non-function)의 등록 시점 TypeError 국면은 factory colocated
+  // spec(`checkin-baseline-spec-suite.spec.ts`) 책임이라 여기서 중복 작성하지 않는다.
+  registerCheckinBaselineWiringSuite({
+    envMeta: env,
+    // 측정은 collector 위임(주입 clock 으로 결정론화). 외곽 `beforeEach` 의
+    // `jest.clearAllMocks()` 가 매 test 반환 세팅까지 지우므로, 200 응답이 결정론적으로 나오도록
+    // **이 람다 안에서** mock 반환을 직접 세팅한다(본 spec 은 기본 반환을 두지 않는다).
+    // `readRequest` 는 `RequestFn` **값**이라 호출하지 않고 그대로 넘긴다.
+    measure: (stepMs) => {
+      service.findActive.mockResolvedValue([
+        { id: "p-1", fullName: "홍길동", active: true },
+      ]);
+      return measureBaselineCandidate(readRequest, env, {
+        iterations: 3,
+        now: createStepClock(stepMs),
+      });
+    },
+    // 임시 repo root — 체크인 baseline 파일은 매 test 격리 tmpRoot 아래에만 만든다(실경로 무오염).
+    tempDir: (name) => baselineDir(name),
   });
 });
