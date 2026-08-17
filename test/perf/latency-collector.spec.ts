@@ -19,6 +19,9 @@ import {
   RequestFn,
   CollectResult,
 } from "./latency-collector";
+// 본 spec 이 T-0881 에 확정했던 주입 monotonic clock 관용구의 **원본** 은 T-1581 이 공유 helper
+// 로 승격했다. 호출부를 손대지 않으려고 alias import 로 기존 이름 `stepClock` 을 유지한다(T-1583).
+import { createStepClock as stepClock } from "./step-clock";
 
 /**
  * T-0829 — S2 조회 latency 표본 수집기 harness 의 R-112 spec.
@@ -26,27 +29,6 @@ import {
  * 요청 함수·clock 을 주입해 DB·네트워크 없이 결정론적으로 검증한다(colocated unit).
  */
 describe("latency-collector harness (S2)", () => {
-  /**
-   * 주입용 결정론적 clock — 호출마다 고정 step(ms)씩 증가.
-   * `collectLatencySamples` 는 호출당 now() 를 2회(start/end) 부르므로
-   * elapsed = step 이 되도록 만든다.
-   */
-  function stepClock(stepMs: number): () => number {
-    let t = 0;
-    let call = 0;
-    return () => {
-      const v = t;
-      call++;
-      // 홀수번째(start) 후에는 그대로, 짝수번째(end)에서 step 만큼 진행.
-      if (call % 2 === 1) {
-        // start: 값 반환만
-        return v;
-      }
-      t += stepMs;
-      return t;
-    };
-  }
-
   /** 항상 2xx(ok=true) 를 반환하는 요청 함수. */
   const okRequest: RequestFn = async () => ({ ok: true });
 
