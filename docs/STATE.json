@@ -43,10 +43,10 @@
     "note": "/loop (dynamic, turn cap 2) — t1(본 turn): nextTask=T-0826(직전 cron@aa-local-573e053a fire 가 큐잉) → acquire-lock CAS(loop@aa-local-4171392e) → executor→implementer: docs/ops/load-resilience-test-plan.md 신설(§1~§5, 시나리오 3종·임계·도구 후보) + runbook cross-link + PLAN line148 확장(checkbox [ ] 유지) → content commit ad0b6f83 main push → DONE bookkeeping counters 818. t2: ScheduleWakeup 로 다음 turn → planner dispatch(nextTask=null) 예정. cap 2 도달 시 종료 + lock tombstone release."
   },
   "ci": {
-    "status": "green",
+    "status": "running",
     "consecutiveFails": 0,
     "lastRun": "2026-08-17T00:40:00Z",
-    "note": "driver fire(cron@aa-local-2e185abe) — planner-only turn(task 실행 0). 직전 fire 위임 CI 2 건 정산 완료: merge commit 0b8d5a96 main run 31980203709 success + bookkeeping commit 2e185abe main run 31980327310 success (위임 잔량 0). currentTask · nextTask 둘 다 null 이라 planner dispatch → T-1577 큐잉(nextTask=T-1577). 본 turn 변경은 STATE + journal + 신규 task 파일뿐인 doc-only direct commit — 본 bookkeeping commit 의 main run 1 건만 다음 fire 에서 conclusion 재확인."
+    "note": "driver fire(cron@aa-local-2e185abe) — planner-only turn(task 실행 0). 직전 fire 위임 CI 2 건 정산 완료: merge commit 0b8d5a96 main run 31980203709 success + bookkeeping commit 2e185abe main run 31980327310 success (위임 잔량 0). currentTask · nextTask 둘 다 null 이라 planner dispatch → T-1577 큐잉(nextTask=T-1577). 본 turn 변경은 STATE + journal + 신규 task 파일뿐인 doc-only direct commit — 본 bookkeeping commit 3ff1ad46 의 main run 31982722939 은 종료 시점 in_progress → status=running, 다음 fire 첫 단계에서 conclusion 재확인(위임 1 건)."
   },
   "reviewRounds": {
     "T-1576": 1,
