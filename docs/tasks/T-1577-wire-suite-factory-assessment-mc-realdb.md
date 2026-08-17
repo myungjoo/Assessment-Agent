@@ -2,13 +2,15 @@
 id: T-1577
 title: assessment measure→confirm 실 DB perf-spec 에 체크인 baseline 배선 factory 얹기
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 55
 estimatedFiles: 1
 created: 2026-08-17
 createdAt: 2026-08-17T00:38:00Z
+completedAt: 2026-08-17T01:50:00Z
+prNumber: 1258
 independentStream: perf-baseline-checkin
 dependsOn: [T-1576]
 touchesFiles:
