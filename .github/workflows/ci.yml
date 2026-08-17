@@ -240,6 +240,13 @@ jobs:
         # Prisma migrate deploy 및 DB 의존 e2e step 이후에 두어야 DB schema 가
         # 준비된 상태에서 실행된다. unit(test:cov) / smoke / e2e 와 격리된 별도
         # jest config (test/perf/jest-perf.json) 으로 독립 실행된다.
+        # 체크인 baseline 비교 토글 (ADR-0056 §Decision 4 / §Follow-ups (b), T-1584 도입):
+        # 별도 job 신설 없이 본 step 을 재사용해 opt-in 토글만 켠다 — 꺼져 있으면 배선 국면이
+        # 전부 skip(disabled) 로 떨어져 비교 경로가 CI 에서 한 번도 실행되지 않는다. baseline
+        # 부재 동안은 skip(absent) 로그만 남고, exit code 는 불변 (§Decision 3 (b) — 상대 회귀는
+        # 관찰만 하고 throw 0, adapter 에 write · mkdir 국면이 없어 CI 자기 승인 경로도 0).
+        env:
+          PERF_CHECKIN_BASELINE: "1"
         run: pnpm test:perf
 
       - name: reviewer agent approval 검증
