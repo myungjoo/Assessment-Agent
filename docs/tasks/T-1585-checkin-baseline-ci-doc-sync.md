@@ -2,7 +2,9 @@
 id: T-1585
 title: 체크인 baseline 기제의 CI 편입 현황을 PLAN 142 행 · REQ-048 행에 doc-sync
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-17T19:41:00Z
+resultCommit: 39208132
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 110
