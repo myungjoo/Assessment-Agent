@@ -42,6 +42,9 @@ import {
   type MeasureBaselineOpts,
   type RequestFn,
 } from "./latency-collector";
+// 주입 monotonic clock 은 공유 helper 위임(T-1581 승격) — 실 query 지연이 섞여도 표본이
+// 결정론적이라 배선 국면에 wall-clock 대소 단언이 0 이다.
+import { createStepClock } from "./step-clock";
 
 // 실 DB 부트스트랩 + 인증 seed + 반복 요청 — slice 6 과 동등한 여유.
 jest.setTimeout(120_000);
@@ -54,25 +57,6 @@ const ITER = { iterations: 4 };
 // 체크인 배선 국면용 반복수 — 국면 10 개가 각각 측정을 태우므로 실 DB 비용을 감안해 2 회로 더
 // 줄인다(표본은 주입 clock 으로 결정론화하므로 반복수는 비용 변수일 뿐이다).
 const WIRING_ITER = 2;
-
-/**
- * 주입 monotonic clock — 홀수번째(start)는 값만 주고 짝수번째(end)에서 stepMs 만큼 진행한다
- * (collector spec 의 stepClock 관용구, T-0881 결정론화). 실 query 지연이 섞여도 표본이
- * 결정론적이라 배선 국면에 wall-clock 대소 단언이 0 이다.
- */
-function stepClock(stepMs: number): () => number {
-  let t = 0;
-  let call = 0;
-  return () => {
-    const v = t;
-    call += 1;
-    if (call % 2 === 1) {
-      return v;
-    }
-    t += stepMs;
-    return t;
-  };
-}
 
 describe("S2 measure→confirm-or-compare perf-spec — 실 DB round-trip baseline 확정·비교 (GET /api/summaries, REQ-048)", () => {
   let ctx: AuthenticatedE2EContext;
@@ -303,7 +287,7 @@ describe("S2 measure→confirm-or-compare perf-spec — 실 DB round-trip baseli
     measure: (stepMs) =>
       measureBaselineCandidate(read("?personId=checkin-wiring-probe"), env, {
         iterations: WIRING_ITER,
-        now: stepClock(stepMs),
+        now: createStepClock(stepMs),
       }),
     // 임시 repo root — 체크인 baseline 파일은 매 test 격리 tmpRoot 아래에만 만든다(실경로 무오염).
     tempDir: (name) => dirOf(name),
