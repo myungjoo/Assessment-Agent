@@ -25,6 +25,7 @@ import { buildAuthCookie } from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
 import { createE2EApp } from "../helpers/e2e-app-factory";
 
+import { registerCheckinBaselineWiringSuite } from "./checkin-baseline-spec-suite";
 import {
   formatBaselineLine,
   parseBaselineReport,
@@ -35,6 +36,7 @@ import {
 import type { ConfirmOrCompareResult } from "./latency-baseline-io";
 import {
   measureAndConfirmBaseline,
+  measureBaselineCandidate,
   type MeasureBaselineOpts,
   type RequestFn,
 } from "./latency-collector";
@@ -46,8 +48,30 @@ const MISSING = "/api/persons/no-such-person-id"; // findById null → NotFoundE
 const ACTIVE_ROWS = 3; // active 와 inactive 를 **서로 다른 개수** 로 둬 필터 분해력을 노출한다.
 const INACTIVE_ROWS = 2;
 const ITER = { iterations: 4 }; // 실 부트스트랩 반복이라 소규모(4 회) 고정.
+// 체크인 배선 국면용 반복수 — 국면 10 개가 각각 측정을 태우므로 실 SELECT 왕복 비용을 감안해 2 회로
+// 더 줄인다(표본은 주입 clock 으로 결정론화하므로 반복수는 비용 변수일 뿐이다).
+const WIRING_ITER = 2;
 // 서명이 깨진 변조 토큰 — guard 가 없어 검증 자체가 일어나지 않음을 보이는 negative 재료.
 const TAMPERED = buildAuthCookie("tampered.jwt.value");
+
+/**
+ * 주입 monotonic clock — 홀수번째(start)는 값만 주고 짝수번째(end)에서 stepMs 만큼 진행한다
+ * (collector spec 의 stepClock 관용구, T-0881 결정론화). 실 DB 왕복 지연이 섞여도 표본이
+ * 결정론적이라 배선 국면에 wall-clock 대소 단언이 0 이다.
+ */
+function stepClock(stepMs: number): () => number {
+  let t = 0;
+  let call = 0;
+  return () => {
+    const v = t;
+    call += 1;
+    if (call % 2 === 1) {
+      return v;
+    }
+    t += stepMs;
+    return t;
+  };
+}
 
 describe("S2 measure→confirm-or-compare perf-spec — 실 DB baseline 확정·비교 (GET /api/persons, guard 미부착 + soft-delete 필터, REQ-048)", () => {
   let app: INestApplication;
@@ -251,5 +275,32 @@ describe("S2 measure→confirm-or-compare perf-spec — 실 DB baseline 확정·
       expect(lastStatus).toBe(200);
       expect(rows()).toHaveLength(0);
     });
+  });
+
+  // 체크인(repo 안 commit) baseline 확인 배선 — ADR-0056 §Follow-ups (b) 의 실 DB **다섯 번째**
+  // 소비자이자 measure→confirm 계열의 **마지막 미배선 spec**(T-1576 summary · T-1577 assessment ·
+  // T-1578 contribution · T-1579 app-root 에 이어 **guard 0 × 실 SELECT** 조합으로 확산 — 인증
+  // layer 없이 요청이 실 query 를 태우는 환경에서도 배선이 동일하게 동작함을 본 slice 가 처음
+  // 관측한다). 배선 국면 10 개(happy 3 · error 2 · 분기 2 · negative 3)는 **공유 suite factory
+  // 호출 1 회** 로 등록하고 spec 은 고유분(`envMeta` · 측정 조립 · 임시 디렉토리)만 주입한다 —
+  // 지역 사본 0 이고 국면 본문 · 판정 · 경로 문자열 · 로그 형식 재구현도 0 이다(전량 helper
+  // 위임). 전역 토글 저장 · 원복도 factory 의 beforeEach / afterEach 소관이라 지역 savedFlag
+  // 처리를 두지 않는다(이중 원복 0). 토글 off 기본 상태에서는 `fs` 조회 0 · write 0 이라 기존
+  // `perf test` step 동작이 그대로고, 회귀는 관찰만 하며 exit code 를 바꾸지 않는다. 잘못된
+  // options(non-object · non-function)로 인한 **등록 시점 TypeError** 국면은 factory colocated
+  // spec(`checkin-baseline-spec-suite.spec.ts`) 의 책임이라 여기서 중복 작성하지 않는다.
+  registerCheckinBaselineWiringSuite({
+    envMeta: env,
+    // 측정은 collector 위임(주입 clock 으로 결정론화) — 본 route 는 guard 0 이라 cookie 미부착
+    // `GET /api/persons` 를 그대로 태운다(seed 가 없어도 200 + 빈 배열 · errorRate 0). 배선
+    // 국면은 seed 무의존 · Cookie 미부착이라 기존 국면의 `prisma.person` 대조 단언과
+    // `truncateAll` 순서에 간섭하지 않는다.
+    measure: (stepMs) =>
+      measureBaselineCandidate(read(), env, {
+        iterations: WIRING_ITER,
+        now: stepClock(stepMs),
+      }),
+    // 임시 repo root — 체크인 baseline 파일은 매 test 격리 tmpRoot 아래에만 만든다(실경로 무오염).
+    tempDir: (name) => dirOf(name),
   });
 });
