@@ -2,7 +2,9 @@
 id: T-1582
 title: 잔여 realdb measure→confirm perf-spec 3 개를 공유 stepClock helper 로 이관
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-17T11:52:00Z
+prNumber: 1263
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 80
@@ -84,4 +86,18 @@ Out of Scope 로 미뤄둔 잔여분이다. 본 slice 는 그 3 개를 이관해
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 append)
+- 잔여 `stepClock` 관용구 소비자 — mock 계열 4 벌 + collector 원본 이관 slice (cap 준수로
+  본 slice 에서 분리). `*-realdb` 계열은 본 task 로 복제 0 마감.
+- ADR-0056 `§Follow-ups (a)` 체크인 baseline JSON 최초 생성 · commit.
+- ADR-0056 `§Follow-ups (b)` 의 `.github/workflows/ci.yml` perf step 토글 편입.
+
+## Result (2026-08-17)
+
+- `pr` mode 완주 — PR **#1263** round 1 **APPROVE** → 4-게이트 PASS → squash merge
+  `133546a8`, feature branch 삭제.
+- `assessment` · `contribution` · `summary` 3 개 `*-realdb` perf-spec 의 지역 `stepClock`
+  정의(JSDoc 포함) 를 삭제하고 `createStepClock` import + 호출부 1 줄 치환으로 이관
+  (3 파일 · +12/-60). 신규 public symbol 0 · 신규 분기 0 — `*-realdb` 계열 관용구 복제 **0**.
+- 신규 spec 없음(helper 계약은 기존 `test/perf/step-clock.spec.ts` 24 case 가 cover).
+  lint · build · unit 437 suite / 12506 test · `test:cov`(line 99.95% · function 100%) 전부 green.
+  실 DB perf 는 로컬 Postgres 부재로 CI 실 DB step 에서 확인.
