@@ -2,7 +2,9 @@
 id: T-1586
 title: person 조회 perf-spec 에 체크인 baseline 배선 factory 얹기 (*-read 계열 첫 소비자)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-17T21:55:00Z
+prNumber: 1266
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 75
@@ -53,31 +55,31 @@ factory 호출 1 회로 성립함을 처음 관측한다. REQ-048 의 "조회 p9
 
 ## Acceptance Criteria
 
-- [ ] `test/perf/person-read.perf-spec.ts` 최상위 `describe` 안 파일 끝에서
+- [x] `test/perf/person-read.perf-spec.ts` 최상위 `describe` 안 파일 끝에서
       `registerCheckinBaselineWiringSuite` 를 **1 회** 호출한다 — `envMeta` 는 본 spec 고유
       label(예: `ci-person-read`, `concurrency: 1`), `tempDir` 은 `fs.mkdtempSync` 로 만든
       저장소 **밖** 임시 root 하위 경로, `measure` 는
       `measureBaselineCandidate(readRequest, env, { iterations: <소규모 고정>, now: createStepClock(stepMs) })`
       조립. 판정 · baseline 경로 조립 · 로그 형식 · 토글 저장/원복의 **지역 재구현 0**(전량
       helper 위임).
-- [ ] happy path — factory 의 happy 국면 3 개(토글 off 무동작 · 토글 on 확정 write · 재실행 비교)
+- [x] happy path — factory 의 happy 국면 3 개(토글 off 무동작 · 토글 on 확정 write · 재실행 비교)
       가 본 소비자에서 전부 통과. `measure` 람다가 **자기 안에서** `service.findActive` 의 반환을
       세팅해(외곽 `beforeEach` 의 `jest.clearAllMocks()` 이후에도) 200 응답이 결정론적으로 나오는지
       확인.
-- [ ] error path — factory 의 error 국면 2 개(손상 baseline 파일 · 무효/접근 불가 경로 계열)가
+- [x] error path — factory 의 error 국면 2 개(손상 baseline 파일 · 무효/접근 불가 경로 계열)가
       동일하게 통과하고, 주입한 `measure` 가 예외를 삼키지 않고 국면으로 전파함을 확인.
-- [ ] 분기 cover — factory 의 분기 국면 2 개(established ↔ compared, `repoRoot` 지정 ↔ 어댑터
+- [x] 분기 cover — factory 의 분기 국면 2 개(established ↔ compared, `repoRoot` 지정 ↔ 어댑터
       기본 바인딩)가 모두 실행된다. 본 task 는 spec 에 새 분기를 **추가하지 않으므로**(호출 1 회)
       분기 cover 는 factory 국면 등록으로 충족한다.
-- [ ] negative 충분 cover — factory 의 negative 국면 3 개(토글 값 비정상 · 임시 경로 부재 · 무효
+- [x] negative 충분 cover — factory 의 negative 국면 3 개(토글 값 비정상 · 임시 경로 부재 · 무효
       인자 형태)가 전부 등록·통과하고, **기존 `it` 6 개의 제목 · 단언 · 순서가 불변** 이며 본 파일의
       수집 test 수가 정확히 `6 → 16` 으로 늘어난다. 배선 국면이 기존 mock 호출 횟수 단언
       (`toHaveBeenCalledTimes`)에 간섭하지 않음을 확인.
-- [ ] `pnpm lint && pnpm build` 통과.
-- [ ] `pnpm test` 통과(기존 unit suite 무회귀) + `pnpm test:cov` 통과(line ≥ 80% / function ≥ 80%).
-- [ ] perf 대상 실행으로 본 spec 16 test 전량 pass — 실행 명령과 결과를 PR 본문에 명시. mock
+- [x] `pnpm lint && pnpm build` 통과.
+- [x] `pnpm test` 통과(기존 unit suite 무회귀) + `pnpm test:cov` 통과(line ≥ 80% / function ≥ 80%).
+- [x] perf 대상 실행으로 본 spec 16 test 전량 pass — 실행 명령과 결과를 PR 본문에 명시. mock
       spec 이라 Postgres 불요.
-- [ ] 저장소 실경로 오염 0 — 본 spec 실행 후 `test/perf/baselines/` 에 파일이 생기지 않는다
+- [x] 저장소 실경로 오염 0 — 본 spec 실행 후 `test/perf/baselines/` 에 파일이 생기지 않는다
       (`tempDir` 이 매 test 격리 임시 root 아래만 쓰는지 확인, `afterAll` 정리 포함).
 
 ## Out of Scope
@@ -99,3 +101,15 @@ factory 호출 1 회로 성립함을 처음 관측한다. REQ-048 의 "조회 p9
 ## Follow-ups
 
 (생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-17T21:55Z, DONE)
+
+- PR **#1266** squash merge — main `bd92657a`. 변경 `test/perf/person-read.perf-spec.ts` 1 파일 (+65/-0).
+- 파일 끝 `registerCheckinBaselineWiringSuite` **1 회 호출** + 고유분(`envMeta` `ci-person-read` ·
+  `measureBaselineCandidate` 조립 · 저장소 밖 임시 `tempDir`)만 주입. 판정 · 경로 · 로그 · 토글
+  지역 재구현 **0** (전량 helper 위임) — `*-read` 계열 첫 소비자로서 measure→confirm top loop
+  없는 순수 관찰형 spec 에서도 factory 배선이 성립함을 확인.
+- perf 대상 test **6 → 16** 전량 pass, 기존 `it` 6 개 제목 · 단언 · 순서 불변. unit 437 suite /
+  12506 case pass, `pnpm lint && pnpm build && test:cov`(line ≥ 80% / function ≥ 80%) 통과.
+  `test/perf/baselines/` 미생성 — 저장소 실경로 오염 **0** (afterAll 재귀 정리).
+- 4-게이트: reviewer APPROVE (PR comment 외부 존재) + integrator self-check + CI green.
