@@ -2,13 +2,14 @@
 id: T-1587
 title: person 실 DB 조회 perf-spec 에 체크인 baseline 배선 factory 얹기 (*-read-realdb 계열 첫 소비자)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 80
 estimatedFiles: 1
 created: 2026-08-17
 createdAt: 2026-08-17T22:40:00Z
+completedAt: 2026-08-17T23:56:34Z
 independentStream: perf-baseline-checkin
 dependsOn: [T-1586]
 touchesFiles:
@@ -101,3 +102,17 @@ baseline 이 앉을 자리를 실 DB 축에서도 미리 여는 의미가 있다
 ## Follow-ups
 
 (생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 기록
+
+- **Status: DONE** (2026-08-17T23:56:34Z, PR [#1267](https://github.com/myungjoo/Assessment-Agent/pull/1267) squash merge `8de66603`)
+- 결과: `test/perf/person-read-realdb.perf-spec.ts` 1 파일 `+62/-1`. `fs` · `os` · `path` + factory ·
+  `BaselineEnvMeta` · `measureBaselineCandidate` · `createStepClock` import 후 배선 전용
+  label(`realdb-person-read-wiring`) · `WIRING_ITER=2` · `beforeEach` `mkdtemp` tmpRoot ·
+  `afterEach` 재귀 삭제 · `dirOf` POSIX 헬퍼를 추가하고 파일 끝에서
+  `registerCheckinBaselineWiringSuite` 를 **1 회** 호출(지역 재구현 0).
+- 검증: 로컬 `pnpm lint` · `build` · `test`(437 suite / 12506 test) · `test:cov`(line · function ≥ 80%)
+  green. perf 대상 test 수 **8 → 18**(factory 국면 10 개 등록) 확인, CI 실 DB perf step 63 suite /
+  678 test 전량 pass. 저장소 실경로 오염 0(`test/perf/baselines` 미생성).
+- review: reviewer VERDICT=APPROVE (round 1, 8 check 통과 — 등록 순서 · label 충돌 0 · 기존 국면
+  무간섭 · 저장소 오염 0). Nit 1 건은 선례 동형 유지 근거로 미처리 명시.
