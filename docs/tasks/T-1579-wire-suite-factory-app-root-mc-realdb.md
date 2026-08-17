@@ -2,8 +2,10 @@
 id: T-1579
 title: app-root measure→confirm 실 DB perf-spec 에 체크인 baseline 배선 factory 얹기
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1260
+completedAt: 2026-08-17T05:49:44Z
 coversReq: [REQ-048]
 estimatedDiff: 55
 estimatedFiles: 1
@@ -102,4 +104,18 @@ seed · 인증 쿠키에 의존하지 않는 환경에서도 배선이 동일하
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 append)
+- **`person` realdb 계열 배선** — ADR-0056 `§Follow-ups (b)` 확산의 남은 소비자. 본 slice 와
+  동형(factory 호출 1 회, 신규 로직 0).
+- **`stepClock` 관용구 helper 승격 검토** (reviewer round 1 MINOR, 본 PR 미처리) — realdb 계열
+  4 spec 에 동형 복제됨. factory 본체 변경이라 본 task Out of Scope 였고, `person` realdb 배선
+  slice 에서 함께 검토 권고.
+
+## Result
+
+`pr` mode 완주 — PR #1260 reviewer round 1 APPROVE → 4-게이트 PASS → squash merge
+(`78b8453b`, feature branch 삭제). `test/perf/app-root-measure-confirm-realdb.perf-spec.ts`
+1 파일 +50/-0 (import 2 종 + `WIRING_ITER=2` · 주입 clock + factory 호출 1 회). 국면 수집
+11 → 21 (배선 10 국면 등록), 기존 국면 제목 · 단언 · 순서 불변. lint(`--max-warnings=0`) ·
+build · test 436 suite / 12482 pass · `test:cov` line 99.95% / function 100% 통과.
+realdb perf-spec 자체는 로컬 Postgres 부재로 미실행(병합된 T-1578 spec 동일 — 환경 사유),
+CI 가 cover.
