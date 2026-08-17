@@ -35,6 +35,10 @@
 // 임계값 변경·baseline 파일 확정(`DEFAULT_P95_MAX_MS = 3000` 불변, `writeBaselineFile`·
 // `confirmOrCompareBaseline` 미사용 — 관찰 전용, 디스크 write 0) / 부하 발생기 도입 · S1 · S3
 // harness — 전부 별도 slice.
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
@@ -42,13 +46,22 @@ import { PrismaService } from "../../src/persistence/prisma.service";
 import { truncateAll } from "../helpers/db-truncate";
 import { createE2EApp } from "../helpers/e2e-app-factory";
 
-import { buildBaselineReport, formatBaselineLine } from "./latency-baseline";
+import { registerCheckinBaselineWiringSuite } from "./checkin-baseline-spec-suite";
+import {
+  buildBaselineReport,
+  formatBaselineLine,
+  type BaselineEnvMeta,
+} from "./latency-baseline";
 import {
   assertS2Threshold,
   collectLatencySamples,
+  measureBaselineCandidate,
   type RequestFn,
 } from "./latency-collector";
 import { summarizeLatency } from "./latency-metrics";
+// 주입 monotonic clock 은 공유 helper 위임(T-1581 승격) — 실 DB 왕복 지연이 섞여도 배선 국면의
+// 표본이 결정론적이라 wall-clock 대소 단언이 0 이다.
+import { createStepClock } from "./step-clock";
 
 // 실 DB 부트스트랩(AppModule 전체) + seed + 반복 요청이라 mock spec 보다 느리다.
 // 기본 5s 로는 CI 의 cold connection pool 에서 flaky 할 수 있어 여유를 둔다.
@@ -58,10 +71,21 @@ jest.setTimeout(60_000);
 const SEED_ROWS = 20;
 // 반복 측정 횟수 — 표본 20 개면 p95 가 상위 표본 구간에서 산출된다.
 const ITERATIONS = 20;
+// 배선 국면 전용 반복수 — 표본은 주입 clock 으로 결정론화되므로 반복수는 비용 변수일 뿐이라
+// 실 DB 왕복이 섞이는 본 spec 에서는 최소로 둔다(기존 국면의 ITERATIONS 는 불변).
+const WIRING_ITER = 2;
 
 describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/persons, REQ-048)", () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  // 매 test 격리 임시 baseline 루트(afterEach 재귀 삭제 — 저장소 실경로 오염 0).
+  let tmpRoot: string;
+  // 배선 전용 label — 아래 baseline 리포트 국면의 `ci-realdb-person-read` 와 겹치지 않게 분리해
+  // 체크인 baseline 파일 경로가 기존 관찰 국면과 충돌하지 않는다.
+  const wiringEnv: BaselineEnvMeta = {
+    label: "realdb-person-read-wiring",
+    concurrency: 1,
+  };
 
   beforeAll(async () => {
     // mock override 0 — AppModule 실 부트스트랩 + applyGlobalMiddleware(T-0090 helper).
@@ -74,7 +98,14 @@ describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/persons, R
     await truncateAll(prisma);
   });
 
+  beforeEach(() => {
+    // 배선 국면이 쓸 임시 repo root — 저장소 밖(OS temp)에 매 test 새로 만든다.
+    tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "s2-person-read-realdb-"));
+  });
+
   afterEach(async () => {
+    // 임시 baseline 트리 재귀 삭제 — `test/perf/baselines/` 실경로에는 아무것도 남지 않는다.
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
     // ADR-0004 §Cleanup — 매 test 후 도메인 테이블 TRUNCATE 로 row leak 0.
     await truncateAll(prisma);
   });
@@ -100,6 +131,10 @@ describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/persons, R
     }
     return rows.map(({ fullName, email }) => ({ fullName, email }));
   };
+
+  /** tmpRoot 하위 POSIX 결합 baseDir(`resolveCheckinBaselineDir` 와 동일 정규화). */
+  const dirOf = (seg: string): string =>
+    path.posix.join(tmpRoot.split(path.sep).join("/"), seg);
 
   // 마지막 응답 body 보관 — mock spec 의 `toHaveBeenCalledTimes(N)` 의 실 DB 등가 검증용.
   let lastListBody: unknown;
@@ -271,5 +306,31 @@ describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/persons, R
     expect(line).toContain(`dataScale=${SEED_ROWS} persons`);
     expect(report.count).toBe(ITERATIONS);
     expect(report.pass).toBe(true);
+  });
+
+  // 체크인(repo 안 commit) baseline 확인 배선 — ADR-0056 §Follow-ups (b) 확산의 다음 소비자.
+  // T-1576 ~ T-1580 이 measure→confirm 계열 9 개를, T-1586 이 `*-read` 계열 첫 소비자(mock)를
+  // 배선했고 본 slice 는 **실 DB round-trip × measure→confirm top loop 부재**(순수 관찰형)
+  // 조합을 처음 관측한다. 국면 10 개(happy 3 · error 2 · 분기 2 · negative 3)는 **공유 suite
+  // factory 호출 1 회**로 등록하고 spec 은 고유분(`envMeta` · 측정 조립 · 임시 디렉토리)만
+  // 주입한다 — 판정 · baseline 경로 조립 · 로그 형식 · 토글 저장/원복의 지역 재구현 0(전량
+  // helper 위임, 토글 원복도 factory 의 beforeEach / afterEach 소관이라 지역 savedFlag 를 두지
+  // 않는다). 토글 off 기본 상태에서는 `fs` 조회 0 · write 0 이라 기존 `perf test` step 동작이
+  // 그대로고, 회귀는 관찰만 하며 exit code 를 바꾸지 않는다. 무효 options(non-object ·
+  // non-function)의 등록 시점 TypeError 국면은 factory colocated
+  // spec(`checkin-baseline-spec-suite.spec.ts`) 책임이라 여기서 중복 작성하지 않는다.
+  registerCheckinBaselineWiringSuite({
+    envMeta: wiringEnv,
+    // 측정은 collector 위임(주입 clock 으로 결정론화). `GET /api/persons` 는 guard 미부착이라
+    // cookie 없이 200 이고, `afterEach(truncateAll)` 로 seed 가 비어도 빈 배열 200 · errorRate 0
+    // 이므로 배선 국면은 seed 무의존이다 — 기존 국면의 `lastListBody` 대조 단언과 `truncateAll`
+    // 순서에 간섭하지 않는다. `listRequest` 는 `RequestFn` **값**이라 호출하지 않고 그대로 넘긴다.
+    measure: (stepMs) =>
+      measureBaselineCandidate(listRequest, wiringEnv, {
+        iterations: WIRING_ITER,
+        now: createStepClock(stepMs),
+      }),
+    // 임시 repo root — 체크인 baseline 파일은 매 test 격리 tmpRoot 아래에만 만든다(실경로 무오염).
+    tempDir: (name) => dirOf(name),
   });
 });
