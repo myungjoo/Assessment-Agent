@@ -2,7 +2,10 @@
 id: T-1584
 title: ci.yml perf step 에 체크인 baseline 비교 토글 편입 + drift-guard smoke 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-17T18:04:20Z
+prNumber: 1265
+mergeCommit: e7b0a3777edd8c7ca88a9cdbe3f28e1154e6f2db
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 220
@@ -127,3 +130,18 @@ spec 이 ambient 토글 off 를 암묵 가정하고 있었을 경우** 뿐이고
 ## Follow-ups
 
 - (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## Result (2026-08-17)
+
+`DONE` — PR #1265 (reviewer round 1/7 APPROVE) 스쿼시 머지 `e7b0a377`.
+
+- `.github/workflows/ci.yml` 의 `perf test` step 에 `env:` 블록(`PERF_CHECKIN_BASELINE: "1"`) +
+  근거 주석 4 줄만 추가 — `run` · job · trigger · runner 불변 (ADR-0056 `§Decision 4` 의
+  "기존 step 재사용" 계약 준수).
+- `test/smoke/ci-workflow-perf-checkin-baseline-toggle-parity-drift.smoke-spec.ts` 신설 —
+  13 test (happy 2 · flow 3 · negative 5 · error 3). 플래그 이름은 상수 import 로 대조해
+  하드코딩 0.
+- 토글 on/off 실행이 unit 437 suite / 12506 test · perf 63 suite / 658 test 로 수치 동일 —
+  ambient 토글 누출 0 을 실증.
+- 총 +299/-0, 2 파일 (cap 300 LOC / 5 파일 이내). 새 dependency 0.
+
