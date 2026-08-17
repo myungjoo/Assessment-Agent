@@ -85,6 +85,9 @@ import {
   measureBaselineCandidate,
   type RequestFn,
 } from "./latency-collector";
+// 주입 monotonic clock 은 공유 helper 위임(T-1581 승격, T-1583 이관) — 호출부를 손대지 않으려고
+// alias import 로 기존 이름 `stepClock` 을 그대로 유지한다(국면 · 단언 · 반복수 전부 불변).
+import { createStepClock as stepClock } from "./step-clock";
 
 // mock ContributionService — 조회(findByAssessment) 경로가 실제 호출하는 것은 findByAssessment
 // 뿐. 나머지 3 primitive 는 controller 부트스트랩에 필요해 형식적으로 채운다(조회 경로에서 미호출).
@@ -186,22 +189,6 @@ describe("S2 measure→confirm-or-compare perf-spec — ContributionController �
   const injectStatus =
     (status: number): RequestFn =>
     async () => ({ status });
-
-  // 주입 monotonic clock — 회귀 판정 비교 동치를 결정론화한다(T-0881 결정론화 관용구). 홀수번째
-  // (start)는 값만, 짝수번째(end)에서 stepMs 만큼 진행(collector spec 의 stepClock 관용구).
-  function stepClock(stepMs: number): () => number {
-    let t = 0;
-    let call = 0;
-    return () => {
-      const v = t;
-      call++;
-      if (call % 2 === 1) {
-        return v;
-      }
-      t += stepMs;
-      return t;
-    };
-  }
 
   describe("happy path — established(최초 확정 write) / compared(로드·비교) 양 분기 실 실행", () => {
     it("(a) established — 빈 baseDir 첫 호출 → outcome=established + path, baseline JSON 실 write(round-trip 동치, 실 GET /api/contributions 200 반영)", async () => {
