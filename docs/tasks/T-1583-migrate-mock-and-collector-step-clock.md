@@ -2,8 +2,12 @@
 id: T-1583
 title: 잔여 stepClock 소비자 5 개(mock 4 + collector 원본)를 공유 helper 로 이관
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-08-17T15:47:49Z
+mergedAs: 3b89c10e876d234c211c54c52fe2fef024b71ead
+prNumber: 1264
+reviewRounds: 1
 coversReq: [REQ-048]
 estimatedDiff: 95
 estimatedFiles: 5
