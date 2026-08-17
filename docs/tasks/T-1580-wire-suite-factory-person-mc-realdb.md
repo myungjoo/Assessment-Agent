@@ -2,7 +2,10 @@
 id: T-1580
 title: person measure→confirm 실 DB perf-spec 에 체크인 baseline 배선 factory 얹기
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-17T07:49:03Z
+prNumber: 1261
+mergeCommit: 4a28af7db69ca1fc3dcec648b171723e4fca8dcc
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 55
@@ -103,4 +106,13 @@ Follow-ups 의 "나머지 `*-realdb` 계열 배선 확산" 을 **소비자 1 개
 
 ## Follow-ups
 
-(생성 시 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가)
+- `stepClock` 관용구의 공유 helper 승격 — 본 PR reviewer round 1 이 MINOR 로 재지적했으나
+  T-1579 이월분과 동일 건이라 신규 task 를 중복 생성하지 않았다 (Out of Scope 에 이미 명시).
+
+## Result (2026-08-17)
+
+- `pr` mode 완주 — PR **#1261** round 1 APPROVE → 4-게이트 PASS → squash merge `4a28af7d`, feature branch 삭제.
+- `test/perf/person-measure-confirm-realdb.perf-spec.ts` 에 `registerCheckinBaselineWiringSuite` 호출 1 회 (+51/-0, 1 파일).
+  신규 프로덕션 로직 0 · 지역 재구현 0. 국면 수집 11 → 21, 기존 11 국면 불변.
+- lint · build · test(436 suites / 12482) · `test:cov` threshold 전부 green. 실 DB perf 는 CI step 에서 PASS (perf 63 suites / 658 test).
+- ADR-0056 §Follow-ups (b) 확산의 measure→confirm 계열 **마지막** 미배선 소비자 배선 완료.
