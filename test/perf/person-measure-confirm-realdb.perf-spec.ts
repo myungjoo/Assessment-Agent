@@ -40,6 +40,9 @@ import {
   type MeasureBaselineOpts,
   type RequestFn,
 } from "./latency-collector";
+// 주입 monotonic clock 은 공유 helper 위임(T-1581 승격) — 실 DB 왕복 지연이 섞여도 표본이
+// 결정론적이라 배선 국면에 wall-clock 대소 단언이 0 이다.
+import { createStepClock } from "./step-clock";
 
 jest.setTimeout(120_000);
 
@@ -53,25 +56,6 @@ const ITER = { iterations: 4 }; // 실 부트스트랩 반복이라 소규모(4 
 const WIRING_ITER = 2;
 // 서명이 깨진 변조 토큰 — guard 가 없어 검증 자체가 일어나지 않음을 보이는 negative 재료.
 const TAMPERED = buildAuthCookie("tampered.jwt.value");
-
-/**
- * 주입 monotonic clock — 홀수번째(start)는 값만 주고 짝수번째(end)에서 stepMs 만큼 진행한다
- * (collector spec 의 stepClock 관용구, T-0881 결정론화). 실 DB 왕복 지연이 섞여도 표본이
- * 결정론적이라 배선 국면에 wall-clock 대소 단언이 0 이다.
- */
-function stepClock(stepMs: number): () => number {
-  let t = 0;
-  let call = 0;
-  return () => {
-    const v = t;
-    call += 1;
-    if (call % 2 === 1) {
-      return v;
-    }
-    t += stepMs;
-    return t;
-  };
-}
 
 describe("S2 measure→confirm-or-compare perf-spec — 실 DB baseline 확정·비교 (GET /api/persons, guard 미부착 + soft-delete 필터, REQ-048)", () => {
   let app: INestApplication;
@@ -298,7 +282,7 @@ describe("S2 measure→confirm-or-compare perf-spec — 실 DB baseline 확정·
     measure: (stepMs) =>
       measureBaselineCandidate(read(), env, {
         iterations: WIRING_ITER,
-        now: stepClock(stepMs),
+        now: createStepClock(stepMs),
       }),
     // 임시 repo root — 체크인 baseline 파일은 매 test 격리 tmpRoot 아래에만 만든다(실경로 무오염).
     tempDir: (name) => dirOf(name),
