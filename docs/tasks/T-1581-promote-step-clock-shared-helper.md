@@ -2,7 +2,10 @@
 id: T-1581
 title: perf stepClock 관용구를 공유 helper 로 승격하고 realdb measure→confirm spec 2 개 이관
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-17T09:50:26Z
+prNumber: 1262
+mergeCommit: 14d6b995856f9727a01b39639b6555e38072f73c
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 230
@@ -97,4 +100,20 @@ ADR-0056 `§Follow-ups (b)` 배선 확산(T-1565 · T-1576 ~ T-1580)이 measure�
 
 ## Follow-ups
 
-(작성 시 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- 잔여 `stepClock` 관용구 소비자 **8 벌** 이관 — 본 PR 이 seam(`createStepClock`) 을 증명했으므로
+  후속 slice 가 cap(5 파일) 단위로 나눠 이관한다. reviewer round 1 은 이를 Out of Scope 로
+  인정해 지적 대상에서 제외했다 (MINOR 0).
+- ADR-0056 `§Follow-ups (a)` 체크인 baseline JSON 최초 생성 · commit.
+- ADR-0056 `§Follow-ups (b)` 의 `.github/workflows/ci.yml` perf step 토글 편입.
+
+## Result (2026-08-17)
+
+- `pr` mode 완주 — PR **#1262** round 1 **APPROVE**(BLOCKER 0 · MAJOR 0 · MINOR 0) → 4-게이트 PASS
+  → squash merge `14d6b995`, feature branch 삭제.
+- `test/perf/step-clock.ts`(`createStepClock` 단일 export, 순수 함수 · 전역 상태 0) + colocated
+  `step-clock.spec.ts` 신설, 소비자 2 개(`app-root-...-realdb` · `person-...-realdb`) 를
+  `now: createStepClock(stepMs)` 1 줄 치환으로 이관. 4 파일 · +215/-40, 잔여 지역 정의 0.
+- 신설 spec 24 test(happy 3 / error 13 / 분기 3 / negative 4 / collector 계약 1) 전량 pass.
+  국면 제목 · 단언 · 순서 불변, 신규 판정 로직 0.
+- lint · build · unit 437 suite / 12506 test · `test:cov`(line 99.95% · function 100%) 전부 green.
+  실 DB perf 는 로컬 Postgres 부재로 CI 실 DB step 에서 확인(perf 658 test pass).
