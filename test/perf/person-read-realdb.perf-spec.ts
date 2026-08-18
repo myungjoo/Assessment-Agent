@@ -449,6 +449,13 @@ describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/persons, R
       // 관찰 목적 — 실측 수치 줄을 CI 로그에 남긴다(§Consequences (d) 승인 입력).
       // eslint-disable-next-line no-console
       console.log(logs[0]);
+      // baseline 이 체크인된 뒤(`compared`)에는 위 로그가 비교 본문만 담아 표본 수가
+      // 드러나지 않는다. 다음 baseline 갱신 task 의 승인 입력이 되도록 candidate 지표 줄
+      // (`count=` 포함)을 분기와 무관하게 한 줄 더 남긴다(T-1593).
+      const candidateLine = formatBaselineLine(candidate);
+      expect(candidateLine).toContain(`count=${REAL_CLOCK_ITER}`);
+      // eslint-disable-next-line no-console
+      console.log(candidateLine);
     });
 
     // error — 전량 reject 요청. 실 DB 를 건드리지 않으므로 seed 없이 성립한다.
