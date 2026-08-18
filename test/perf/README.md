@@ -105,6 +105,102 @@ const r = await collectLatencySamples(() => request(app).get("/summary"), 30);
 expect(assertS2Threshold(r).pass).toBe(true);
 ```
 
+## 체크인 baseline 게이트 (`checkin-baseline-*.ts`)
+
+repo 안에 commit 된 **체크인 baseline**(`test/perf/baselines/` — [ADR-0056](../../docs/decisions/ADR-0056-perf-baseline-checkin-ci.md)
+`§Decision 1`) 과 이번 run 의 candidate 를 비교해 **CI 로그로만** 가시화하는 게이트다.
+위 `disk io harness` 의 `confirmOrCompareBaseline` 과 달리 **write / establish 국면이 없고**
+(`§Decision 2`), 회귀는 노출만 하며 **exit code 를 바꾸지 않는다**(`§Decision 3 (b)`).
+경로 · 판정 · 표기 · 조립을 각각 다른 모듈에 위임하고 재구현하지 않는다(DRY).
+
+- `checkin-baseline-store.ts` — 저장 위치 상수 `CHECKIN_BASELINE_DIR`(`test/perf/baselines`) 과
+  `resolveCheckinBaselineDir(repoRoot)` / `resolveCheckinBaselinePath(envMeta, repoRoot)` 경로 유도.
+- `checkin-baseline-plan.ts` — 토글 판정 `isCheckinBaselineEnabled(env)` 와 비교 진입 판정
+  `planCheckinBaselineCheck(input)`(판별 union `CheckinBaselinePlan`).
+- `checkin-baseline-report.ts` — 로그 표기 단일 진입점(`CHECKIN_LOG_PREFIX`,
+  `formatCheckinOutcomeLine` / `formatCheckinOutcomeBlock` / `formatCheckinCandidateLine`).
+- `checkin-baseline-run.ts` — 판정 → (비교) → 로그 **조립 순서** 하나만 책임지는
+  `runCheckinBaselineCheck(input, compare)`.
+- `checkin-baseline-adapter.ts` — 기본 repo root 유도 + 기본값 주입 래퍼
+  (`defaultCheckinRepoRoot`, `runCheckinBaselineCheckWithDefaults`).
+- `checkin-baseline-spec-wiring.ts` / `-spec-suite.ts` — perf-spec 쪽 배선 · 공용 스위트 등록.
+
+각 모듈의 상세 API 는 본 절 범위 밖이다(별도 slice). 아래는 **CI 로그를 읽는 사람** 이 알아야 할
+계약 — 토글 · 3 국면 · 로그 표기 · 전사 전용 규약 — 만 박제한다.
+
+### 토글 (`PERF_CHECKIN_BASELINE`)
+
+- 상수 `CHECKIN_BASELINE_ENV_FLAG` 의 값이 곧 환경변수 이름 `PERF_CHECKIN_BASELINE` 이다.
+  이 문자열을 다른 곳에 다시 적지 말고 항상 상수를 참조한다.
+- **on 으로 인정하는 값은 `trim` + 소문자화 이후 `"1"` / `"true"` / `"yes"` 셋뿐이다.**
+  미설정 · 빈 문자열 · 공백-only · `"0"` / `"false"` · 그 밖의 값 · non-string 은 **전부 off**
+  (모호하면 off — 비교에 잘못 진입하는 쪽보다 안 하는 쪽이 안전하다).
+- 판정은 주입된 환경변수 record 만 읽는다 — `process.env` 전역 read · 인자 변형이 0 이다.
+- CI 에서는 `.github/workflows/ci.yml` 의 `perf test` step 에 `PERF_CHECKIN_BASELINE: "1"` 로
+  켜져 있다(별도 job 신설 없이 기존 step 재사용 — `§Decision 4`). 로컬 일상 perf 실행은
+  미설정이라 off 이며, 명시 opt-in 으로만 비교에 진입한다.
+
+### 3 국면 (`CheckinBaselineRunOutcome`)
+
+`runCheckinBaselineCheck` 는 아래 3 국면만 낸다(`write` · `establish` 는 union 에 아예 없다).
+`compare` 는 **주입 함수**(`readCompareBaselineFile` 과 구조적으로 호환) 위임이라, 국면별
+**비교 함수 호출 횟수** 가 계약의 일부다.
+
+| 국면 | 조건 | 로그 줄 수 | 비교 함수 호출 |
+| --- | --- | --- | --- |
+| `skipped` / `disabled` | 토글 off | 1 줄 | **0 회** |
+| `skipped` / `absent` | 토글 on + baseline 파일 부재 | **2 줄** | **0 회** |
+| `compared` | 토글 on + 파일 존재 | 1 줄 + 상세 비교 본문 | **정확히 1 회** |
+
+- `disabled` 는 **판정 단락이 우선** 이라 경로 조립도 candidate 접근도 하지 않는다 — 무효
+  `repoRoot` · 깨진 candidate 를 줘도 예외 0 · 한 줄 로그 불변이다.
+- `absent` 는 baseline 을 **쓰지 않고** 후보 수치만 노출한다(아래 "왜 write 국면이 없는가").
+- `compared` 는 `formatCheckinOutcomeBlock` 이 한 줄 요약 뒤에 상위 io 진입점이 만든
+  `report` 본문을 개행 1 개로 이어 붙인 블록이다(본문 재계산 · 재정렬 0).
+- **`compare` 형태 검증은 비교 진입이 확정된 뒤에만** 한다. 즉 `skip` 두 국면에서는 `compare`
+  가 함수가 아니어도 예외가 없고, `compared` 진입 시에만 non-function 이 `TypeError` 다.
+
+### 로그 표기
+
+모든 줄은 grep 축인 `CHECKIN_LOG_PREFIX`(`[perf][checkin-baseline]`) 로 시작하고, **키 이름은
+영어 고정**(`outcome` · `reason` · `path` · `regressed` · `candidate` · 지표 키)이다. 키 순서도
+계약이라 아래 순서 그대로 나온다.
+
+```text
+[perf][checkin-baseline] outcome=skipped reason=disabled
+[perf][checkin-baseline] outcome=skipped reason=absent path=<baselinePath>
+[perf][checkin-baseline] candidate label=<label> concurrency=<n> p50=<n> p95=<n> p99=<n> throughput=<n> errorRate=<n> count=<n> pass=<true|false>
+[perf][checkin-baseline] outcome=compared regressed=<true|false>
+```
+
+`absent` 국면은 위 2 · 3 번째 줄이 **개행 1 개로 이어진 정확히 2 줄** 이다. `compared` 국면은
+4 번째 줄 뒤에 상세 비교 본문이 붙는다. `formatCheckinOutcomeLine` 은
+`outcome=established path=<path>` 표기도 갖고 있으나, `runCheckinBaselineCheck` 는 그 국면을
+만들지 않으므로 CI 로그에 나타나지 않는다.
+
+### 전사 전용 계약
+
+- `formatCheckinCandidateLine` 은 받은 값을 **그대로 문자열화만** 한다 — 재계산 · 반올림 ·
+  단위 변환 · 임계 판정이 0 이고, 성공 표본 0 국면의 `NaN` 도 거르지 않고 그대로 노출한다
+  (`p50=NaN` 등). 파일 시스템 · 환경변수 · 시각 · 난수 접근 0, 인자 객체 변형 0.
+- `pass` 는 `assertS2Threshold` 판정 결과의 전사일 뿐 — 여기서 임계를 다시 계산하지 않는다.
+- **회귀는 `regressed` 로 노출만 하고 throw 하지 않는다**(`§Decision 3 (b)` exit code 불변).
+  따라서 이 게이트만으로 CI 가 red 가 되는 일은 없다.
+- negative 규약: 토글 모호값 → off, `skip` 두 국면은 `compare` 가 무효여도 예외 0,
+  회귀 입력에도 throw 0. 예외는 형태 불량일 때만 나며 재래핑 없이 **그대로 전파** 된다 —
+  `absent` 국면의 candidate 형태 불량은 포매터의 `TypeError`(non-object · `null` · `env.label`
+  non-string · 수치 6 종 non-number · `pass` non-boolean) / `RangeError`(`env.label` 빈/공백-only)
+  로 전파되고, `disabled` 는 candidate 를 보지 않아 무관하다.
+
+### 왜 write 국면이 없는가
+
+`confirmOrCompareBaseline` 의 `established` 분기는 파일이 없으면 **그 시점 측정을 곧바로 기준으로
+확정**하므로, CI 에 그대로 물리면 CI 가 자기 측정을 자기 승인하게 된다(ADR-0056
+`§Consequences (d)`). 그래서 `§Decision 2` 는 baseline 갱신을 **명시적 `commitMode: pr` task**
+로만 한정했고, 그 결과 본 게이트의 `absent` 국면은 baseline 을 쓰지 않고 **후보 수치 한 줄만
+노출** 한다 — 사람이 그 CI 로그 줄을 읽고 값의 타당성을 확인한 뒤 별도 task 로 commit 하기
+위해서다(`§Follow-ups (a)`).
+
 ## 실 endpoint 배선 perf-spec (`summary-read` / `assessment-read` / `contribution-read` / `person-read` / `group-read` / `part-read` / `user-read` / `permission-denied-read` / `llm-provider-config-read` / `difficulty-mapping-read` / `cron-schedule-read` / `export-running-read` / `import-running-read` / `auth-me-read` / `summary-detail-read` / `group-detail-read` / `assessment-detail-read` / `person-detail-read` / `part-detail-read` / `contribution-detail-read` / `user-detail-read` / `llm-provider-config-detail-read` / `export-detail-read` / `import-detail-read` / `group-persons-read` / `part-persons-read` / `export-status-view-read` / `import-modes-read` / `export-download-read` / `app-root-read`)
 
 collector(`collectLatencySamples`)를 **실제 조회 endpoint** 에 배선하는 실 perf-spec 은 현재
