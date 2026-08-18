@@ -2,12 +2,13 @@
 id: T-1598
 title: perf README 임계값 3000ms 불변 bullet 의 measure→confirm slice 열거에 slice 29 를 편입
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 20
 estimatedFiles: 1
 created: 2026-08-18
+completed: 2026-08-18T09:50:00Z
 independentStream: perf-doc-sync
 dependsOn: [T-1557, T-1597]
 touchesFiles: [test/perf/README.md]
@@ -40,21 +41,21 @@ T-1557 이 추가한 **slice 29**(`person-measure-confirm-realdb.perf-spec.ts`, 
 
 ## Acceptance Criteria
 
-- [ ] `test/perf/README.md` 의 **임계값 3000ms 는 불변** bullet 에서 확정·비교 slice 열거가
+- [x] `test/perf/README.md` 의 **임계값 3000ms 는 불변** bullet 에서 확정·비교 slice 열거가
       `slice 25·26·27·28` → `slice 25·26·27·28·29` 로, route 열거가
       `GET /api/summaries` · `GET /api/assessments` · `GET /api/contributions` · `GET /api` 에
       **`GET /api/persons` 를 더한 5 개** 로 갱신돼 있다.
-- [ ] 같은 bullet 의 `slice 1~24 는 ... 관찰 전용` 서술은 **불변** 으로 남는다 (slice 29 는 25~28 과
+- [x] 같은 bullet 의 `slice 1~24 는 ... 관찰 전용` 서술은 **불변** 으로 남는다 (slice 29 는 25~28 과
       같은 부류라 관찰 전용 경계 자체는 이동하지 않는다).
-- [ ] 같은 bullet 의 나머지 3 단언이 **불변** 임을 확인한다 — ① `DEFAULT_P95_MAX_MS = 3000`(REQ-048) 미변경,
+- [x] 같은 bullet 의 나머지 3 단언이 **불변** 임을 확인한다 — ① `DEFAULT_P95_MAX_MS = 3000`(REQ-048) 미변경,
       ② 저장소 체크인 기준 baseline 은 `ci-realdb-person-read` **1 건뿐** 이며 그 비교는 T-1584 로 기존
       `perf test` step 에서 매 run 수행, ③ 나머지 route 의 체크인 baseline · 임계 fix · 나머지 cutover 는
       별도 slice. **과잉 정정 금지** — 이 3 단언을 손대면 AC 실패.
-- [ ] 문서 내부 정합 확인 — `1270 행` 부근의 `slice 25·26·27·28·29 는 규모 축이 아니라 3 불변` 및
+- [x] 문서 내부 정합 확인 — `1270 행` 부근의 `slice 25·26·27·28·29 는 규모 축이 아니라 3 불변` 및
       `1256 행` 부근의 `두·세·네·다섯 번째 route` 서술과 본 bullet 의 slice 집합이 **동일한 5 개** 로 일치한다.
-- [ ] perf-spec 계수(총계 **63** · `*realdb*` **29** · `*read*` **51** · `*read*realdb*` **21**) ·
+- [x] perf-spec 계수(총계 **63** · `*realdb*` **29** · `*read*` **51** · `*read*realdb*` **21**) ·
       인벤토리 (A) **30** / (B) **0** / (C) **0** · 도메인 **15** · 조회 route **31** 서술은 **한 글자도 변경하지 않는다**.
-- [ ] **R-112 (코드 변경 0 doc task 의 대체 검증)** — 본 task 는 `test/perf/README.md` 1 개 문서만 수정하며
+- [x] **R-112 (코드 변경 0 doc task 의 대체 검증)** — 본 task 는 `test/perf/README.md` 1 개 문서만 수정하며
       production code · perf-spec · harness 변경 **0 LOC**, 신규/수정 public symbol **0** 이라 happy-path ·
       error path · 분기 · negative test 의 신규 작성 대상이 존재하지 않는다. 대체 검증으로 다음 2 가지를 수행한다:
       (a) 갱신 서술이 가리키는 사실을 `test/perf/person-measure-confirm-realdb.perf-spec.ts` 의
@@ -62,8 +63,8 @@ T-1557 이 추가한 **slice 29**(`person-measure-confirm-realdb.perf-spec.ts`, 
       `measureAndConfirmBaseline` describe 블록(happy · error · 분기 · negative)과 **항목별로 대조**,
       (b) `pnpm lint && pnpm build && pnpm test` 를 실행해 회귀 0 확인. tester 는 이 사실과 대체 검증
       결과를 TESTER trail 에 명시한다.
-- [ ] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%) — `src/` 무변경이라 직전 수치 유지가 기대값.
-- [ ] 변경 파일 **1 개** (`test/perf/README.md`), diff ≤ 300 LOC.
+- [x] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%) — `src/` 무변경이라 직전 수치 유지가 기대값.
+- [x] 변경 파일 **1 개** (`test/perf/README.md`), diff ≤ 300 LOC.
 
 ## Out of Scope
 
@@ -82,3 +83,15 @@ T-1557 이 추가한 **slice 29**(`person-measure-confirm-realdb.perf-spec.ts`, 
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 요약 (2026-08-18)
+
+`pr` mode, PR [#1278](https://github.com/myungjoo/Assessment-Agent/pull/1278) squash merge `ca1b6b08`
+(1 파일 `test/perf/README.md` `+6/-4`, 코드 변경 0). 임계값 3000ms 불변 bullet 의 확정·비교 slice
+열거를 `25·26·27·28` 에서 `25·26·27·28·29` 로 넓히고 route 목록에 `GET /api/persons` 를 더해
+과소 열거를 바로잡았다. harness 위임 근거(`latency-collector.ts` `390 행`) 한 문장을 덧붙였고,
+나머지 3 단언(`DEFAULT_P95_MAX_MS` · 체크인 baseline 1 건 · 별도 slice) · 계수 · 인벤토리 ·
+slice 1~24 관찰 전용 서술은 전부 불변으로 지켰다. reviewer VERDICT=APPROVE(round 1, nit 0) +
+PR comment 외화(id 5326464341) + integrator 자체 점검 + PR CI green(run 32123242149) 으로 4-게이트 충족.
+438 suite · 12551 test pass, `test:cov` line 99.95% / function 100%.
+

@@ -7,7 +7,7 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-1598",
+  "nextTask": null,
   "backlogNoteResolved": "▶ **T-1575 DONE (pr, PR #1256 스쿼시 머지 74784c18) — summary perf-spec 의 factory 중복 국면 3 개 삭제 (1 파일 +20/-100, 삭제 전용).** T-1573 factory 승격으로 1:1 중복화된 happy (e) · 분기 (g) · negative (h) 를 정본 대조 후 제거하고, 잔존 4 국면(주입 토글 2 + error (f) · negative (i)) 의 고유 seam 근거를 주석으로 박제. perf 대상 126 → 123 test(정확히 3 감소) 전량 pass. 다음 후보 = ① *-realdb / *-read 계열 perf-spec 의 factory 배선, ② ADR-0056 Follow-up (a) 체크인 baseline JSON 최초 생성·commit(실측 + 사람 눈 확인 전제), ③ Follow-up (b) 본체 ci.yml perf step 토글 on 편입.",
   "backlogNoteT0881": "▶ **T-0881 DONE (PR #775 merged, squash 67955a76) — T-0880 unblock 완결; 다음 fire 가 T-0880/PR #774 resume** — app-root compared 분기 perf-spec(test/perf/app-root-measure-confirm.perf-spec.ts) 의 compared happy-path(b) 1차·2차 measure 에 stepClock(50) 주입해 regressed 비결정성 제거(+13/-6, 1 file). 이로써 T-0880 PR #774 를 2회 fail 시킨 T-0877 timing-fragile 단언(:217 wall-clock regressed=false)이 결정론화됨. reviewer APPROVE round 1/7(0 BLOCKER·0 MAJOR·0 MINOR), 4-게이트 PASS(reviewer comment external, CI test:perf 포함 green, ADR-0036 §8(c) head 최신 main 포함), squash 67955a76 + branch delete. R-112: compared happy-path 결정론(ok) + 회귀 분기는 기존 flow(336~356)/negative(414~433) 가 stepClock+tolerance:0 로 이미 커버, src 0 LOC 변경이라 test:cov 무영향. fineGrainedConcurrency ON(stage 5b) claim-pickup fire(cron@aa-local-33f5). **다음 시퀀스**: nextTask=T-0880 → 다음 fire 가 currentTask 로 옮겨 LOOP [2] frontmatter-prNumber(774) resume 분기로 PR #774 checkout+rebase(최신 main 이제 T-0881 fix 포함)+re-CI(test:perf 이제 green 기대)+4-게이트 재확인 → merge. 중복 PR 금지(prNumber:774 resume).",
   "backlogNoteT0880": "▶ **T-0880 DONE (PR #774 merged, squash effb2b6c) — S2 조회 endpoint 두 번째 통합 perf-spec 배선 완결** — SummaryController GET /api/summaries?personId 를 measureAndConfirmBaseline top loop 에 배선한 두 번째 통합 perf-spec. T-0881→T-0880 unblock 시퀀스 완결.",
@@ -45,8 +45,8 @@
   "ci": {
     "status": "green",
     "consecutiveFails": 0,
-    "lastRun": "2026-08-18T09:00:00Z",
-    "note": "driver fire(cron@aa-local-0e2d8697) — planner 큐잉(T-1597) + 그 task 실행까지 1 fire 안에서 수행. fineGrainedConcurrency ON(stage 5b) claim-pickup: lock CAS 획득 → reclaim(server-time 08:37:30Z 주입) 회수 대상 0 → 활성 claim 0 → validate-claim-candidate T-1597 PASS → select-claim(server-time 08:42:35Z 주입) 단독 claim 후 lock-free 진행. executor 가 PR open 직후 sync-claim-pr 로 prNumber=1277 동기(claim 이 PR_OPEN/1277 로 확인됨). PR #1277 reviewer APPROVE(round 1) comment 외화 + PR CI green(run 32118243630, reviewer 승인 검증 step 포함) 으로 4-게이트 충족 후 squash merge(4d29e574) + branch 삭제, 이후 lock 재획득 + claim prune([] 복귀). R-114 정산: 직전 fire 위임 잔량 1088afca · 0e2d8697 main run 둘 다 success 확인(잔량 0). 본 fire 의 885f3486(큐잉) main run success, 머지 commit 4d29e574 main run 은 bookkeeping 시점 pending — 위임 잔량 2 건(본 bookkeeping commit 포함)으로 다음 turn 이 conclusion 확인. [benign-red 추가 관측] 머지 commit 4d29e574 의 main push run(32118738010) 은 conclusion=cancelled 이나 **fail 아님** — jobs 0 개로 큐잉만 된 상태에서 같은 concurrency group(ci-refs/heads/main) 에 다음 push 13a8ef8c(08:56:10Z) 가 도착해 대기 중이던 older pending run 이 대체된 것이다(cancel-in-progress 는 pull_request 일 때만 true 이나, group 당 pending run 은 1 개만 유지되는 GitHub 동작). 머지 자체는 PR #1277 CI green(run 32118243630) 으로 4-게이트 검증을 마쳤고, 4d29e574 의 tree 는 그것을 포함하는 후속 13a8ef8c run 이 커버한다. consecutiveFails 증가시키지 않음 — 다음 fire 는 13a8ef8c conclusion 만 확인하면 된다."
+    "lastRun": "2026-08-18T09:50:00Z",
+    "note": "driver fire(cron@aa-local-3deb4d62) — planner 큐잉(T-1598) + 그 task 실행까지 1 fire 안에서 수행. fineGrainedConcurrency ON(stage 5b) claim-pickup: lock CAS 획득(09:37:15Z) -> reclaim(server-time 09:40:21Z 주입) 회수 대상 0 -> 활성 claim 0 -> validate-claim-candidate T-1598 PASS -> select-claim(server-time 09:40:21Z 주입) 단독 claim 후 lock tombstone 으로 critical section 종료, lock-free 진행. executor 가 PR open 직후 sync-claim-pr 로 prNumber=1278 동기(exit 0). PR #1278 reviewer APPROVE(round 1) comment 외화(id 5326464341) + PR CI green(run 32123242149) 으로 4-게이트 충족 후 squash merge(ca1b6b08) + branch 삭제, 이후 lock 재획득 + claim prune([] 복귀). R-114 정산: 직전 fire 위임 잔량 13a8ef8c main run success 확인(4d29e574 cancelled 는 직전 fire 가 박제한 benign-red), 본 fire 의 4650e4c8(큐잉) main run success, 머지 commit ca1b6b08 main run 은 bookkeeping 시점 in_progress — 위임 잔량 2 건(본 bookkeeping commit 포함)으로 다음 turn 이 conclusion 확인."
   },
   "reviewRounds": {
     "T-1596": 1,
@@ -1711,7 +1711,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 1588,
+    "tasksCompleted": 1589,
     "tasksBlocked": 9,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1
