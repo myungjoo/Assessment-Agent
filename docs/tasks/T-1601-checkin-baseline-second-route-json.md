@@ -2,12 +2,14 @@
 id: T-1601
 title: 체크인 baseline JSON 두 번째 route(ci-realdb-assessment-read) 확정 + 가드 spec 다중 label 화
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048, REQ-047]
 estimatedDiff: 190
 estimatedFiles: 3
 created: 2026-08-18
+prNumber: 1281
+completedAt: 2026-08-18T13:13:46Z
 independentStream: perf-checkin-baseline
 dependsOn: [T-1594, T-1600]
 touchesFiles:
@@ -66,3 +68,12 @@ plannerNote: "P5 ADR-0056 §Follow-ups (a) — T-1600 실측 20 표본으로 두
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 append)
+
+## 결과 (2026-08-18 완료)
+
+- **DONE** — `pr` mode, PR [#1281](https://github.com/myungjoo/Assessment-Agent/pull/1281) squash merge `2f8b8a2f`, feature branch 삭제.
+- 3 파일 `+205/-130`, `src/` 0 LOC. `test/perf/baselines/baseline-ci-realdb-assessment-read.json` 신설(run `32133870603` perf 로그 실측 줄 전사 — 재계산 · 재반올림 0), 가드 spec 을 `CHECKIN_BASELINES` 표 순회로 전환(국면 7 → 15, 삭제 0), negative (c) 를 디렉토리 `.json` 집합 == 표 유도 파일명 집합(누락 · stale 양방향 fail) 로 해체.
+- `test/perf/README.md` 는 task 지목 범위(`1254~1266 행`) 외에 동일 사실 서술인 `1286~1289 행` 도 함께 2 건으로 정정 — 사유는 PR 본문 · reviewer comment 에 박제.
+- **R-112** — happy / error / 분기 / negative (a)~(e) 를 두 label 모두에 대해 cover. 로컬 438 suite · 12558 test pass, coverage line 99.95% / branch 99.31% / function 100%.
+- **4-게이트** — reviewer VERDICT=APPROVE(round 1, BLOCKER · MAJOR · MINOR 0) + PR comment 외화(id `5328599531`) + integrator 자체 점검 + PR CI green(run `32139445671`) 으로 4/4. round 2 commit 은 CLAUDE.md `§3` Nit-in-PR closure 의 style fix(README wrap).
+- PR CI perf 관찰: 신규 label 이 `absent` → `compared` 로 진입, candidate `count=20 pass=true`(`p95=4.4ms` 로 `regressed=true` 관찰되나 exit code 불변 — [ADR-0056](../decisions/ADR-0056-perf-baseline-checkin-ci.md) `§Decision 3 (b)`).
