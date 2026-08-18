@@ -307,17 +307,17 @@ if [ $RC11R -eq 2 ] \
   && printf '%s' "$ERR11R" | grep -qF "값 '--release'" \
   && printf '%s' "$ERR11R" | grep -qF "loop|cron|human" \
   && printf '%s' "$ERR11R" | grep -qF "bare 'release'"; then
-  pass "회귀 가드 --release <session> — exit 2 + 입력값/허용값/bare release 힌트 3종 stderr"
+  pass "(1) 회귀 가드 --release <session> — exit 2 + 입력값/허용값/bare release 힌트 3종 stderr"
 else
-  fail "--release 가 거부되지 않거나 사유 부족 (rc=$RC11R err=$ERR11R)"
+  fail "(1) --release 가 거부되지 않거나 사유 부족 (rc=$RC11R err=$ERR11R)"
 fi
 if [ "$(tip_holder)" != "--release" ]; then
-  pass "무효 holder(--release) 가 lock ref 에 미반영 — 실사고 재발 차단"
+  pass "(1) 무효 holder(--release) 가 lock ref 에 미반영 — 실사고 재발 차단"
 else
-  fail "무효 holder(--release) 로 lock 이 박힘 — 실사고 재발"
+  fail "(1) 무효 holder(--release) 로 lock 이 박힘 — 실사고 재발"
 fi
 
-check_reject "(2) 오타 holder croon" croon cron@h-11          # 오타
+check_reject "(2) 오타 holder croon" croon cron@h-11
 check_reject "(3) 대소문자 변형 Cron(관대 매칭 금지)" Cron cron@h-11
 check_reject "(4) holder 인자 누락(빈 인자)" ""
 
