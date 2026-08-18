@@ -150,13 +150,15 @@ repo 안에 commit 된 **체크인 baseline**(`test/perf/baselines/` — [ADR-00
 | --- | --- | --- | --- |
 | `skipped` / `disabled` | 토글 off | 1 줄 | **0 회** |
 | `skipped` / `absent` | 토글 on + baseline 파일 부재 | **2 줄** | **0 회** |
-| `compared` | 토글 on + 파일 존재 | 1 줄 + 상세 비교 본문 | **정확히 1 회** |
+| `compared` | 토글 on + 파일 존재 | 요약 1 줄 + 상세 비교 본문 + candidate 1 줄(**마지막 줄이 candidate**) | **정확히 1 회** |
 
 - `disabled` 는 **판정 단락이 우선** 이라 경로 조립도 candidate 접근도 하지 않는다 — 무효
   `repoRoot` · 깨진 candidate 를 줘도 예외 0 · 한 줄 로그 불변이다.
 - `absent` 는 baseline 을 **쓰지 않고** 후보 수치만 노출한다(아래 "왜 write 국면이 없는가").
 - `compared` 는 `formatCheckinOutcomeBlock` 이 한 줄 요약 뒤에 상위 io 진입점이 만든
-  `report` 본문을 개행 1 개로 이어 붙인 블록이다(본문 재계산 · 재정렬 0).
+  `report` 본문을 개행 1 개로 이어 붙인 블록이고, **그 블록 뒤에** 다시
+  `formatCheckinCandidateLine` 결과를 개행 1 개로 잇는다(본문 재계산 · 재정렬 0 · 두 포매터를
+  그대로 재사용해 **신규 포매터 0**). 그래서 `absent` 와 대칭으로 마지막 줄이 candidate 줄이다.
 - **`compare` 형태 검증은 비교 진입이 확정된 뒤에만** 한다. 즉 `skip` 두 국면에서는 `compare`
   가 함수가 아니어도 예외가 없고, `compared` 진입 시에만 non-function 이 `TypeError` 다.
 
@@ -174,7 +176,17 @@ repo 안에 commit 된 **체크인 baseline**(`test/perf/baselines/` — [ADR-00
 ```
 
 `absent` 국면은 위 2 · 3 번째 줄이 **개행 1 개로 이어진 정확히 2 줄** 이다. `compared` 국면은
-4 번째 줄 뒤에 상세 비교 본문이 붙는다. `formatCheckinOutcomeLine` 은
+4 번째 줄(`outcome=compared regressed=<bool>`) → 상세 비교 본문 → 3 번째 줄
+(`candidate label=... count=...`) 순서이며, 본문이 한 줄인 회귀 가드 기준으로 **정확히 3 줄**
+이다. 즉 `absent` · `compared` **두 국면 모두 마지막 줄이 candidate 줄** 이라는 공통 계약이
+성립한다(`disabled` 만 candidate 줄이 없다).
+
+이 마지막 줄이 ADR-0056 `§Decision 5` 1 항 — 동일 `env.label` 에서 표본을 모아 상대 회귀를
+fail 로 승격할지 판단하는 절차 — 의 **입력 축** 이다. baseline 을 체크인한 뒤에는 CI 가 늘
+`compared` 로 떨어지므로, 판독자 · agent 는 `CHECKIN_LOG_PREFIX` + `candidate ` 로 grep 해
+`label` 별 run 지표를 그대로 누적하면 된다(임계 수치는 아직 확정 전이라 여기 적지 않는다).
+
+`formatCheckinOutcomeLine` 은
 `outcome=established path=<path>` 표기도 갖고 있으나, `runCheckinBaselineCheck` 는 그 국면을
 만들지 않으므로 CI 로그에 나타나지 않는다.
 
@@ -188,9 +200,11 @@ repo 안에 commit 된 **체크인 baseline**(`test/perf/baselines/` — [ADR-00
   따라서 이 게이트만으로 CI 가 red 가 되는 일은 없다.
 - negative 규약: 토글 모호값 → off, `skip` 두 국면은 `compare` 가 무효여도 예외 0,
   회귀 입력에도 throw 0. 예외는 형태 불량일 때만 나며 재래핑 없이 **그대로 전파** 된다 —
-  `absent` 국면의 candidate 형태 불량은 포매터의 `TypeError`(non-object · `null` · `env.label`
-  non-string · 수치 6 종 non-number · `pass` non-boolean) / `RangeError`(`env.label` 빈/공백-only)
-  로 전파되고, `disabled` 는 candidate 를 보지 않아 무관하다.
+  candidate 형태 불량은 포매터의 `TypeError`(non-object · `null` · `env.label` non-string ·
+  수치 6 종 non-number · `pass` non-boolean) / `RangeError`(`env.label` 빈/공백-only) 로
+  전파되며, 이는 **`absent` · `compared` 두 국면 모두** 성립한다(단 `compared` 는 비교를
+  **1 회 마친 뒤** 시점이라 호출 횟수 계약이 흔들리지 않는다). `disabled` 만 candidate 를
+  보지 않아 무관하다.
 
 ### 왜 write 국면이 없는가
 
