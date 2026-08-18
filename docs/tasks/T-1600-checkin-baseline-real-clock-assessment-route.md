@@ -2,13 +2,15 @@
 id: T-1600
 title: assessment 실 DB perf-spec 에 실측 clock candidate 관찰 국면 추가 (두 번째 route)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048, REQ-038]
 estimatedDiff: 200
 estimatedFiles: 1
 created: 2026-08-18
 createdAt: 2026-08-18T11:30:00Z
+completed: 2026-08-18T12:00:28Z
+prNumber: 1280
 independentStream: perf-checkin-baseline
 dependsOn: [T-1591, T-1593, T-1594]
 touchesFiles: [test/perf/assessment-measure-confirm-realdb.perf-spec.ts]
@@ -132,3 +134,24 @@ plannerNote: P5 perf — ADR-0056 §Follow-ups (a) 의 "나머지 route 체크�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 요약 (2026-08-18)
+
+`pr` mode, PR [#1280](https://github.com/myungjoo/Assessment-Agent/pull/1280) squash merge `3c3ba11e`
+(1 파일 `test/perf/assessment-measure-confirm-realdb.perf-spec.ts` `+293/-0`, `src/` 변경 0).
+[ADR-0056](../decisions/ADR-0056-perf-baseline-checkin-ci.md) `§Follow-ups (a)` 의 "나머지 route
+체크인 baseline" 축을 **두 번째 route**(`GET /api/assessments`)로 처음 넓혀, 실측 전용 nested
+describe 1 개(label `ci-realdb-assessment-read`, `repoRoot` 생략 · `processEnv` 주입 토글)를 추가했다.
+국면 9 개 — happy 1(로그 1 회 · prefix 고정 · status 미하드코딩) · error 2(전량 reject / **인증 미부착
+401 전량** — person route 에 없던 새 축) · 분기 2(토글 on·off / `period` 미지정 5 건 vs `week` 3 건) ·
+가드 1(하한) · negative 3(`iterations` 0 · 음수 `RangeError` · 연속 2 회). 기존 상수 · 국면 · 배선
+호출 인자 · hook 은 전부 불변이고 baseline JSON 생성 · commit 은 Out of Scope 그대로.
+
+CI 로그에 노출된 실측 표본(다음 slice 의 사람 눈 확인 입력):
+`label=ci-realdb-assessment-read concurrency=1 p50=1.973ms p95=2.531ms p99=2.664ms
+throughput=487.8/s errorRate=0 count=20 pass=true` — REQ-048 의 조회 p95 < 3s 대비 약 3 자릿수 여유.
+
+reviewer VERDICT=APPROVE(round 1, BLOCKER·MAJOR 0, Nit 2 는 정본 승계 / 차기 관찰 사유로 미조치)
++ PR comment 외화(id `IC_kwDOSlgQVc8AAAABPY-lVQ`) + integrator 자체 점검 + PR CI green(run
+`32133870603`) 으로 4-게이트 4/4. 438 suite · 12551 test pass, `test:cov` line 99.95% /
+function 100%(`src/` 무변경이라 직전 수치 유지).
