@@ -95,7 +95,7 @@ const CHECKIN_BASELINES: readonly CheckinBaselineCase[] = [
   },
 ];
 
-/** 표 1 행 → 조회용 env-meta. `concurrency` 는 두 실측 축 모두 1 이다. */
+/** 표 1 행 → 조회용 env-meta. `concurrency` 는 체크인된 실측 축 전부 1 이다. */
 const envOf = (checkin: CheckinBaselineCase): BaselineEnvMeta => ({
   label: checkin.label,
   concurrency: 1,
