@@ -1,0 +1,1 @@
+{"env":{"label":"ci-realdb-assessment-read","concurrency":1,"dataScale":"1 person / 5 assessments"},"p50":2,"p95":2.5,"p99":2.7,"throughput":487.8,"errorRate":0,"count":20,"pass":true}
