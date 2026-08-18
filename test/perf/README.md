@@ -1136,8 +1136,9 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   수행 · (b) 매칭 0 건 **200 + `[]`** · (c) cookie 미부착 **401** · (d) 인위 non-2xx 의 `errorRate = 1`
   과 200 혼합의 `0 < errorRate < 1` · (e) truncate 전/후 대조 쌍(5 → 0 건, 둘 다 200) 5 종이다. mock
   짝과 slice 6 파일은 **수정하지 않으며**(대체 아닌 보완 — retire 판단은 T-1536 유보), 본 baseline 은
-  **임시 디렉토리 1 회성** 이라 저장소 오염 0 이고 **저장소 체크인 기준 baseline(`§ 5` #5) · CI job
-  편입(`§ 5` #4) · 임계 fix 는 전부 미착수 그대로** 다. 여기서도 **측정만 하며** production code ·
+  **임시 디렉토리 1 회성** 이라 저장소 오염 0 이고, **본 slice 시점 기준으로** 저장소 체크인 기준
+  baseline(`§ 5` #5) · CI job 편입(`§ 5` #4) · 임계 fix 가 모두 미착수였다(현행은 아래 **잔여**
+  bullet 참조). 여기서도 **측정만 하며** production code ·
   schema · 임계값 불변이고 **REQ-047 실 scale 부하 검증이 아니다**.
 - **slice 26** — `assessment-measure-confirm-realdb.perf-spec.ts` (T-1551) — slice 25 가 연 **baseline
   확정 축의 두 번째 route** 다. 같은 `measureAndConfirmBaseline` harness 를 `GET /api/assessments`
@@ -1157,9 +1158,9 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   같은 route 재측정이라 재분류 0 이 **4 연속** 이다 — 도메인 **15** · 조회 route **31** · (A) **30** /
   (B) **0** / (C) **0** · mock 잔존 **30** · **규모 축 route 3** 전부 불변. mock 짝 · slice 4 · 24 는
   **수정하지 않으며**(대체 아닌 보완 — retire 판단은 T-1536 유보), baseline 은 **임시 디렉토리 1 회성**
-  이라 저장소 오염 0 이고 **체크인 기준 baseline(`§ 5` #5) · CI job 편입(`§ 5` #4) · 임계 fix 는 미착수
-  그대로** 다. 여기서도 **측정만 하며** production code · schema · 임계값 불변이고 **REQ-047 실 scale
-  부하 검증이 아니다**.
+  이라 저장소 오염 0 이고, **본 slice 시점 기준으로** 체크인 기준 baseline(`§ 5` #5) · CI job
+  편입(`§ 5` #4) · 임계 fix 가 모두 미착수였다(현행은 아래 **잔여** bullet 참조). 여기서도 **측정만
+  하며** production code · schema · 임계값 불변이고 **REQ-047 실 scale 부하 검증이 아니다**.
 - **slice 27** — `contribution-measure-confirm-realdb.perf-spec.ts` (T-1553) — slice 25 가 열고 slice 26
   이 이어받은 **baseline 확정 축의 세 번째 route** 다. 같은 `measureAndConfirmBaseline` harness 를
   `GET /api/contributions?assessmentId=`(slice 5 와 같은 route, 다른 harness)로 넓히며, 고유 축은
@@ -1178,8 +1179,9 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   25 · 26 에 이은 **여섯 번째** 사례), 같은 route 재측정이라 재분류 0 이 **5 연속** 이다 — 도메인 **15**
   · 조회 route **31** · (A) **30** / (B) **0** / (C) **0** · mock 잔존 **30** · **규모 축 route 3** 전부
   불변. mock 짝 · slice 5 는 **수정하지 않으며**(대체 아닌 보완 — retire 판단은 T-1536 유보), baseline
-  은 **임시 디렉토리 1 회성** 이라 저장소 오염 0 이고 **체크인 기준 baseline(`§ 5` #5) · CI job 편입
-  (`§ 5` #4) · 임계 fix 는 미착수 그대로** 다. 여기서도 **측정만 하며** production code · schema ·
+  은 **임시 디렉토리 1 회성** 이라 저장소 오염 0 이고, **본 slice 시점 기준으로** 체크인 기준
+  baseline(`§ 5` #5) · CI job 편입(`§ 5` #4) · 임계 fix 가 모두 미착수였다(현행은 아래 **잔여**
+  bullet 참조). 여기서도 **측정만 하며** production code · schema ·
   임계값 불변이고 **REQ-047 실 scale 부하 검증이 아니다**.
 - **slice 28** — `app-root-measure-confirm-realdb.perf-spec.ts` (T-1555) — **baseline 확정 축의 네 번째
   route** 다. 같은 `measureAndConfirmBaseline` harness 를 `AppController` 의 root health read
@@ -1205,10 +1207,10 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   (A) **30** / (B) **0** / (C) **0** · mock 잔존 **30** · **규모 축 route 3** 전부 불변(본 slice 는
   seed 자체가 불요한 DB 미접촉 route 라 규모 축이 아니다). 이로써 measure→confirm mock spec
   **4 개(summary · assessment · contribution · app-root) 전부** 가 실 DB 짝을 갖는다 — 다만 그 사실은
-  **축의 소진이 아니다**: 본 baseline 도 **임시 디렉토리 1 회성** 이고 **체크인 기준 baseline
-  (`§ 5` #5) · CI job 편입(`§ 5` #4) · 임계 fix 는 전부 미착수 그대로** 이며 잔여 4 축이 그대로
-  존속한다. mock 짝(T-0877) · slice 22 는 **수정하지 않으며**(대체 아닌 보완 — retire 판단은 T-1536
-  유보), 여기서도 **측정만 하며** production code · schema · 임계값 불변이고 **REQ-047 실 scale 부하
+  **축의 소진이 아니다**: 본 baseline 도 **임시 디렉토리 1 회성** 이고, **본 slice 시점 기준으로**
+  체크인 기준 baseline(`§ 5` #5) · CI job 편입(`§ 5` #4) · 임계 fix 가 모두 미착수여서 잔여 4 축이
+  그대로 존속했다(현행은 아래 **잔여** bullet 참조). mock 짝(T-0877) · slice 22 는 **수정하지
+  않으며**(대체 아닌 보완 — retire 판단은 T-1536 유보), 여기서도 **측정만 하며** production code · schema · 임계값 불변이고 **REQ-047 실 scale 부하
   검증이 아니다**.
 - **slice 29** — `person-measure-confirm-realdb.perf-spec.ts` (T-1557) — **baseline 확정 축의 다섯 번째
   route** 다. 같은 `measureAndConfirmBaseline` harness 를 `PersonController` 의 목록 read
@@ -1234,10 +1236,10 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   도메인 **15** · 조회 route **31** · (A) **30** / (B) **0** / (C) **0** · mock 잔존 **30** · **규모
   축 route 3** 전부 불변(본 slice 는 measure→confirm harness 축이라 규모 축이 아니다 — 같은 route 의
   규모 대조는 slice 23 이 이미 태웠다). baseline 확정 축이 **다섯 route 에 도달** 했으나 그것은
-  **축의 소진이 아니다**: 다섯 baseline 모두 **임시 디렉토리 1 회성** 이고 **체크인 기준 baseline
-  (`§ 5` #5) · CI job 편입(`§ 5` #4) · 임계 fix 는 전부 미착수 그대로** 이며 잔여 4 축이 그대로
-  존속한다. 기존 person perf-spec 3 개(T-0833 · slice 1 · slice 23)는 **수정하지 않으며**(대체 아닌 보완
-  — retire 판단은 T-1536 유보), production code · schema · 임계값 불변이고 **REQ-047 실 scale 부하
+  **축의 소진이 아니다**: 다섯 baseline 모두 **임시 디렉토리 1 회성** 이고, **본 slice 시점 기준으로**
+  체크인 기준 baseline(`§ 5` #5) · CI job 편입(`§ 5` #4) · 임계 fix 가 모두 미착수여서 잔여 4 축이
+  그대로 존속했다(현행은 아래 **잔여** bullet 참조). 기존 person perf-spec 3 개(T-0833 · slice 1 ·
+  slice 23)는 **수정하지 않으며**(대체 아닌 보완 — retire 판단은 T-1536 유보), production code · schema · 임계값 불변이고 **REQ-047 실 scale 부하
   검증이 아니다**.
 - **잔여** — 실측 범위는 endpoint 15 개(조회 route 31)뿐이다. perf-spec 63 개 중 read 계열 glob 은 51 개
   이고 그 중 실 DB round-trip 은 21 개(slice 1·2·4·5·6·7·8·9·10·11·12·13·14·15·16·17·18·19·20·21·22)이며
@@ -1252,9 +1254,17 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   ③ **write / trigger route 는 애초에 이 목록 밖** 이고, ④ REQ-047 실 scale 부하 · baseline 확정 ·
   임계 fix · web 렌더 측정의 **4 잔여 축이 그대로 존속** 한다 — baseline 확정 축은 slice 25 의 **첫
   진입** · slice 26 · 27 · 28 · 29 의 **두·세·네·다섯 번째 route** 를 태웠을 뿐이고, 다섯 baseline 모두 **임시
-  디렉토리 1 회성** 이라 축은 **소진되지 않았다**(체크인 기준 baseline · CI job 편입 · 임계 fix
-  미착수 — measure→confirm mock 4 개가 전부 실 DB 짝을 가진 것도, mock 짝 없는 route 까지 태운 것도
-  축의 해소와는 별개다). 규모 축도
+  디렉토리 1 회성** 이라 축은 **소진되지 않았다**. 그 뒤 **체크인 기준 baseline(`§ 5` #5) 축은
+  1 건 한정으로 착수** 됐다 — T-1592 가 `test/perf/baselines/baseline-ci-realdb-person-read.json`
+  (`env.label = ci-realdb-person-read` — slice 1 `GET /api/persons` 표본) **한 건만** 저장소에
+  체크인했고, T-1584 가 **ADR-0056 체크인 게이트를 기존 `perf test` step 에 편입 완료**(`§Decision 4`
+  대로 신규 job 0)해 CI 는 매 run `compared` 국면으로 진입한다. 반대로 부하계획 `§ 5` #4 가 말하는
+  **부하 harness(S1/S3) 별도 job 은 여전히 미착수** 이며 — 즉 `§ 5` #4 는 통째로 완료된 것이 아니라
+  ADR-0056 이 그 분리 대상에서 S2 체크인 게이트만 제외한 것이다 — **나머지 route 의 체크인
+  baseline** 과 **임계 fix** 도 미착수다(임계 fix 는 축적 run 이 ADR-0056 `§Decision 5` 1 항의 최소
+  20 run 에 못 미쳐 `§Decision 5` 4 항의 over-fitting 방지에 걸린다). 따라서 baseline 확정 축은
+  **부분 착수일 뿐 소진되지 않았다**(measure→confirm mock 4 개가 전부 실 DB 짝을 가진 것도, mock 짝
+  없는 route 까지 태운 것도 축의 해소와는 별개다). 규모 축도
   slice 3(`:id/persons` 의 N+1 규모)·slice 23(`/api/persons` 의 결과 집합 규모 + 필터 선택도)·
   slice 24(`/api/assessments` 의 인증 경유 + index prefix 2 단 선택도) **세 route 에 도달했을 뿐**
   이고(slice 25·26·27·28·29 는 규모 축이 아니라 3 불변), 나머지
@@ -1269,7 +1279,9 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   `buildBaselineReport` + `formatBaselineLine` 한 줄 **관찰 전용** 이고, **slice 25·26·27·28 만** `GET
   /api/summaries` · `GET /api/assessments` · `GET /api/contributions` · `GET /api` 를
   `confirmOrCompareBaseline` 로 **임시 디렉토리 1 회성** 확정·비교한다(저장소에
-  baseline JSON 은 남지 않는다). 임계 fix · 체크인 기준 baseline · 나머지 cutover 는 별도 slice.
+  baseline JSON 은 남지 않는다). 저장소에 체크인된 기준 baseline 은 T-1592 가 넣은
+  `ci-realdb-person-read` **1 건뿐** 이며(그 비교는 T-1584 로 기존 `perf test` step 에서 매 run
+  수행된다), **나머지 route 의 체크인 baseline · 임계 fix · 나머지 cutover 는 별도 slice** 다.
 
 ## 후속 harness (DB-backed baseline / S1·S3)
 
