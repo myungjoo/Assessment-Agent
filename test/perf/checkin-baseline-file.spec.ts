@@ -172,12 +172,18 @@ describe("체크인 baseline 파일 가드(ci-realdb-person-read)", () => {
 
     // (d) 표본 수 하한 — degenerate 표본(예: 갱신 전 count=3) baseline 의 재체크인 차단.
     it("(d) 체크인 파일의 report.count 가 표본 수 하한(CHECKIN_SAMPLE_MIN) 이상", () => {
+      /** 하한 판정 술어 — 아래 두 단언이 리터럴 비교가 아니라 같은 술어를 태우게 한다. */
+      const meetsSampleFloor = (count: number): boolean =>
+        Number.isInteger(count) && count >= CHECKIN_SAMPLE_MIN;
       const report = readBaselineFile(CHECKIN_ENV, baselineDir);
 
       expect(Number.isInteger(report.count)).toBe(true);
       expect(report.count).toBeGreaterThanOrEqual(CHECKIN_SAMPLE_MIN);
-      // 하한이 장식이 아님의 관찰 — 갱신 전 레코드(count=3)는 이 단언에서 실제로 떨어진다.
-      expect(3).toBeLessThan(CHECKIN_SAMPLE_MIN);
+      expect(meetsSampleFloor(report.count)).toBe(true);
+      // 하한이 장식이 아님의 관찰 — 갱신 전 레코드와 같은 표본 수(3)는 같은 술어에서 떨어진다.
+      expect(meetsSampleFloor(3)).toBe(false);
+      // 소수 표본 수 같은 불량 값도 하한을 통과하지 못한다.
+      expect(meetsSampleFloor(20.5)).toBe(false);
     });
 
     // (e) 값 범위 · 단조성 — 전사 과정에서 자리 뒤바뀜 · 부호 오류가 섞이면 여기서 걸린다.
