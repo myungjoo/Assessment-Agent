@@ -46,11 +46,16 @@ import { PrismaService } from "../../src/persistence/prisma.service";
 import { truncateAll } from "../helpers/db-truncate";
 import { createE2EApp } from "../helpers/e2e-app-factory";
 
+import { CHECKIN_BASELINE_ENV_FLAG } from "./checkin-baseline-plan";
+import { CHECKIN_LOG_PREFIX } from "./checkin-baseline-report";
+import type { CheckinBaselineRunOutcome } from "./checkin-baseline-run";
 import { registerCheckinBaselineWiringSuite } from "./checkin-baseline-spec-suite";
+import { checkCheckinBaselineForSpec } from "./checkin-baseline-spec-wiring";
 import {
   buildBaselineReport,
   formatBaselineLine,
   type BaselineEnvMeta,
+  type BaselineReport,
 } from "./latency-baseline";
 import {
   assertS2Threshold,
@@ -332,5 +337,193 @@ describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/persons, R
       }),
     // 임시 repo root — 체크인 baseline 파일은 매 test 격리 tmpRoot 아래에만 만든다(실경로 무오염).
     tempDir: (name) => dirOf(name),
+  });
+
+  // 체크인 baseline 확인 경로의 **실측 clock 관찰 국면**(T-1591, ADR-0056 §Consequences (d) ·
+  // §Follow-ups (a) 선행). 위 배선 suite 의 국면은 전부 `createStepClock` 합성 표본이라 CI 로그에
+  // 찍히는 candidate 수치가 실 latency 가 아니다. 본 describe 는 **주입 clock 없이**
+  // (= `measureBaselineCandidate` 에 `now` 미주입) 측정한 candidate 를 같은 확인 경로에 태워,
+  // §Follow-ups (a) 가 체크인할 baseline 의 승인 입력(실 p50/p95/p99)을 로그로 처음 노출한다.
+  // `repoRoot` 를 **생략**해 저장소 실경로 바인딩을 타지만 이 경로에는 write 국면이 아예 없어
+  // (§Decision 2) `test/perf/baselines/` 는 오염되지 않고, 회귀도 관찰만 하므로 exit code 가
+  // 바뀌지 않는다(§Decision 3 (b) — wall-clock 대소 단언 0). 토글은 `processEnv` 주입으로만
+  // 제어해 전역 `process.env` 를 읽지도 쓰지도 않는다. 실경로 무오염 · 전역 토글 누출 0 국면은
+  // 배선 suite 의 `error (2)` · `negative (c)` 가 같은 코드 경로로 이미 cover 하므로 여기서
+  // 재작성하지 않는다(T-1575 중복 국면 삭제 선례).
+  describe("체크인 baseline 실측 clock 관찰(ci-realdb-person-read)", () => {
+    // 실측 축 전용 반복수 — 표본마다 실 DB 왕복 비용이 붙으므로 작게 둔다(ITERATIONS ·
+    // WIRING_ITER 재사용 금지 — 비용 축과 의미가 다른 상수다).
+    const REAL_CLOCK_ITER = 3;
+    // 실측 label — 위 baseline 리포트 관찰 국면과 **같은 축**이고 배선 fixture label
+    // (`realdb-person-read-wiring`)과는 이미 분리돼 있어, 체크인될 baseline 파일은 실측 축에만
+    // 매달린다. `dataScale` 표기도 기존 관찰 국면과 동일하게 맞춘다.
+    const realClockEnv: BaselineEnvMeta = {
+      label: "ci-realdb-person-read",
+      concurrency: 1,
+      dataScale: `${SEED_ROWS} persons`,
+    };
+    // candidate 지표 줄의 수치 키(포매터가 고정한 grep 축) — on/off 분기 단언에서 공유한다.
+    const METRIC_KEYS = [
+      "p50=",
+      "p95=",
+      "p99=",
+      "throughput=",
+      "errorRate=",
+      "count=",
+      "pass=",
+    ] as const;
+
+    /** 실 clock 측정(= `now` 미주입) candidate 생산 — 합성 clock 을 쓰지 않는 유일한 국면. */
+    const measureRealClock = (
+      requestFn: RequestFn,
+      iterations: number,
+    ): Promise<BaselineReport> =>
+      measureBaselineCandidate(requestFn, realClockEnv, { iterations });
+
+    /** 확인 경로 1 회 위임 + 주입 로거 수집(`repoRoot` 생략 — 저장소 실경로 바인딩). */
+    const checkWithLogs = (
+      candidate: BaselineReport,
+      processEnv: Record<string, string | undefined>,
+      sink: string[] = [],
+    ): { outcome: CheckinBaselineRunOutcome; logs: string[] } => {
+      const outcome = checkCheckinBaselineForSpec({
+        envMeta: realClockEnv,
+        candidate,
+        processEnv,
+        log: (message) => sink.push(message),
+      });
+      return { outcome, logs: sink };
+    };
+
+    /** 토글 on 주입 record — 전역 환경변수를 세팅/삭제하지 않는다. */
+    const enabledEnv = (): Record<string, string | undefined> => ({
+      [CHECKIN_BASELINE_ENV_FLAG]: "1",
+    });
+
+    // 토글 on 국면의 status 는 **실행 시점 파일 존재 여부**에 달렸다 — baseline 이 체크인되면
+    // `compared`, 아직 없으면 `skipped`/`absent` 다. 어느 쪽도 하드코딩하지 않는다.
+    const expectEnabledOutcome = (outcome: CheckinBaselineRunOutcome): void => {
+      if (outcome.status === "skipped") {
+        expect(outcome.reason).toBe("absent");
+        return;
+      }
+      expect(outcome.status).toBe("compared");
+    };
+
+    /** `absent` 국면에서만 존재하는 candidate 지표 줄(2 번째 줄)을 꺼낸다. */
+    const metricsLineOf = (log: string): string => {
+      const lines = log.split("\n");
+      expect(lines).toHaveLength(2);
+      return lines[1];
+    };
+
+    // happy — 실 clock 표본이 확인 경로를 그대로 통과하고 로그가 정확히 1 회 나간다.
+    it("happy: 실 clock 측정 candidate 를 토글 on 으로 태우면 예외 0 + 로그 1 회(prefix 고정)", async () => {
+      await seedPersons(SEED_ROWS);
+
+      const candidate = await measureRealClock(listRequest, REAL_CLOCK_ITER);
+      const { outcome, logs } = checkWithLogs(candidate, enabledEnv());
+
+      expect(logs).toHaveLength(1);
+      expect(logs[0].startsWith(CHECKIN_LOG_PREFIX)).toBe(true);
+      expectEnabledOutcome(outcome);
+      // 실 clock 값 자체는 비결정적이라 대소 비교를 하지 않고 표본 수만 확인한다.
+      expect(candidate.count).toBe(REAL_CLOCK_ITER);
+      if (outcome.status === "skipped") {
+        const metrics = metricsLineOf(logs[0]);
+        for (const key of METRIC_KEYS) {
+          expect(metrics).toContain(key);
+        }
+        expect(metrics).toContain(`count=${REAL_CLOCK_ITER}`);
+      }
+      // 관찰 목적 — 실측 수치 줄을 CI 로그에 남긴다(§Consequences (d) 승인 입력).
+      // eslint-disable-next-line no-console
+      console.log(logs[0]);
+    });
+
+    // error — 전량 reject 요청. 실 DB 를 건드리지 않으므로 seed 없이 성립한다.
+    it("error: 전량 reject 요청의 실측 candidate 도 throw 0 + errorRate=1 · pass=false 전사", async () => {
+      const rejecting: RequestFn = async () => {
+        throw new Error("realdb-real-clock-checkin-reject");
+      };
+
+      const candidate = await measureRealClock(rejecting, REAL_CLOCK_ITER);
+      const { outcome, logs } = checkWithLogs(candidate, enabledEnv());
+
+      // 임계 위반이 exit code 를 바꾸지 않는다 — 판정은 pass 플래그로만 실린다.
+      expect(candidate.errorRate).toBe(1);
+      expect(candidate.pass).toBe(false);
+      expect(logs).toHaveLength(1);
+      expectEnabledOutcome(outcome);
+      if (outcome.status === "skipped") {
+        const metrics = metricsLineOf(logs[0]);
+        expect(metrics).toContain("errorRate=1");
+        expect(metrics).toContain("pass=false");
+      }
+    });
+
+    // 분기 — 같은 실측 candidate 를 토글 on / off 로 각각 태워 두 분기를 모두 태운다.
+    it("분기: 같은 실측 candidate 가 토글 on 은 다중 줄, off 는 수치 0 개의 한 줄", async () => {
+      await seedPersons(SEED_ROWS);
+      const candidate = await measureRealClock(listRequest, REAL_CLOCK_ITER);
+
+      const on = checkWithLogs(candidate, enabledEnv());
+      expectEnabledOutcome(on.outcome);
+      // on 국면은 부재면 candidate 지표 줄, 존재면 비교 본문이 붙어 늘 2 줄 이상이다.
+      expect(on.logs[0].split("\n").length).toBeGreaterThanOrEqual(2);
+
+      const off = checkWithLogs(candidate, {});
+      expect(off.outcome).toEqual({
+        status: "skipped",
+        reason: "disabled",
+        log: off.logs[0],
+      });
+      expect(off.logs).toHaveLength(1);
+      expect(off.logs[0].split("\n")).toHaveLength(1);
+      for (const key of METRIC_KEYS) {
+        expect(off.logs[0]).not.toContain(key);
+      }
+    });
+
+    describe("negative cases 충분 cover", () => {
+      // (a) 표본 0 — 포매터의 NaN 무가공 전사 계약이 실경로 바인딩 축에서도 성립한다.
+      it("(a) iterations: 0 실측 candidate 도 throw 0 + count=0 · NaN 무가공 전사", async () => {
+        const candidate = await measureRealClock(listRequest, 0);
+        const { outcome, logs } = checkWithLogs(candidate, enabledEnv());
+
+        expect(candidate.count).toBe(0);
+        expect(Number.isNaN(candidate.p95)).toBe(true);
+        expect(logs).toHaveLength(1);
+        expectEnabledOutcome(outcome);
+        if (outcome.status === "skipped") {
+          const metrics = metricsLineOf(logs[0]);
+          expect(metrics).toContain("count=0");
+          expect(metrics).toContain("NaN");
+        }
+      });
+
+      // (b) 반복 호출 부작용 0 — 같은 국면을 연속 2 회 태워도 로그가 정확히 2 회다.
+      it("(b) 실측 국면 연속 2 회 → 예외 0 + 로그 정확히 2 회 + status 동일", async () => {
+        await seedPersons(SEED_ROWS);
+        const sink: string[] = [];
+
+        const first = checkWithLogs(
+          await measureRealClock(listRequest, REAL_CLOCK_ITER),
+          enabledEnv(),
+          sink,
+        );
+        const second = checkWithLogs(
+          await measureRealClock(listRequest, REAL_CLOCK_ITER),
+          enabledEnv(),
+          sink,
+        );
+
+        expect(sink).toHaveLength(2);
+        expectEnabledOutcome(first.outcome);
+        expectEnabledOutcome(second.outcome);
+        // 같은 입력 축이라 두 번의 판정 국면이 갈리지 않는다(부작용 0 의 관찰 가능한 표현).
+        expect(second.outcome.status).toBe(first.outcome.status);
+      });
+    });
   });
 });
