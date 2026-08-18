@@ -2,13 +2,14 @@
 id: T-1593
 title: 체크인 baseline 실측 축 표본 수 상향 (REAL_CLOCK_ITER 3 → 20) + 표본 수 계약 가드
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 120
 estimatedFiles: 1
 created: 2026-08-18
 createdAt: 2026-08-18T04:45:00Z
+completedAt: 2026-08-18T05:01:50Z
 independentStream: perf-baseline-checkin
 dependsOn: [T-1591, T-1592]
 touchesFiles:
@@ -97,3 +98,19 @@ p95 · p99 가 사실상 **최댓값 1 개와 동일**해져 [ADR-0056](../decis
 - (예고) 본 task 의 CI 로그에서 `count=20` 실측 줄을 확보한 뒤, `baseline-ci-realdb-person-read.json`
   을 20 표본 값으로 갱신하는 별도 `pr` task — 갱신 사유 · 이전/이후 수치를 PR 본문에 박제하고
   `checkin-baseline-file.spec.ts` 의 `count` 단언을 함께 맞춘다.
+
+## Result (2026-08-18T05:01:50Z, DONE)
+
+`pr` mode — PR [#1273](https://github.com/myungjoo/Assessment-Agent/pull/1273) squash merge `7979bb2b`
+(1 파일 `test/perf/person-read-realdb.perf-spec.ts` `+106/-7`, `src/` 0 LOC).
+
+- 실측 축 반복수 `REAL_CLOCK_ITER` 를 3 → 20 으로 올리고 근거 · 한계 · 비용 3 줄 주석을 박제.
+  표본 수 하한 상수 `REAL_CLOCK_ITER_MIN` 도입 — 전 국면이 리터럴 대신 상수 기준으로 단언한다.
+- R-112 — happy(예외 0 · 로그 1 회 · `count === REAL_CLOCK_ITER`) · error(절반 reject 시 시도 표본
+  20 유지 + `errorRate` 전사) · 분기(`compared`/`skipped` 수용 + `disabled` 유지) · negative 3 종
+  (표본 수 하한 가드 · 0/음수 입력 · `p50<=p95<=p99`).
+- CI `perf test` step 에서 20 표본 실측 줄 확보:
+  `[ci-realdb-person-read] p50=2.1ms p95=3.5ms p99=5.5ms tput=400.00req/s err=0.00% count=20 pass=true`.
+- 4-게이트 PASS — reviewer VERDICT=APPROVE + PR comment 외화 + integrator 자체 점검 + CI green.
+  round 2 는 nit-in-PR closure (CLAUDE.md `§3`) — `compared` 분기 로그에 `count=` 가 안 실리던 문제를
+  happy 국면 `formatBaselineLine` 1 줄로 해소.
