@@ -1276,10 +1276,12 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   `services.postgres` + migrate deploy + e2e **이후**라 전제를 자동 충족한다(workflow 편집
   불요 — 기존 `testRegex` 가 새 spec 을 자동 picking).
 - **임계값 3000ms 는 불변** — `DEFAULT_P95_MAX_MS = 3000`(REQ-048)을 바꾸지 않는다. slice 1~24 는
-  `buildBaselineReport` + `formatBaselineLine` 한 줄 **관찰 전용** 이고, **slice 25·26·27·28 만** `GET
-  /api/summaries` · `GET /api/assessments` · `GET /api/contributions` · `GET /api` 를
-  `confirmOrCompareBaseline` 로 **임시 디렉토리 1 회성** 확정·비교한다(저장소에
-  baseline JSON 은 남지 않는다). 저장소에 체크인된 기준 baseline 은 T-1592 가 넣은
+  `buildBaselineReport` + `formatBaselineLine` 한 줄 **관찰 전용** 이고, **slice 25·26·27·28·29 만** `GET
+  /api/summaries` · `GET /api/assessments` · `GET /api/contributions` · `GET /api` ·
+  `GET /api/persons` 를 `confirmOrCompareBaseline` 로 **임시 디렉토리 1 회성** 확정·비교한다(slice 29 는
+  `measureAndConfirmBaseline` 를 태우지만 그 harness 가 내부에서 `confirmOrCompareBaseline` 를 그대로
+  호출한다 — `latency-collector.ts` `390 행`. 저장소에 baseline JSON 은 남지 않는다).
+  저장소에 체크인된 기준 baseline 은 T-1592 가 넣은
   `ci-realdb-person-read` **1 건뿐** 이며(그 비교는 T-1584 로 기존 `perf test` step 에서 매 run
   수행된다), **나머지 route 의 체크인 baseline · 임계 fix · 나머지 cutover 는 별도 slice** 다.
 
