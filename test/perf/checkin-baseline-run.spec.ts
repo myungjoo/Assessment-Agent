@@ -16,7 +16,7 @@ import {
 } from "./latency-baseline";
 
 /**
- * T-1563 — 판정 → 비교 → 로그 조립 진입점의 R-112 spec(happy-path / error path / 분기 cover /
+ * T-1563 · T-1595 — 판정 → 비교 → 로그 조립 진입점의 R-112 spec(happy-path / error path / 분기 cover /
  * negative cases). 비교를 mock 주입해 파일 시스템 · 전역 환경변수 없이 결정론적으로 검증한다.
  */
 describe("checkin-baseline-run — 판정→비교→로그 조립 (ADR-0056 §Follow-ups (b))", () => {
@@ -30,7 +30,7 @@ describe("checkin-baseline-run — 판정→비교→로그 조립 (ADR-0056 §F
   });
   const flagEnv = (value?: string): Env =>
     value === undefined ? {} : { [CHECKIN_BASELINE_ENV_FLAG]: value };
-  /** candidate 픽스처 — `absent` 국면이 이 수치를 로그 2 번째 줄로 전사한다(T-1589). */
+  /** candidate 픽스처 — `absent`(2 줄) · `compared`(3 줄) 국면이 마지막 줄로 전사한다. */
   const REPORT = {
     env: meta(),
     p50: 12,
@@ -68,14 +68,18 @@ describe("checkin-baseline-run — 판정→비교→로그 조립 (ADR-0056 §F
     value as CheckinBaselineRunInput;
   const badFn = (value: unknown): CheckinBaselineCompareFn =>
     value as CheckinBaselineCompareFn;
-  it("happy-path: compared 는 회귀 여부 · 로그 블록을 내고 비교를 정확히 1 회 호출한다", () => {
+  it("happy-path: compared 는 요약 줄 · 비교 본문 · candidate 줄을 순서대로 잇는다", () => {
     const compare = okCompare(false);
     const arg = input();
-    expect(runCheckinBaselineCheck(arg, compare)).toEqual({
+    const result = runCheckinBaselineCheck(arg, compare);
+    expect(result).toEqual({
       status: "compared",
       regressed: false,
-      log: `${CHECKIN_LOG_PREFIX} outcome=compared regressed=false\n본문`,
+      log: `${CHECKIN_LOG_PREFIX} outcome=compared regressed=false\n본문\n${formatCheckinCandidateLine(REPORT)}`,
     });
+    // 3 번째 줄이 grep 축(prefix + candidate) 으로 시작해야 20 run 표본 축적이 성립한다.
+    const lines = result.log.split("\n");
+    expect(lines[2].startsWith(`${CHECKIN_LOG_PREFIX} candidate `)).toBe(true);
     expect(compare.mock.calls).toEqual([
       [arg.envMeta, DIR, arg.candidate, undefined],
     ]);
@@ -244,14 +248,56 @@ describe("checkin-baseline-run — 판정→비교→로그 조립 (ADR-0056 §F
     );
     expect(JSON.stringify(arg)).toBe(snapshot);
   });
-  it("negative: compare 국면 로그 · 반환은 candidate 줄 없이 완전 불변", () => {
+  it("분기 cover: 회귀(regressed=true) 에도 throw 0 · candidate 줄이 동일하게 붙는다", () => {
     const result = runCheckinBaselineCheck(input(), okCompare(true));
     expect(result).toEqual({
       status: "compared",
       regressed: true,
-      log: `${CHECKIN_LOG_PREFIX} outcome=compared regressed=true\n본문`,
+      log: `${CHECKIN_LOG_PREFIX} outcome=compared regressed=true\n본문\n${formatCheckinCandidateLine(REPORT)}`,
     });
-    expect(result.log).not.toContain("candidate");
+  });
+  it("분기 cover: 줄 수 계약 — compared 는 3 줄(마지막이 candidate) · disabled 는 1 줄", () => {
+    const compared = runCheckinBaselineCheck(input(), okCompare()).log.split(
+      "\n",
+    );
+    expect(compared).toHaveLength(3);
+    expect(compared[compared.length - 1]).toBe(
+      formatCheckinCandidateLine(REPORT),
+    );
+    const disabled = runCheckinBaselineCheck(
+      input({ processEnv: flagEnv("0") }),
+      okCompare(),
+    ).log.split("\n");
+    expect(disabled).toHaveLength(1);
+    expect(disabled[0]).not.toContain("candidate");
+  });
+  it("error path: compared 의 불량 candidate 예외는 비교 1 회 뒤 래핑 없이 전파", () => {
+    const run = (candidate: unknown, compare: jest.Mock) => () =>
+      runCheckinBaselineCheck(
+        input({ candidate: candidate as BaselineReport }),
+        compare,
+      );
+    // env.label 빈 문자열 → 포매터의 RangeError. 비교는 이미 1 회 끝난 시점이다.
+    const blank = okCompare();
+    expect(run({ ...REPORT, env: meta("") }, blank)).toThrow(RangeError);
+    expect(blank).toHaveBeenCalledTimes(1);
+    const nonNumber = okCompare();
+    expect(run({ ...REPORT, p99: "x" }, nonNumber)).toThrow(TypeError);
+    expect(nonNumber).toHaveBeenCalledTimes(1);
+    const nullish = okCompare();
+    expect(run(null, nullish)).toThrow(TypeError);
+    expect(nullish).toHaveBeenCalledTimes(1);
+  });
+  it("negative: compared 의 candidate 줄도 표본 0 국면의 NaN 을 거르지 않고 전사", () => {
+    const zero = { ...REPORT, p50: NaN, p95: NaN, p99: NaN, count: 0 };
+    const log = runCheckinBaselineCheck(
+      input({ candidate: zero as unknown as BaselineReport }),
+      okCompare(),
+    ).log;
+    const last = log.split("\n")[2];
+    expect(last).toContain("p50=NaN");
+    expect(last).toContain("p95=NaN");
+    expect(last).toContain("count=0");
   });
   it("negative: 서로 다른 envMeta.label 은 absent 로그 경로를 다르게 만든다", () => {
     const logOf = (label: string) =>
