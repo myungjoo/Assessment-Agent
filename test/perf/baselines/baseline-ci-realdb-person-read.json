@@ -1,0 +1,1 @@
+{"env":{"label":"ci-realdb-person-read","concurrency":1,"dataScale":"20 persons"},"p50":2.955065000000104,"p95":3.2266453999991427,"p99":3.250785879999057,"throughput":333.33333333333337,"errorRate":0,"count":3,"pass":true}
