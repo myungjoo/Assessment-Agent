@@ -1,0 +1,1 @@
+{"env":{"label":"ci-realdb-contribution-read","concurrency":1,"dataScale":"1 person / 8 contributions"},"p50":3,"p95":3.6,"p99":3.7,"throughput":322.58,"errorRate":0,"count":20,"pass":true}

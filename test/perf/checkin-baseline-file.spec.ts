@@ -10,8 +10,9 @@
  * 1 건뿐이라 본 spec 은 그 label 하나를 하드코딩했지만, T-1601 이 두 번째 route
  * (`ci-realdb-assessment-read`, T-1600 실측 20 표본 전사)를 체크인하면서 **"체크인 파일은 정확히
  * 1 개" 전제를 해체** 했다. 이제 label · 표본 수 · `dataScale` 정규식을 담은 표
- * (`CHECKIN_BASELINES`) 1 개가 유일한 갱신 지점이고, 국면은 전부 그 표를 순회한다 — 세 번째
- * route 가 체크인되면 표에 행 1 개를 더하는 것으로 끝난다.
+ * (`CHECKIN_BASELINES`) 1 개가 유일한 갱신 지점이고, 국면은 전부 그 표를 순회한다 — 실제로
+ * T-1603 이 세 번째 route(`ci-realdb-contribution-read`, T-1602 실측 20 표본 전사)를 체크인할 때
+ * **표에 행 1 개 추가 + 표 크기 하한 2 → 3** 만으로 끝났다(국면 삭제 0).
  *
  * **가드 대상은 20 표본 실측값으로 전사된 baseline** 이다(T-1594 이전 person 레코드는 `count=3`).
  * 3 표본에서는 p95 · p99 가 사실상 최댓값 1 개와 같아 baseline 쪽 분포가 degenerate 해진다 — 그래서
@@ -82,6 +83,16 @@ const CHECKIN_BASELINES: readonly CheckinBaselineCase[] = [
     dataScaleOrigin:
       "assessment-measure-confirm-realdb.perf-spec.ts 의 TOTAL_ROWS 유도 표기",
   },
+  {
+    // T-1603 체크인 — T-1602 가 연 실측 clock 관찰 국면의 20 표본 줄 전사.
+    // `Person → Assessment → Contribution` 3-level FK chain route 라 `dataScale` 표기가
+    // 부모 1 명 + 자식 수 형태로, 위 두 행과 형태가 다르다(그래서 정규식이 행 단위다).
+    label: "ci-realdb-contribution-read",
+    sampleCount: 20,
+    dataScalePattern: /^1 person \/ \d+ contributions$/,
+    dataScaleOrigin:
+      "contribution-measure-confirm-realdb.perf-spec.ts 의 SEED_CONTRIBUTIONS 유도 표기",
+  },
 ];
 
 /** 표 1 행 → 조회용 env-meta. `concurrency` 는 두 실측 축 모두 1 이다. */
@@ -107,8 +118,8 @@ describe("체크인 baseline 파일 가드(다중 label 표 기반)", () => {
   };
 
   // 표는 비어 있으면 아래 순회 국면이 통째로 증발한다 — 그 조용한 무력화부터 막는다.
-  it("표(CHECKIN_BASELINES)가 체크인 label 2 개 이상을 담고 label 중복이 0", () => {
-    expect(CHECKIN_BASELINES.length).toBeGreaterThanOrEqual(2);
+  it("표(CHECKIN_BASELINES)가 체크인 label 3 개 이상을 담고 label 중복이 0", () => {
+    expect(CHECKIN_BASELINES.length).toBeGreaterThanOrEqual(3);
     const labels = CHECKIN_BASELINES.map((checkin) => checkin.label);
     expect(new Set(labels).size).toBe(labels.length);
   });
