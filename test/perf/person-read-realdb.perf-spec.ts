@@ -351,9 +351,19 @@ describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/persons, R
   // 배선 suite 의 `error (2)` · `negative (c)` 가 같은 코드 경로로 이미 cover 하므로 여기서
   // 재작성하지 않는다(T-1575 중복 국면 삭제 선례).
   describe("체크인 baseline 실측 clock 관찰(ci-realdb-person-read)", () => {
-    // 실측 축 전용 반복수 — 표본마다 실 DB 왕복 비용이 붙으므로 작게 둔다(ITERATIONS ·
-    // WIRING_ITER 재사용 금지 — 비용 축과 의미가 다른 상수다).
-    const REAL_CLOCK_ITER = 3;
+    // 실측 축 전용 반복수 — ITERATIONS · WIRING_ITER 재사용 금지(비용 축과 의미가 다른
+    // 상수다, T-1591). T-1593 이 3 → 20 으로 상향했고 근거·한계·비용은 각각 다음과 같다:
+    //  (1) 근거 — 표본 3 개에서는 p95 · p99 가 상위 순위 표본이 없어 사실상 **최댓값 1 개와
+    //      동일**해지고, 공유 runner 의 wall-clock 비결정성(ADR-0056 §Decision 3 (b))이
+    //      그대로 지표에 실려 회귀 관찰이 잡음에 지배된다.
+    //  (2) 한계 — 20 표본에서도 p99 는 상위 1 개 표본 근방이라 **여전히 최댓값에 가깝다**.
+    //      p99 를 안정화하려면 다중 run 분포(§Decision 5)가 필요하며 본 상수 상향만으로는
+    //      p50 · p95 의 순위 기반 의미 회복까지가 한계다.
+    //  (3) 비용 — 20 회 실 DB 왕복은 경량 list read 기준 합계 수십 ms 규모라
+    //      §Decision 4 가 못 박은 "CI 비용 증가 사실상 0" 을 그대로 유지한다.
+    const REAL_CLOCK_ITER = 20;
+    // 표본 수 하한(회귀 가드 기준) — 아래 negative (a) 가 이 값 미만으로의 되돌림을 fail 시킨다.
+    const REAL_CLOCK_ITER_MIN = 20;
     // 실측 label — 위 baseline 리포트 관찰 국면과 **같은 축**이고 배선 fixture label
     // (`realdb-person-read-wiring`)과는 이미 분리돼 있어, 체크인될 baseline 파일은 실측 축에만
     // 매달린다. `dataScale` 표기도 기존 관찰 국면과 동일하게 맞춘다.
@@ -439,6 +449,13 @@ describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/persons, R
       // 관찰 목적 — 실측 수치 줄을 CI 로그에 남긴다(§Consequences (d) 승인 입력).
       // eslint-disable-next-line no-console
       console.log(logs[0]);
+      // baseline 이 체크인된 뒤(`compared`)에는 위 로그가 비교 본문만 담아 표본 수가
+      // 드러나지 않는다. 다음 baseline 갱신 task 의 승인 입력이 되도록 candidate 지표 줄
+      // (`count=` 포함)을 분기와 무관하게 한 줄 더 남긴다(T-1593).
+      const candidateLine = formatBaselineLine(candidate);
+      expect(candidateLine).toContain(`count=${REAL_CLOCK_ITER}`);
+      // eslint-disable-next-line no-console
+      console.log(candidateLine);
     });
 
     // error — 전량 reject 요청. 실 DB 를 건드리지 않으므로 seed 없이 성립한다.
@@ -453,6 +470,10 @@ describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/persons, R
       // 임계 위반이 exit code 를 바꾸지 않는다 — 판정은 pass 플래그로만 실린다.
       expect(candidate.errorRate).toBe(1);
       expect(candidate.pass).toBe(false);
+      // 전량 실패라 성공 표본은 0 이지만 **시도 표본 수는 20 으로 유지**된다
+      // (errorRate 는 성공/실패가 아니라 시도 대비 실패 비율이므로 1).
+      expect(candidate.count).toBe(0);
+      expect(candidate.errorRate * REAL_CLOCK_ITER).toBe(REAL_CLOCK_ITER);
       expect(logs).toHaveLength(1);
       expectEnabledOutcome(outcome);
       if (outcome.status === "skipped") {
@@ -462,10 +483,46 @@ describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/persons, R
       }
     });
 
+    // error(확장, T-1593) — 절반만 reject. 실패가 섞여도 **시도 표본 수 20 이 유지**되고
+    // errorRate 가 실패 비율(10/20)을 그대로 반영함을 상수 기준으로 단언한다.
+    it("error: 절반 reject 실측 candidate 도 시도 표본 20 유지 + errorRate 가 실패 비율 전사", async () => {
+      await seedPersons(SEED_ROWS);
+      let calls = 0;
+      // 홀수 번째 호출만 reject — 20 회 중 정확히 10 회 실패(비율 결정론적).
+      const halfRejecting: RequestFn = async () => {
+        const index = calls++;
+        if (index % 2 === 1) {
+          throw new Error("realdb-real-clock-checkin-half-reject");
+        }
+        return listRequest();
+      };
+
+      const candidate = await measureRealClock(halfRejecting, REAL_CLOCK_ITER);
+      const { outcome, logs } = checkWithLogs(candidate, enabledEnv());
+
+      expect(calls).toBe(REAL_CLOCK_ITER);
+      expect(candidate.count).toBe(REAL_CLOCK_ITER / 2);
+      expect(candidate.errorRate).toBe(0.5);
+      // 성공 표본 + 실패 표본 = 시도 표본 수(20). 표본 수가 실패로 줄지 않는다.
+      expect(candidate.count + candidate.errorRate * REAL_CLOCK_ITER).toBe(
+        REAL_CLOCK_ITER,
+      );
+      expect(candidate.pass).toBe(false);
+      expect(logs).toHaveLength(1);
+      expectEnabledOutcome(outcome);
+      if (outcome.status === "skipped") {
+        expect(metricsLineOf(logs[0])).toContain(
+          `count=${REAL_CLOCK_ITER / 2}`,
+        );
+      }
+    });
+
     // 분기 — 같은 실측 candidate 를 토글 on / off 로 각각 태워 두 분기를 모두 태운다.
     it("분기: 같은 실측 candidate 가 토글 on 은 다중 줄, off 는 수치 0 개의 한 줄", async () => {
       await seedPersons(SEED_ROWS);
       const candidate = await measureRealClock(listRequest, REAL_CLOCK_ITER);
+      // 두 분기 모두 20 표본 candidate 위에서 판정된다(표본 수는 분기와 무관한 축).
+      expect(candidate.count).toBe(REAL_CLOCK_ITER);
 
       const on = checkWithLogs(candidate, enabledEnv());
       expectEnabledOutcome(on.outcome);
@@ -486,8 +543,36 @@ describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/persons, R
     });
 
     describe("negative cases 충분 cover", () => {
-      // (a) 표본 0 — 포매터의 NaN 무가공 전사 계약이 실경로 바인딩 축에서도 성립한다.
-      it("(a) iterations: 0 실측 candidate 도 throw 0 + count=0 · NaN 무가공 전사", async () => {
+      // (a) 표본 수 하한 회귀 가드(T-1593) — REAL_CLOCK_ITER 가 20 미만으로 되돌아가면
+      // 여기서 fail 한다. 3 표본 시절의 degenerate p95/p99(= 최댓값 1 개)로 회귀하는
+      // 것을 코드 리뷰가 아니라 test 가 막는다(ADR-0056 §Follow-ups (c) 선행 조건 보전).
+      it("(a) 표본 수 하한 회귀 가드 — REAL_CLOCK_ITER 가 20 미만으로 되돌아가면 fail", () => {
+        expect(REAL_CLOCK_ITER).toBeGreaterThanOrEqual(REAL_CLOCK_ITER_MIN);
+        expect(REAL_CLOCK_ITER_MIN).toBe(20);
+        // 반복수는 정수여야 collectLatencySamples 가 RangeError 없이 소비한다.
+        expect(Number.isInteger(REAL_CLOCK_ITER)).toBe(true);
+      });
+
+      // (b-1) 반복수 음수 — 측정 helper 는 candidate 를 만들지 않고 RangeError 를 그대로
+      // 전파한다(재래핑 0). 상향된 상수와 무관하게 기존 계약이 유지됨을 못 박는다.
+      it("(b-1) iterations: 음수 실측 요청은 RangeError 전파 + 확인 경로 미도달", async () => {
+        const sink: string[] = [];
+        let candidate: BaselineReport | undefined;
+
+        await expect(
+          (async () => {
+            candidate = await measureRealClock(listRequest, -1);
+            checkWithLogs(candidate, enabledEnv(), sink);
+          })(),
+        ).rejects.toBeInstanceOf(RangeError);
+
+        // 측정 단계에서 throw 했으므로 candidate 도, 확인 경로 로그도 생기지 않는다.
+        expect(candidate).toBeUndefined();
+        expect(sink).toHaveLength(0);
+      });
+
+      // (b-2) 표본 0 — 포매터의 NaN 무가공 전사 계약이 실경로 바인딩 축에서도 성립한다.
+      it("(b-2) iterations: 0 실측 candidate 도 throw 0 + count=0 · NaN 무가공 전사", async () => {
         const candidate = await measureRealClock(listRequest, 0);
         const { outcome, logs } = checkWithLogs(candidate, enabledEnv());
 
@@ -502,8 +587,22 @@ describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/persons, R
         }
       });
 
-      // (b) 반복 호출 부작용 0 — 같은 국면을 연속 2 회 태워도 로그가 정확히 2 회다.
-      it("(b) 실측 국면 연속 2 회 → 예외 0 + 로그 정확히 2 회 + status 동일", async () => {
+      // (c) 순서 계약 — 실측 값은 비결정적이지만 percentile 은 정렬된 표본에서 뽑히므로
+      // `p50 <= p95 <= p99` 가 20 표본에서도 깨지지 않는다(wall-clock 대소 단언 0 —
+      // 절대값이 아니라 지표 간 순서만 본다, ADR-0056 §Decision 3 (b) 준수).
+      it("(c) 실측 값이 비결정적이어도 p50 <= p95 <= p99 순서 계약이 유지된다", async () => {
+        await seedPersons(SEED_ROWS);
+
+        const candidate = await measureRealClock(listRequest, REAL_CLOCK_ITER);
+
+        expect(candidate.count).toBe(REAL_CLOCK_ITER);
+        expect(Number.isFinite(candidate.p50)).toBe(true);
+        expect(candidate.p50).toBeLessThanOrEqual(candidate.p95);
+        expect(candidate.p95).toBeLessThanOrEqual(candidate.p99);
+      });
+
+      // (d) 반복 호출 부작용 0 — 같은 국면을 연속 2 회 태워도 로그가 정확히 2 회다.
+      it("(d) 실측 국면 연속 2 회 → 예외 0 + 로그 정확히 2 회 + status 동일", async () => {
         await seedPersons(SEED_ROWS);
         const sink: string[] = [];
 
