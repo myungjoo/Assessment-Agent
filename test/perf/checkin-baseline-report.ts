@@ -14,6 +14,7 @@
  * 실패로 승격하는 판단은 본 모듈의 책임이 아니다(ADR-0056 §Decision 3 (b)).
  */
 
+import { BaselineReport } from "./latency-baseline";
 import { ConfirmOrCompareResult } from "./latency-baseline-io";
 
 /**
@@ -32,6 +33,19 @@ function requireNonBlankString(
   }
   if (value.trim() === "") {
     throw new RangeError(`${fieldLabel} 는 빈/공백-only string 일 수 없음`);
+  }
+}
+
+/**
+ * 수치 필드 공통 검증 — non-number 는 `TypeError`. **`NaN` 은 허용** 한다(성공 표본 0 이면
+ * `p50`/`p95`/`p99` 가 `NaN` 이라는 `BaselineReport` 계약 — 유한성을 요구하면 정상 국면이 깨진다).
+ */
+function requireNumberField(
+  value: unknown,
+  fieldLabel: string,
+): asserts value is number {
+  if (typeof value !== "number") {
+    throw new TypeError(`${fieldLabel} 는 number 이어야 함`);
   }
 }
 
@@ -119,4 +133,64 @@ export function formatCheckinOutcomeBlock(
   const report = (result as { report?: unknown }).report;
   requireNonBlankString(report, "formatCheckinOutcomeBlock: result.report");
   return `${line}\n${report}`;
+}
+
+/**
+ * baseline **후보(candidate) 지표** 를 개행 없는 한 줄로 싣는다(ADR-0056 §Consequences (d) ·
+ * §Follow-ups (a) 선행 — 최초 baseline 을 사람이 승인하려면 그 후보 수치가 로그에 보여야 한다).
+ * 표기는 `<prefix> candidate label=.. concurrency=.. p50=.. p95=.. p99=.. throughput=..
+ * errorRate=.. count=.. pass=..` 이고 키 이름은 영어 고정(grep 축).
+ *
+ * **전사 전용 · 순수** — 받은 값을 그대로 문자열화할 뿐 재계산 · 반올림 · 단위 변환 · 임계 판정을
+ * 하지 않고, 표본 0 국면의 `NaN` 도 거르지 않는다. 파일 시스템 · 환경변수 · 시각 · 난수 접근 0,
+ * 인자 객체 변형 0.
+ *
+ * @throws {TypeError} `candidate` · `candidate.env` 가 non-object · `null`, `env.label`
+ *   non-string, `env.concurrency` · 수치 6 종이 non-number, `pass` 가 non-boolean 일 때.
+ * @throws {RangeError} `env.label` 이 빈/공백-only string 일 때.
+ */
+export function formatCheckinCandidateLine(candidate: BaselineReport): string {
+  // 1. 컨테이너 형태부터 막는다(필드 접근 전).
+  if (typeof candidate !== "object" || candidate === null) {
+    throw new TypeError(
+      "formatCheckinCandidateLine: candidate 는 object 이어야 함(null 불가)",
+    );
+  }
+  const record = candidate as unknown as Record<string, unknown>;
+  const env = record.env;
+  if (typeof env !== "object" || env === null) {
+    throw new TypeError(
+      "formatCheckinCandidateLine: candidate.env 는 object 이어야 함(null 불가)",
+    );
+  }
+  // 2. env 축(label · concurrency) — 라벨 검증은 공용 문자열 helper 에 위임.
+  const { label, concurrency } = env as {
+    label?: unknown;
+    concurrency?: unknown;
+  };
+  requireNonBlankString(
+    label,
+    "formatCheckinCandidateLine: candidate.env.label",
+  );
+  requireNumberField(
+    concurrency,
+    "formatCheckinCandidateLine: candidate.env.concurrency",
+  );
+  // 3. 수치 6 종은 순서 고정 배열로 검증 · 전사(순서가 곧 로그 표기 순서 — grep 축, NaN 통과).
+  const metrics = (
+    ["p50", "p95", "p99", "throughput", "errorRate", "count"] as const
+  )
+    .map((key) => {
+      const value = record[key];
+      requireNumberField(value, `formatCheckinCandidateLine: candidate.${key}`);
+      return `${key}=${String(value)}`;
+    })
+    .join(" ");
+  // 4. pass 는 판정 결과 전사일 뿐 — 여기서 임계를 다시 계산하지 않는다.
+  if (typeof record.pass !== "boolean") {
+    throw new TypeError(
+      "formatCheckinCandidateLine: candidate.pass 는 boolean 이어야 함",
+    );
+  }
+  return `${CHECKIN_LOG_PREFIX} candidate label=${label} concurrency=${concurrency} ${metrics} pass=${record.pass}`;
 }
