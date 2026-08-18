@@ -2,13 +2,16 @@
 id: T-1602
 title: contribution 실 DB perf-spec 에 실측 clock candidate 관찰 국면 추가 (세 번째 route)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048, REQ-047]
 estimatedDiff: 270
 estimatedFiles: 1
 created: 2026-08-18
 createdAt: 2026-08-18T13:45:00Z
+completedAt: 2026-08-18T14:02:44Z
+prNumber: 1282
+mergeCommit: 8510e8cc
 independentStream: perf-checkin-baseline
 dependsOn: [T-1600, T-1601]
 touchesFiles: [test/perf/contribution-measure-confirm-realdb.perf-spec.ts]
@@ -146,3 +149,13 @@ T-1601 선례와 동형).
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+---
+
+## 결과 (2026-08-18T14:02:44Z DONE)
+
+`pr` mode — PR [#1282](https://github.com/myungjoo/Assessment-Agent/pull/1282) 스쿼시 머지 `8510e8cc`, branch 삭제 완료. `test/perf/contribution-measure-confirm-realdb.perf-spec.ts` 1 파일 `+292/-0` (순수 insertion — 기존 상수 · 국면 · 배선 인자 · hook 및 `src/` 0 LOC). 실측 전용 nested describe 1 개에 전용 label `ci-realdb-contribution-read` · `repoRoot` 생략 · `processEnv` 주입 토글로 국면 9 개 (happy 1 · error 2 · 분기 2 · 표본 하한 가드 1 · negative 3) 를 배선했다.
+
+- **4-게이트** — reviewer VERDICT=APPROVE(round 1, BLOCKER · MAJOR 0) + PR comment 외화 + integrator 자체 점검 + PR CI green(run `32144578369`, "기본 검사" · "배포 산출물 검증" 2 job pass) 으로 4/4. round 2 commit `5189b42` 는 CLAUDE.md `§3` **Nit-in-PR closure**.
+- **R-112** — 로컬 `lint` · `build` · `test:cov`(438 suite / 12558 test, line 99.95% · function 100%) 통과. perf · smoke 는 로컬 `DATABASE_URL` 부재로 CI(`services.postgres`)에서 green.
+- **다음 slice 승인 입력** (CI 로그 실측 줄) — `[ci-realdb-contribution-read] p50=3.0ms p95=3.6ms p99=3.7ms tput=322.58req/s err=0.00% count=20 pass=true concurrency=1 dataScale=1 person / 8 contributions`. 이 줄이 [ADR-0056](../decisions/ADR-0056-perf-baseline-checkin-ci.md) `§Consequences (d)` 의 "사람이 값 타당성 확인 후 commit" 입력이 되어, 다음 slice 가 `baseline-ci-realdb-contribution-read.json` 체크인 + `CHECKIN_BASELINES` 3 행째 추가를 수행할 수 있다.
