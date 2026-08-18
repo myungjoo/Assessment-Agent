@@ -2,12 +2,14 @@
 id: T-1603
 title: contribution 실 DB 체크인 baseline JSON 전사 + 가드 표 3 행째 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047, REQ-048]
 estimatedDiff: 120
 estimatedFiles: 3
 created: 2026-08-18
+completedAt: 2026-08-18T14:55:45Z
+prNumber: 1283
 independentStream: perf-checkin-baseline
 dependsOn: [T-1601, T-1602]
 touchesFiles:
@@ -67,3 +69,7 @@ plannerNote: P5 perf — ADR-0056 §Follow-ups (a) 세 번째 route 체크인, T
 ## Follow-ups
 
 (작성 시점 비어 있음)
+
+## 결과 (2026-08-18)
+
+`pr` mode, PR [#1283](https://github.com/myungjoo/Assessment-Agent/pull/1283) squash merge `8995d3c9` (3 파일 `+23/-8`, `src/` 0 LOC). T-1602 가 CI 로그에 남긴 20 표본 실측 줄을 **재계산 · 재반올림 0 · 전사만** 으로 `baseline-ci-realdb-contribution-read.json` 에 체크인하고, `CHECKIN_BASELINES` 표에 3 행째를 더해 표 크기 하한을 `>= 2` → `>= 3` 으로 올렸다. `README.md` 는 체크인 건수 서술 2 건 → 3 건만 정정. 가드 spec 국면 15 → 21 (표 순회가 세 번째 label 을 자동 흡수 — 신규 test 파일 0). 로컬 `lint` · `build` · `test`(438 suite / 12564 test) green, PR CI(run `32150545817`) 에서 신규 label 이 `compared` 로 진입해 `regressed=false` 확인. reviewer APPROVE round 1 → round 2 는 `envOf` 주석 Nit-in-PR closure, 4-게이트 PASS.
