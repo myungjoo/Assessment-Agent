@@ -2,7 +2,7 @@
 id: T-1607
 title: app-root 실 DB 체크인 baseline JSON 전사 + 가드 표 5 행째 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047, REQ-048]
 estimatedDiff: 120
@@ -131,3 +131,12 @@ raw float 이다. 기존 네 baseline 파일이 시각적으로 소수 1~3 자�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-18T23:49:11Z, DONE)
+
+- `pr` mode — PR [#1287](https://github.com/myungjoo/Assessment-Agent/pull/1287) squash 머지 `9b22909f` + branch 삭제 확인. 3 파일 `+21/-6`, `src/` 0 LOC.
+- T-1606 이 CI run `32189302680` 에 남긴 실측 줄을 **재계산 · 재반올림 0 · 전사만** 으로 `test/perf/baselines/baseline-ci-realdb-app-root-read.json` 에 체크인(`p50=0.8067320000000109` · `p95=0.8638406000001851` · `p99=0.8795209199999954` · `throughput=1250` · `count=20`, `dataScale=0 rows` — DB 미접촉 route). 정본 직렬화 형태(키 순서 · 단일 행 · 후행 개행 1 개) 동일.
+- `CHECKIN_BASELINES` 표에 5 행째 추가 + 표 크기 하한 `4 → 5` 상향(국면 제목 문구 동반 정정), 기존 4 행 · 상수 · 국면 삭제 0. `test/perf/README.md` 는 체크인 건수 서술 3 곳만 5 건으로 정정.
+- **R-112** — 가드 spec 의 표 순회가 다섯 번째 label 을 자동 흡수해 국면 27 → 33(happy 복원 · error ENOENT 전파 · 무회귀/회귀 2 분기 · negative (a)~(f) 파일명 집합 일치 포함). 로컬 438 suite · 12576 test pass, `lint` · `build` green, coverage line 99.95% / function 100% 변동 0.
+- **4-게이트** — reviewer VERDICT=APPROVE(round 1, comment `IC_kwDOSlgQVc8AAAABPgeOsw`) + PR comment 외화 + integrator 자체 점검 + PR CI green(run `32198369163`, perf 포함) 으로 4/4.
+- **관찰** — 이로써 ADR-0056 `§Follow-ups (a)` 의 체크인 baseline JSON 축이 **5 개 route 전부** 로 완결됐다. 남은 축은 `§Follow-ups (b)`(본체 ci.yml perf step 편입 — drift-guard smoke 3 종 동반으로 5 파일 cap 별도 축) 와 `§Follow-ups (c)`(축적 run 20 미만이라 tolerance 재산정 미충족).
