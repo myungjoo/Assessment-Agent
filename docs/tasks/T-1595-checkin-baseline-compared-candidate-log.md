@@ -2,8 +2,11 @@
 id: T-1595
 title: 체크인 baseline compared 국면에도 candidate 지표 줄 박제 (20 run 표본 축적 입력 확보)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+completedAt: 2026-08-18T06:52:13Z
+prNumber: 1275
+mergeCommit: 60940288
 coversReq: [REQ-048]
 estimatedDiff: 140
 estimatedFiles: 2
@@ -61,3 +64,10 @@ plannerNote: P5 perf — ADR-0056 §Decision 5 표본 축적의 입력이 compar
 
 - `test/perf/README.md` 의 체크인 baseline 절에 `compared` 국면 로그가 3 줄(요약 · 비교 본문 · candidate)임을 doc-sync (`pr`, 1 파일).
 - 20 run 축적 후 ADR-0056 `§Follow-ups (c)` — 부하계획 `§ 3` "baseline 후 fix" 행을 확정 임계로 승격(근거 run 수 · `env.label` 각주 동반, doc-sync).
+
+## 결과 요약 (2026-08-18)
+
+PR [#1275](https://github.com/myungjoo/Assessment-Agent/pull/1275) squash merge `60940288` (2 파일 `+65/-13`, `src/` 0 LOC). `compared` 국면 6 단계 로그를 `블록 + "
+" + formatCheckinCandidateLine(candidate)` 로 확장했고 `checkin-baseline-report.ts` 포매터는 수정 0. 반환 union · `skip` 2 국면 로그 줄 수 · `compare` 1 회 호출 · 결정성 · exit code(회귀에도 throw 0) 전부 불변. 438 suite / 12551 test pass, `test:cov` line/function 임계 통과.
+
+CI `perf test` step 실측 확인 — `[perf][checkin-baseline] candidate label=ci-realdb-person-read concurrency=1 p50=2.083 p95=2.579 p99=2.679 throughput=465.12 errorRate=0 count=20 pass=true`. ADR-0056 `§Decision 5` 1 항의 20 run 표본 축적 입력이 `compared` 진입 이후 처음으로 재개됐다.
