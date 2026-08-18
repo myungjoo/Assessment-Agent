@@ -61,9 +61,10 @@ export type CheckinBaselineRunOutcome =
  * `skip` 두 국면에서는 `compare` 가 무효여도 예외가 없다(판정 단락 우선). **결정성 · 입력 불변 ·
  * exit code 불변** — 같은 입력은 늘 같은 결과, 인자 변형 0, 회귀에 throw 0.
  *
- * **`absent` 로그는 2 줄** — 기존 한 줄 뒤에 `formatCheckinCandidateLine` 결과를 개행 1 개로
- * 잇는다. 그래서 그 국면에서는 candidate 형태 불량이 포매터 예외로 **전파** 된다(`disabled` 는
- * 무관 — 판정 단락이 우선이라 candidate 를 아예 보지 않는다).
+ * **`absent` 로그는 2 줄 · `compared` 로그는 3 줄** — 각각 기존 로그 뒤에
+ * `formatCheckinCandidateLine` 결과를 개행 1 개로 잇는다(마지막 줄이 늘 candidate 줄). 그래서 두
+ * 국면에서는 candidate 형태 불량이 포매터 예외로 **전파** 된다(`compared` 는 비교를 1 회 마친
+ * 뒤 시점). `disabled` 는 무관 — 판정 단락이 우선이라 candidate 를 아예 보지 않는다(1 줄 불변).
  *
  * @param input 판정 재료 + 비교 재료.
  * @param compare 주입 비교 함수(`readCompareBaselineFile` 호환).
@@ -117,7 +118,12 @@ export function runCheckinBaselineCheck(
     input.candidate,
     input.options,
   );
-  // 6. 로그는 포매터 위임(재조립 · 형태 재검증 금지). 회귀여도 throw 하지 않는다.
-  const log = formatCheckinOutcomeBlock({ outcome: "compared", ...result });
+  // 6. 로그는 포매터 위임(재조립 · 형태 재검증 금지). 회귀여도 throw 하지 않는다. 그 블록 **뒤에**
+  //    candidate 지표 줄을 개행 1 개로 이어 `absent` 국면과 대칭을 만든다 — baseline 을 체크인한
+  //    뒤에는 CI 가 항상 이 분기로 떨어지므로, 여기에 축이 없으면 ADR-0056 §Decision 5 1 항의
+  //    `label` 별 20 run 표본 축적 입력이 닫힌다. 블록 문자열 자체는 재조립 · 재포맷하지 않는다.
+  const log =
+    `${formatCheckinOutcomeBlock({ outcome: "compared", ...result })}\n` +
+    formatCheckinCandidateLine(input.candidate);
   return { status: "compared", regressed: result.comparison.regressed, log };
 }
