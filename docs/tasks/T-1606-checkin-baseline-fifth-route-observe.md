@@ -2,7 +2,7 @@
 id: T-1606
 title: app-root 실 DB perf-spec 에 실측 clock candidate 관찰 국면 추가 (다섯 번째 route)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048, REQ-047]
 estimatedDiff: 260
@@ -163,3 +163,11 @@ p95 에서 인프라 하한을 **빼서 읽을 수 있는 유일한 기준선**�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-18T21:56:54Z, DONE)
+
+- `pr` mode — PR [#1286](https://github.com/myungjoo/Assessment-Agent/pull/1286) squash 머지 `323957a4` + branch 삭제 확인. 1 파일 `+277/-0`(`test/perf/app-root-measure-confirm-realdb.perf-spec.ts` 순수 추가), `src/` 0 LOC · 기존 국면 · 상수(`ITER` · `WIRING_ITER`) · 배선 suite 인자 불변.
+- 실측 축 전용 nested describe + 분리 label `ci-realdb-app-root-read` envMeta(`repoRoot` 생략 · `processEnv` 주입 전용, `dataScale` 은 `DB_ROWS_TOUCHED=0` 유도) + `REAL_CLOCK_ITER=20` + 하한 가드 `it` + 근거 · 한계 · 비용 3 줄 주석.
+- **R-112** — 같은 spec 안에 `it` 9 개(happy 1 · error 2 · 분기 2 · 가드 1 · negative 3: `iterations` 0/NaN · 음수 `RangeError` 로거 0 회 · 변조 쿠키 200). 로컬 `lint` · `build` · `tsc` · `test:cov`(438 suite / 12570 test) 전량 pass, `src/` 0 LOC 라 coverage 임계 변동 0.
+- **4-게이트** — reviewer VERDICT=APPROVE(round 1, comment `5334497920`) + PR comment 외화 + integrator 자체 점검 + PR CI green(run `32189302680`, perf test 포함)으로 4/4. approval 게이트는 reviewer comment post 후 `--failed` 재실행으로 green(선례 동형).
+- **관찰** — CI perf 로그에 다섯 번째이자 마지막 `measure→confirm` route 의 실측 줄이 처음 노출: `[ci-realdb-app-root-read] p50=0.9ms p95=1.3ms p99=1.6ms count=20 pass=true`. DB 를 타지 않는 route 라 이 값이 **framework + HTTP 왕복만의 floor** — 앞선 네 route 의 실측 p95 에서 인프라 하한을 빼서 읽는 기준선이 된다. baseline JSON 체크인 + `CHECKIN_BASELINES` 5 행째는 예정대로 다음 slice.
