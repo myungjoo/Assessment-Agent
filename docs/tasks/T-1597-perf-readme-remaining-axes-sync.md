@@ -2,13 +2,15 @@
 id: T-1597
 title: 실 DB baseline slice 목록의 잔여 4 축 서술을 체크인 baseline·CI 편입 이후 현행으로 doc-sync
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 90
 estimatedFiles: 1
 created: 2026-08-18
 createdAt: 2026-08-18T08:20:00Z
+completedAt: 2026-08-18T08:53:48Z
+prNumber: 1277
 independentStream: perf-checkin-baseline
 dependsOn: [T-1584, T-1592, T-1596]
 touchesFiles:
@@ -106,3 +108,19 @@ item 5 의 임계 fix 도 축적 2 run 이라 `§Decision 5` 4 항(단일·소�
 `implementer → tester`
 
 ## Follow-ups
+
+- `test/perf/README.md` 의 **임계값 3000ms 는 불변** bullet 열거가 `slice 25·26·27·28` 만 적어
+  `slice 29` 가 빠져 있다 (본 task AC 범위 밖이라 미수정 — 다음 slice 후보).
+
+## 결과 (DONE)
+
+- **PR [#1277](https://github.com/myungjoo/Assessment-Agent/pull/1277) squash merge `4d29e574`** —
+  `test/perf/README.md` 1 파일 `+31/-19`, 코드 변경 0. slice 25 ~ 29 의 blanket 단언 5 곳을
+  시점 기록 + 잔여 bullet 참조로 전환하고, 잔여 bullet 을 **착수분**(T-1592 체크인 baseline 1 건 ·
+  T-1584 `perf test` step 편입) 과 **미착수분**(부하 harness 별도 job · 나머지 route · 임계 fix) 으로
+  갈라 적었다. 임계값 3000ms bullet 마지막 문장도 동기. 계수 · 인벤토리 · 임시 디렉토리 1 회성 서술 불변.
+- **R-110/R-112** — 코드 변경 0 · 신규 public symbol 0 이라 신규 spec 없음. `pnpm lint` · `build` ·
+  `test`(438 suite / 12551 test) green, 갱신 서술을 `checkin-baseline-run.spec.ts` 의 3 국면 ·
+  `compared` 3 줄(마지막 candidate 줄) · 예외 전파 단언과 항목별 대조해 모순 0.
+- **4-게이트** — reviewer VERDICT=APPROVE(round 1) + PR comment 외화 + integrator 자체 점검 +
+  PR CI green(run 32118243630, `reviewer agent approval 검증` 포함 전 step) 으로 4/4.
