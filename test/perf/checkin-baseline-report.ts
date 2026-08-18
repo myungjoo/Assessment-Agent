@@ -181,11 +181,9 @@ export function formatCheckinCandidateLine(candidate: BaselineReport): string {
     ["p50", "p95", "p99", "throughput", "errorRate", "count"] as const
   )
     .map((key) => {
-      requireNumberField(
-        record[key],
-        `formatCheckinCandidateLine: candidate.${key}`,
-      );
-      return `${key}=${String(record[key])}`;
+      const value = record[key];
+      requireNumberField(value, `formatCheckinCandidateLine: candidate.${key}`);
+      return `${key}=${String(value)}`;
     })
     .join(" ");
   // 4. pass 는 판정 결과 전사일 뿐 — 여기서 임계를 다시 계산하지 않는다.
