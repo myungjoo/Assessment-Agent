@@ -1285,7 +1285,8 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   호출한다 — `latency-collector.ts` `390 행`. 저장소에 baseline JSON 은 남지 않는다).
   저장소에 체크인된 기준 baseline 은 T-1592 가 넣은
   `ci-realdb-person-read` 와 T-1601 이 넣은 `ci-realdb-assessment-read` **2 건뿐** 이며
-  (그 비교는 T-1584 로 기존 `perf test` step 에서 매 run 수행된다), **나머지 route 의 체크인 baseline · 임계 fix · 나머지 cutover 는 별도 slice** 다.
+  (그 비교는 T-1584 로 기존 `perf test` step 에서 매 run 수행된다), **나머지 route 의 체크인
+  baseline · 임계 fix · 나머지 cutover 는 별도 slice** 다.
 
 ## 후속 harness (DB-backed baseline / S1·S3)
 
