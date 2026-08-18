@@ -2,13 +2,15 @@
 id: T-1605
 title: summary 실 DB 체크인 baseline JSON 전사 + 가드 표 4 행째 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047, REQ-048]
 estimatedDiff: 120
 estimatedFiles: 3
 created: 2026-08-18
 createdAt: 2026-08-18T18:40:00Z
+completedAt: 2026-08-18T19:59:59Z
+prNumber: 1285
 independentStream: perf-checkin-baseline
 dependsOn: [T-1603, T-1604]
 touchesFiles:
@@ -122,3 +124,13 @@ label=ci-realdb-summary-read concurrency=1 p50=2.332 p95=2.521 p99=2.710 through
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+---
+
+## 결과 (2026-08-18T19:59:59Z, DONE)
+
+- `pr` mode — PR [#1285](https://github.com/myungjoo/Assessment-Agent/pull/1285) squash 머지 `f6bd543a` + branch 삭제 확인(원격 404). 3 파일 `+21/-7` (`test/perf/baselines/baseline-ci-realdb-summary-read.json` 신설 · `test/perf/checkin-baseline-file.spec.ts` · `test/perf/README.md`), `src/` 0 LOC.
+- T-1604 CI run `32156964647` 실측 줄을 **재계산 · 재반올림 · 임의 보정 0 · 전사만** 으로 체크인 (`p50=2.332` · `p95=2.521` · `p99=2.710` · `throughput=425.53` · `count=20`, `dataScale` 은 `TOTAL_ROWS` 유도 `1 person / 5 summaries`). `CHECKIN_BASELINES` 4 행째 추가 + 표 크기 하한 `>= 3` → `>= 4` 상향(국면 제목 · 헤더 docblock 동반 정정), `README.md` 는 체크인 건수 서술 3 곳만 4 건으로 정정(과잉 정정 0).
+- **R-112** — 신규 spec 파일 0(표 순회가 네 번째 label 을 자동 흡수 — 국면 21 → 27, T-1603 선례 승계). 로컬 `lint` · `build` · `test:cov`(438 suite / 12570 test) 전량 pass, `src/` 0 LOC 라 coverage 임계 변동 0(line 99.95% / func 100%).
+- **4-게이트** — reviewer VERDICT=APPROVE(round 1) + PR comment 외화 + integrator 자체 점검 + PR CI green 으로 4/4. Nit-in-PR closure 잔여 0 → round 2 불요.
+- **관찰** — PR CI 로그에서 네 번째 route 가 `absent` 를 벗어나 `compared` 국면(`base=2.5ms` vs `cand=2.9ms`)으로 진입한 것을 실증. `§Decision 3 (b)` 대로 상대 회귀는 관찰 표기만이고 exit code 는 불변.
