@@ -30,6 +30,13 @@ permissions:
 # cancel-in-progress 는 pull_request event 일 때만 true — 그래서 같은 PR 의 연속 push 만 직전 run 을
 # cancel 하고, main push·issue_comment·pull_request_review 의 연속 run 은 cancel 하지 않아
 # main-push CI green 게이트(CLAUDE.md §11 / R-114)와 approval-gate rerun(§3.3 gate-2) 무결성을 보호한다.
+# 단, 위 보호는 **실행 중(in_progress)** run 에 한정된다 — cancel-in-progress 가 false 일 때 막는 것은
+# 진행 중인 run 을 중도 취소하는 동작뿐이고, 같은 그룹의 **대기(queued/pending)** run 은 GitHub 이
+# 그룹당 1 개만 유지하므로 후속 push 가 도착하면 밀려나 conclusion=cancelled 로 남는다. 관측 사례:
+# 2026-08-18 main push run 32118738010(commit 4d29e574)이 job 0 개인 대기 상태에서 후속 push
+# 13a8ef8c 에 밀려 cancelled 로 종료됐다. 이렇게 남은 main-push cancelled 는 **benign-red** 로
+# 판독한다 — ci.consecutiveFails 를 올리지 않고, 후속 run 의 tree 가 앞선 commit 을 포함하므로
+# R-114 정산은 후속 run 의 conclusion 으로 갈음한다.
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
