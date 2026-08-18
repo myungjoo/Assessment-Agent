@@ -2,7 +2,7 @@
 id: T-1592
 title: 체크인 baseline JSON 최초 생성·commit (ci-realdb-person-read) + 체크인 파일 가드 spec
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 210
@@ -14,6 +14,9 @@ dependsOn: [T-1591]
 touchesFiles:
   - test/perf/baselines/baseline-ci-realdb-person-read.json
   - test/perf/checkin-baseline-file.spec.ts
+completedAt: 2026-08-18T04:00:00Z
+prNumber: 1272
+mergeCommit: e9817f4f
 plannerNote: "P5 성능 검증 — ADR-0056 §Follow-ups (a) 본체: T-1591 이 연 실측 승인 입력으로 첫 체크인 baseline JSON 을 확정한다"
 ---
 
@@ -146,3 +149,24 @@ exit code 불변)는 그대로다. 본 task 는 **사람이 검토하는 PR diff
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 요약 (2026-08-18)
+
+`pr` mode — PR [#1272](https://github.com/myungjoo/Assessment-Agent/pull/1272) squash merge `e9817f4f`, 2 파일 `+161/-0`.
+
+- `test/perf/baselines/baseline-ci-realdb-person-read.json` — T-1591 이 PR #1271 CI 로그에 남긴 실측 줄을
+  **전사만** 해 첫 체크인 baseline 을 확정 (`resolveCheckinBaselinePath` 유도 경로 · `serializeBaselineReport`
+  단일 행 형태). helper · perf-spec · `ci.yml` 수정 0, `src/` 0 LOC.
+- `test/perf/checkin-baseline-file.spec.ts` — 정본 경로 · 직렬화 형태 · 값 범위 · stale label 누적 0 을
+  감시하는 가드 spec 6 it (happy 1 · error 1 · 분기 2 · negative 3 축).
+- **성과**: CI `perf test` step 에서 실측 축이 처음으로 `outcome=compared regressed=false` 로 떨어져
+  ADR-0056 `§Consequences` 의 "회귀 탐지 전제" 가 성립했다 (그전까지는 `skipped(absent)`).
+- 4-게이트 PASS (reviewer APPROVE round 1 + PR comment 외화 + integrator 자체 점검 + CI green).
+
+## Follow-ups (완료 시점 추가)
+
+- ADR-0056 `§Follow-ups (b)` — 본체 `ci.yml` perf step 토글 on 편입 (별도 slice; `daily-test.sh` leg 를
+  건드리면 drift-guard smoke spec 3 개 동반 수정으로 5 파일 cap 이 터지므로 scope 를 미리 계산할 것).
+- ADR-0056 `§Follow-ups (c)` — 임계(tolerance) 재산정. 현 baseline 은 `count=3` 3 표본이라 이후
+  `regressed=true` 관측이 잦을 수 있다. 20 run 절차로 표본을 늘린 뒤 재산정하며, 그 전까지는
+  `§Decision 3 (b)`(회귀 관찰만 · exit code 불변) 를 유지한다.
