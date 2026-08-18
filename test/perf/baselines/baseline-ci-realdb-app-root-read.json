@@ -1,0 +1,1 @@
+{"env":{"label":"ci-realdb-app-root-read","concurrency":1,"dataScale":"0 rows / no db access"},"p50":0.8067320000000109,"p95":0.8638406000001851,"p99":0.8795209199999954,"throughput":1250,"errorRate":0,"count":20,"pass":true}
