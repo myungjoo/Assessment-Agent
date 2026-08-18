@@ -2,13 +2,15 @@
 id: T-1589
 title: 체크인 baseline absent 국면에 candidate 지표 로그 박제 (§Follow-ups (a) 선행)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 190
 estimatedFiles: 4
 created: 2026-08-18
 createdAt: 2026-08-18T00:40:00Z
+completedAt: 2026-08-18T01:05:00Z
+prNumber: 1269
 independentStream: perf-baseline-checkin
 dependsOn: []
 touchesFiles:
@@ -117,3 +119,20 @@ plannerNote: "P5 성능 검증 — ADR-0056 §Follow-ups (a) 선행: absent 국�
 
 - (생성 시점) `test/perf/README.md` 에 `formatCheckinCandidateLine` 및 `absent` 국면 2 줄 로그
   규약을 반영하는 doc-sync 1 slice — 본 task 의 파일 cap 밖.
+
+## 결과 (2026-08-18 완료)
+
+`pr` mode, PR [#1269](https://github.com/myungjoo/Assessment-Agent/pull/1269) squash merge `2083b07b`
+(4 파일 `+283/-14`). 순수 포매터 `formatCheckinCandidateLine` 을 추가해 `absent` 국면 로그를
+정확히 2 줄로 확장했다 — 전사 전용이라 재계산 · 반올림 · 임계 판정 0 이고 표본 0 국면의 `NaN` 은
+가공 없이 그대로 노출한다. `disabled` · `compare` 분기와 반환 union 형태는 불변. 대상 spec
+48 → 82 test(+34), 전체 12540 pass, line 99.95% / function 100%. reviewer VERDICT=APPROVE(round 1)
++ PR comment 외화 + integrator 자체 점검 + PR CI 2 check pass 로 4-게이트 충족. round 1 안에서
+nit(중복 property read) 1 건을 `a8e743a6` 으로 닫아 CLAUDE.md `§3` Nit-in-PR closure 를 지켰다.
+
+## Follow-ups
+
+- `test/perf/README.md` 문서 동기 — 신규 포매터와 `absent` 2 줄 로그 규약 반영(본 task 에서 5 번째
+  파일이 되어 cap 압박이 생기므로 이월).
+- ADR-0056 `§Follow-ups (a)` 본체 — 본 task 가 내는 candidate 로그를 입력으로 baseline JSON 최초
+  생성 · 사람 눈 확인 · commit.
