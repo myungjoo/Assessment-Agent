@@ -1,5 +1,8 @@
 import { CHECKIN_BASELINE_ENV_FLAG } from "./checkin-baseline-plan";
-import { CHECKIN_LOG_PREFIX } from "./checkin-baseline-report";
+import {
+  CHECKIN_LOG_PREFIX,
+  formatCheckinCandidateLine,
+} from "./checkin-baseline-report";
 import {
   CheckinBaselineCompareFn,
   CheckinBaselineRunInput,
@@ -27,8 +30,17 @@ describe("checkin-baseline-run — 판정→비교→로그 조립 (ADR-0056 §F
   });
   const flagEnv = (value?: string): Env =>
     value === undefined ? {} : { [CHECKIN_BASELINE_ENV_FLAG]: value };
-  /** 비교 함수로 전달만 되는 candidate 스텁 — 본 모듈은 그 내용을 보지 않는다. */
-  const REPORT = { env: meta(), pass: true } as unknown as BaselineReport;
+  /** candidate 픽스처 — `absent` 국면이 이 수치를 로그 2 번째 줄로 전사한다(T-1589). */
+  const REPORT = {
+    env: meta(),
+    p50: 12,
+    p95: 34.5,
+    p99: 70,
+    throughput: 210.25,
+    errorRate: 0.02,
+    count: 500,
+    pass: true,
+  } as unknown as BaselineReport;
   /** 종합 회귀 여부만 바꿔 끼우는 비교 결과 픽스처. */
   const comparison = (regressed: boolean): BaselineComparison => ({
     p50: METRIC,
@@ -77,13 +89,64 @@ describe("checkin-baseline-run — 판정→비교→로그 조립 (ADR-0056 §F
       log: `${CHECKIN_LOG_PREFIX} outcome=skipped reason=disabled`,
     });
   });
-  it("happy-path: skipped(absent) 는 해석된 baseline 경로를 실은 로그를 낸다", () => {
+  it("happy-path: skipped(absent) 는 경로 줄 뒤에 candidate 줄을 이어 2 줄을 낸다", () => {
+    const arg = input({ exists: false });
+    const result = runCheckinBaselineCheck(arg, okCompare());
+    expect(result).toMatchObject({ status: "skipped", reason: "absent" });
+    const lines = result.log.split("\n");
+    expect(lines).toHaveLength(2);
+    // 기존 첫 줄의 prefix · 표기 · 순서 불변 — candidate 는 **뒤에** 붙는다.
+    expect(lines[0]).toBe(
+      `${CHECKIN_LOG_PREFIX} outcome=skipped reason=absent path=${DIR}/baseline-${arg.envMeta.label}.json`,
+    );
+    expect(lines[1]).toBe(formatCheckinCandidateLine(arg.candidate));
+  });
+  it("분기 cover: absent 의 candidate 줄은 표본 0 국면의 NaN 도 그대로 노출", () => {
+    const zero = { ...REPORT, p50: NaN, throughput: 0, count: 0 };
+    const log = runCheckinBaselineCheck(
+      input({ exists: false, candidate: zero as unknown as BaselineReport }),
+      okCompare(),
+    ).log;
+    const second = log.split("\n")[1];
+    expect(second).toContain("p50=NaN");
+    expect(second).toContain("throughput=0 ");
+    expect(second).toContain("count=0");
+  });
+  it("negative: disabled 는 candidate 가 깨져 있어도 예외 0 · 로그 1 줄 불변", () => {
     const result = runCheckinBaselineCheck(
-      input({ exists: false }),
+      input({
+        processEnv: flagEnv("0"),
+        candidate: { env: null } as unknown as BaselineReport,
+      }),
       okCompare(),
     );
-    expect(result).toMatchObject({ status: "skipped", reason: "absent" });
-    expect(result.log).toContain(`reason=absent path=${DIR}/`);
+    expect(result.log).toBe(
+      `${CHECKIN_LOG_PREFIX} outcome=skipped reason=disabled`,
+    );
+    expect(result.log).not.toContain("candidate");
+  });
+  it("negative: absent 는 compare 0 회 호출 · 반환 union 필드 구성이 불변", () => {
+    const compare = okCompare();
+    const arg = input({ exists: false });
+    const snapshot = JSON.stringify(arg.candidate);
+    const result = runCheckinBaselineCheck(arg, compare);
+    expect(compare).toHaveBeenCalledTimes(0);
+    expect(Object.keys(result).sort()).toEqual(["log", "reason", "status"]);
+    expect(result).not.toHaveProperty("regressed");
+    // 포매터가 candidate 객체를 변형하지 않는다.
+    expect(JSON.stringify(arg.candidate)).toBe(snapshot);
+  });
+  it("error path: absent 국면의 형태 불량 candidate 는 포매터 예외로 전파된다", () => {
+    const run = (candidate: unknown) => () =>
+      runCheckinBaselineCheck(
+        input({ exists: false, candidate: candidate as BaselineReport }),
+        okCompare(),
+      );
+    expect(run(null)).toThrow(TypeError);
+    expect(run({ ...REPORT, p95: "x" })).toThrow(TypeError);
+    expect(run({ ...REPORT, env: { label: " ", concurrency: 1 } })).toThrow(
+      RangeError,
+    );
   });
   it.each([
     ["1", true, "compared"],
@@ -180,6 +243,15 @@ describe("checkin-baseline-run — 판정→비교→로그 조립 (ADR-0056 §F
       runCheckinBaselineCheck(arg, okCompare()),
     );
     expect(JSON.stringify(arg)).toBe(snapshot);
+  });
+  it("negative: compare 국면 로그 · 반환은 candidate 줄 없이 완전 불변", () => {
+    const result = runCheckinBaselineCheck(input(), okCompare(true));
+    expect(result).toEqual({
+      status: "compared",
+      regressed: true,
+      log: `${CHECKIN_LOG_PREFIX} outcome=compared regressed=true\n본문`,
+    });
+    expect(result.log).not.toContain("candidate");
   });
   it("negative: 서로 다른 envMeta.label 은 absent 로그 경로를 다르게 만든다", () => {
     const logOf = (label: string) =>

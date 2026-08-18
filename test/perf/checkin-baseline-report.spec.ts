@@ -1,8 +1,10 @@
 import {
   CHECKIN_LOG_PREFIX,
+  formatCheckinCandidateLine,
   formatCheckinOutcomeBlock,
   formatCheckinOutcomeLine,
 } from "./checkin-baseline-report";
+import { BaselineReport } from "./latency-baseline";
 import { ConfirmOrCompareResult } from "./latency-baseline-io";
 
 /**
@@ -161,6 +163,112 @@ describe("checkin-baseline-report — outcome 로그 포매터 (ADR-0056 §Decis
       expect(() => block(bad(null))).toThrow(TypeError);
       expect(() => block(bad({ outcome: "unknown", report: "본문" }))).toThrow(
         RangeError,
+      );
+    });
+  });
+
+  describe("formatCheckinCandidateLine — candidate 지표 한 줄 (T-1589)", () => {
+    const cand = formatCheckinCandidateLine;
+    /** 정상 candidate 팩토리 — 필드만 갈아끼워 국면을 만든다. */
+    const rep = (over: Record<string, unknown> = {}): BaselineReport =>
+      ({
+        env: { label: "ci-linux-x64", concurrency: 4 },
+        p50: 12,
+        p95: 34.5,
+        p99: 70,
+        throughput: 210.25,
+        errorRate: 0.02,
+        count: 500,
+        pass: true,
+        ...over,
+      }) as unknown as BaselineReport;
+    /** 형태 불량 입력 축약 캐스팅(예외 계약 검증 전용). */
+    const badRep = (value: unknown): BaselineReport => value as BaselineReport;
+    const HEAD = `${CHECKIN_LOG_PREFIX} candidate label=ci-linux-x64 concurrency=4`;
+
+    it("happy-path: 지표 9 개를 고정 순서 key=value 한 줄로 정확히 싣는다", () => {
+      const out = cand(rep());
+      expect(out).toBe(
+        `${HEAD} p50=12 p95=34.5 p99=70 throughput=210.25 errorRate=0.02 count=500 pass=true`,
+      );
+      expect(out).not.toContain("\n");
+    });
+
+    it("분기 cover: 표본 0(p50·p95·p99 NaN, throughput 0)도 예외 없이 NaN 노출", () => {
+      const zero = rep({
+        p50: NaN,
+        p95: NaN,
+        p99: NaN,
+        throughput: 0,
+        count: 0,
+      });
+      expect(cand(zero)).toBe(
+        `${HEAD} p50=NaN p95=NaN p99=NaN throughput=0 errorRate=0.02 count=0 pass=true`,
+      );
+    });
+
+    it.each([true, false])("분기 cover: pass=%j 를 그대로 전사한다", (pass) =>
+      expect(cand(rep({ pass }))).toContain(`pass=${pass}`),
+    );
+
+    it.each([0, 1])("negative: errorRate 경계값 %j 도 누락 없이 실린다", (v) =>
+      expect(cand(rep({ errorRate: v }))).toContain(`errorRate=${v}`),
+    );
+
+    it("negative: 수치를 재계산·반올림하지 않고 원문 그대로 전사한다", () => {
+      const out = cand(rep({ p95: 34.56789, throughput: 0.1 + 0.2 }));
+      expect(out).toContain("p95=34.56789");
+      expect(out).toContain("throughput=0.30000000000000004");
+    });
+
+    it("negative: 입력을 변형하지 않고(deep-equal) 반복 호출이 같은 문자열", () => {
+      const input = rep();
+      const snapshot = JSON.parse(JSON.stringify(input));
+      expect(cand(input)).toBe(cand(input));
+      expect(JSON.parse(JSON.stringify(input))).toEqual(snapshot);
+    });
+
+    it.each([null, undefined, "candidate", 7])(
+      "error path: candidate 가 %j 면 TypeError",
+      (v) => expect(() => cand(badRep(v))).toThrow(TypeError),
+    );
+
+    it.each([null, undefined, "env", 7])(
+      "error path: candidate.env 가 %j 면 TypeError",
+      (env) => expect(() => cand(rep({ env }))).toThrow(TypeError),
+    );
+
+    it("error path: env.label 은 non-string 이면 TypeError, 빈·공백-only 면 RangeError", () => {
+      const withLabel = (label: unknown) => () =>
+        cand(rep({ env: { label, concurrency: 4 } }));
+      expect(withLabel(7)).toThrow(TypeError);
+      expect(withLabel("")).toThrow(RangeError);
+      expect(withLabel("   ")).toThrow(RangeError);
+    });
+
+    it("error path: env.concurrency 가 non-number 면 TypeError", () =>
+      expect(() =>
+        cand(rep({ env: { label: "ci", concurrency: "4" } })),
+      ).toThrow(TypeError));
+
+    it.each(["p50", "p95", "p99", "throughput", "errorRate", "count"])(
+      "error path: 수치 필드 %s 가 non-number · 부재면 TypeError",
+      (key) => {
+        expect(() => cand(rep({ [key]: "12" }))).toThrow(TypeError);
+        expect(() => cand(rep({ [key]: undefined }))).toThrow(TypeError);
+      },
+    );
+
+    it.each(["true", 1, null, undefined])(
+      "error path: pass 가 %j 면 TypeError",
+      (pass) => expect(() => cand(rep({ pass }))).toThrow(TypeError),
+    );
+
+    it("error path: 예외 메시지에 함수명 prefix 가 있어 호출측 추적이 된다", () => {
+      expect(() => cand(badRep(null))).toThrow(/formatCheckinCandidateLine: /);
+      expect(() => cand(rep({ p95: "x" }))).toThrow(/candidate\.p95/);
+      expect(() => cand(rep({ env: { label: " ", concurrency: 1 } }))).toThrow(
+        /candidate\.env\.label/,
       );
     });
   });
