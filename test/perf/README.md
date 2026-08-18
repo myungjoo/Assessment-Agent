@@ -1255,8 +1255,10 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   임계 fix · web 렌더 측정의 **4 잔여 축이 그대로 존속** 한다 — baseline 확정 축은 slice 25 의 **첫
   진입** · slice 26 · 27 · 28 · 29 의 **두·세·네·다섯 번째 route** 를 태웠을 뿐이고, 다섯 baseline 모두 **임시
   디렉토리 1 회성** 이라 축은 **소진되지 않았다**. 그 뒤 **체크인 기준 baseline(`§ 5` #5) 축은
-  1 건 한정으로 착수** 됐다 — T-1592 가 `test/perf/baselines/baseline-ci-realdb-person-read.json`
-  (`env.label = ci-realdb-person-read` — slice 1 `GET /api/persons` 표본) **한 건만** 저장소에
+  2 건 한정으로 착수** 됐다 — T-1592 가 `test/perf/baselines/baseline-ci-realdb-person-read.json`
+  (`env.label = ci-realdb-person-read` — slice 1 `GET /api/persons` 표본) 을, T-1601 이
+  `baseline-ci-realdb-assessment-read.json`(`env.label = ci-realdb-assessment-read` — slice 26
+  `GET /api/assessments` 의 T-1600 실측 20 표본 전사) 을 **두 건만** 저장소에
   체크인했고, T-1584 가 **ADR-0056 체크인 게이트를 기존 `perf test` step 에 편입 완료**(`§Decision 4`
   대로 신규 job 0)해 CI 는 매 run `compared` 국면으로 진입한다. 반대로 부하계획 `§ 5` #4 가 말하는
   **부하 harness(S1/S3) 별도 job 은 여전히 미착수** 이며 — 즉 `§ 5` #4 는 통째로 완료된 것이 아니라
@@ -1282,8 +1284,8 @@ fs+HTTP 통합 perf-spec(measure→confirm-or-compare top loop 배선, 위 서�
   `measureAndConfirmBaseline` 를 태우지만 그 harness 가 내부에서 `confirmOrCompareBaseline` 를 그대로
   호출한다 — `latency-collector.ts` `390 행`. 저장소에 baseline JSON 은 남지 않는다).
   저장소에 체크인된 기준 baseline 은 T-1592 가 넣은
-  `ci-realdb-person-read` **1 건뿐** 이며(그 비교는 T-1584 로 기존 `perf test` step 에서 매 run
-  수행된다), **나머지 route 의 체크인 baseline · 임계 fix · 나머지 cutover 는 별도 slice** 다.
+  `ci-realdb-person-read` 와 T-1601 이 넣은 `ci-realdb-assessment-read` **2 건뿐** 이며
+  (그 비교는 T-1584 로 기존 `perf test` step 에서 매 run 수행된다), **나머지 route 의 체크인 baseline · 임계 fix · 나머지 cutover 는 별도 slice** 다.
 
 ## 후속 harness (DB-backed baseline / S1·S3)
 
