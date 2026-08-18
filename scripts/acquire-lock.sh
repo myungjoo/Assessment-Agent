@@ -55,6 +55,19 @@ else
     echo "acquire-lock: holder(인자 1) 필요 — loop|cron|human 또는 release" >&2
     exit 2
   fi
+  # holder allowlist 검증(29~35 행 계약의 집행). 원격 접촉(fetch/ls-remote) **이전**에
+  # 끝내야 무효 holder 가 lock ref 에 단 한 번도 박히지 않는다. 실사고 재현:
+  # `acquire-lock.sh --release cron <session>` 이 `release` 와 문자열이 달라 acquire
+  # 경로를 타 holder="--release" 인 무효 lock 이 약 6 분간 박혔다(2026-08-17 22:41 fire).
+  # case 는 정확 매칭이라 `Cron` 같은 대소문자 변형도 거부한다(관대 매칭 금지).
+  case "$HOLDER" in
+    loop|cron|human) ;;
+    *)
+      echo "acquire-lock: holder(인자 1) 값 '${HOLDER}' 이 허용값이 아님 — 허용값: loop|cron|human" >&2
+      echo "acquire-lock: 해제는 '--release' 가 아니라 bare 'release' — 예: acquire-lock.sh release" >&2
+      exit 2
+      ;;
+  esac
   SESSION="${2:-}"
   if [ -z "$SESSION" ]; then
     echo "acquire-lock: session(인자 2) 필요 — <holder>@<host>-<rand>" >&2

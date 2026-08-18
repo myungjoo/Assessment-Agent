@@ -18,6 +18,8 @@
 #   B6 release(tombstone) 경로 → claims.json 보존                : [T7] negative/branch
 #   B7 CAS race lose → old-sha 재독 후 재시도                     : [T5] 패자 직접 push 거부 +
 #      [T8] server-hook 구동 실 재시도 성공(`20)` 분기) + [T9] 재시도소진(`exit 1` 분기)
+#   B8 holder allowlist(loop|cron|human) 통과 ↔ 거부              : [T1][T2][T10] 통과측 +
+#      [T11] 거부측 negative(--release 실사고 회귀 / croon / Cron / 빈 인자 / session 누락)
 
 set -uo pipefail
 
@@ -262,9 +264,82 @@ else
 fi
 
 # ──────────────────────────────────────────────────────────────────────────
+echo "[T10] happy-path — allowlist 3 값 중 human 획득 + bare release 무회귀 (B8 통과측)"
+# [T1] cron / [T2] loop 는 이미 통과측을 덮는다. 남은 허용값 human 을 여기서 덮어
+# allowlist 가 유효 holder 를 가로막지 않음을 3 값 전부에 대해 단언한다.
+OUT10="$(run_acquire A human human@h-10)"; RC10=$?
+if [ $RC10 -eq 0 ] && [ "$(tip_holder)" = "human" ] && [ "$(tip_claims_raw)" = "$CLAIMS_BODY" ]; then
+  pass "holder=human 획득 exit 0 + claims.json 보존 (tip=$OUT10)"
+else
+  fail "human 획득 실패 (rc=$RC10 holder=$(tip_holder) claims=$(tip_claims_raw))"
+fi
+run_acquire A release >/dev/null; RC10R=$?
+if [ $RC10R -eq 0 ] && [ -z "$(tip_holder)" ] && [ "$(tip_claims_raw)" = "$CLAIMS_BODY" ]; then
+  pass "bare release 해제 경로 무회귀 — allowlist 검증이 release 분기를 가로막지 않음"
+else
+  fail "bare release 회귀 (rc=$RC10R holder=$(tip_holder) claims=$(tip_claims_raw))"
+fi
+
+# ──────────────────────────────────────────────────────────────────────────
+echo "[T11] negative — 잘못된 holder 는 원격 접촉 전 exit 2 + ref tip byte 불변 (B8 거부측)"
+echo "     (pre-fix 에서 FAIL: allowlist 미검증이라 --release 가 acquire 경로를 타"
+echo "      holder=\"--release\" 무효 lock 이 실제로 박혔다 — 2026-08-17 22:41 fire)"
+TIP_B11="$(cur_tip)"
+CLAIMS_B11="$(tip_claims_raw)"
+
+# 잘못된 인자 1 회 실행 → exit 2 + stderr 에 허용값 열거. [T9] 의 stderr 캡처 관용구 재사용.
+check_reject() { # <label> <args...>
+  local label="$1"; shift
+  local err rc
+  err="$( ( cd "$WORK/A" && ACQUIRE_REMOTE="$WORK/origin.git" ACQUIRE_REF="$REF" \
+      ACQUIRE_NOW="2026-06-26T00:00:00Z" bash "$SCRIPT" "$@" ) 2>&1 >/dev/null )"; rc=$?
+  if [ "$rc" -eq 2 ] && printf '%s' "$err" | grep -qF "loop|cron|human"; then
+    pass "$label — exit 2 + 허용값 열거"
+  else
+    fail "$label — exit 2/허용값 열거 아님 (rc=$rc err=$err)"
+  fi
+}
+
+# (1) 회귀 가드 — 실사고 호출 형태. session 인자를 함께 줘도 acquire 가 성립하면 안 된다.
+ERR11R="$( ( cd "$WORK/A" && ACQUIRE_REMOTE="$WORK/origin.git" ACQUIRE_REF="$REF" \
+    ACQUIRE_NOW="2026-06-26T00:00:00Z" bash "$SCRIPT" --release cron@h-11 ) 2>&1 >/dev/null )"; RC11R=$?
+if [ $RC11R -eq 2 ] \
+  && printf '%s' "$ERR11R" | grep -qF "값 '--release'" \
+  && printf '%s' "$ERR11R" | grep -qF "loop|cron|human" \
+  && printf '%s' "$ERR11R" | grep -qF "bare 'release'"; then
+  pass "회귀 가드 --release <session> — exit 2 + 입력값/허용값/bare release 힌트 3종 stderr"
+else
+  fail "--release 가 거부되지 않거나 사유 부족 (rc=$RC11R err=$ERR11R)"
+fi
+if [ "$(tip_holder)" != "--release" ]; then
+  pass "무효 holder(--release) 가 lock ref 에 미반영 — 실사고 재발 차단"
+else
+  fail "무효 holder(--release) 로 lock 이 박힘 — 실사고 재발"
+fi
+
+check_reject "(2) 오타 holder croon" croon cron@h-11          # 오타
+check_reject "(3) 대소문자 변형 Cron(관대 매칭 금지)" Cron cron@h-11
+check_reject "(4) holder 인자 누락(빈 인자)" ""
+
+# (5) holder 는 유효하나 session 누락 → 기존 61 행 동작 무회귀(exit 2 + session 사유).
+ERR11S="$( ( cd "$WORK/A" && ACQUIRE_REMOTE="$WORK/origin.git" ACQUIRE_REF="$REF" \
+    ACQUIRE_NOW="2026-06-26T00:00:00Z" bash "$SCRIPT" cron ) 2>&1 >/dev/null )"; RC11S=$?
+if [ $RC11S -eq 2 ] && printf '%s' "$ERR11S" | grep -qF "session"; then
+  pass "(5) 유효 holder + session 누락 — exit 2 + session 사유(기존 동작 무회귀)"
+else
+  fail "(5) session 누락 처리 회귀 (rc=$RC11S err=$ERR11S)"
+fi
+
+if [ "$(cur_tip)" = "$TIP_B11" ] && [ -n "$TIP_B11" ] && [ "$(tip_claims_raw)" = "$CLAIMS_B11" ]; then
+  pass "인자 오류 5 종 전후 lock ref tip 동일 + claims.json 불변(부분 반영 0)"
+else
+  fail "인자 오류인데 ref tip/claims 변동 ($TIP_B11→$(cur_tip))"
+fi
+
+# ──────────────────────────────────────────────────────────────────────────
 echo ""
 if [ $FAIL -eq 0 ]; then
-  echo "acquire-lock 검증 통과 (T1 first-create / T2 free / T3 claims보존회귀 / T4 held / T5 CAS거부 / T6 빈commit가드 / T7 release보존 / T8 CAS-race재시도 / T9 재시도소진)"
+  echo "acquire-lock 검증 통과 (T1 first-create / T2 free / T3 claims보존회귀 / T4 held / T5 CAS거부 / T6 빈commit가드 / T7 release보존 / T8 CAS-race재시도 / T9 재시도소진 / T10 human획득+release무회귀 / T11 holder allowlist거부)"
   exit 0
 else
   echo "acquire-lock 검증 실패"
