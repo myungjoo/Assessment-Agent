@@ -7,6 +7,12 @@
  * (`serializeBaselineReport` 출력과 문자열 동일한 단일 행 JSON) · **값 범위**(유한수 · `count`
  * 표본 수 · `dataScale` 표기) — 를 지키는지 감시한다.
  *
+ * **가드 대상은 T-1594 가 20 표본 실측값으로 전사 교체한 baseline** 이다(이전 레코드는 `count=3`).
+ * 3 표본에서는 p95 · p99 가 사실상 최댓값 1 개와 같아 baseline 쪽 분포가 degenerate 해진다 — 그래서
+ * negative (d) 가 `count >= CHECKIN_SAMPLE_MIN` 표본 수 하한을, (e) 가 `p50<=p95<=p99` 단조성과
+ * 값 범위를 단언해 그런 baseline 의 조용한 재체크인을 차단한다(ADR-0056 §Decision 3 (b) 의 "측정
+ * 반복 수를 늘리는 쪽을 먼저" · §Decision 5 의 연속 20 run 표본 축적이 갖는 신호 대 잡음비 보호).
+ *
  * **실 DB · 앱 부트스트랩 무의존**이라 `pnpm test`(unit) 스위트에서 돈다. **부작용 0** — 파일
  * write · mkdir · 전역 `process.env` 변경을 0 회 하고 read-only 조회만 한다(§Decision 2 의
  * "write 국면 부재"를 spec 쪽에서도 지킨다). **wall-clock 실측 0** — 회귀 분기 확인은 in-memory
@@ -31,6 +37,13 @@ import {
 import { baselineFileExists, readBaselineFile } from "./latency-baseline-io";
 
 describe("체크인 baseline 파일 가드(ci-realdb-person-read)", () => {
+  /**
+   * 체크인 레코드의 표본 수 — T-1593 이 실측 국면을 20 반복으로 올린 뒤 T-1594 가 그 실측 줄을
+   * 전사한 값이다. 리터럴 대신 상수로 두어 갱신 시 한 곳만 고치면 되게 한다.
+   */
+  const CHECKIN_SAMPLE_COUNT = 20;
+  /** 체크인 허용 표본 수 하한 — 이 아래는 degenerate 분포라 baseline 자격이 없다. */
+  const CHECKIN_SAMPLE_MIN = 20;
   /** 체크인 축 env-meta — 파일명 slug 은 `label` 에만 매달린다(`dataScale` 은 파일 내용 축). */
   const CHECKIN_ENV: BaselineEnvMeta = {
     label: "ci-realdb-person-read",
@@ -58,7 +71,7 @@ describe("체크인 baseline 파일 가드(ci-realdb-person-read)", () => {
 
     expect(report.env.label).toBe(CHECKIN_ENV.label);
     expect(report.env.concurrency).toBe(1);
-    expect(report.count).toBe(3);
+    expect(report.count).toBe(CHECKIN_SAMPLE_COUNT);
     expect(report.pass).toBe(true);
     expect(report.errorRate).toBe(0);
     for (const metric of [
@@ -155,6 +168,34 @@ describe("체크인 baseline 파일 가드(ci-realdb-person-read)", () => {
         .sort();
 
       expect(entries).toEqual([path.posix.basename(baselinePath)]);
+    });
+
+    // (d) 표본 수 하한 — degenerate 표본(예: 갱신 전 count=3) baseline 의 재체크인 차단.
+    it("(d) 체크인 파일의 report.count 가 표본 수 하한(CHECKIN_SAMPLE_MIN) 이상", () => {
+      /** 하한 판정 술어 — 아래 두 단언이 리터럴 비교가 아니라 같은 술어를 태우게 한다. */
+      const meetsSampleFloor = (count: number): boolean =>
+        Number.isInteger(count) && count >= CHECKIN_SAMPLE_MIN;
+      const report = readBaselineFile(CHECKIN_ENV, baselineDir);
+
+      expect(Number.isInteger(report.count)).toBe(true);
+      expect(report.count).toBeGreaterThanOrEqual(CHECKIN_SAMPLE_MIN);
+      expect(meetsSampleFloor(report.count)).toBe(true);
+      // 하한이 장식이 아님의 관찰 — 갱신 전 레코드와 같은 표본 수(3)는 같은 술어에서 떨어진다.
+      expect(meetsSampleFloor(3)).toBe(false);
+      // 소수 표본 수 같은 불량 값도 하한을 통과하지 못한다.
+      expect(meetsSampleFloor(20.5)).toBe(false);
+    });
+
+    // (e) 값 범위 · 단조성 — 전사 과정에서 자리 뒤바뀜 · 부호 오류가 섞이면 여기서 걸린다.
+    it("(e) p50 <= p95 <= p99 단조성 + throughput > 0 + 0 <= errorRate <= 1", () => {
+      const report = readBaselineFile(CHECKIN_ENV, baselineDir);
+
+      expect(report.p50).toBeLessThanOrEqual(report.p95);
+      expect(report.p95).toBeLessThanOrEqual(report.p99);
+      expect(report.p50).toBeGreaterThan(0);
+      expect(report.throughput).toBeGreaterThan(0);
+      expect(report.errorRate).toBeGreaterThanOrEqual(0);
+      expect(report.errorRate).toBeLessThanOrEqual(1);
     });
   });
 });
