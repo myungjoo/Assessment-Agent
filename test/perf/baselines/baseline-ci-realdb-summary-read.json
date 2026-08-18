@@ -1,0 +1,1 @@
+{"env":{"label":"ci-realdb-summary-read","concurrency":1,"dataScale":"1 person / 5 summaries"},"p50":2.332,"p95":2.521,"p99":2.71,"throughput":425.53,"errorRate":0,"count":20,"pass":true}

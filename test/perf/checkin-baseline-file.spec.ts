@@ -11,8 +11,9 @@
  * (`ci-realdb-assessment-read`, T-1600 실측 20 표본 전사)를 체크인하면서 **"체크인 파일은 정확히
  * 1 개" 전제를 해체** 했다. 이제 label · 표본 수 · `dataScale` 정규식을 담은 표
  * (`CHECKIN_BASELINES`) 1 개가 유일한 갱신 지점이고, 국면은 전부 그 표를 순회한다 — 실제로
- * T-1603 이 세 번째 route(`ci-realdb-contribution-read`, T-1602 실측 20 표본 전사)를 체크인할 때
- * **표에 행 1 개 추가 + 표 크기 하한 2 → 3** 만으로 끝났다(국면 삭제 0).
+ * T-1603 이 세 번째 route(`ci-realdb-contribution-read`, T-1602 실측 20 표본 전사)를,
+ * T-1605 가 네 번째 route(`ci-realdb-summary-read`, T-1604 실측 20 표본 전사)를 체크인할 때
+ * 각각 **표에 행 1 개 추가 + 표 크기 하한 1 상향** 만으로 끝났다(국면 삭제 0).
  *
  * **가드 대상은 20 표본 실측값으로 전사된 baseline** 이다(T-1594 이전 person 레코드는 `count=3`).
  * 3 표본에서는 p95 · p99 가 사실상 최댓값 1 개와 같아 baseline 쪽 분포가 degenerate 해진다 — 그래서
@@ -93,6 +94,16 @@ const CHECKIN_BASELINES: readonly CheckinBaselineCase[] = [
     dataScaleOrigin:
       "contribution-measure-confirm-realdb.perf-spec.ts 의 SEED_CONTRIBUTIONS 유도 표기",
   },
+  {
+    // T-1605 체크인 — T-1604 가 연 실측 clock 관찰 국면의 20 표본 줄 전사.
+    // `personId` + `period` 2 차 필터 축 route 라 `dataScale` 은 부모 1 명 + 기간별 row 합
+    // (`TOTAL_ROWS = WEEK_ROWS + MONTH_ROWS`) 형태다.
+    label: "ci-realdb-summary-read",
+    sampleCount: 20,
+    dataScalePattern: /^1 person \/ \d+ summaries$/,
+    dataScaleOrigin:
+      "summary-measure-confirm-realdb.perf-spec.ts 의 TOTAL_ROWS 유도 표기",
+  },
 ];
 
 /** 표 1 행 → 조회용 env-meta. `concurrency` 는 체크인된 실측 축 전부 1 이다. */
@@ -118,8 +129,8 @@ describe("체크인 baseline 파일 가드(다중 label 표 기반)", () => {
   };
 
   // 표는 비어 있으면 아래 순회 국면이 통째로 증발한다 — 그 조용한 무력화부터 막는다.
-  it("표(CHECKIN_BASELINES)가 체크인 label 3 개 이상을 담고 label 중복이 0", () => {
-    expect(CHECKIN_BASELINES.length).toBeGreaterThanOrEqual(3);
+  it("표(CHECKIN_BASELINES)가 체크인 label 4 개 이상을 담고 label 중복이 0", () => {
+    expect(CHECKIN_BASELINES.length).toBeGreaterThanOrEqual(4);
     const labels = CHECKIN_BASELINES.map((checkin) => checkin.label);
     expect(new Set(labels).size).toBe(labels.length);
   });
