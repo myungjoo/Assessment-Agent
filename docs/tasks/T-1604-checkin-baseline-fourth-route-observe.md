@@ -2,13 +2,15 @@
 id: T-1604
 title: summary 실 DB perf-spec 에 실측 clock candidate 관찰 국면 추가 (네 번째 route)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048, REQ-047]
 estimatedDiff: 285
 estimatedFiles: 1
 created: 2026-08-18
 createdAt: 2026-08-18T15:40:00Z
+completedAt: 2026-08-18T15:58:40Z
+prNumber: 1284
 independentStream: perf-checkin-baseline
 dependsOn: [T-1602, T-1603]
 touchesFiles: [test/perf/summary-measure-confirm-realdb.perf-spec.ts]
@@ -150,3 +152,13 @@ factory(`read`, `126~134 행`)가 이미 갖춰져 있어 신규 배선이 관�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+---
+
+## 결과 (2026-08-18T15:58:40Z, DONE)
+
+- `pr` mode — PR [#1284](https://github.com/myungjoo/Assessment-Agent/pull/1284) squash 머지 `6fadfc2c` + branch 삭제. 1 파일 `+289/-0` (`test/perf/summary-measure-confirm-realdb.perf-spec.ts`), `src/` 0 LOC.
+- 실측 축 전용 nested describe 1 개 추가 — `REAL_CLOCK_ITER=20` · 전용 label `ci-realdb-summary-read` · `dataScale` 은 `TOTAL_ROWS` 유도 · `processEnv` 주입 토글로 전역 오염 0. 기존 국면 · 상수 · 배선 인자는 무수정(추가만).
+- **R-112** — 국면 9 개 (happy 1 · error 2 · 분기 2 · 표본 하한 가드 1 · negative 3). 로컬 `lint` · `build` · `test:cov`(438 suite / 12564 test) 전량 pass, `src/` 0 LOC 라 coverage 임계 변동 0.
+- **4-게이트** — reviewer VERDICT=APPROVE(round 1, MINOR 1 건은 CI 위임 확인 요청이라 코드 변경 요구 아님) + PR comment 외화 + integrator 자체 점검 + PR CI green(run `32156964647`) 으로 4/4. Nit-in-PR closure 잔여 0 → round 2 불요.
+- **다음 slice 입력** — CI 로그가 남긴 실측 줄: `label=ci-realdb-summary-read concurrency=1 p50=2.332 p95=2.521 p99=2.710 throughput=425.53 errorRate=0 count=20 pass=true`. 이 줄이 ADR-0056 `§Consequences (d)` 의 사람 확인 입력이 되어 다음 slice 가 `baseline-ci-realdb-summary-read.json` 체크인 + `CHECKIN_BASELINES` 4 행째를 만든다.
