@@ -2,13 +2,14 @@
 id: T-1588
 title: acquire-lock.sh holder 인자 allowlist 검증 + 오인자 negative 회귀 가드
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-057, REQ-058]
 estimatedDiff: 140
 estimatedFiles: 2
 created: 2026-08-18
 createdAt: 2026-08-18T00:02:00Z
+completedAt: 2026-08-18T00:19:03Z
 independentStream: driver-lock-primitive
 dependsOn: []
 touchesFiles:
@@ -107,3 +108,17 @@ plannerNote: "P5 운영 안정화 — 2026-08-17 22:41 fire 실사고(`--release
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가)
+
+## 완료 기록
+
+- **Status: DONE** (2026-08-18T00:19:03Z, PR [#1268](https://github.com/myungjoo/Assessment-Agent/pull/1268) squash merge `1f95ae3c`)
+- 결과: `scripts/acquire-lock.sh` + `scripts/acquire-lock.test.sh` 2 파일 `+94/-6`. acquire 경로의
+  empty 검사 직후 `case` 정확매칭 allowlist(`loop|cron|human`) 를 추가해 불일치 시 입력값 · 허용값 ·
+  bare `release` 힌트 3 종을 stderr 로 내고 `exit 2`. 검증이 **원격 접촉(fetch / ls-remote) 이전**이라
+  무효 holder 의 부분 반영 0. release 경로 · env · exit 0/1/2 계약 불변.
+- 검증: `scripts/acquire-lock.test.sh` T1~T11 exit 0 (ok 23 건, 분기 B8 양측 cover) + 수정 전 코드에서
+  `[T11]` 이 실제로 FAIL 함을 확인(장식 test 아님). `pnpm lint` · `build` · `test` · `test:cov`
+  (437 suite / 12506 test, line · function ≥ 80%) green.
+- review: reviewer VERDICT=APPROVE (round 2). Nit 은 같은 PR 안에서 종결(CLAUDE.md §3 Nit-in-PR closure).
+- 본 task 는 LOOP.md `§7.5` multi-task chain 의 두 번째 task — commit footer 에
+  `FIRE-BATCH: T-1587+T-1588` marker 박제.
