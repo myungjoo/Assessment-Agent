@@ -2,13 +2,14 @@
 id: T-1590
 title: 체크인 baseline 게이트의 로그·토글 규약을 test/perf/README.md 에 doc-sync
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 90
 estimatedFiles: 1
 created: 2026-08-18
 createdAt: 2026-08-18T01:30:00Z
+completedAt: 2026-08-18T01:56:00Z
 independentStream: perf-baseline-checkin
 dependsOn: [T-1589]
 touchesFiles:
@@ -110,6 +111,18 @@ commit 을 비채택했으므로 사람이 **CI 로그 한 줄을 읽고** 값�
 ## Suggested Sub-agents
 
 `implementer → tester`
+
+## 결과 (2026-08-18 완료)
+
+`pr` mode, PR [#1270](https://github.com/myungjoo/Assessment-Agent/pull/1270) squash merge `ebc18af8`
+(1 파일 `+96/-0`). `test/perf/README.md` 의 `## 표본 수집기` 절 뒤에 체크인 baseline 게이트 절 1 개를
+삽입해 토글 규약(`CHECKIN_BASELINE_ENV_FLAG` · on 값 3 종 · 모호하면 off · CI `"1"`) · 3 국면별 로그
+줄 수와 비교 함수 호출 횟수 · `CHECKIN_LOG_PREFIX` 로그 표기(`absent` 2 줄, 키 순서·영어 고정) ·
+전사 전용 계약(재계산 · 반올림 · 임계 판정 0, `NaN` 미필터, throw 0) · write 국면 부재 근거를 박제했다.
+식별자 · 상수 · 로그 문자열은 코드와 grep 대조로 20 종 전부 일치 확인. 문서 전용이라 신규 public symbol
+0 — R-110 이행으로 tester 가 lint · build · test 를 실행해 437 suite · 12540 test 전량 pass,
+line 99.95% / function 100%(임계 80% 상회) 를 확인했다. reviewer VERDICT=APPROVE(round 1, finding 0)
++ PR comment 외화 + integrator 자체 점검 + PR CI 2 check pass 로 4-게이트 충족.
 
 ## Follow-ups
 
