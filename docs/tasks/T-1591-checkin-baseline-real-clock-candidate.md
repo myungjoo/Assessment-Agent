@@ -2,7 +2,7 @@
 id: T-1591
 title: person 실 DB 조회 perf-spec 의 실측 clock candidate 를 체크인 baseline 확인 경로에 처음 태우기
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 130
@@ -117,3 +117,22 @@ label(`realdb-person-read-wiring`)과 이미 분리돼 있어, 앞으로 `§Foll
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-18T03:08Z DONE)
+
+PR [#1271](https://github.com/myungjoo/Assessment-Agent/pull/1271) squash merge `49bf4c7d`
+(1 파일 `+193/-0`). `test/perf/person-read-realdb.perf-spec.ts` 에 실측 축 전용 nested describe
+1 개를 추가했다 — label `ci-realdb-person-read`, 전용 상수 `REAL_CLOCK_ITER=3`, `repoRoot` 생략
+(실경로 바인딩), 토글은 `processEnv` 주입 전용(전역 env 무접근). 국면 5 개(happy 1 · error 1 ·
+분기 1 · negative 2)로 R-112 4 항목을 충족했고 기존 국면 · 상수 · hook 은 불변(추가만).
+
+reviewer VERDICT=APPROVE(round 1) + PR comment 외화 + integrator 자체 점검 + PR CI 전 step
+success 로 4-게이트 4/4 충족. `test:cov` line 99.95% / function 100%(`src/` 0 LOC 변경).
+
+ADR-0056 `§Consequences (d)` 가 요구하는 승인 입력이 CI 로그에 처음 실측값으로 찍혔다:
+
+```
+[perf][checkin-baseline] candidate label=ci-realdb-person-read concurrency=1 p50=2.955065000000104 p95=3.2266453999991427 p99=3.250785879999057 throughput=333.33333333333337 errorRate=0 count=3 pass=true
+```
+
+이로써 `§Follow-ups (a)`(체크인 baseline JSON 최초 생성 · commit)의 마지막 선행 조건이 해소됐다.
