@@ -2,7 +2,7 @@
 id: T-1594
 title: Refresh checkin baseline JSON with 20-sample measurement + sample-count guard
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 110
@@ -13,6 +13,9 @@ dependsOn: [T-1592, T-1593]
 touchesFiles:
   - test/perf/baselines/baseline-ci-realdb-person-read.json
   - test/perf/checkin-baseline-file.spec.ts
+prNumber: 1274
+completedAt: 2026-08-18T05:57:46Z
+mergeCommit: 47a9850f
 plannerNote: P5 ADR-0056 §Decision 2 갱신 절차 — 3 표본 degenerate baseline 을 T-1593 의 20 표본 실측으로 교체 + 표본 수 하한 가드
 ---
 
@@ -65,3 +68,14 @@ T-1592 가 확정한 첫 체크인 baseline `test/perf/baselines/baseline-ci-rea
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+---
+
+## Result (2026-08-18)
+
+**DONE** — `pr` mode, PR [#1274](https://github.com/myungjoo/Assessment-Agent/pull/1274) squash merge `47a9850f`, reviewer round 1 APPROVE, 4-게이트 4/4 PASS.
+
+- `test/perf/baselines/baseline-ci-realdb-person-read.json` — T-1593 머지 run(`32101314456`, main `7979bb2b`) 의 20 표본 실측 줄을 **재계산 없이 전사만** 교체. `env.label` · concurrency · dataScale 불변, 단일 행 round-trip 유지.
+- `test/perf/checkin-baseline-file.spec.ts` — `CHECKIN_SAMPLE_COUNT` / `CHECKIN_SAMPLE_MIN` 상수 도입(happy 단언이 리터럴 3 대신 상수 기준), negative (d) 표본 수 하한 · (e) 단조성/값 범위 2 종 추가. (d) 는 갱신 전 파일(`count=3`)에서 실제 FAIL 함을 확인해 PR 본문에 기록.
+- 2 파일 `+43/-2`, `src/` 0 LOC. 438 suite · 12548 test pass, lint · build green, `test:cov` line 99.95% / func 100%.
+- CI `perf test` step 이 `compared` 로 떨어지고 `regressed=false` · `count=20` candidate 확인 — 20 표본 candidate 대 3 표본 baseline 비대칭이 해소됐다.
