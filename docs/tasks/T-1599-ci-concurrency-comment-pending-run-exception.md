@@ -2,13 +2,15 @@
 id: T-1599
 title: ci.yml concurrency 주석의 "연속 run 을 cancel 하지 않는다" 서술에 pending-run 예외를 명시
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-059, REQ-062]
 estimatedDiff: 12
 estimatedFiles: 1
 created: 2026-08-18
 createdAt: 2026-08-18T10:20:00Z
+completed: 2026-08-18T10:55:09Z
+prNumber: 1279
 independentStream: ci-workflow-doc-sync
 dependsOn: [T-1598]
 touchesFiles: [.github/workflows/ci.yml]
@@ -79,3 +81,17 @@ drift 방향이 위험한 쪽이다. 주석대로 읽으면 판독자(및 다음
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 요약 (2026-08-18)
+
+`pr` mode, PR [#1279](https://github.com/myungjoo/Assessment-Agent/pull/1279) squash merge `d38897e0`
+(1 파일 `.github/workflows/ci.yml` `+7/-0`, yaml 본체 변경 0 — 주석 전용). concurrency 주석의
+"연속 run 을 cancel 하지 않는다" 단언에 pending-run 예외 문단 7 줄을 덧붙였다: (a) `cancel-in-progress: false`
+가 보호하는 것은 **실행 중** run 뿐 · (b) 그룹당 **대기 run 은 1 개만** 유지돼 후속 push 에 밀린다 ·
+(c) 그렇게 밀린 `cancelled` 는 **benign-red** 이므로 후속 run 의 conclusion 으로 R-114 정산을 갈음한다.
+관측 좌표(2026-08-18 · run `32118738010` · `4d29e574` → `13a8ef8c`)를 인용해 반례를 박제했다.
+**과잉 정정 금지** 를 지켜 `group` · `cancel-in-progress` 두 표현식과 기존 5 단언(그룹 3 갈래 ·
+`issue_comment` 폴백 · 별개 그룹 · N 선형 비용 · approval-gate 무결성)은 전부 불변.
+reviewer VERDICT=APPROVE(round 1, finding 0) + PR comment 외화(id 5327108244) + integrator 자체 점검
++ PR CI green(run 32128524318) 으로 4-게이트 4/4. 438 suite · 12551 test pass,
+`test:cov` line 99.95% / function 100%(`src/` 무변경이라 직전 수치 유지), ci.yml 앵커 smoke 2 종 33 test pass.
