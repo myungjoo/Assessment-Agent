@@ -2,7 +2,7 @@
 id: T-1596
 title: 체크인 baseline compared 국면 3 줄 로그 계약을 test/perf/README.md 에 doc-sync
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 55
@@ -55,43 +55,43 @@ slice** 이며 코드 변경은 0 이다.
 
 ## Acceptance Criteria
 
-- [ ] **3 국면 표 갱신** — `compared` 행의 `로그 줄 수` 칸이 현재 계약(요약 1 줄 + 상세 비교
+- [x] **3 국면 표 갱신** — `compared` 행의 `로그 줄 수` 칸이 현재 계약(요약 1 줄 + 상세 비교
       본문 + candidate 1 줄, **마지막 줄이 candidate 줄**)을 기술한다. `disabled` 1 줄 ·
       `absent` 2 줄 · 비교 함수 호출 횟수(0 회 / 0 회 / 정확히 1 회) 칸은 **변경하지 않는다**.
-- [ ] **국면 bullet 갱신** — `compared` bullet 이 "`formatCheckinOutcomeBlock` 블록 뒤에
+- [x] **국면 bullet 갱신** — `compared` bullet 이 "`formatCheckinOutcomeBlock` 블록 뒤에
       `formatCheckinCandidateLine` 결과를 개행 1 개로 잇는다" 는 조립 순서와 **본문 재계산 ·
       재정렬 0 · 포매터 재사용(신규 포매터 0)** 을 함께 명시한다.
-- [ ] **로그 표기 절 갱신** — 코드 블록 뒤 문단이 `compared` 국면의 실제 줄 순서
+- [x] **로그 표기 절 갱신** — 코드 블록 뒤 문단이 `compared` 국면의 실제 줄 순서
       (`outcome=compared regressed=<bool>` → 상세 비교 본문 → `candidate label=... count=...`)
       를 기술하고, `absent` · `compared` **두 국면 모두 마지막 줄이 candidate 줄** 이라는 공통
       계약을 1 문장으로 박제한다. 기존 코드 블록의 4 줄 예시 자체는 유지(키 순서 계약 불변).
-- [ ] **negative 규약 갱신** — candidate 형태 불량의 예외 전파가 `absent` 뿐 아니라 `compared`
+- [x] **negative 규약 갱신** — candidate 형태 불량의 예외 전파가 `absent` 뿐 아니라 `compared`
       국면에서도 성립하며(단 `compared` 는 **비교를 1 회 마친 뒤** 시점), `disabled` 만
       candidate 를 보지 않아 무관함을 명시한다. 회귀(`regressed === true`) 입력에도 throw 0 ·
       exit code 불변(ADR-0056 `§Decision 3 (b)`) 서술은 유지.
-- [ ] **축적 축 1 문장** — candidate 줄이 ADR-0056 `§Decision 5` 1 항(동일 `env.label` 최소
+- [x] **축적 축 1 문장** — candidate 줄이 ADR-0056 `§Decision 5` 1 항(동일 `env.label` 최소
       20 run 지표 축적)의 grep 축임을 1 ~ 2 문장으로 잇는다(임계 수치는 적지 않는다).
-- [ ] **식별자 대조** — 문서에 적은 모든 식별자 · 상수 · 키 이름이 실제 코드와 일치한다.
+- [x] **식별자 대조** — 문서에 적은 모든 식별자 · 상수 · 키 이름이 실제 코드와 일치한다.
       `grep -n "CHECKIN_LOG_PREFIX\|formatCheckinCandidateLine\|formatCheckinOutcomeBlock\|runCheckinBaselineCheck" test/perf/*.ts`
       결과와 대조해 오탈자 0 임을 확인.
-- [ ] **R-112 (1) happy-path** — 본 task 는 **코드 변경 0 · 신규 public symbol 0** 이라 신규
+- [x] **R-112 (1) happy-path** — 본 task 는 **코드 변경 0 · 신규 public symbol 0** 이라 신규
       happy-path unit test 대상이 없다. 대신 문서의 `compared` 3 줄 서술이
       `test/perf/checkin-baseline-run.spec.ts` 의 기존 happy-path(줄 순서) test 단언과 일치함을
       대조 확인한다.
-- [ ] **R-112 (2) error path** — 신규 symbol 0 이라 신규 error test 대상 없음. 문서의 예외 전파
+- [x] **R-112 (2) error path** — 신규 symbol 0 이라 신규 error test 대상 없음. 문서의 예외 전파
       서술(`compared` 는 비교 1 회 후 포매터 예외 전파, `disabled` 는 무관)이 같은 spec 의 기존
       error test 와 일치함을 대조 확인한다.
-- [ ] **R-112 (3) 분기 cover** — 신규 분기 0. 문서의 3 국면 서술이 코드의 실제 분기 3 개와
+- [x] **R-112 (3) 분기 cover** — 신규 분기 0. 문서의 3 국면 서술이 코드의 실제 분기 3 개와
       1:1 대응함을 확인(누락 · 날조 분기 0).
-- [ ] **R-112 (4) negative cases 충분 cover** — 신규 코드 0 이라 신규 negative test 대상 없음.
+- [x] **R-112 (4) negative cases 충분 cover** — 신규 코드 0 이라 신규 negative test 대상 없음.
       문서의 negative 규약이 spec 의 negative 축(토글 모호값 → off · `skip` 국면에서 `compare`
       무효여도 예외 0 · `NaN` 전사 · 수치 non-number · 회귀 입력 throw 0)을 빠짐없이 반영했는지
       항목별로 확인한다.
-- [ ] **R-110 / R-113 / R-114** — `pnpm lint && pnpm build && pnpm test` 전량 통과(문서 변경만
+- [x] **R-110 / R-113 / R-114** — `pnpm lint && pnpm build && pnpm test` 전량 통과(문서 변경만
       이라 실패 0 이어야 함). `pnpm test:perf` 결과는 기존과 동일.
-- [ ] `pnpm test:cov` 통과 — line ≥ 80% AND function ≥ 80% (코드 변경 0 이므로 직전 수치 유지).
+- [x] `pnpm test:cov` 통과 — line ≥ 80% AND function ≥ 80% (코드 변경 0 이므로 직전 수치 유지).
       PR 본문에 `src/` 변경 0 · coverage 변동 0 임을 명시.
-- [ ] `§12` 준수 — 본문 한국어, 식별자 · 키 · 경로 · 상수 문자열은 영어 그대로.
+- [x] `§12` 준수 — 본문 한국어, 식별자 · 키 · 경로 · 상수 문자열은 영어 그대로.
 
 ## Out of Scope
 
@@ -118,3 +118,14 @@ slice** 이며 코드 변경은 0 이다.
   1 건 존재 · `compared` 상시 진입)에 맞게 doc-sync (`pr`, 1 파일).
 - 동일 `env.label` 20 run 축적 후 ADR-0056 `§Follow-ups (c)` — 부하계획 `§ 3` "baseline 후 fix"
   행을 확정 임계로 승격(근거 run 수 · `env.label` 각주 동반, doc-sync).
+
+## 결과 (2026-08-18)
+
+`Status: DONE` — `pr` mode, PR [#1276](https://github.com/myungjoo/Assessment-Agent/pull/1276)
+squash merge `1088afca` (1 파일 `test/perf/README.md` `+20/-6`, 코드 변경 0).
+3 국면 표 `compared` 행 · 국면 bullet 조립 순서 · 로그 표기 절 3 줄 순서 + 두 국면 공통
+"마지막 줄이 candidate 줄" 계약 · negative 규약의 예외 전파 2 국면 귀속 4 곳을 갱신하고
+ADR-0056 `§Decision 5` 축적 축 1 문장을 이었다. `disabled`/`absent` 줄 수 칸 · 비교 함수 호출
+횟수 칸 · 로그 코드 블록 4 줄 예시는 불변. reviewer VERDICT=APPROVE(round 1) + PR comment 외화
++ integrator 자체 점검 + PR CI green(기본 검사 · 배포 산출물 검증 2 step) 으로 4-게이트 4/4.
+438 suite · 12551 test pass, `test:cov` line 99.95% / function 100% (직전 수치 유지).
