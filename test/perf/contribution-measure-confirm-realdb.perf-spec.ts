@@ -305,6 +305,7 @@ describe("S2 measure→confirm-or-compare perf-spec — 실 DB round-trip baseli
     // 임시 repo root — 체크인 baseline 파일은 매 test 격리 tmpRoot 아래에만 만든다(실경로 무오염).
     tempDir: (name) => dirOf(name),
   });
+
   // 체크인 baseline 확인 경로의 **실측 clock 관찰 국면**(T-1602, ADR-0056 §Consequences (d) ·
   // §Follow-ups (a) 의 "나머지 route 체크인 baseline" 축을 **세 번째 실 DB route** 로 확산).
   // T-1593(person) → T-1600(assessment) 이 박제한 정본 패턴을 승계하되 route 고유분만 갈아끼운다.
