@@ -659,9 +659,10 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    이고 `writeBaselineFile` / `confirmOrCompareBaseline` 는 **slice 25(T-1549) 와 slice 26(T-1551) 과
    slice 27(T-1553) 과 slice 28(T-1555) 과 slice 29(T-1557) 다섯 route 만 예외적으로
    `measureAndConfirmBaseline` 로 호출해 baseline 을 확정했을 뿐 그것도 다섯 다 임시 디렉토리
-   1 회성** 이라 저장소 체크인
-   기준 baseline 파일 확정은 여전히 성립하지 않으며, §3 의 "baseline 후 fix" 임계 fix 도 미착수다. **잔여**: baseline 파일
-   확정 · 임계 fix · 측정 endpoint 확대(나머지 read perf-spec 30 개는 service mock 잔존 —
+   1 회성** 이었다. 다만 저장소 체크인 기준 baseline 파일은 그 뒤 별도 slice 로 확정됐다 — `test/perf/baselines/` 아래 `measure→confirm` **5 route 전부**(`baseline-ci-realdb-person-read.json` · `-assessment-read` · `-contribution-read` · `-summary-read` · `-app-root-read`) 가
+   T-1592/T-1594 · T-1601 · T-1603 · T-1605 · T-1607 순으로 체크인됐고, `.github/workflows/ci.yml` `perf test` step 의 `PERF_CHECKIN_BASELINE: "1"` 토글(T-1584) 로 CI 체크인 경로도 `absent`(skip) 이 아니라 `compared` 로 돈다.
+   그럼에도 ADR-0056 `§Decision 3 (b)` 대로 상대 회귀는 **관찰만** 이고 exit code 는 불변이라 **본 item 은 여전히 미완** 이며, §3 의 "baseline 후 fix" 임계 fix(ADR-0056 `§Follow-ups (c)`) 도 미착수다.
+   **잔여**: 임계 fix · 측정 endpoint 확대(나머지 read perf-spec 30 개는 service mock 잔존 —
    계산식은 read 51 개 − 실 DB read 21 개이며, slice 22 도 파일명에 `read` 가 있어 피감수(50→51)와
    감수(20→21)가 함께 1 씩 늘어 차이 30 은 불변이다 — `group-persons-scale-realdb` 는 파일명에
    `read` 가 없어 양쪽 모두에서 빠진다; slice 23 의 `person-list-scale-realdb` 도 같은 이유로 양쪽에서
@@ -859,7 +860,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 
    본 인벤토리는 **측정 0 · 새 spec 0 · production code 0** 의 목록화라 REQ-048 재판정도
    REQ-047(100~200명 / 50~100 repo / ~1000 confluence page / 1h) 진전도 **아니다** — 위 item 5 의
-   **미완** 서술(baseline 파일 확정 · 임계 fix 미착수 · `writeBaselineFile` 은 slice 25 · 26 · 27 ·
-   28 · 29 의 임시 디렉토리 1 회성 호출뿐)과 규모 민감도 ·
+   **미완** 서술(§3 "baseline 후 fix" 임계 fix 미착수 — 체크인 baseline 파일 자체는 T-1592/T-1594 ·
+   T-1601 · T-1603 · T-1605 · T-1607 로 5 route 전부 확정됐다)과 규모 민감도 ·
    실 scale 부하 · 시각화(web) 렌더 측정 축 잔여는 **그대로 유효** 하다. 다음 slice 로 어느 route 를
    고를지의 **우선순위 부여도 본 절의 몫이 아니다**.
