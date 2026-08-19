@@ -2,7 +2,7 @@
 id: T-1612
 title: 체크인 baseline step 요약 markdown 을 $GITHUB_STEP_SUMMARY 에 append 하는 sink 모듈 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048, REQ-047]
 estimatedDiff: 270
@@ -101,3 +101,13 @@ plannerNote: P5 perf — ADR-0056 §Decision 3 (b) "step 요약" 축 배선 조�
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 발견 시 추가)
+
+## 결과 (2026-08-19T08:53:38Z, DONE)
+
+- `pr` mode — PR [#1290](https://github.com/myungjoo/Assessment-Agent/pull/1290) squash 머지 `15cc1aeb` + branch 삭제 확인. 2 파일 `+298/-0`, `src/` 0 LOC · `ci.yml` 변경 0.
+- `appendCheckinStepSummary` 진입점 1 개 + `GITHUB_STEP_SUMMARY_ENV` 상수 1 곳 export. 환경변수 record 와 append 함수를 전부 **주입**받아 전역 `process.env` · `fs` 접근 0 — `checkin-baseline-run.ts` 의 비교 함수 주입 패턴과 동형.
+- 결과는 `appended` / `skipped` / `failed` 판별 union 3 국면. **append 실패는 삼켜 `failed` 로만 보고** 하고 throw 0 이라 ADR-0056 `§Decision 3 (b)` 의 관찰-only · exit code 불변 약속이 sink 층에서도 유지된다. 형태 위반만 `TypeError` / `RangeError` 로 JSDoc `@throws` 명시.
+- **본문 가공 0** — 포매터 산출 문자열을 그대로 싣고 끝 개행 1 개만 보장. append 는 수행 국면에서 정확히 1 회, skip 국면에서는 0 회.
+- **R-112** — 신규 spec 이 happy · error path · 분기 · negative (a)~(g) 를 cover, 신규 모듈 stmt/branch/func/line **100%**. 로컬 `lint` · `build` green + unit 12634 test pass, global coverage 임계 충족.
+- **4-게이트** — reviewer VERDICT=APPROVE(round 1, comment `#issuecomment-5339739324`) + PR comment 외화(driver 별도 확인) + integrator 자체 점검 + PR CI green 으로 4/4. 잔여 finding 0.
+- **남은 축** — 호출처 배선(`checkin-baseline-run.ts` 에서 sink 호출 · 기본 주입값 바인딩) 과 `ci.yml` 편입(`§Follow-ups (b)`) 은 다음 slice. `§Follow-ups (c)` 20 run 표본 임계 fix 도 미완 그대로라 PLAN `140 행` `[ ]` · REQ-048 `IN_PROGRESS` 불변.
