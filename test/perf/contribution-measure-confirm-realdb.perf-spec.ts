@@ -25,7 +25,14 @@ import { CHECKIN_BASELINE_ENV_FLAG } from "./checkin-baseline-plan";
 import { CHECKIN_LOG_PREFIX } from "./checkin-baseline-report";
 import type { CheckinBaselineRunOutcome } from "./checkin-baseline-run";
 import { registerCheckinBaselineWiringSuite } from "./checkin-baseline-spec-suite";
-import { checkCheckinBaselineForSpec } from "./checkin-baseline-spec-wiring";
+import {
+  checkCheckinBaselineForSpec,
+  emitCheckinStepSummaryForSpec,
+  seedCheckinBaselineFixture,
+  type CheckinStepSummaryEmitOutcome,
+  type CheckinStepSummarySinkDeps,
+} from "./checkin-baseline-spec-wiring";
+import { GITHUB_STEP_SUMMARY_ENV } from "./checkin-baseline-step-summary-sink";
 import {
   formatBaselineLine,
   parseBaselineReport,
@@ -590,6 +597,279 @@ describe("S2 measure→confirm-or-compare perf-spec — 실 DB round-trip baseli
         expect(candidate.count).toBe(REAL_CLOCK_ITER);
         expect(logs).toHaveLength(1);
         expectEnabledOutcome(outcome);
+      });
+    });
+
+    // step 요약 배선 **실호출** — ADR-0056 §Decision 3 (b) 의 "상대 회귀를 로그와 step 요약으로
+    // 가시화" 계약을 person(T-1616) · assessment(T-1617) 에 이어 **세 번째 route** 로 확산한다.
+    // 구조만 승계하고 국면은 본 route 고유 축(**`Person → Assessment → Contribution` 3-level FK
+    // chain 의 부모 선택** · **`assessmentId` 누락 전량 400 표본**)으로 갈아끼운다 — 주입값 형태
+    // 위반 · `null` deps 전파 · 기본값 결선 같은 일반 계약 국면은 helper colocated spec 과 앞 두
+    // route 가 이미 cover 하므로 복제하지 않는다(T-1575 중복 국면 삭제 선례). 요약 본문 문자열 ·
+    // 환경변수명 · 판별 슬러그는 **재작성 0**(전량 위임 계약 + import 상수). **exit code 불변** —
+    // 요약 경로의 실패(포매터 · append 예외)는 위임이 삼켜 판별 union 으로만 보고되므로
+    // (T-1614 계약) 본 배선이 perf 스위트를 red 로 만드는 새 경로를 만들지 않는다.
+    describe("step 요약 배선 실호출(emitCheckinStepSummaryForSpec)", () => {
+      /** 요약 heading 문구 — 국면마다 리터럴을 반복하지 않도록 이 상수 하나만 쓴다. */
+      const STEP_SUMMARY_TITLE = "체크인 baseline — 실 DB contribution read";
+      /**
+       * 요약 축 전용 fixture label — 실측 label(`ci-realdb-contribution-read`) · 배선 label
+       * (`realdb-contrib-mc`) 과 분리해 체크인될 baseline 파일 경로와 겹치지 않는다.
+       */
+      const summaryEnv: BaselineEnvMeta = {
+        label: "realdb-contrib-step-summary",
+        concurrency: 1,
+      };
+      /**
+       * 요약 축 국면 전용 반복수 — 관찰 대상이 요약 경로라 표본 수는 비용 변수일 뿐이다
+       * (실측 지표 축의 `REAL_CLOCK_ITER` 와 의미가 다르므로 재사용하지 않는다).
+       */
+      const SUMMARY_ITER = 2;
+
+      /** 기준 baseline · 기본 candidate 공용 probe — 매칭 0 건이라 200 + 빈 배열(seed 무의존). */
+      const probe = (): RequestFn => read(qOf("checkin-summary-probe"));
+
+      /** 주입 묶음 — 환경변수는 주입 record 로만 표현하고 전역을 건드리지 않는다. */
+      const depsWith = (
+        summaryPath: string | undefined,
+        append: (target: string, data: string) => void,
+      ): CheckinStepSummarySinkDeps => ({
+        processEnv:
+          summaryPath === undefined
+            ? {}
+            : { [GITHUB_STEP_SUMMARY_ENV]: summaryPath },
+        append,
+      });
+
+      /** tmpRoot 하위 요약 파일 경로(주입 append 라 실제 write 는 일어나지 않는다). */
+      const summaryPathOf = (name: string): string => path.join(tmpRoot, name);
+
+      /** 요약 축 확인 경로 1 회 — `repoRoot` 를 tmpRoot 로 묶어 실경로에 접근하지 않는다. */
+      const checkForSummary = (
+        candidate: BaselineReport,
+        processEnv: Record<string, string | undefined>,
+      ): CheckinBaselineRunOutcome =>
+        checkCheckinBaselineForSpec({
+          envMeta: summaryEnv,
+          candidate,
+          repoRoot: tmpRoot,
+          processEnv,
+          log: () => undefined,
+        });
+
+      /** 요약 축 candidate — `now` 미주입(실측). 기준 baseline 만 주입 clock 으로 결정론화한다. */
+      const summaryCandidate = (
+        requestFn: RequestFn = probe(),
+      ): Promise<BaselineReport> =>
+        measureBaselineCandidate(requestFn, summaryEnv, {
+          iterations: SUMMARY_ITER,
+        });
+
+      /**
+       * `compared` 를 **결정적으로** 만든다 — tmpRoot 안에만 기준 baseline 을 심고 같은 root 로
+       * 확인 경로를 태운다(저장소 실경로 `test/perf/baselines/` 미접근 · 무오염).
+       */
+      const comparedFor = async (
+        candidate: BaselineReport,
+      ): Promise<CheckinBaselineRunOutcome> => {
+        const baseline = await measureBaselineCandidate(probe(), summaryEnv, {
+          iterations: SUMMARY_ITER,
+          now: createStepClock(10),
+        });
+        seedCheckinBaselineFixture(summaryEnv, tmpRoot, baseline);
+        const outcome = checkForSummary(candidate, enabledEnv());
+        expect(outcome.status).toBe("compared");
+        return outcome;
+      };
+
+      // 실호출 배선(본 slice 의 목적) — 실측 candidate 의 확인 결과를 **기본 주입값**(인자 생략)
+      // 으로 요약에 태운다. CI 는 `GITHUB_STEP_SUMMARY` 가 있어 실제 append, 로컬은 부재 단락
+      // 이라 status 를 하드코딩하지 않고 "failed 아님 · 예외 0" 만 못 박는다.
+      it("실호출: 실측 outcome 을 기본 주입값으로 요약에 태우면 예외 0 + failed 아님", async () => {
+        const { primary } = await seed();
+        const candidate = await measureRealClock(
+          read(qOf(primary)),
+          REAL_CLOCK_ITER,
+        );
+        const { outcome } = checkWithLogs(candidate, enabledEnv());
+
+        let emitted: CheckinStepSummaryEmitOutcome | undefined;
+        expect(() => {
+          emitted = emitCheckinStepSummaryForSpec(outcome, STEP_SUMMARY_TITLE);
+        }).not.toThrow();
+
+        expect(emitted).toBeDefined();
+        expect(emitted?.status).not.toBe("failed");
+        expect(["appended", "skipped"]).toContain(emitted?.status);
+        // 관찰 목적 — 로컬(skipped/env-absent)과 CI(appended)의 차이를 로그로 박제한다.
+        // eslint-disable-next-line no-console
+        console.log(
+          `${CHECKIN_LOG_PREFIX} step-summary emit status=${emitted?.status}`,
+        );
+      });
+
+      // happy 겸 분기 (1) — 결정적 append 경로. 임시 트리 안에서만 compared 를 만들고 주입 env 로
+      // 태워 append 가 정확히 1 회 불린다.
+      it("happy · 분기 (1): compared outcome + 주입 env → appended · 경로 일치 · append 1 회", async () => {
+        const outcome = await comparedFor(await summaryCandidate());
+        const target = summaryPathOf("step-summary-happy.md");
+        const append = jest.fn();
+
+        const result = emitCheckinStepSummaryForSpec(
+          outcome,
+          STEP_SUMMARY_TITLE,
+          depsWith(target, append),
+        );
+
+        expect(result).toEqual({ status: "appended", path: target });
+        expect(append).toHaveBeenCalledTimes(1);
+        expect(append.mock.calls[0][0]).toBe(target);
+        // 본문 전문 비교 금지 — heading 이 실렸다는 사실만 본다(포매터 계약은 포매터 spec 몫).
+        expect(append.mock.calls[0][1]).toContain(STEP_SUMMARY_TITLE);
+      });
+
+      // error (a) — append 실패는 삼켜져 판별 union 으로만 보고된다(exit code 불변 직접 증거).
+      it("error (a): append 가 던져도 전파 0 + failed/append-threw 로만 보고", async () => {
+        const outcome = await comparedFor(await summaryCandidate());
+        const append = jest.fn(() => {
+          throw new Error("realdb-contrib-step-summary-append");
+        });
+
+        let result: CheckinStepSummaryEmitOutcome | undefined;
+        expect(() => {
+          result = emitCheckinStepSummaryForSpec(
+            outcome,
+            STEP_SUMMARY_TITLE,
+            depsWith(summaryPathOf("step-summary-throw.md"), append),
+          );
+        }).not.toThrow();
+
+        expect(result).toEqual({ status: "failed", reason: "append-threw" });
+        expect(append).toHaveBeenCalledTimes(1);
+      });
+
+      // error (b) — **본 route 고유 필수 파라미터 축**. `assessmentId` 가 없으면 전량 400 이라
+      // 성공 표본이 0 인 오류 표본이어도 요약 경로는 관찰-only 로 끝난다.
+      it("error (b): assessmentId 누락 전량 400 표본(errorRate=1 · count=0)도 throw 0 + 동일 판별 union", async () => {
+        await seed();
+        const candidate = await summaryCandidate(read(""));
+
+        expect(lastStatus).toBe(400);
+        expect(candidate.errorRate).toBe(1);
+        expect(candidate.count).toBe(0);
+        expect(candidate.pass).toBe(false);
+
+        const outcome = await comparedFor(candidate);
+        const target = summaryPathOf("step-summary-error.md");
+        const append = jest.fn();
+
+        let result: CheckinStepSummaryEmitOutcome | undefined;
+        expect(() => {
+          result = emitCheckinStepSummaryForSpec(
+            outcome,
+            STEP_SUMMARY_TITLE,
+            depsWith(target, append),
+          );
+        }).not.toThrow();
+
+        expect(result).toEqual({ status: "appended", path: target });
+        expect(append).toHaveBeenCalledTimes(1);
+      });
+
+      // 분기 (2) + (3) — append 를 0 회로 두는 단락 세 갈래를 한 국면에 모은다(앞 route 의 국면을
+      // 그대로 쪼개 복제하지 않는다 — 같은 단락 축이라 국면을 나눌 이득이 없다).
+      it("분기 (2)(3): 토글 off → not-compared, compared 여도 env 부재 → env-absent · 공백-only → env-blank(각 append 0 회)", async () => {
+        const off = checkForSummary(await summaryCandidate(), {});
+        expect(off).toMatchObject({ status: "skipped", reason: "disabled" });
+        const offAppend = jest.fn();
+        expect(
+          emitCheckinStepSummaryForSpec(
+            off,
+            STEP_SUMMARY_TITLE,
+            depsWith(summaryPathOf("step-summary-off.md"), offAppend),
+          ),
+        ).toEqual({ status: "skipped", reason: "not-compared" });
+
+        const compared = await comparedFor(await summaryCandidate());
+        const absentAppend = jest.fn();
+        const blankAppend = jest.fn();
+        expect(
+          emitCheckinStepSummaryForSpec(
+            compared,
+            STEP_SUMMARY_TITLE,
+            depsWith(undefined, absentAppend),
+          ),
+        ).toEqual({ status: "skipped", reason: "env-absent" });
+        expect(
+          emitCheckinStepSummaryForSpec(
+            compared,
+            STEP_SUMMARY_TITLE,
+            depsWith("   ", blankAppend),
+          ),
+        ).toEqual({ status: "skipped", reason: "env-blank" });
+
+        for (const spy of [offAppend, absentAppend, blankAppend]) {
+          expect(spy).not.toHaveBeenCalled();
+        }
+      });
+
+      // negative (a) — 주입 record 만 쓰므로 전역 환경변수는 값도 키 존재 여부도 불변이다.
+      it("negative (a): emit 전후로 전역 GITHUB_STEP_SUMMARY 가 불변(전역 오염 0)", async () => {
+        const outcome = await comparedFor(await summaryCandidate());
+        const before = process.env[GITHUB_STEP_SUMMARY_ENV];
+        const hadKey = GITHUB_STEP_SUMMARY_ENV in process.env;
+
+        emitCheckinStepSummaryForSpec(
+          outcome,
+          STEP_SUMMARY_TITLE,
+          depsWith(summaryPathOf("step-summary-neg-a.md"), jest.fn()),
+        );
+
+        expect(process.env[GITHUB_STEP_SUMMARY_ENV]).toBe(before);
+        expect(GITHUB_STEP_SUMMARY_ENV in process.env).toBe(hadKey);
+      });
+
+      // negative (b) — **본 route 고유 3-level FK 부모 선택 축**. 부모 A(자식 5 행) · 부모 B
+      // (자식 3 행) 두 표본의 outcome 을 연속 emit 해도 두 호출이 서로 독립이다(부작용 누적 0 ·
+      // 인자 변형 0).
+      it("negative (b): 부모 A · B 두 표본 연속 emit → append 각 1 회(합 2) · 인자 변형 0 · 상태 비이월", async () => {
+        const { primary, other } = await seed();
+        const primarySample = await summaryCandidate(read(qOf(primary)));
+        expect(rows()).toHaveLength(PRIMARY_CHILDREN);
+        const otherSample = await summaryCandidate(read(qOf(other)));
+        expect(rows()).toHaveLength(OTHER_CHILDREN);
+
+        const primaryOutcome = await comparedFor(primarySample);
+        const otherOutcome = await comparedFor(otherSample);
+        const snapshots = [
+          JSON.stringify(primaryOutcome),
+          JSON.stringify(otherOutcome),
+        ];
+        const target = summaryPathOf("step-summary-neg-b.md");
+        const append = jest.fn();
+        const deps = depsWith(target, append);
+
+        const first = emitCheckinStepSummaryForSpec(
+          primaryOutcome,
+          STEP_SUMMARY_TITLE,
+          deps,
+        );
+        const second = emitCheckinStepSummaryForSpec(
+          otherOutcome,
+          STEP_SUMMARY_TITLE,
+          deps,
+        );
+
+        // 두 번째 호출이 첫 번째의 상태를 이어받지 않는다 — 판정도 append 횟수도 각각 독립이다.
+        expect(first).toEqual({ status: "appended", path: target });
+        expect(second).toEqual(first);
+        expect(append).toHaveBeenCalledTimes(2);
+        expect(append.mock.calls[1][0]).toBe(target);
+        // 인자 변형 0 — 두 outcome 객체가 emit 전후로 동일하다.
+        expect([
+          JSON.stringify(primaryOutcome),
+          JSON.stringify(otherOutcome),
+        ]).toEqual(snapshots);
       });
     });
   });
