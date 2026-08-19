@@ -2,7 +2,7 @@
 id: T-1613
 title: Expose ConfirmOrCompareResult on compared run outcome for step summary wiring
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 130
@@ -31,15 +31,15 @@ plannerNote: ADR-0056 §Decision 3 (b) step 요약 배선의 데이터 통로 �
 
 ## Acceptance Criteria
 
-- [ ] `CheckinBaselineRunOutcome` 의 `compared` 갈래에 `confirmOrCompare: ConfirmOrCompareResult` 필드를 추가한다. `skipped` 갈래(`disabled` · `absent`)에는 **추가하지 않는다** — 비교가 없었다는 사실을 타입으로 유지.
-- [ ] `runCheckinBaselineCheck` 는 `{ outcome: "compared", ...result }` 객체를 **한 번만 만들어** `formatCheckinOutcomeBlock` 인자와 반환 필드에 **같은 값**으로 쓴다. 수치 재계산 · 형태 재검증 · 필드 재조립 0.
-- [ ] 기존 계약 불변 — `log` 문자열(줄 수 · 순서 · prefix · candidate 줄), `status` · `regressed` 값, 예외 계약(입력 형태 · 비교 진입 후 `compare` 형태 · 하위 위임 전파), 회귀 입력에도 throw 0(exit code 불변). JSDoc `@returns` 를 새 필드까지 포함하도록 갱신.
-- [ ] happy-path unit test 1+ — compared 국면 반환의 `confirmOrCompare` 가 `{outcome:"compared", comparison, report}` 로 주입 비교 함수 반환을 그대로 싣는지 검증.
-- [ ] error path unit test 1+ — `input` non-object · `null`, 비교 진입 확정 후 `compare` non-function, 주입 비교 함수가 던지는 국면에서 **예외가 그대로 전파되고 반환값이 없음**을 검증(포매터가 던지는 국면 포함).
-- [ ] 분기 cover — `compared`(`regressed=true` / `false`) · `skipped:disabled` · `skipped:absent` 각 1+ test. skip 두 국면 반환에는 `confirmOrCompare` 키가 **없음**을 명시 검증.
-- [ ] negative cases 충분 cover — (a) 회귀 입력 throw 0, (b) 입력 인자 불변(호출 전후 `JSON.stringify` 동일), (c) 결정성(같은 입력 2 회 호출 결과 동일), (d) 주입 비교 함수 호출 **정확히 1 회**, (e) skip 국면에서 비교 함수 호출 **0 회**, (f) 하위 포매터의 `RangeError`(빈/공백-only `report` 등) 전파, (g) 반환 `confirmOrCompare.report` · `comparison` 이 재가공(trim · 재포맷 · 반올림) 되지 않았음.
-- [ ] `checkin-baseline-run.spec.ts` 의 strict `toEqual` 2 곳(happy-path · 회귀 분기)을 새 필드 포함으로 갱신한다. 다른 spec(adapter · spec-wiring · spec-suite)은 `toMatchObject` 라 변경 불요임을 확인.
-- [ ] `pnpm lint && pnpm build && pnpm test` green, `pnpm test:cov` 통과(line ≥ 80% / function ≥ 80%) — 변경 모듈은 기존대로 100% 유지.
+- [x] `CheckinBaselineRunOutcome` 의 `compared` 갈래에 `confirmOrCompare: ConfirmOrCompareResult` 필드를 추가한다. `skipped` 갈래(`disabled` · `absent`)에는 **추가하지 않는다** — 비교가 없었다는 사실을 타입으로 유지.
+- [x] `runCheckinBaselineCheck` 는 `{ outcome: "compared", ...result }` 객체를 **한 번만 만들어** `formatCheckinOutcomeBlock` 인자와 반환 필드에 **같은 값**으로 쓴다. 수치 재계산 · 형태 재검증 · 필드 재조립 0.
+- [x] 기존 계약 불변 — `log` 문자열(줄 수 · 순서 · prefix · candidate 줄), `status` · `regressed` 값, 예외 계약(입력 형태 · 비교 진입 후 `compare` 형태 · 하위 위임 전파), 회귀 입력에도 throw 0(exit code 불변). JSDoc `@returns` 를 새 필드까지 포함하도록 갱신.
+- [x] happy-path unit test 1+ — compared 국면 반환의 `confirmOrCompare` 가 `{outcome:"compared", comparison, report}` 로 주입 비교 함수 반환을 그대로 싣는지 검증.
+- [x] error path unit test 1+ — `input` non-object · `null`, 비교 진입 확정 후 `compare` non-function, 주입 비교 함수가 던지는 국면에서 **예외가 그대로 전파되고 반환값이 없음**을 검증(포매터가 던지는 국면 포함).
+- [x] 분기 cover — `compared`(`regressed=true` / `false`) · `skipped:disabled` · `skipped:absent` 각 1+ test. skip 두 국면 반환에는 `confirmOrCompare` 키가 **없음**을 명시 검증.
+- [x] negative cases 충분 cover — (a) 회귀 입력 throw 0, (b) 입력 인자 불변(호출 전후 `JSON.stringify` 동일), (c) 결정성(같은 입력 2 회 호출 결과 동일), (d) 주입 비교 함수 호출 **정확히 1 회**, (e) skip 국면에서 비교 함수 호출 **0 회**, (f) 하위 포매터의 `RangeError`(빈/공백-only `report` 등) 전파, (g) 반환 `confirmOrCompare.report` · `comparison` 이 재가공(trim · 재포맷 · 반올림) 되지 않았음.
+- [x] `checkin-baseline-run.spec.ts` 의 strict `toEqual` 2 곳(happy-path · 회귀 분기)을 새 필드 포함으로 갱신한다. 다른 spec(adapter · spec-wiring · spec-suite)은 `toMatchObject` 라 변경 불요임을 확인.
+- [x] `pnpm lint && pnpm build && pnpm test` green, `pnpm test:cov` 통과(line ≥ 80% / function ≥ 80%) — 변경 모듈은 기존대로 100% 유지.
 
 ## Out of Scope
 
@@ -55,3 +55,10 @@ plannerNote: ADR-0056 §Decision 3 (b) step 요약 배선의 데이터 통로 �
 
 ## Follow-ups
 
+
+## 완료 기록
+
+- **완료 시각**: 2026-08-19T11:55Z
+- **PR**: [#1291](https://github.com/myungjoo/Assessment-Agent/pull/1291) — squash 머지 `1371e050`, reviewer round 1 APPROVE, CI green.
+- **결과**: `runCheckinBaselineCheck` 의 `compared` 갈래 반환에 `confirmOrCompare` 를 적재해 step 요약 포매터의 입력 통로를 열었다. 판별 union 을 1 회만 생성해 포매터 인자와 반환이 같은 값을 공유하며(재계산 0), `skipped` 두 갈래는 필드 부재 그대로 유지. 로그 문자열 · `status` · `regressed` · 예외 · exit code 계약 불변, JSDoc `@returns` 만 갱신. 2 파일 `+153/-6`, `src/` 0 LOC.
+- **테스트**: colocated spec 에 8 국면 추가(`comparedOf` 좁히기 helper 포함), 대상 모듈 line · branch · function 100% 유지. 전체 440 suite / 12643 test pass, `test:cov` 임계 통과.
