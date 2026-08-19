@@ -2,13 +2,14 @@
 id: T-1609
 title: 부하계획 §5 item 5 의 "체크인 baseline 미착수" 상태 서술 2 곳 현행화
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047, REQ-048]
 estimatedDiff: 25
 estimatedFiles: 1
 created: 2026-08-19
 createdAt: 2026-08-19T01:40:25Z
+completedAt: 2026-08-19T02:42:00Z
 independentStream: perf-baseline-checkin
 dependsOn: [T-1607, T-1608]
 touchesFiles:
@@ -111,3 +112,17 @@ plannerNote: "P5 성능 검증 — T-1608 이 PLAN·REQ-048 에 박은 5 route �
 ## Follow-ups
 
 (작성 시 비어 있음)
+
+## Result (2026-08-19)
+
+`docs/ops/load-resilience-test-plan.md` 1 파일 `+6/-5`(변경 11 행) direct commit `40f2427d` — main push 완료.
+`§5` item 5 상태 문단(`659~665 행` 구간)에서 "저장소 체크인 기준 baseline 확정은 여전히 성립하지 않으며"
+단언을 걷어내고 ① `test/perf/baselines/` 5 route 체크인 사실 ② 확정 slice 좌표(T-1592/T-1594 · T-1601 ·
+T-1603 · T-1605 · T-1607) ③ `ci.yml` `PERF_CHECKIN_BASELINE: "1"` 토글(T-1584) 로 CI 가 `compared` 로
+도는 사실 ④ 그럼에도 ADR-0056 `§Decision 3 (b)` 대로 관찰-only·exit code 불변이라 item 5 는 **미완 유지**
+라는 근거를 인라인 서술. 인벤토리 결어(`862~863 행`)의 "임시 디렉토리 1 회성 호출뿐" 재인용도 같은 사실로
+교체하되 규모 민감도 · 실 scale 부하 · 시각화(web) 렌더 측정 잔여 축은 그대로 존치. `§3` 지표표의
+"baseline 후 fix" 3 행과 item 5 의 미완 판정은 한 글자도 불변(완료 표기 금지 AC 충족).
+인용 사실은 driver 가 별도 확인 — `test/perf/baselines/` 5 파일 실재, `ci.yml:256` 토글 1 곳 실재.
+코드 변경 0 이라 R-110 tester 의무 면제(T-1585 · T-1608 선례). CI: main run 32209454898 `in_progress`
+→ conclusion 은 다음 fire 가 확인(R-114 위임 1).
