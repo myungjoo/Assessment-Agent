@@ -2,7 +2,7 @@
 id: T-1611
 title: 체크인 baseline step 요약 포매터의 코드 울타리 길이를 본문 백틱 런에 맞춰 동적 산출
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048, REQ-047]
 estimatedDiff: 130
@@ -97,3 +97,13 @@ reviewer 가 round 1 에서 **Nit 1 건 — 코드 울타리 길이가 백틱 3 
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 발견 시 추가)
+
+## 결과 (2026-08-19T06:49:11Z, DONE)
+
+- `pr` mode — PR [#1289](https://github.com/myungjoo/Assessment-Agent/pull/1289) squash 머지 `d2815f17` + branch 삭제 확인. 2 파일 `+167/-8`, `src/` 0 LOC.
+- 고정 `FENCE` 상수를 걷어내고 **본문 최장 백틱 런 + 1** (하한 3) 로 여닫이 울타리 길이를 산출한다. 최소치는 상수 `MIN_FENCE_LENGTH` 1 곳에만 두고, 산출은 export 된 순수 helper `resolveFenceForBody` 로 분리해 JSDoc 에 입력 · 반환 · 예외 없음 계약을 명시.
+- **본문 가공 0** — `formatCheckinOutcomeBlock` 이 만든 문자열을 그대로 싣고 울타리만 늘린다. heading · 상태 줄 · 빈 줄 순서 · 문구 · 하위 진입점 모두 불변이라 T-1610 이 확정한 출력 계약이 백틱 없는 본문에서 문자열 단위로 동일.
+- **관찰-only 계약 유지** — `regressed=true` 입력에도 throw 0, 부작용 0. 형태 위반은 종전대로 `TypeError` / `RangeError`.
+- **R-112** — spec 19 → 34 국면(추가 15: 런 0/2/3/5 분기 · 줄 중간 · 선두 · 말미 런 · title 계약 · 회귀 throw 0 · 순수성). 대상 모듈 stmt/branch/func/line **100%**. 로컬 439 suite · 12610 test pass, `lint` · `build` green, global coverage line · function 임계 충족.
+- **4-게이트** — reviewer VERDICT=APPROVE(round 1, comment `#issuecomment-5338523703`) + PR comment 외화(driver 별도 확인) + integrator 자체 점검 + PR CI green 으로 4/4. 잔여 finding 0.
+- **남은 축** — `$GITHUB_STEP_SUMMARY` 실제 append 배선과 `ci.yml` 노출은 여전히 미착수(다음 slice). ADR-0056 `§Follow-ups (b)`(본체 ci.yml perf step 편입) · `§Follow-ups (c)`(20 run 표본 미충족) 도 그대로.
