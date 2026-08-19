@@ -6,6 +6,7 @@ import {
 import {
   CheckinBaselineCompareFn,
   CheckinBaselineRunInput,
+  CheckinBaselineRunOutcome,
   runCheckinBaselineCheck,
 } from "./checkin-baseline-run";
 import { resolveCheckinBaselineDir } from "./checkin-baseline-store";
@@ -68,6 +69,20 @@ describe("checkin-baseline-run — 판정→비교→로그 조립 (ADR-0056 §F
     value as CheckinBaselineRunInput;
   const badFn = (value: unknown): CheckinBaselineCompareFn =>
     value as CheckinBaselineCompareFn;
+  /**
+   * `compared` 국면임을 단언하고 반환 · 판별 union 두 겹을 좁혀 돌려준다(캐스팅 없이 필드 접근).
+   * 좁히기에 실패하면 그 자체가 계약 위반이므로 즉시 실패시킨다.
+   */
+  const comparedOf = (outcome: CheckinBaselineRunOutcome) => {
+    if (outcome.status !== "compared") {
+      throw new Error(`compared 국면이어야 함(실제 ${outcome.status})`);
+    }
+    const inner = outcome.confirmOrCompare;
+    if (inner.outcome !== "compared") {
+      throw new Error(`판별 union 이 compared 여야 함(실제 ${inner.outcome})`);
+    }
+    return { outcome, inner };
+  };
   it("happy-path: compared 는 요약 줄 · 비교 본문 · candidate 줄을 순서대로 잇는다", () => {
     const compare = okCompare(false);
     const arg = input();
@@ -319,37 +334,25 @@ describe("checkin-baseline-run — 판정→비교→로그 조립 (ADR-0056 §F
       comparison: BaselineComparison;
       report: string;
     };
-    if (result.status !== "compared") {
-      throw new Error("compared 국면이어야 함");
-    }
-    expect(Object.keys(result.confirmOrCompare).sort()).toEqual([
+    const { inner } = comparedOf(result);
+    // 판별자 1 개 + 비교 반환 2 개 — 통로가 필드를 더 얹거나 덜어내지 않는다.
+    expect(Object.keys(inner).sort()).toEqual([
       "comparison",
       "outcome",
       "report",
     ]);
-    expect(result.confirmOrCompare.outcome).toBe("compared");
     // 같은 참조 — 복사 · trim · 재포맷 · 반올림 어느 것도 하지 않았다는 증거.
-    expect(result.confirmOrCompare).toMatchObject({
-      comparison: returned.comparison,
-      report: returned.report,
-    });
-    expect(
-      (result.confirmOrCompare as { comparison: BaselineComparison })
-        .comparison,
-    ).toBe(returned.comparison);
+    expect(inner.comparison).toBe(returned.comparison);
+    expect(inner.report).toBe(returned.report);
   });
   it.each([true, false])(
     "분기 cover: regressed=%j 국면의 confirmOrCompare.comparison 이 반환 regressed 와 같은 출처",
     (regressed) => {
-      const result = runCheckinBaselineCheck(input(), okCompare(regressed));
-      if (result.status !== "compared") {
-        throw new Error("compared 국면이어야 함");
-      }
-      const inner = result.confirmOrCompare as {
-        comparison: BaselineComparison;
-      };
+      const { outcome, inner } = comparedOf(
+        runCheckinBaselineCheck(input(), okCompare(regressed)),
+      );
       expect(inner.comparison.regressed).toBe(regressed);
-      expect(result.regressed).toBe(inner.comparison.regressed);
+      expect(outcome.regressed).toBe(inner.comparison.regressed);
     },
   );
   it.each([
@@ -373,13 +376,12 @@ describe("checkin-baseline-run — 판정→비교→로그 조립 (ADR-0056 §F
       comparison: comparison(false),
       report: raw,
     }));
-    const result = runCheckinBaselineCheck(input(), compare);
-    if (result.status !== "compared") {
-      throw new Error("compared 국면이어야 함");
-    }
-    expect((result.confirmOrCompare as { report: string }).report).toBe(raw);
+    const { outcome, inner } = comparedOf(
+      runCheckinBaselineCheck(input(), compare),
+    );
+    expect(inner.report).toBe(raw);
     // 같은 원문이 로그에도 그대로 실린다(두 축이 한 값에서 갈라져 나온다).
-    expect(result.log).toContain(raw);
+    expect(outcome.log).toContain(raw);
   });
   it("negative: 같은 입력 2 회 호출의 confirmOrCompare 가 동일(결정성)", () => {
     const arg = input();
