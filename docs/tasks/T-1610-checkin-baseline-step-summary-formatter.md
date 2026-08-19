@@ -2,7 +2,7 @@
 id: T-1610
 title: 체크인 baseline confirm-or-compare 결과의 CI step 요약 markdown 포매터 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048, REQ-047]
 estimatedDiff: 270
@@ -95,3 +95,12 @@ Actions job 요약용 markdown 블록으로 바꾸는 진입점이다. 저장소
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 발견 시 추가)
+
+## 결과 (2026-08-19T04:48:40Z, DONE)
+
+- `pr` mode — PR [#1288](https://github.com/myungjoo/Assessment-Agent/pull/1288) squash 머지 `93bd570b` + branch 삭제 확인. 2 파일 `+261/-0`, `src/` 0 LOC.
+- `formatCheckinStepSummaryBlock` 순수 함수 1 개 신설 — heading · 상태 줄 · code block 순서 조립만 자기 책임이고, 결과 형태 검증 · 본문 조립은 `formatCheckinOutcomeBlock` 에 위임해 **리포트 재구현 0 · 상수 재기술 0**. fs · env · 시각 · 난수 접근 0, 인자 변형 0, 호출처 신설 0 (Out of Scope 준수).
+- **관찰-only 계약 유지** — 회귀 입력에도 throw 0 이라 `§Decision 3 (b)` 의 "가시화만 하고 exit code 를 바꾸지 않는다" 가 포매터 층에서 그대로 성립.
+- **R-112** — 신규 spec 19 국면(happy 4 · 분기 3 · error path 4 · negative (a)~(f) 8). 신규 모듈 stmt/branch/func/line **100%**. 로컬 439 suite · 12595 test pass, `lint` · `build` green, global coverage line · function 임계 충족.
+- **4-게이트** — reviewer VERDICT=APPROVE(round 1, comment `#issuecomment-5337634326`) + PR comment 외화 + integrator 자체 점검 + PR CI green 으로 4/4. Nit 1 건(코드 울타리 길이 고정) 은 다음 배선 slice 로 이관.
+- **남은 축** — `$GITHUB_STEP_SUMMARY` 실제 append 와 `ci.yml` 노출은 미착수(다음 slice). ADR-0056 `§Follow-ups (b)`(본체 ci.yml perf step 편입) · `§Follow-ups (c)`(20 run 표본 미충족) 도 그대로.
