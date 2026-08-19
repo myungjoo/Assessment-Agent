@@ -23,6 +23,11 @@ import {
   runCheckinBaselineCheckWithDefaults,
 } from "./checkin-baseline-adapter";
 import { CheckinBaselineRunOutcome } from "./checkin-baseline-run";
+import {
+  CheckinStepSummaryEmitOutcome,
+  emitCheckinStepSummary,
+} from "./checkin-baseline-step-summary-emit";
+import { CheckinStepSummarySinkDeps } from "./checkin-baseline-step-summary-sink";
 import { resolveCheckinBaselinePath } from "./checkin-baseline-store";
 import {
   BaselineEnvMeta,
@@ -99,4 +104,69 @@ export function seedCheckinBaselineFixture(
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, json, { encoding: "utf-8" });
   return target;
+}
+
+/**
+ * step 요약 주입 묶음 · 결과 판별 union 타입을 **그대로** 재-export 한다(새 타입 정의 금지 —
+ * 계약이 호출처마다 갈리면 안 된다).
+ */
+export type { CheckinStepSummarySinkDeps } from "./checkin-baseline-step-summary-sink";
+export type { CheckinStepSummaryEmitOutcome } from "./checkin-baseline-step-summary-emit";
+
+/**
+ * step 요약 sink 의 **기본 주입값 한 묶음** 을 만든다(ADR-0056 §Decision 3 (b)).
+ *
+ * 합성 진입점 `emitCheckinStepSummary` 는 **전역 접근 0** 계약 때문에 환경변수 record 와 append
+ * 함수를 전부 주입받는다. 그 묶기를 perf-spec 마다 복제하면 "무엇을 기본값으로 쓰는가" 가 호출처
+ * 수만큼 갈라지므로, 기본값 결선을 이 한 곳에만 둔다(`checkCheckinBaselineForSpec` 이
+ * `input.log ?? console.log` 로 로거 기본값을 묶은 것과 동형).
+ *
+ * **호출 시점 조회** — `processEnv` 는 모듈 로드 시점이 아니라 **호출 시점의** `process.env` 를
+ * 그대로 싣는다(spec 이 국면마다 env 를 바꿔도 관측돼야 한다). `append` 도 호출 시점에 새로
+ * 만들어지는 얇은 바인딩이라 `fs` spy 가 그대로 걸린다. **재구현 0** — 환경변수명 상수 · 단락
+ * 판정 · 요약 문구는 여기서 다시 적지 않는다(sink · emit 계약 그대로).
+ *
+ * @returns 호출 시점 `process.env` + `fs.appendFileSync` utf-8 바인딩으로 채운 주입 묶음.
+ * @throws 없음 — 값 조립만 하고 fs · 환경변수 write 를 하지 않는다.
+ */
+export function defaultStepSummarySinkDeps(): CheckinStepSummarySinkDeps {
+  return {
+    processEnv: process.env,
+    append: (target: string, data: string): void => {
+      fs.appendFileSync(target, data, { encoding: "utf-8" });
+    },
+  };
+}
+
+/**
+ * 체크인 baseline 실행 결과를 step 요약으로 내보내되 **주입 묶음의 기본값만 결선** 한다 —
+ * `emitCheckinStepSummary` 를 **정확히 1 회** 호출하고 그 반환을 **재조립 · 재판정 없이 그대로**
+ * 반환한다.
+ *
+ * `deps` 가 `undefined` 일 때만 `defaultStepSummarySinkDeps()` 로 채우고, 지정된 값은 **가공 없이**
+ * 그대로 넘긴다(`null` 도 가공하지 않고 넘겨 위임의 `TypeError` 로 드러나게 둔다 — `??` 로
+ * 흡수하면 무효 인자가 조용히 기본값으로 바뀐다). **중복 검증 금지** — `outcome` · `sectionTitle` ·
+ * `deps` 형태 검사는 전적으로 위임 계약이며 본 helper 는 다시 던지지 않는다.
+ *
+ * **exit code 불변** — 위임이 던지지 않는 값을 새로 던지지 않는다(관찰-only 계약 보존 —
+ * 포매터 · append 실패는 위임이 삼켜 `failed` 로만 보고한다).
+ *
+ * @param outcome 체크인 baseline 실행 결과 판별 union(`compared` | `skipped`).
+ * @param sectionTitle 요약 heading 문구(빈/공백-only 불가 — 위임 계약 그대로).
+ * @param deps 주입 묶음. 미지정 시 `defaultStepSummarySinkDeps()` 를 쓴다.
+ * @returns 위임 반환 그대로(append 수행 · 단락 · 삼킨 실패 판별 union).
+ * @throws {TypeError} 위임이 던지는 것 전파(`outcome` non-object · `null` · `undefined`,
+ *   `sectionTitle` non-string, 지정된 `deps` 가 `null` · non-object · 필드 형태 불량).
+ * @throws {RangeError} 위임이 던지는 것 전파(`sectionTitle` 빈/공백-only).
+ */
+export function emitCheckinStepSummaryForSpec(
+  outcome: CheckinBaselineRunOutcome,
+  sectionTitle: string,
+  deps?: CheckinStepSummarySinkDeps,
+): CheckinStepSummaryEmitOutcome {
+  return emitCheckinStepSummary(
+    outcome,
+    sectionTitle,
+    deps === undefined ? defaultStepSummarySinkDeps() : deps,
+  );
 }
