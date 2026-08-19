@@ -2,12 +2,14 @@
 id: T-1615
 title: Bind default step-summary deps in checkin baseline spec wiring
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 1293
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 210
 estimatedFiles: 2
 created: 2026-08-19
+completedAt: 2026-08-19T15:50:34Z
 independentStream: perf-checkin-baseline
 dependsOn: []
 touchesFiles:
@@ -36,22 +38,22 @@ plannerNote: ADR-0056 §Decision 3 (b) step 요약 축의 배선 조각 — emit
 
 구현 (`test/perf/checkin-baseline-spec-wiring.ts` 확장):
 
-- [ ] `defaultStepSummarySinkDeps(): CheckinStepSummarySinkDeps` 를 신설한다 — `processEnv` 는 **호출 시점의** `process.env`, `append` 는 `fs.appendFileSync` 를 utf-8 로 감싼 얇은 바인딩. 모듈 로드 시점에 값을 캡처하지 않는다(spec 이 env 를 바꿔도 관측돼야 한다).
-- [ ] `emitCheckinStepSummaryForSpec(outcome, sectionTitle, deps?): CheckinStepSummaryEmitOutcome` 를 신설한다 — `deps` 미지정(`undefined`) 시 `defaultStepSummarySinkDeps()` 를 쓰고, 지정 시 그 값을 **가공 없이** 그대로 넘긴다. `emitCheckinStepSummary` 를 **정확히 1 회** 호출하고 반환을 **재조립 · 재판정 없이** 그대로 반환한다.
-- [ ] **재구현 0** — 단락 판정(`not-compared` / `env-absent` / `env-blank`) · 예외 삼킴 · markdown 문구 · 환경변수명 상수를 본 모듈에서 다시 적지 않는다. 필요한 타입은 sink/emit 모듈에서 import 하거나 그대로 re-export 한다(새 타입 정의 금지).
-- [ ] **중복 검증 금지** — `outcome` · `sectionTitle` · 지정된 `deps` 의 형태 검증은 `emitCheckinStepSummary` 계약에 맡기고 본 helper 에서 다시 던지지 않는다(예외는 전파).
-- [ ] **exit code 불변** — 본 helper 는 어떤 국면에서도 위임 대상이 던지지 않는 값을 새로 던지지 않는다(관찰-only 계약 보존).
-- [ ] `checkCheckinBaselineForSpec` · `seedCheckinBaselineFixture` 의 시그니처 · 동작 · 로그 문자열은 **불변**.
-- [ ] 신설 심볼에 한국어 JSDoc(책임 · 기본값 결선 근거 · `@param` · `@returns` · `@throws`) 을 형제 모듈과 같은 밀도로 단다.
+- [x] `defaultStepSummarySinkDeps(): CheckinStepSummarySinkDeps` 를 신설한다 — `processEnv` 는 **호출 시점의** `process.env`, `append` 는 `fs.appendFileSync` 를 utf-8 로 감싼 얇은 바인딩. 모듈 로드 시점에 값을 캡처하지 않는다(spec 이 env 를 바꿔도 관측돼야 한다).
+- [x] `emitCheckinStepSummaryForSpec(outcome, sectionTitle, deps?): CheckinStepSummaryEmitOutcome` 를 신설한다 — `deps` 미지정(`undefined`) 시 `defaultStepSummarySinkDeps()` 를 쓰고, 지정 시 그 값을 **가공 없이** 그대로 넘긴다. `emitCheckinStepSummary` 를 **정확히 1 회** 호출하고 반환을 **재조립 · 재판정 없이** 그대로 반환한다.
+- [x] **재구현 0** — 단락 판정(`not-compared` / `env-absent` / `env-blank`) · 예외 삼킴 · markdown 문구 · 환경변수명 상수를 본 모듈에서 다시 적지 않는다. 필요한 타입은 sink/emit 모듈에서 import 하거나 그대로 re-export 한다(새 타입 정의 금지).
+- [x] **중복 검증 금지** — `outcome` · `sectionTitle` · 지정된 `deps` 의 형태 검증은 `emitCheckinStepSummary` 계약에 맡기고 본 helper 에서 다시 던지지 않는다(예외는 전파).
+- [x] **exit code 불변** — 본 helper 는 어떤 국면에서도 위임 대상이 던지지 않는 값을 새로 던지지 않는다(관찰-only 계약 보존).
+- [x] `checkCheckinBaselineForSpec` · `seedCheckinBaselineFixture` 의 시그니처 · 동작 · 로그 문자열은 **불변**.
+- [x] 신설 심볼에 한국어 JSDoc(책임 · 기본값 결선 근거 · `@param` · `@returns` · `@throws`) 을 형제 모듈과 같은 밀도로 단다.
 
 테스트 (`test/perf/checkin-baseline-spec-wiring.spec.ts` 에 `describe` 추가, R-112):
 
-- [ ] **happy-path** — `compared` outcome + 주입 `deps`(가짜 `processEnv` + 임시 파일 append) 로 호출 시 `appended` 반환 + 대상 파일에 요약 블록이 정확히 1 회 기록됨.
-- [ ] **error path** — (1) 포매터가 던지는 형태 불량 `confirmOrCompare` 입력에서 `failed`(`format-threw`) 반환 + throw 0, (2) `append` 가 던지는 국면에서 `failed`(`append-threw`) 반환 + throw 0.
-- [ ] **분기 cover** — `deps` 지정 갈래 / 미지정(기본 바인딩) 갈래, `compared` / 비-`compared`(`skipped`(`not-compared`), 하위 호출 0 회) 갈래, 환경변수 부재(`env-absent`) / 빈-공백(`env-blank`) 갈래 각 1+.
-- [ ] **기본 바인딩 검증** — `deps` 미지정 호출이 `process.env[GITHUB_STEP_SUMMARY]` 를 **호출 시점에** 읽는지 확인(spec 안에서 env 를 임시 디렉토리 경로로 설정 → 실제 파일에 기록 → 원복; env 부재 국면은 `skipped`(`env-absent`)). 전역 env 는 국면마다 저장 · 원복해 부작용 0.
-- [ ] **negative cases 충분 cover** — (a) `outcome` `null` / `undefined` → `TypeError` 전파, (b) `sectionTitle` non-string → `TypeError` 전파, (c) `sectionTitle` 빈/공백-only → `RangeError` 전파, (d) `deps` 가 지정됐으나 `null` → `TypeError` 전파, (e) `deps.append` non-function → `TypeError` 전파, (f) 비-`compared` 국면에서 주입 `append` 가 **0 회** 호출됨, (g) 인자(`outcome` · `deps`) 가 호출 전후로 변형되지 않음(순수성).
-- [ ] `pnpm lint` · `pnpm build` green, `pnpm test` 전량 pass, `pnpm test:cov` 임계 통과(line ≥ 80% / function ≥ 80%) — 변경 모듈은 stmt/branch/func/line 100% 유지.
+- [x] **happy-path** — `compared` outcome + 주입 `deps`(가짜 `processEnv` + 임시 파일 append) 로 호출 시 `appended` 반환 + 대상 파일에 요약 블록이 정확히 1 회 기록됨.
+- [x] **error path** — (1) 포매터가 던지는 형태 불량 `confirmOrCompare` 입력에서 `failed`(`format-threw`) 반환 + throw 0, (2) `append` 가 던지는 국면에서 `failed`(`append-threw`) 반환 + throw 0.
+- [x] **분기 cover** — `deps` 지정 갈래 / 미지정(기본 바인딩) 갈래, `compared` / 비-`compared`(`skipped`(`not-compared`), 하위 호출 0 회) 갈래, 환경변수 부재(`env-absent`) / 빈-공백(`env-blank`) 갈래 각 1+.
+- [x] **기본 바인딩 검증** — `deps` 미지정 호출이 `process.env[GITHUB_STEP_SUMMARY]` 를 **호출 시점에** 읽는지 확인(spec 안에서 env 를 임시 디렉토리 경로로 설정 → 실제 파일에 기록 → 원복; env 부재 국면은 `skipped`(`env-absent`)). 전역 env 는 국면마다 저장 · 원복해 부작용 0.
+- [x] **negative cases 충분 cover** — (a) `outcome` `null` / `undefined` → `TypeError` 전파, (b) `sectionTitle` non-string → `TypeError` 전파, (c) `sectionTitle` 빈/공백-only → `RangeError` 전파, (d) `deps` 가 지정됐으나 `null` → `TypeError` 전파, (e) `deps.append` non-function → `TypeError` 전파, (f) 비-`compared` 국면에서 주입 `append` 가 **0 회** 호출됨, (g) 인자(`outcome` · `deps`) 가 호출 전후로 변형되지 않음(순수성).
+- [x] `pnpm lint` · `pnpm build` green, `pnpm test` 전량 pass, `pnpm test:cov` 임계 통과(line ≥ 80% / function ≥ 80%) — 변경 모듈은 stmt/branch/func/line 100% 유지.
 
 ## Out of Scope
 
@@ -68,3 +70,10 @@ plannerNote: ADR-0056 §Decision 3 (b) step 요약 축의 배선 조각 — emit
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 발견 시 여기에 append)
+
+## Result (2026-08-19)
+
+`pr` mode 로 완료 — PR [#1293](https://github.com/myungjoo/Assessment-Agent/pull/1293) squash 머지 `bdd382aa` (2 파일 `+275/-0`, `src/` 0 LOC · `ci.yml` 변경 0).
+배선 helper 에 `defaultStepSummarySinkDeps()` + `emitCheckinStepSummaryForSpec()` 2 심볼만 신설 — 기본 주입값은 **호출 시점**의 `process.env` 와 `fs.appendFileSync` utf-8 바인딩이라 모듈 로드 시점 캡처 0(spec 이 env 를 바꿔도 관측된다). `deps` 는 `undefined` 일 때만 기본값으로 채우고 `null` 은 가공 없이 그대로 넘겨 위임의 `TypeError` 로 드러낸다(`??` 흡수 금지). `emitCheckinStepSummary` 를 정확히 1 회 호출하고 반환은 재조립 · 재판정 0 — 재구현 0 · 중복 검증 0 · exit code 불변.
+R-112 — colocated spec `describe` 1 개 / `it` 15 개 추가(happy 2 / error path 2 / 분기 6 / negative (a)~(g) 6), 변경 모듈 stmt·branch·func·line **100%**, 전체 441 suite / 12680 test green.
+4-게이트 — reviewer VERDICT=APPROVE(round 1/7) + PR comment 외화 + integrator 자체 점검 + PR CI green(기본 검사 · 배포 산출물 검증 2/2 pass) 으로 **4/4**.
