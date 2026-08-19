@@ -2,13 +2,14 @@
 id: T-1608
 title: 체크인 baseline JSON 5 route 확정 사실을 PLAN 142 행 · REQ-048 행에 doc-sync
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 90
 estimatedFiles: 2
 created: 2026-08-18
 createdAt: 2026-08-18T23:55:16Z
+completedAt: 2026-08-19T00:40:00Z
 independentStream: perf-baseline-checkin
 dependsOn: [T-1585, T-1607]
 touchesFiles:
@@ -124,3 +125,12 @@ REQ-048 status 토큰은 **그대로 둔다** (`§Follow-ups (d)` 의 "본 ADR �
 ## Follow-ups
 
 - (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+---
+
+## 완료 기록 (driver, 2026-08-19)
+
+- **Status: DONE** — `direct` mode, main commit `418dabe1` (2 파일 `+2/-2`).
+- PLAN `142 행` · requirements `67 행` REQ-048 row 의 "체크인 baseline JSON 이 아직 없어 … 회귀 비교 실행 횟수는 0" 서술을 `measure→confirm` 5 route 확정 + 확정 task·PR·main 좌표 + CI 경로 `absent`(skip) → `compared` 로 인라인 현행화.
+- 완료 표기 금지 유지 — PLAN `140 행` checkbox `[ ]` 불변, REQ-048 `IN_PROGRESS` 불변 (ADR-0056 `§Follow-ups (c)` 임계 fix 미완 · REQ-047 실 scale 미검증 · 시각화 렌더 측정 축 부재).
+- R-110 tester 의무는 direct doc-only 라 면제 (코드 변경 0 — `src/` · `test/` · `.github/` 미포함).
