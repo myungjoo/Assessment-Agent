@@ -6,6 +6,7 @@ import {
 import {
   CheckinBaselineCompareFn,
   CheckinBaselineRunInput,
+  CheckinBaselineRunOutcome,
   runCheckinBaselineCheck,
 } from "./checkin-baseline-run";
 import { resolveCheckinBaselineDir } from "./checkin-baseline-store";
@@ -68,6 +69,20 @@ describe("checkin-baseline-run — 판정→비교→로그 조립 (ADR-0056 §F
     value as CheckinBaselineRunInput;
   const badFn = (value: unknown): CheckinBaselineCompareFn =>
     value as CheckinBaselineCompareFn;
+  /**
+   * `compared` 국면임을 단언하고 반환 · 판별 union 두 겹을 좁혀 돌려준다(캐스팅 없이 필드 접근).
+   * 좁히기에 실패하면 그 자체가 계약 위반이므로 즉시 실패시킨다.
+   */
+  const comparedOf = (outcome: CheckinBaselineRunOutcome) => {
+    if (outcome.status !== "compared") {
+      throw new Error(`compared 국면이어야 함(실제 ${outcome.status})`);
+    }
+    const inner = outcome.confirmOrCompare;
+    if (inner.outcome !== "compared") {
+      throw new Error(`판별 union 이 compared 여야 함(실제 ${inner.outcome})`);
+    }
+    return { outcome, inner };
+  };
   it("happy-path: compared 는 요약 줄 · 비교 본문 · candidate 줄을 순서대로 잇는다", () => {
     const compare = okCompare(false);
     const arg = input();
@@ -76,6 +91,12 @@ describe("checkin-baseline-run — 판정→비교→로그 조립 (ADR-0056 §F
       status: "compared",
       regressed: false,
       log: `${CHECKIN_LOG_PREFIX} outcome=compared regressed=false\n본문\n${formatCheckinCandidateLine(REPORT)}`,
+      // step 요약 포매터의 입력 통로 — 주입 비교 함수 반환을 판별 union 으로만 감싸 그대로 싣는다.
+      confirmOrCompare: {
+        outcome: "compared",
+        comparison: comparison(false),
+        report: "본문",
+      },
     });
     // 3 번째 줄이 grep 축(prefix + candidate) 으로 시작해야 20 run 표본 축적이 성립한다.
     const lines = result.log.split("\n");
@@ -254,6 +275,11 @@ describe("checkin-baseline-run — 판정→비교→로그 조립 (ADR-0056 §F
       status: "compared",
       regressed: true,
       log: `${CHECKIN_LOG_PREFIX} outcome=compared regressed=true\n본문\n${formatCheckinCandidateLine(REPORT)}`,
+      confirmOrCompare: {
+        outcome: "compared",
+        comparison: comparison(true),
+        report: "본문",
+      },
     });
   });
   it("분기 cover: 줄 수 계약 — compared 는 3 줄(마지막이 candidate) · disabled 는 1 줄", () => {
@@ -298,6 +324,99 @@ describe("checkin-baseline-run — 판정→비교→로그 조립 (ADR-0056 §F
     expect(last).toContain("p50=NaN");
     expect(last).toContain("p95=NaN");
     expect(last).toContain("count=0");
+  });
+  it("happy-path: compared 는 주입 비교 반환을 판별 union 으로 감싸 confirmOrCompare 에 싣는다", () => {
+    const compare = okCompare(false);
+    const result = runCheckinBaselineCheck(input(), compare);
+    // 비교는 정확히 1 회 — 그 1 회의 반환이 재가공 없이 그대로 실려야 한다(재계산 0).
+    expect(compare).toHaveBeenCalledTimes(1);
+    const returned = compare.mock.results[0].value as {
+      comparison: BaselineComparison;
+      report: string;
+    };
+    const { inner } = comparedOf(result);
+    // 판별자 1 개 + 비교 반환 2 개 — 통로가 필드를 더 얹거나 덜어내지 않는다.
+    expect(Object.keys(inner).sort()).toEqual([
+      "comparison",
+      "outcome",
+      "report",
+    ]);
+    // 같은 참조 — 복사 · trim · 재포맷 · 반올림 어느 것도 하지 않았다는 증거.
+    expect(inner.comparison).toBe(returned.comparison);
+    expect(inner.report).toBe(returned.report);
+  });
+  it.each([true, false])(
+    "분기 cover: regressed=%j 국면의 confirmOrCompare.comparison 이 반환 regressed 와 같은 출처",
+    (regressed) => {
+      const { outcome, inner } = comparedOf(
+        runCheckinBaselineCheck(input(), okCompare(regressed)),
+      );
+      expect(inner.comparison.regressed).toBe(regressed);
+      expect(outcome.regressed).toBe(inner.comparison.regressed);
+    },
+  );
+  it.each([
+    ["disabled", { processEnv: flagEnv("0") }],
+    ["absent", { exists: false }],
+  ])(
+    "분기 cover: skipped(%s) 반환에는 confirmOrCompare 키가 없다",
+    (_, over) => {
+      const result = runCheckinBaselineCheck(
+        input(over as Partial<CheckinBaselineRunInput>),
+        okCompare(),
+      );
+      expect(result).not.toHaveProperty("confirmOrCompare");
+      expect(Object.keys(result).sort()).toEqual(["log", "reason", "status"]);
+    },
+  );
+  it("negative: confirmOrCompare.report 는 공백 · 개행 · 백틱을 거르지 않고 원문 그대로", () => {
+    // 요약 포매터가 울타리 길이를 스스로 정하므로, 통로에서 본문을 다듬으면 그 판단이 깨진다.
+    const raw = "  머리 공백\n```중간 백틱```\n꼬리 공백  ";
+    const compare: jest.Mock = jest.fn(() => ({
+      comparison: comparison(false),
+      report: raw,
+    }));
+    const { outcome, inner } = comparedOf(
+      runCheckinBaselineCheck(input(), compare),
+    );
+    expect(inner.report).toBe(raw);
+    // 같은 원문이 로그에도 그대로 실린다(두 축이 한 값에서 갈라져 나온다).
+    expect(outcome.log).toContain(raw);
+  });
+  it("negative: 같은 입력 2 회 호출의 confirmOrCompare 가 동일(결정성)", () => {
+    const arg = input();
+    const snapshot = JSON.stringify(arg);
+    const first = runCheckinBaselineCheck(arg, okCompare(true));
+    const second = runCheckinBaselineCheck(arg, okCompare(true));
+    expect(first).toEqual(second);
+    expect(JSON.stringify(arg)).toBe(snapshot);
+  });
+  it("error path: 빈/공백-only report 는 포매터 RangeError 로 전파되고 반환값이 없다", () => {
+    for (const report of ["", "   ", "\n\t"]) {
+      const compare: jest.Mock = jest.fn(() => ({
+        comparison: comparison(false),
+        report,
+      }));
+      // 비교는 이미 1 회 끝난 시점 — 그래도 조립 결과는 호출측에 도달하지 않는다.
+      expect(() => runCheckinBaselineCheck(input(), compare)).toThrow(
+        RangeError,
+      );
+      expect(compare).toHaveBeenCalledTimes(1);
+    }
+  });
+  it("error path: 비교 반환 형태 불량(report non-string · comparison 결손)은 TypeError 로 전파", () => {
+    const run = (value: unknown) => () =>
+      runCheckinBaselineCheck(
+        input(),
+        jest.fn(() => value) as unknown as CheckinBaselineCompareFn,
+      );
+    expect(run({ comparison: comparison(false), report: 7 })).toThrow(
+      TypeError,
+    );
+    expect(run({ comparison: null, report: "본문" })).toThrow(TypeError);
+    expect(run({ comparison: { regressed: "yes" }, report: "본문" })).toThrow(
+      TypeError,
+    );
   });
   it("negative: 서로 다른 envMeta.label 은 absent 로그 경로를 다르게 만든다", () => {
     const logOf = (label: string) =>

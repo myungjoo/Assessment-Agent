@@ -22,6 +22,7 @@ import {
   BaselineReport,
   CompareOptions,
 } from "./latency-baseline";
+import { ConfirmOrCompareResult } from "./latency-baseline-io";
 
 /** 주입 비교 함수 타입 — `readCompareBaselineFile`(latency-baseline-io) 과 구조적으로 호환. */
 export type CheckinBaselineCompareFn = (
@@ -44,9 +45,22 @@ export interface CheckinBaselineRunInput {
   options?: CompareOptions;
 }
 
-/** 결과 union — `"compared"` 는 비교 진입, `"skipped"` 는 비교 함수 미호출(토글 off · 부재). */
+/**
+ * 결과 union — `"compared"` 는 비교 진입, `"skipped"` 는 비교 함수 미호출(토글 off · 부재).
+ *
+ * `compared` 갈래만 `confirmOrCompare` 를 싣는다 — step 요약 포매터
+ * (`formatCheckinStepSummaryBlock`, ADR-0056 §Decision 3 (b)) 의 입력이 바로 이 판별 union 이라,
+ * 여기서 버리면 호출측이 `comparison` · `report` 를 재조립해야 한다. `skipped` 두 갈래에는 **두지
+ * 않는다** — "비교가 없었다"는 사실을 타입으로 유지해, 요약 배선이 skip 국면을 실수로 요약하지
+ * 못하게 한다(런타임 검사 대신 컴파일 시점 단락).
+ */
 export type CheckinBaselineRunOutcome =
-  | { status: "compared"; regressed: boolean; log: string }
+  | {
+      status: "compared";
+      regressed: boolean;
+      log: string;
+      confirmOrCompare: ConfirmOrCompareResult;
+    }
   | { status: "skipped"; reason: "disabled" | "absent"; log: string };
 
 /**
@@ -55,7 +69,9 @@ export type CheckinBaselineRunOutcome =
  * 않고** `CHECKIN_LOG_PREFIX` 기반 로그와 함께 `skipped`(`disabled` 는 경로 없이, `absent` 는
  * `plan.baselinePath` 를 싣는다). (3) `compare` 면 주입 함수를 `(envMeta,
  * resolveCheckinBaselineDir(repoRoot), candidate, options)` 로 **정확히 1 회** 호출하고 그 반환을
- * `formatCheckinOutcomeBlock` 에 넘겨 `log` 를, `comparison.regressed` 를 그대로 싣는다.
+ * `formatCheckinOutcomeBlock` 에 넘겨 `log` 를, `comparison.regressed` 를 그대로 싣는다. 그때 만든
+ * 판별 union(`{outcome:"compared", comparison, report}`)은 **버리지 않고** `confirmOrCompare` 로
+ * 함께 실어, step 요약 포매터가 재조립 없이 받아쓰게 한다(§Decision 3 (b) 요약 축의 입력 통로).
  *
  * **`compare` 형태 검증 시점** — 함수 여부 검사는 **비교 진입이 확정된 뒤**(3 단계)에만 한다. 즉
  * `skip` 두 국면에서는 `compare` 가 무효여도 예외가 없다(판정 단락 우선). **결정성 · 입력 불변 ·
@@ -68,7 +84,8 @@ export type CheckinBaselineRunOutcome =
  *
  * @param input 판정 재료 + 비교 재료.
  * @param compare 주입 비교 함수(`readCompareBaselineFile` 호환).
- * @returns 비교 국면(`compared`) 또는 단락 국면(`skipped`) 결과.
+ * @returns 비교 국면(`compared` — `regressed` · `log` 에 더해 비교 함수 반환을 그대로 실은
+ *   `confirmOrCompare`) 또는 단락 국면(`skipped` — 비교가 없었으므로 `confirmOrCompare` 없음).
  * @throws {TypeError} `input` non-object · `null`, 비교 진입 확정 후 `compare` non-function, 그
  *   밖에 판정 · 경로 helper · 주입 함수 · 포매터(candidate 포함)가 던지는 것(전파).
  * @throws {RangeError} 판정 · 경로 helper · 포매터가 던지는 것(전파).
@@ -122,8 +139,19 @@ export function runCheckinBaselineCheck(
   //    candidate 지표 줄을 개행 1 개로 이어 `absent` 국면과 대칭을 만든다 — baseline 을 체크인한
   //    뒤에는 CI 가 항상 이 분기로 떨어지므로, 여기에 축이 없으면 ADR-0056 §Decision 5 1 항의
   //    `label` 별 20 run 표본 축적 입력이 닫힌다. 블록 문자열 자체는 재조립 · 재포맷하지 않는다.
+  //    판별 union 객체는 **한 번만** 만들어 포매터 인자와 반환 필드에 같은 값을 쓴다 — 수치
+  //    재계산 · 형태 재검증 · 필드 재조립 0(step 요약 배선이 쓸 입력을 그대로 통과시킨다).
+  const confirmOrCompare: ConfirmOrCompareResult = {
+    outcome: "compared",
+    ...result,
+  };
   const log =
-    `${formatCheckinOutcomeBlock({ outcome: "compared", ...result })}\n` +
+    `${formatCheckinOutcomeBlock(confirmOrCompare)}\n` +
     formatCheckinCandidateLine(input.candidate);
-  return { status: "compared", regressed: result.comparison.regressed, log };
+  return {
+    status: "compared",
+    regressed: result.comparison.regressed,
+    log,
+    confirmOrCompare,
+  };
 }
