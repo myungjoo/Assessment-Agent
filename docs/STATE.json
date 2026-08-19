@@ -7,8 +7,8 @@
     "maxConcurrentClaims": 2
   },
   "currentTask": null,
-  "nextTask": "T-1618",
-  "backlogNoteResolved": "▶ **T-1575 DONE (pr, PR #1256 스쿼시 머지 74784c18) — summary perf-spec 의 factory 중복 국면 3 개 삭제 (1 파일 +20/-100, 삭제 전용).** T-1573 factory 승격으로 1:1 중복화된 happy (e) · 분기 (g) · negative (h) 를 정본 대조 후 제거하고, 잔존 4 국면(주입 토글 2 + error (f) · negative (i)) 의 고유 seam 근거를 주석으로 박제. perf 대상 126 → 123 test(정확히 3 감소) 전량 pass. 다음 후보 = ① *-realdb / *-read 계열 perf-spec 의 factory 배선, ② ADR-0056 Follow-up (a) 체크인 baseline JSON 최초 생성·commit(실측 + 사람 눈 확인 전제), ③ Follow-up (b) 본체 ci.yml perf step 토글 on 편입.",
+  "nextTask": null,
+  "backlogNoteResolved": "▶ **T-1618 DONE (pr, PR #1296 스쿼시 머지 a099c4a2) — contribution 실 DB perf-spec 에 step 요약 실호출 배선(1 파일 +281/-1).** ADR-0056 §Decision 3 (b) step 요약 실호출이 person(T-1616) · assessment(T-1617) 에 이어 세 번째 route 로 확산. 신규 it 7 개(실호출 1 · happy/분기 1 · error 2 · 분기 1 · negative 2), CI 로그에 emit status=appended 실측. 다음 후보 = ① 나머지 2 route(summary · app-root) 로 확산, ② ADR-0056 §Follow-ups (b) 본체 ci.yml perf step 편입(drift-guard smoke spec 3 개 동반 — 5 파일 cap 주의), ③ Follow-up (c) 임계값·tolerance 재산정.",
   "backlogNoteT0881": "▶ **T-0881 DONE (PR #775 merged, squash 67955a76) — T-0880 unblock 완결; 다음 fire 가 T-0880/PR #774 resume** — app-root compared 분기 perf-spec(test/perf/app-root-measure-confirm.perf-spec.ts) 의 compared happy-path(b) 1차·2차 measure 에 stepClock(50) 주입해 regressed 비결정성 제거(+13/-6, 1 file). 이로써 T-0880 PR #774 를 2회 fail 시킨 T-0877 timing-fragile 단언(:217 wall-clock regressed=false)이 결정론화됨. reviewer APPROVE round 1/7(0 BLOCKER·0 MAJOR·0 MINOR), 4-게이트 PASS(reviewer comment external, CI test:perf 포함 green, ADR-0036 §8(c) head 최신 main 포함), squash 67955a76 + branch delete. R-112: compared happy-path 결정론(ok) + 회귀 분기는 기존 flow(336~356)/negative(414~433) 가 stepClock+tolerance:0 로 이미 커버, src 0 LOC 변경이라 test:cov 무영향. fineGrainedConcurrency ON(stage 5b) claim-pickup fire(cron@aa-local-33f5). **다음 시퀀스**: nextTask=T-0880 → 다음 fire 가 currentTask 로 옮겨 LOOP [2] frontmatter-prNumber(774) resume 분기로 PR #774 checkout+rebase(최신 main 이제 T-0881 fix 포함)+re-CI(test:perf 이제 green 기대)+4-게이트 재확인 → merge. 중복 PR 금지(prNumber:774 resume).",
   "backlogNoteT0880": "▶ **T-0880 DONE (PR #774 merged, squash effb2b6c) — S2 조회 endpoint 두 번째 통합 perf-spec 배선 완결** — SummaryController GET /api/summaries?personId 를 measureAndConfirmBaseline top loop 에 배선한 두 번째 통합 perf-spec. T-0881→T-0880 unblock 시퀀스 완결.",
   "backlogNote": "▶ **T-1613 DONE (pr, PR #1291 스쿼시 머지 1371e050) — compared 실행 결과에 `ConfirmOrCompareResult` 적재.** ADR-0056 §Decision 3 (b) step 요약 축의 데이터 통로 한 칸 — `runCheckinBaselineCheck` 가 compared 국면에서 만들고 버리던 판별 union 을 반환의 `compared` 갈래에 `confirmOrCompare` 로 실었다(객체 1 회 생성 · 포매터 인자와 동일 값 공유, 재계산 0). `skipped` 두 갈래는 필드 부재 유지, 로그 문자열 · status · regressed · 예외 · exit code 계약 불변, JSDoc @returns 만 갱신. 2 파일 +153/-6, src/ 0 LOC, 신규 판정 · 호출처 0. spec 8 국면 추가(comparedOf 좁히기 helper), 대상 모듈 100%(line·branch·function) 유지, 440 suite / 12643 test green. **다음 후보** = ① 포매터+sink 를 잇는 합성 모듈(`emitCheckinStepSummary` 류) 신설, ② 그 합성 모듈의 호출처 배선(checkin-baseline-spec-wiring.ts + 기본 주입값 바인딩), ③ ADR-0056 §Follow-ups (b) 본체 ci.yml perf step 편입(drift-guard smoke spec 3 개 동반 — 5 파일 cap 주의, T-1122 전례), ④ §Follow-ups (a) 세 번째 route 실측 확산, ⑤ *-realdb / *-read 계열 perf-spec 의 factory 배선.",
@@ -45,8 +45,8 @@
   "ci": {
     "status": "green",
     "consecutiveFails": 0,
-    "lastRun": "2026-08-19T20:37:34Z",
-    "note": "T-1618 큐잉 fire(cron@aa-local-e9f7ef7f) — lock CAS d9b93ae9 획득(server-time 2026-08-19T20:37:34Z, gh api -i rate_limit Date), 활성 claim 0 / reclaim 대상 0, executor 미호출이라 claim 생성 0 → bookkeeping write 후 tombstone release. R-114 위임 정산: 직전 fire 의 머지 commit 5a7d951e main run success + bookkeeping e9f7ef7f main run success(위임 잔량 0). 본 fire commit 의 main run conclusion 은 다음 fire 가 확인한다."
+    "lastRun": "2026-08-19T22:03:58Z",
+    "note": "T-1618 실행 fire(cron@aa-local-9cf72b03) — lock CAS 561275746 획득(server-time 2026-08-19T21:37:11Z, gh api -i rate_limit Date), reclaim 회수 0 / 활성 claim 0 → pr-mode 단독 claim(claimedAt 21:37:11Z) 후 lock-free executor. PR #1296 squash 머지 a099c4a2(1 파일 +281/-1), 4-게이트 4/4. R-114 위임 정산: 직전 fire commit 9cf72b03 main run success(위임 잔량 0). 본 fire 머지 commit a099c4a2 의 main run 32307017126 은 in_progress 라 conclusion 은 다음 fire 가 확인."
   },
   "reviewRounds": {
     "T-1615": 1,
@@ -1727,7 +1727,7 @@
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
   "humanQuestionsArchivedCount": 12,
   "counters": {
-    "tasksCompleted": 1608,
+    "tasksCompleted": 1609,
     "tasksBlocked": 9,
     "tasksSuperseded": 4,
     "tasksAccidentalMerge": 1

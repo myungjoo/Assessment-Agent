@@ -2,7 +2,7 @@
 id: T-1618
 title: contribution 실 DB perf-spec 으로 step 요약 실호출 확산 (세 번째 route)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048, REQ-047]
 estimatedDiff: 280
@@ -152,3 +152,15 @@ chain 의 부모 선택 축**(부모 A 자식 5 건 vs 부모 B 자식 3 건) ·
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 적는다.)
+
+## 완료 기록
+
+- 완료: 2026-08-19T22:03:55Z (`cron@aa-local-9cf72b03` fire)
+- PR [#1296](https://github.com/myungjoo/Assessment-Agent/pull/1296) squash 머지 `a099c4a2` — 1 파일 `+281/-1`
+  (`test/perf/contribution-measure-confirm-realdb.perf-spec.ts` 만 변경, `src/`·`prisma/`·`.github/` **0 LOC**).
+- 결과: ADR-0056 `§Decision 3 (b)` step 요약 실호출을 person·assessment 에 이어 **세 번째 route(contribution)** 로 확산.
+  요약 축 전용 label(`realdb-contrib-step-summary`) + `STEP_SUMMARY_TITLE` 상수 1 개 + 지역 helper 6 종만 추가하고
+  기존 상수·`it` 본문·훅은 무수정(추가만). CI 로그에 emit `status=appended` 실측 1 줄 박제.
+- R-112: 신규 `it` **7 개**(실호출 1 · happy/분기 1 · error 2(`append-threw` · `assessmentId` 누락 400 전량 표본) ·
+  분기 1 · negative 2(전역 env 불변 · 부모 A/B 두 표본 독립)), 4-게이트 4/4
+  (reviewer VERDICT=APPROVE round 1/7 + PR comment 외화 + integrator 자체 점검 + PR CI green).
