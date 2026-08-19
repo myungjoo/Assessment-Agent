@@ -145,6 +145,7 @@ P3 진행 중 발견된 진척 status quo + P4 진입 trigger 의사결정 가�
 - [ ] **🟡 [오너 결정 2026-07-30] R-92 per-route perf baseline churn 중단(상한)** — `test/perf/*.perf-spec.ts` 이미 63개(read 51). route 하나당 slice 1개 반복은 한계효용 ~0(전부 `p95<3000ms` 소규모 표본=실 scale 아님). **신규 per-route baseline slice 큐잉 금지** — R-92 read-latency 축은 충분 입증됨. 잔여 route 는 필요 시 기존 spec 에 route 추가로 흡수(신규 slice task 금지). 자원을 위 R-91 로 전환.
 - [ ] **🟡 [오너 결정 2026-07-30] PLAN R-92 bullet prune (문서 smell)** — 현 R-92 sub-bullet 이 단일 줄 ~67,000자 mega-narrative(slice 1~19+ 누적)로 비대화. 요약본(≤10줄: 구조 축·p95 3000ms 임계·정본 pointer `test/perf/README.md`)으로 압축하고 slice별 상세는 README 로 외화. direct doc-only.
 
+- [ ] **🟢 [오너 지시 2026-07-30] R-91 실데이터 규모 dataset 준비 = nnstreamer+nntrainer 2026 PR 작성자 33명** — 정본 [docs/ops/realdata-scale-devset.md](ops/realdata-scale-devset.md)(33명 목록·PR수·refresh 명령). 조치: 33명을 Person+github.com `ServiceIdentity` 로 seed → `assessment-collection` 실 수집 → 평가 → R-91 규모 검증(k6, ADR-0054) 실 표본. **주의: 33 < 100~200(R-91 headcount) — 규모 부족 시 org/기간 확대 또는 synthetic 증배 = 오너 결정.** github 수집은 배포기기 PAT(실데이터 gating) 사용. raw 미저장(R-59).
 ---
 
 ## Phase P8 — Hardening & launch
