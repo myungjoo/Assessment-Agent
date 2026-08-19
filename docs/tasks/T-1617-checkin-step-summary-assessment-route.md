@@ -2,7 +2,7 @@
 id: T-1617
 title: assessment 실 DB perf-spec 으로 step 요약 실호출 확산 (두 번째 route)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048, REQ-047]
 estimatedDiff: 240
@@ -149,3 +149,14 @@ T-1600 실측 → T-1601 체크인 완료). 나머지 3 route(contribution · su
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 적는다.)
+
+## 완료 기록
+
+- 완료: 2026-08-19T19:57:14Z (`cron@aa-local-520cf1d11866` fire)
+- PR [#1295](https://github.com/myungjoo/Assessment-Agent/pull/1295) squash 머지 `5a7d951e` — 1 파일 `+284/-1`
+  (`test/perf/assessment-measure-confirm-realdb.perf-spec.ts` 만 변경, `src/`·`prisma/`·`.github/` **0 LOC**).
+- 결과: ADR-0056 `§Decision 3 (b)` step 요약 실호출을 person 에 이어 **두 번째 route(assessment)** 로 확산.
+  요약 축 전용 label(`realdb-assess-step-summary`) + `STEP_SUMMARY_TITLE` 상수 1 개 + 지역 helper 6 종만 추가하고
+  기존 상수·`it` 본문·훅·suite factory 인자는 무수정(추가만). CI 로그에 emit `status=appended` 실측 1 줄 박제.
+- R-112: 신규 `it` **7 개**(실호출 1 · happy/분기 1 · error 2 · 분기 1 · negative 2), 4-게이트 4/4
+  (reviewer VERDICT=APPROVE round 1/7 + PR comment 외화 + integrator 자체 점검 + PR CI 2/2 pass).
