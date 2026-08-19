@@ -20,8 +20,37 @@
 import { formatCheckinOutcomeBlock } from "./checkin-baseline-report";
 import { ConfirmOrCompareResult } from "./latency-baseline-io";
 
-/** markdown fenced code block 울타리 — 요약 본문의 고정 축(표기가 갈리지 않도록 상수화). */
-const FENCE = "```";
+/**
+ * markdown fenced code block 울타리의 **최소 길이**(백틱 3 개). 표기가 갈리지 않도록 최소치는
+ * 이 상수 한 곳에만 적고, 실제 길이는 본문에 맞춰 `resolveFenceForBody` 가 산출한다.
+ */
+const MIN_FENCE_LENGTH = 3;
+
+/** 본문 안의 **연속 백틱 런** 을 모두 훑는 패턴(본문을 바꾸지 않고 세기만 한다). */
+const BACKTICK_RUN = /`+/g;
+
+/**
+ * 본문을 감쌀 여닫이 울타리 문자열을 산출한다 — 길이는 `max(3, 본문 안 최장 백틱 런 + 1)`.
+ * markdown 은 여는 울타리보다 짧은 백틱 런을 코드로 취급하므로, 본문에 백틱 3 개 이상의 런이
+ * 섞이면 고정 3-백틱 울타리는 그 지점에서 블록을 **조기 종료** 시켜 이후 요약이 사라진다.
+ * 본문을 지우거나 이스케이프하지 않고 **울타리만 늘려** 그 소실을 막는다(본문 가공 0).
+ *
+ * **순수 · 부작용 0** — 인자를 변형하지 않고 파일 시스템 · 환경변수 · 시각 · 난수 접근이 없다.
+ *
+ * @param body 코드 블록에 실을 본문 문자열(훑기만 하고 가공하지 않는다).
+ * @returns 백틱만으로 이뤄진 울타리 문자열(길이 ≥ 3). 여는 · 닫는 울타리에 같은 값을 쓴다.
+ * @throws 없음 — 어떤 string 입력(빈 문자열 · 백틱-only 포함)에도 throw 하지 않는다
+ *   (ADR-0056 §Decision 3 (b) 관찰-only 계약 보호).
+ */
+export function resolveFenceForBody(body: string): string {
+  let longestRun = 0;
+  for (const run of body.match(BACKTICK_RUN) ?? []) {
+    if (run.length > longestRun) {
+      longestRun = run.length;
+    }
+  }
+  return "`".repeat(Math.max(MIN_FENCE_LENGTH, longestRun + 1));
+}
 
 /**
  * 회귀 관찰 상태 한 줄을 만든다. 세 국면 모두 **exit code 불변(관찰-only)** 임을 명시해,
@@ -44,8 +73,10 @@ function statusLine(result: ConfirmOrCompareResult): string {
  * 순서는 ① `## <sectionTitle>` heading, ② 회귀 관찰 상태 한 줄, ③ `formatCheckinOutcomeBlock`
  * 결과를 감싼 fenced code block 이며, 세 조각은 빈 줄 하나로 구분한다(markdown 렌더 안정).
  *
- * **본문 가공 0** — code block 안 문자열은 하위 진입점 결과를 trim · 재정렬 · 재계산 없이 그대로
- * 싣는다. 회귀 입력에서도 throw 하지 않는다(ADR-0056 §Decision 3 (b) 관찰-only).
+ * **본문 가공 0** — code block 안 문자열은 하위 진입점 결과를 trim · 재정렬 · 이스케이프 · 재계산
+ * 없이 그대로 싣는다. 본문에 백틱 런이 섞여 있으면 본문을 손대는 대신 **울타리 길이를**
+ * `resolveFenceForBody` 로 늘려 블록 조기 종료를 막는다. 회귀 입력에서도 throw 하지 않는다
+ * (ADR-0056 §Decision 3 (b) 관찰-only).
  *
  * @param result confirm-or-compare 판별 union(`established` | `compared`).
  * @param sectionTitle 요약 heading 문구(빈/공백-only 불가 — 제목 없는 섹션은 요약 화면에서 무의미).
@@ -73,14 +104,16 @@ export function formatCheckinStepSummaryBlock(
   }
   // 2. result 형태 검증 · 상세 본문 조립은 전적으로 로그 진입점에 위임(중복 검증 · 재구현 금지).
   const body = formatCheckinOutcomeBlock(result);
-  // 3. heading → 상태 줄 → code block 순으로 이어붙인다(수치 가공 0).
+  // 3. 울타리는 본문의 최장 백틱 런에 맞춰 산출한다(여는 · 닫는 울타리 동일 문자열).
+  const fence = resolveFenceForBody(body);
+  // 4. heading → 상태 줄 → code block 순으로 이어붙인다(수치 가공 0).
   return [
     `## ${sectionTitle}`,
     "",
     statusLine(result),
     "",
-    FENCE,
+    fence,
     body,
-    FENCE,
+    fence,
   ].join("\n");
 }

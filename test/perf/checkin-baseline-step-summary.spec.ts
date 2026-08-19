@@ -2,7 +2,10 @@ import {
   CHECKIN_LOG_PREFIX,
   formatCheckinOutcomeBlock,
 } from "./checkin-baseline-report";
-import { formatCheckinStepSummaryBlock } from "./checkin-baseline-step-summary";
+import {
+  formatCheckinStepSummaryBlock,
+  resolveFenceForBody,
+} from "./checkin-baseline-step-summary";
 import { ConfirmOrCompareResult } from "./latency-baseline-io";
 
 /**
@@ -170,6 +173,129 @@ describe("checkin-baseline-step-summary — step 요약 포매터 (ADR-0056 §De
       expect(() => summary(bad(null), 7 as unknown as string)).toThrow(
         "sectionTitle 는 string 이어야 함",
       );
+    });
+  });
+
+  describe("울타리 길이 동적 산출 (T-1611)", () => {
+    /** 요약 블록의 여는 울타리 줄(index 4)과 닫는 울타리 줄(마지막)을 뽑는다. */
+    const fencesOf = (out: string): [string, string] => {
+      const lines = out.split("\n");
+      return [lines[4], lines[lines.length - 1]];
+    };
+
+    describe("happy-path — 백틱 없는 본문은 종전 표기 유지(회귀 방지)", () => {
+      it("백틱 런이 없으면 울타리는 백틱 3 개이고 전체 블록이 기존 기대값과 같다", () => {
+        const out = summary(cmp(false, "상세 본문 줄1\n줄2"), TITLE);
+
+        expect(out).toBe(
+          [
+            `## ${TITLE}`,
+            "",
+            "- 회귀 관찰: 회귀 없음 — exit code 불변(관찰-only, ADR-0056 §Decision 3 (b)).",
+            "",
+            "```",
+            `${CHECKIN_LOG_PREFIX} outcome=compared regressed=false`,
+            "상세 본문 줄1",
+            "줄2",
+            "```",
+          ].join("\n"),
+        );
+      });
+
+      it("여는 울타리와 닫는 울타리는 항상 같은 문자열이다", () => {
+        const [open, close] = fencesOf(summary(cmp(true, "````\n본문"), TITLE));
+
+        expect(open).toBe(close);
+      });
+    });
+
+    describe("분기 cover — 최장 백틱 런별 울타리 길이", () => {
+      it("(i) 런 0 개 → 길이 3", () => {
+        expect(resolveFenceForBody("백틱 없는 본문")).toBe("```");
+        expect(resolveFenceForBody("")).toBe("```");
+      });
+
+      it("(ii) 런 최장 2 개 → 길이 3(최소치 유지)", () => {
+        expect(resolveFenceForBody("인라인 `코드` 와 ``이중`` 런")).toBe("```");
+      });
+
+      it("(iii) 런 최장 3 개 → 길이 4", () => {
+        expect(resolveFenceForBody("본문 ``` 중첩")).toBe("````");
+      });
+
+      it("(iv) 런 최장 5 개 → 길이 6", () => {
+        expect(resolveFenceForBody("본문 ````` 중첩")).toBe("``````");
+      });
+
+      it("최장 런만 반영한다(짧은 런이 뒤에 와도 길이가 줄지 않는다)", () => {
+        expect(resolveFenceForBody("```` 앞 · 뒤 `` 하나")).toBe("`````");
+      });
+
+      it("요약 블록에도 같은 길이가 반영된다(본문 백틱 4 개 → 울타리 5 개)", () => {
+        const [open, close] = fencesOf(summary(cmp(false, "```` 본문"), TITLE));
+
+        expect(open).toBe("`````");
+        expect(close).toBe("`````");
+      });
+    });
+
+    describe("negative cases — 경계 위치 · 순수성 · 계약 유지", () => {
+      it("(a) 백틱이 줄 머리가 아닌 줄 중간에만 있어도 산출이 성립한다", () => {
+        const out = summary(cmp(false, "앞 ``` 뒤 텍스트"), TITLE);
+        const [open, close] = fencesOf(out);
+
+        expect(open).toBe("````");
+        expect(close).toBe("````");
+        // 본문은 손대지 않는다 — 백틱 제거 · 이스케이프 0.
+        expect(out).toContain("앞 ``` 뒤 텍스트");
+      });
+
+      it("(b) 본문이 백틱 런으로 시작해도 여는 울타리가 본문보다 길다", () => {
+        const body = "```시작\n나머지";
+        const [open] = fencesOf(summary(cmp(false, body), TITLE));
+
+        // body 앞에는 line 요약이 붙지만, report 의 선두 런도 그대로 셈에 들어간다.
+        expect(open).toBe("````");
+        expect(open.length).toBeGreaterThan(3);
+      });
+
+      it("(c) 본문이 백틱 런으로 끝나도 닫는 울타리가 본문과 오인되지 않는다", () => {
+        const out = summary(cmp(true, "마지막 줄 ```"), TITLE);
+        const lines = out.split("\n");
+
+        expect(lines[lines.length - 2]).toBe("마지막 줄 ```");
+        expect(lines[lines.length - 1]).toBe("````");
+        expect(lines[lines.length - 1].length).toBeGreaterThan(3);
+      });
+
+      it("(d) 백틱-only 본문에도 throw 0 이고 울타리만 길어진다", () => {
+        expect(() => resolveFenceForBody("``````")).not.toThrow();
+        expect(resolveFenceForBody("``````")).toBe("```````");
+      });
+
+      it("(e) 회귀 입력 + 백틱 본문에서도 throw 0(관찰-only 계약 유지)", () => {
+        expect(() => summary(cmp(true, "``` 회귀 본문"), TITLE)).not.toThrow();
+      });
+
+      it("(f) 같은 입력 2 회 호출이 같은 문자열을 내고 인자를 변형하지 않는다", () => {
+        const result = cmp(true, "```` 본문");
+        const snapshot = JSON.stringify(result);
+
+        expect(resolveFenceForBody("``x``")).toBe(resolveFenceForBody("``x``"));
+        expect(summary(result, TITLE)).toBe(summary(result, TITLE));
+        expect(JSON.stringify(result)).toBe(snapshot);
+      });
+
+      it("백틱 본문에서도 sectionTitle · 하위 예외 계약은 그대로다", () => {
+        expect(() =>
+          summary(cmp(false, "``` 본문"), 7 as unknown as string),
+        ).toThrow(TypeError);
+        expect(() => summary(cmp(false, "``` 본문"), "  ")).toThrow(RangeError);
+        expect(() => summary(bad(null), TITLE)).toThrow(TypeError);
+        expect(() => summary(bad({ outcome: "skipped" }), TITLE)).toThrow(
+          RangeError,
+        );
+      });
     });
   });
 });
