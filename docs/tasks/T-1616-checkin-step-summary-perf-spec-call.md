@@ -2,13 +2,15 @@
 id: T-1616
 title: person 실 DB perf-spec 에서 step 요약 배선 helper 를 실호출로 태우기 (첫 route)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048, REQ-047]
 estimatedDiff: 255
 estimatedFiles: 1
 created: 2026-08-19
 createdAt: 2026-08-19T16:42:14Z
+completedAt: 2026-08-19T17:52:36Z
+prNumber: 1294
 independentStream: perf-checkin-baseline
 dependsOn: [T-1614, T-1615]
 touchesFiles: [test/perf/person-read-realdb.perf-spec.ts]
@@ -139,3 +141,20 @@ T-1615(배선 helper `emitCheckinStepSummaryForSpec` + 기본 주입값) 로 **6
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 적는다.)
+
+## 완료 기록
+
+- **완료** 2026-08-19T17:52:36Z — `pr` mode, PR [#1294](https://github.com/myungjoo/Assessment-Agent/pull/1294)
+  squash 머지 `299872b2` (1 파일 `+293/-1`, `src/`·`prisma/`·`.github/` 0 LOC).
+- `test/perf/person-read-realdb.perf-spec.ts` 의 실측 clock 관찰 describe 안에 step 요약 전용
+  nested describe 1 개(`it` 9 개)를 추가해 `emitCheckinStepSummaryForSpec` 의 **첫 실호출처**를 만들었다.
+  heading 문구는 상수 1 개(`STEP_SUMMARY_TITLE`), 환경변수명은 `GITHUB_STEP_SUMMARY_ENV` import 로
+  재작성 0. 기본 주입값 경로로 태우되 전역 `process.env` 는 무변경.
+- **R-112** — happy-path 결정적 append(fixture seed + tmpRoot, append 1 회) · error path 2+
+  (`append-threw` 전파 0 · 전량 reject 표본 관찰-only) · 분기 3+(`appended` / `not-compared` /
+  `env-absent`·`env-blank`) · negative 3 종(전역 오염 0 · 연속 2 회 동일 본문 · 단락 국면 env 무관).
+  로컬 `lint`·`build` green + 441 suite / **12680 test** pass, `test:cov` 임계 통과.
+- **4-게이트 4/4** — reviewer VERDICT=APPROVE(round 1/7) + PR comment 외화 + integrator 자체 점검 +
+  PR CI 2/2 pass(기본 검사 4m54s · 배포 산출물 검증 1m17s). 잔여 finding 0.
+- CI 로그에 step-summary emit `status=appended` 실측 1 줄이 박혔다 — `§Decision 3 (b)` 가시화 계약이
+  코드에만 있던 상태에서 **실제 CI 화면에 처음 도달**했다.
