@@ -399,12 +399,16 @@ const S2_ROUTES: ReadonlyArray<[string, string]> = [
   ["groups", "/api/groups"],
   ["parts", "/api/parts"],
 ];
-/** 타격 금지 — @UseGuards 가 붙어 토큰 없이는 401 인 조회 prefix. */
+/**
+ * 타격 금지 — @UseGuards 가 붙어 토큰 없이는 401 인 조회 prefix.
+ * T-1624 에서 `/api/users` 는 본 목록에서 빠졌다 — `POST /api/users` signup 은 guard 없는
+ * public endpoint 라 인증 부트스트랩이 정당하게 쓴다. Admin+ 인 `GET /api/users` 목록 타격
+ * 금지는 T-1624 negative (2) 가 별도로 지킨다.
+ */
 const GUARDED_PREFIXES = [
   "/api/assessments",
   "/api/contributions",
   "/api/summaries",
-  "/api/users",
 ];
 
 /** S2 스크립트 본문(신규 helper 1 개 — 그 외는 T-1620 helper 재사용). 분기 없음. */
@@ -577,8 +581,9 @@ describe("load-k6.yml ↔ test/load/s2-read.js ↔ package.json test:load:s2 S2 
 
     it("(6) 임계 문자열이 3000/0.01 이 아닌 값으로 재산정되지 않았다 + 합성 mutation 검출", () => {
       const script = s2Script();
-      // 전역 + route tag 임계 4 종이 모두 3000ms. 다른 숫자로 갈리면 아래 count 가 어긋난다.
-      expect(script.match(/p\(95\)<3000/g)).toHaveLength(4);
+      // 전역 + route tag 임계 5 종(T-1624 의 me 포함)이 모두 3000ms. 다른 숫자로 갈리면
+      // 아래 count 가 어긋난다.
+      expect(script.match(/p\(95\)<3000/g)).toHaveLength(5);
       expect(script).not.toMatch(/p\(95\)<(?!3000)\d+/);
       expect(script.match(/rate<0\.01/g)).toHaveLength(1);
       // 합성 mutation: 임계가 완화되면 같은 단언이 실패한다(대조군).
@@ -641,7 +646,8 @@ describe("test/load/s2-read.js ↔ load-k6.yml S2 seed/teardown 배선 drift smo
       expect(script).toContain("export function setup()");
       const setup = s2Body("export function setup");
       S2_ROUTES.forEach(([, route]) => expect(setup).toContain(route));
-      expect(setup.match(/http\.post\(/g)).toHaveLength(3);
+      // 조회 대상 3 종 + T-1624 의 인증 부트스트랩 2 종(signup · login) = POST 5 회.
+      expect(setup.match(/http\.post\(/g)).toHaveLength(5);
       // 반환값이 teardown 으로 전달되도록 setup 이 실제로 id 를 return 한다.
       expect(setup).toContain("return {");
       ["personIds", "groupIds", "partIds"].forEach((k) =>
@@ -762,9 +768,9 @@ describe("test/load/s2-read.js ↔ load-k6.yml S2 seed/teardown 배선 drift smo
       WRITE_TAGS.forEach((tag) => expect(script).toContain(`route: "${tag}"`));
     });
 
-    it("(3) 임계 5 종의 값·개수와 vus / duration 이 불변이다(재산정 금지)", () => {
+    it("(3) 임계 6 종의 값·개수와 vus / duration 이 불변이다(재산정 금지)", () => {
       const script = s2Script();
-      expect(script.match(/p\(95\)<3000/g)).toHaveLength(4);
+      expect(script.match(/p\(95\)<3000/g)).toHaveLength(5);
       expect(script).not.toMatch(/p\(95\)<(?!3000)\d+/);
       expect(script.match(/rate<0\.01/g)).toHaveLength(1);
       expect(script).toContain("vus: 5");
@@ -781,6 +787,203 @@ describe("test/load/s2-read.js ↔ load-k6.yml S2 seed/teardown 배선 drift smo
       expect(Object.keys(p.dependencies)).not.toContain("k6");
       expect(Object.keys(p.devDependencies)).not.toContain("k6");
       expect(p.scripts["test:load:s2"]).toBe(`k6 run ${S2_SCRIPT_REL}`);
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-1624 — S2 조회 부하의 인증 조회 확장(signup → login → GET /api/auth/me) drift.
+// 존재 이유 — 인증 조회는 guard-free 목록에 없는 구간(JwtAuthGuard + cookie 추출 + findById
+// DB round-trip) 을 지나는데, ① 인증 배선이 갈려 401 만 재게 되거나 ② 토큰이 하드코딩되거나
+// ③ Admin+ 인 GET /api/users 목록으로 번지거나 ④ 임계가 재산정되어도 상시 CI 는 green 이다.
+// 문자열 배선 parity 를 정적으로 대조해 그 침묵을 깬다. 새 helper 1 개 + 기존 helper 재사용.
+//      🔥 실 GitHub Actions 발화 0 · 실 k6 실행 0 · 실 docker 실행 0 · 실 HTTP 0 · YAML 파서 0 ·
+//         새 dependency 0 · DB 의존 0 · process.env 읽기/쓰기 0 — 파일 read + 합성 문자열 주입만.
+const AUTH_ROUTE = "/api/auth/me";
+const AUTH_TAG = "me";
+const SIGNUP_ROUTE = "/api/users";
+const LOGIN_ROUTE = "/api/auth/login";
+const COOKIE_NAME = "access_token";
+/** 임계 정본 — 전역 2 + route tag 4(T-1624 의 me 포함) = 6 종. */
+const EXPECTED_THRESHOLD_KEYS = [
+  "http_req_duration",
+  "http_req_failed",
+  "http_req_duration{route:persons}",
+  "http_req_duration{route:groups}",
+  "http_req_duration{route:parts}",
+  `http_req_duration{route:${AUTH_TAG}}`,
+];
+
+/**
+ * `options.thresholds` 블록의 항목 키 목록(감싼 따옴표 제거 · 선언 순서 보존). 블록은 `},`
+ * 행에서 끝나고 없으면 파일 끝까지, 대상 부재면 `[]`(추측 0).
+ * @throws {TypeError} `script` 가 non-string 일 때(0-byte fallback false-PASS 방지).
+ */
+function thresholdKeys(script: string): string[] {
+  if (typeof script !== "string") {
+    throw new TypeError("thresholdKeys: script 는 string 이어야 함");
+  }
+  const lines = script.split("\n");
+  const start = lines.findIndex((l) => l.trim() === "thresholds: {");
+  if (start < 0) {
+    return [];
+  }
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex((l) => l.trim() === "},");
+  return rest
+    .slice(0, end < 0 ? rest.length : end)
+    .map((l) => l.trim().match(/^(.*):\s*\[/))
+    .filter((m): m is RegExpMatchArray => m !== null)
+    .map((m) => unquote(m[1]));
+}
+
+describe("test/load/s2-read.js 인증 조회 확장(signup → login → me) 배선 drift smoke (T-1624)", () => {
+  describe("Happy-path: 인증 부트스트랩 · cookie 배선 · me 타격 · 임계 6 종", () => {
+    it("setup() 이 signup · login 을 seed tag 로 때리고 access_token 을 authCookie 로 return 한다", () => {
+      const setup = s2Body("export function setup");
+      expect(setup).toContain(SIGNUP_ROUTE);
+      expect(setup).toContain(LOGIN_ROUTE);
+      // 두 요청 모두 seed tag 재사용 — 조회 route tag 4 종의 p95 오염 0.
+      expect(setup.match(/SEED_PARAMS/g)).toHaveLength(5);
+      // 토큰은 Set-Cookie 로만 오므로 응답 cookie 에서 값을 꺼내 문자열로 담는다.
+      expect(setup).toContain(`cookies["${COOKIE_NAME}"][0].value`);
+      expect(setup).toMatch(
+        new RegExp(`authCookie:\\s*\`${COOKIE_NAME}=\\$\\{`),
+      );
+      // 자격증명은 run 마다 stamp 로 생성(고정 리터럴 0) — password 는 8 자 이상.
+      expect(setup).toMatch(/email: `[^`]*\$\{stamp\}[^`]*@/);
+      expect(setup).toMatch(/password: `[^`]*\$\{stamp\}`/);
+    });
+
+    it("default(data) 가 Cookie header + route:me tag 로 인증 route 를 타격한다(기존 3 종 불변)", () => {
+      const script = s2Script();
+      expect(script).toMatch(/export default function \(\w+\)/);
+      const body = s2Body("export default function");
+      expect(body).toContain(AUTH_ROUTE);
+      expect(body).toContain("headers: { Cookie: data.authCookie }");
+      expect(body).toContain(`tags: { route: "${AUTH_TAG}" }`);
+      // 기존 guard-free 3 종의 URL · tag · 호출 순서 불변 — me 는 그 뒤에 온다.
+      const order = S2_ROUTES.map(([, route]) => body.indexOf(route));
+      expect(order.every((i) => i > -1)).toBe(true);
+      expect([...order].sort((a, b) => a - b)).toEqual(order);
+      expect(body.indexOf(AUTH_ROUTE)).toBeGreaterThan(Math.max(...order));
+      expect(body.match(/http\.get\(/g)).toHaveLength(4);
+    });
+
+    it("options.thresholds 가 전역 2 + route 4 = 6 종이고 me 항목이 3000ms 다", () => {
+      const script = s2Script();
+      expect(thresholdKeys(script)).toEqual(EXPECTED_THRESHOLD_KEYS);
+      expect(script).toContain(
+        `"http_req_duration{route:${AUTH_TAG}}": ["p(95)<3000"]`,
+      );
+    });
+  });
+
+  describe("flow / 분기 cover — 따옴표 유무 · 블록 종료 조건 · 토큰 1 회/다회 등장", () => {
+    it("thresholdKeys: 따옴표 유무 · 닫는 행 종료 / EOF 종료 · 대상 다회 등장 시 첫 블록", () => {
+      // 따옴표 있는 키 / 없는 키가 같은 정규형으로 나온다 + 닫는 행에서 블록이 끝난다.
+      const mixed =
+        '  thresholds: {\n    http_req_failed: ["rate<0.01"],\n    "a{route:me}": ["p(95)<3000"],\n  },\n  vus: 5,\n  after: ["x"],';
+      expect(thresholdKeys(mixed)).toEqual(["http_req_failed", "a{route:me}"]);
+      // 닫는 행이 없으면 파일 끝까지(EOF 분기).
+      expect(
+        thresholdKeys('  thresholds: {\n    only: ["p(95)<3000"],'),
+      ).toEqual(["only"]);
+      // 대상 토큰이 다회 등장하면 첫 블록만(둘째 블록 키는 섞이지 않음).
+      expect(thresholdKeys(`${mixed}\n${mixed}`)).toEqual([
+        "http_req_failed",
+        "a{route:me}",
+      ]);
+    });
+
+    it("s2Body: 인증 확장 후에도 setup / default 블록이 서로 섞이지 않는다", () => {
+      const setup = s2Body("export function setup");
+      const read = s2Body("export default function");
+      expect(setup).not.toContain(AUTH_ROUTE);
+      expect(read).not.toContain(LOGIN_ROUTE);
+      expect(read).not.toContain(SIGNUP_ROUTE);
+    });
+  });
+
+  describe("Error path — 대상 부재 / non-string 계약", () => {
+    it("thresholds 블록이 없는 합성 입력 → throw 하지 않고 빈 배열(미발견 정규형)", () => {
+      expect(thresholdKeys("export const options = {\n  vus: 5,\n};")).toEqual(
+        [],
+      );
+      expect(
+        extractTopLevelBlock("const x = 1;", "export default function"),
+      ).toBeNull();
+    });
+
+    it("non-string 입력 → TypeError(0-byte fallback false-PASS 방지)", () => {
+      expect(() => thresholdKeys(undefined as unknown as string)).toThrow(
+        TypeError,
+      );
+      expect(() => thresholdKeys(42 as unknown as string)).toThrow(TypeError);
+    });
+  });
+
+  describe("negative cases 충분 cover — 권한 의존 · 토큰 하드코딩 · 임계 재산정 차단", () => {
+    it("(1) 인증 확장은 me 1 종뿐 — guarded 조회 3 prefix 는 여전히 0 이다", () => {
+      const script = s2Script();
+      GUARDED_PREFIXES.forEach((prefix) =>
+        expect(script).not.toContain(prefix),
+      );
+    });
+
+    it("(2) Admin+ 인 GET /api/users 목록 타격이 없다(첫-user SuperAdmin 의존 회피)", () => {
+      const script = s2Script();
+      // signup POST 1 회만 등장 — 목록 GET 이 섞이면 이 수가 늘어 drift 로 검출된다.
+      expect(script.match(/\/api\/users/g)).toHaveLength(1);
+      expect(script).not.toMatch(/http\.get\([^)]*\/api\/users/);
+      expect(s2Body("export default function")).not.toContain(SIGNUP_ROUTE);
+    });
+
+    it("(3) 하드코딩 JWT 리터럴 · Bearer 문자열이 없다(토큰은 run 시점 login 으로만 획득)", () => {
+      const script = s2Script();
+      expect(script).not.toContain("eyJ");
+      expect(script).not.toContain("Bearer ");
+      expect(script).not.toContain("Authorization");
+    });
+
+    it("(4) 임계가 정확히 6 종이고 기존 5 종 문자열 · vus / duration 이 불변이다", () => {
+      const script = s2Script();
+      expect(thresholdKeys(script)).toHaveLength(6);
+      expect(script.match(/p\(95\)<3000/g)).toHaveLength(5);
+      expect(script).not.toMatch(/p\(95\)<(?!3000)\d+/);
+      expect(script.match(/rate<0\.01/g)).toHaveLength(1);
+      expect(script).toContain("vus: 5");
+      expect(script).toContain('duration: "20s"');
+      // 합성 mutation: me 임계만 완화돼도 검출된다(대조군).
+      expect(
+        script.replace(
+          `"http_req_duration{route:${AUTH_TAG}}": ["p(95)<3000"]`,
+          `"http_req_duration{route:${AUTH_TAG}}": ["p(95)<9000"]`,
+        ),
+      ).toMatch(/p\(95\)<(?!3000)\d+/);
+    });
+
+    it("(5) load-k6.yml 이 무변경이다(트리거 3 종 부재 · run · env 주입값 그대로)", () => {
+      const triggers = triggerSection(loadYml());
+      ["pull_request:", "push:", "schedule:"].forEach((t) =>
+        expect(triggers).not.toContain(t),
+      );
+      const block = extractStepBlock(loadYml(), S2_RUN_STEP_NAME) as string[];
+      expect(extractKey(block, "run")).toBe(`k6 run ${S2_SCRIPT_REL}`);
+      expect(extractKey(block, "K6_BASE_URL")).toBe(EXPECTED_BASE_URL);
+      expect(extractKey(block, SEED_ENV_KEY)).toBe("30");
+      // 새 __ENV 키 없이 스크립트 안에서 자격증명을 만든다(파일 cap 보호).
+      expect(s2Script().match(/__ENV\./g)).toHaveLength(2);
+    });
+
+    it("(6) package.json 에 k6 dependency 키가 없고 조건 분기 0 규약이 유지된다", () => {
+      const p = pkg();
+      expect(Object.keys(p.dependencies)).not.toContain("k6");
+      expect(Object.keys(p.devDependencies)).not.toContain("k6");
+      const script = s2Script();
+      ["if (", "} else", " ? ", " && "].forEach((token) =>
+        expect(script).not.toContain(token),
+      );
     });
   });
 });
