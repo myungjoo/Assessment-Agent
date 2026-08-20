@@ -3,7 +3,7 @@ id: ADR-0057
 title: S1 배치 부하의 외부 I/O 격리 전략 — stub gateway 주입 · 진입점 · 측정 분해 · 1h 게이트 판정
 status: ACCEPTED
 date: 2026-08-21
-relatedTask: [T-1626]
+relatedTask: [T-1626, T-1630]
 relatedReq: [REQ-047]
 supersedes: null
 ---
@@ -17,6 +17,11 @@ supersedes: null
 않는다 — 부하 발생기(k6)는 [ADR-0054](ADR-0054-load-resilience-harness-tool.md) 가 이미
 ACCEPTED 로 도입을 끝냈고, 본 ADR 이 더하는 것은 **기존 DI token · 기존 route · 기존
 env 주입 경로 안에서의 배선 결정**뿐이다.
+
+**개정 이력** — `2026-08-21`(T-1630): `## Decision` 에 **D5**(S1 전제조건 —
+LlmProviderConfig 단일-row seed 경로)와 그에 딸린 `## Alternatives considered` 2 행 ·
+`## Consequences` 부정 1 항을 추가했다. `status: ACCEPTED` 유지, **D1~D4 의 결정 내용
+변경 0**(문구 재작성 0).
 
 본 ADR 은 **결정만 박제**하며 코드·스크립트·workflow 를 만들지 않는다(본 task 의 diff 는
 본 문서 + 계획 문서 pointer 1 줄뿐 — `src/` · `test/load/` · `.github/workflows/` ·
@@ -122,6 +127,57 @@ run 리포트는 이 사실을 명시해야 한다(아래 Consequences 부정 1)
   도구 내재화" 승계 — 별도 집계 로직 0).
 - error rate 는 계획 `§3` 표 그대로 전역 `http_req_failed` 에 `rate<0.01` 을 건다.
 
+### D5. S1 전제조건 — LlmProviderConfig 단일-row seed 경로 (T-1630 개정)
+
+D1~D4 는 "무엇을 어떻게 때리고 재느냐" 만 정했고, 그 route 가 **응답을 내려면 DB 에 무엇이
+있어야 하는가** 는 어느 D 에도 없었다. 현 코드 사실이 그 공백을 사고로 만든다 — D2 가 확정한
+타격 route([src/assessment-evaluation/assessment-evaluation.controller.ts](../../src/assessment-evaluation/assessment-evaluation.controller.ts)
+`599 행` `@Post("unevaluated-fill-run")`)는 orchestrator 위임 **전에**
+`LlmProviderConfigResolver.resolveDefaultModelId()` 를 await 하고, 그 resolver
+([src/llm/llm-provider-config-resolver.service.ts](../../src/llm/llm-provider-config-resolver.service.ts))
+는 `findMany()` 결과를 3 분기로 fail-fast 한다 — **0-row** 와 **2+row** 와 **빈/non-string
+modelId** 가 전부 throw 이고, controller 가 그 throw 를 `ServiceUnavailableException`(503)
+으로 매핑한다. 부하 job 의 PostgreSQL service 는 run 마다 빈 DB 라 seed 없이는 **모든 batch
+호출이 503** 이 되어 D4 의 `http_req_duration{route:batch}` 환산 임계가 무의미해지고 전역
+`http_req_failed` 도 오염된다.
+
+**① S1 `setup()` 이 `POST /api/llm/providers` 로 row 를 만드는 경로를 채택**한다. workflow
+가 `psql` 로 row 를 직접 INSERT 하는 안(②)과 부하 전용 resolver 우회 분기를 신설하는 안(③)은
+`## Alternatives considered` 로 내린다. 채택 근거는 D2 와 동일한 논거다 — seed 도 **실 등록
+경로**([src/llm/llm-provider-config.controller.ts](../../src/llm/llm-provider-config.controller.ts)
+`124 행` `@Post()`, RBAC Admin+)를 그대로 타야 DTO 검증 · provider 허용 집합 검증 ·
+암호화 · 영속이 실 운영과 같은 순서로 성립하고, seed 가 harness 규약대로 **스크립트 안에서
+자기 정리**(setup/teardown)된다. 권한도 이미 풀려 있다 — D2 가 고정한 **smoke → S1 → S2 → S3**
+step 순서 덕에 S1 `setup()` 의 signup 이 그 run 의 첫 user = `SuperAdmin` 이라 Admin+ gate 를
+통과한다.
+
+**주입 env 1 개.** 위 POST 는 service 가 `LlmApiKeyCipher` 로 apiKey 를 암호화하는 경로라
+([src/llm/llm-apikey-cipher.service.ts](../../src/llm/llm-apikey-cipher.service.ts) `41~73 행`
+의 `resolveKey` — `LLM_APIKEY_ENC_KEY` 부재 시 평문 fallback 없이 throw) 부하 job 의 컨테이너
+기동 step 에 **test-only 더미 `LLM_APIKEY_ENC_KEY`**(32-byte base64)를 더한다. 현 env 3 종
+(`DATABASE_URL` · `AUTH_JWT_SECRET` · `PORT` — [.github/workflows/load-k6.yml](../../.github/workflows/load-k6.yml)
+`53~57 행`)에 이미 `AUTH_JWT_SECRET=ci_load_secret` 이라는 **평문 더미 선례**가 있으므로 본
+결정은 그 선례의 범위 안이다(workflow 실제 수정은 후속 slice).
+
+**단일-row invariant.** resolver 가 0-row 와 2+row 를 **모두** 막으므로 seed 는 "있으면
+된다" 가 아니라 **정확히 1 row** 여야 한다. 따라서 `setup()` 은 **멱등**하게 쓴다 —
+`GET /api/llm/providers`(같은 controller `91 행`)로 기존 row 를 열거해 전부
+`DELETE /api/llm/providers/:id`(`164 행`)로 지운 뒤 POST 1 회를 수행하고, 생성된 id 를
+`teardown()` 이 같은 DELETE 로 회수한다. 이로써 (a) S1 재실행, (b) 같은 job 안에서의 S2/S3
+공존(둘 다 provider row 를 만들지 않는다), (c) 이전 step 잔여 row 어느 경우에도 batch 호출
+시점의 row 수가 1 로 수렴한다. seed · teardown 왕복은 D3 의 `route:seed` tag 로 묶여 `batch`
+임계에 섞이지 않는다.
+
+**credential 0 유지.** 채택안은 **실 LLM API key 를 요구하지 않고 repo secret 을 신설하지
+않는다** — 넣는 값은 (i) 32-byte 더미 암호화 키와 (ii) `provider` · `endpointUrl` ·
+`apiKey` · `modelId` 4 필드의 **test-only 더미 문자열**뿐이며, 어느 것도 실 provider 에
+인증되지 않는다. D1 의 stub 이 켜진(`LOAD_TEST_STUB=1`) 부하 job 에서는 실 gateway
+([src/llm/llm-http-gateway.service.ts](../../src/llm/llm-http-gateway.service.ts) `143 행`
+의 `cipher.decrypt(config.apiKey)`)가 바인딩되지 않아 그 더미 apiKey 는 **복호화조차 되지
+않고**, 외부로 나가는 호출도 0 이다. 프로덕션 secret 처리 · DB schema · 인증/권한 모델은
+전부 무변경이라 [CLAUDE.md](../../CLAUDE.md) `§5` HITL 게이트는 발화하지 않는다.
+
+
 ## Consequences
 
 ### 긍정
@@ -148,6 +204,13 @@ run 리포트는 이 사실을 명시해야 한다(아래 Consequences 부정 1)
 - **stub 오활성 risk** — env 하나로 실 gateway 를 갈아끼우는 구조라 오설정 시 프로덕션이
   가짜 narrative 를 낸다. D1 의 default OFF + negative test 의무가 그 방어선이며, 후속 구현
   slice 가 이를 빠뜨리면 reviewer 가 BLOCKER 로 잡아야 한다.
+- **더미 키·더미 provider row 아래의 미검증 구간** — D5 의 seed 는 test-only 더미 값이라
+  실 apiKey 복호화([src/llm/llm-http-gateway.service.ts](../../src/llm/llm-http-gateway.service.ts)
+  `143 행`)와 실 provider 인증·endpoint 도달은 부하 harness 가 **재지도 검증하지도 않는다**
+  (부정 1 의 "실 LLM latency 미검증" 과 같은 뿌리). 또한 S1 의 성립이 provider 등록 route
+  (`POST /api/llm/providers`)의 가용성에 결합돼, 그 route 나 `LlmApiKeyCipher` 가 깨지면 batch
+  측정 이전에 `setup()` 이 먼저 실패한다 — 실패 지점이 명확하다는 장점과 표면이 하나 늘었다는
+  단점을 함께 받는다.
 - **진입점이 UC-06 본체가 아니다** — `unevaluated-fill-run` 은 미평가 채움 경로라 UC-06 의
   run / reeval / reset 전량과 동일하지 않다. UC-06 batch 표면이 노출되면 S1 대상 route 를
   그쪽으로 옮길지 재검토가 필요하다(본 ADR 의 amendment 대상).
@@ -158,6 +221,8 @@ run 리포트는 이 사실을 명시해야 한다(아래 Consequences 부정 1)
 | --- | --- | --- |
 | ② record-replay fixture 재생 | 실 LLM·수집 응답을 1 회 녹화해 fixture 로 저장하고 부하 시 재생 | **녹화 자체가 실 credential 을 요구**한다 — 부하 job 은 credential 0 이고(Context 사실 2) 저장소에 실 응답을 넣으면 raw 보존·secret 규율과 충돌한다. fixture 수명 관리(프롬프트가 바뀌면 전량 재녹화)도 stub 대비 유지비가 크다 |
 | ③ 외부 I/O 제외 격리 endpoint | 저장·조립 경로만 도는 부하 전용 route 를 새로 노출 | **측정 대상이 실 배치 경로와 갈라진다** — 부하 전용 route 는 실제 orchestration 분기·guard·트랜잭션 경계를 우회하기 쉬워 REQ-047 판정의 대표성이 떨어지고, 프로덕션 표면에 부하 전용 route 가 영구히 남는 유지·보안 부담이 생긴다. D2 가 기존 route 를 쓰기로 한 이유와 동일 |
+| (D5) ② workflow 의 `psql` 직접 INSERT | 부하 job step 이 `LlmProviderConfig` row 를 SQL 로 직접 넣는다(더미 ciphertext — stub 아래에서는 복호화가 일어나지 않으므로 형식만 맞으면 된다) | **seed 가 스크립트 밖으로 새어 harness 규약을 깬다** — S1 의 `setup()`/`teardown()` 자기 정리 원칙이 무너져 재실행 멱등성과 단일-row invariant 를 workflow YAML 이 떠안게 되고, DTO 검증 · provider 허용 집합 검증 · 암호화 경로를 통째로 우회해 실 등록 경로와 갈라진다. 게다가 컬럼명·기본값에 SQL 이 직접 결합돼 Prisma schema 가 바뀌면 조용히 깨진다(env 1 개를 아끼는 대가로 drift 표면이 커진다) |
+| (D5) ③ 부하 전용 resolver 우회 분기 | `LlmProviderConfigResolver`(또는 controller)에 "부하 모드면 provider row 없이도 통과" 분기를 신설 | **D2 의 논거를 정면으로 깬다** — 실 배치 경로가 반드시 지나는 fail-fast 를 부하 때만 건너뛰면 측정 대상이 실 경로와 갈라져 REQ-047 판정의 대표성이 무너진다. 더구나 프로덕션 코드에 "설정 없이도 평가가 도는" 분기를 영구히 남기는 일이라 D1 이 경계한 stub 오활성 risk 를 resolver 층까지 넓힌다(seed 는 test 데이터 문제이지 프로덕션 분기로 풀 문제가 아니다) |
 
 ## 범위 밖 (deferred)
 
