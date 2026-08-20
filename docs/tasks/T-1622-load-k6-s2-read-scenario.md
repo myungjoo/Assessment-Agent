@@ -2,13 +2,15 @@
 id: T-1622
 title: k6 S2 조회 부하 시나리오 신설 (guard-free read 3 route · p95 < 3s 게이트 실발화)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 210
 estimatedFiles: 4
 created: 2026-08-20
 createdAt: 2026-08-20T06:10:00Z
+completedAt: 2026-08-20T07:51:24Z
+prNumber: 1299
 independentStream: load-harness-k6
 dependsOn: [T-1621]
 touchesFiles:
@@ -139,3 +141,15 @@ R-91 chain 잔여(의존성 순서, T-1621 Follow-ups 승계):
    확정.
 5. **REQ-047 / REQ-048 상태 전이** — 실측 근거 확보 후 `docs/requirements.md` · `docs/PLAN.md`
    `140~142 행` 동기(direct doc-sync).
+
+---
+
+## 완료 기록 (2026-08-20T07:51:24Z)
+
+- PR [#1299](https://github.com/myungjoo/Assessment-Agent/pull/1299) 라운드 1 APPROVE → 스쿼시 머지 `c9afd0ba`.
+- 변경 4 파일 +254/-0 — `test/load/s2-read.js` 신설(guard-free read 3 route · route tag 별 임계),
+  `.github/workflows/load-k6.yml` 실행 step 1 개 추가, `package.json` 의 `test:load:s2` script,
+  drift-guard smoke 확장(it 9 개 추가 · 해당 spec 34 test green).
+- dependency 추가 0(k6 는 lockfile 밖 정적 바이너리) · `ci.yml` 무변경 · 실 k6/HTTP 발화 0.
+- Acceptance Criteria 12 항 전량 ok, `pnpm test` 441 suite / 12680 test pass, coverage line·function ≥ 80% 유지.
+
