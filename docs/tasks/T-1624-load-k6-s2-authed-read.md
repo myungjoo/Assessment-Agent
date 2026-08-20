@@ -2,13 +2,15 @@
 id: T-1624
 title: k6 S2 조회 부하의 인증 조회 확장 (signup → login → 인증 route 1 종 타격)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 190
 estimatedFiles: 2
 created: 2026-08-20
 createdAt: 2026-08-20T10:20:00Z
+completedAt: 2026-08-20T11:54:48Z
+prNumber: 1301
 independentStream: load-harness-k6
 dependsOn: [T-1623]
 touchesFiles:
@@ -162,3 +164,14 @@ R-91 chain 잔여(T-1623 Follow-ups 승계, 의존성 순서):
 4. **baseline 확정 + 임계 fix** — 최초 실측으로 계획 `§3` 의 "baseline 후 fix" 항목 확정.
 5. **REQ-047 / REQ-048 상태 전이** — 실측 근거 확보 후 `docs/requirements.md` · `docs/PLAN.md`
    `140~142 행` 동기(direct doc-sync).
+
+## 완료 기록 (2026-08-20T11:54:48Z)
+
+- PR [#1301](https://github.com/myungjoo/Assessment-Agent/pull/1301) 라운드 1 APPROVE → 스쿼시 머지 `a3340e0c`.
+- 변경 2 파일 +249/-10 — `test/load/s2-read.js` 의 `setup()` 이 run 마다 `stamp` 로 signup(`POST /api/users`) →
+  `POST /api/auth/login` → `access_token` cookie 를 추출해 `authCookie` 로 반환하고, default 함수가 그 cookie 로
+  `GET /api/auth/me` 를 `route: "me"` tag 로 추가 타격(기존 guard-free 3 종 불변). 임계 5 → 6 종.
+- 자격증명 하드코딩 0(run 마다 `stamp` 생성) · 분기 0 규약 승계(index 접근만) · seed tag 재사용으로 지표 오염 차단.
+- drift-guard smoke 38 → 46 it(해당 spec 58 test green), `src/` 변경 0 이라 coverage 영향 0, dependency 추가 0,
+  `ci.yml` · `load-k6.yml` · `package.json` 무변경, 실 k6/HTTP 발화 0.
+- Acceptance Criteria 13 항 전량 ok, `pnpm lint`/`build` green, `pnpm test` 441 suite / 12680 test pass.
