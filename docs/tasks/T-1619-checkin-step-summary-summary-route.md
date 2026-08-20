@@ -2,7 +2,9 @@
 id: T-1619
 title: summary 실 DB perf-spec 으로 step 요약 실호출 확산 (네 번째 route)
 phase: P5
-status: PENDING
+status: SUPERSEDED
+supersededAt: 2026-08-20T02:37:58Z
+supersededBy: owner-directive-PLAN-144
 commitMode: pr
 coversReq: [REQ-048, REQ-047]
 estimatedDiff: 285
@@ -16,6 +18,20 @@ plannerNote: P5 perf — ADR-0056 §Decision 3 (b) step 요약 실호출을 pers
 ---
 
 # T-1619 — summary 실 DB perf-spec 으로 step 요약 실호출 확산 (네 번째 route)
+
+## Superseded
+
+**SUPERSEDED (2026-08-20T02:37:58Z) — 오너 지시로 무효화.** 오너가 main `e9c3fa6f`
+(2026-08-20T02:29Z) 에서 [ADR-0054](../decisions/ADR-0054-load-resilience-harness-tool.md) 를
+ACCEPTED 로 flip 하고 `docs/PLAN.md` `144 행` 에 **"R-91 k6 부하검증 최우선·즉시 착수, R-92
+per-route perf baseline churn 중단"** 을 확정했다. 본 task 의 큐잉 시각(`01:52Z`) 이 그 지시
+(`02:29Z`) 보다 앞서, 지시 대상인 R-92 per-route churn slice 에 정확히 해당한다. driver 가 claim 만
+하고 **실행 없이** 본 supersede 로 종결한다(코드 변경 0).
+
+잔여 2 route(`summary` · `app-root`) 의 step 요약 실호출 확산은 `docs/PLAN.md` `145 행`(신규
+per-route baseline slice 큐잉 금지) 에 따라 **신규 slice 로 큐잉하지 않는다** — 필요 시 훗날 다른
+사유로 해당 perf-spec 을 건드리는 task 가 있을 때 그 안에 흡수한다. 아래 본문은 historical record
+로 보존한다(삭제 금지).
 
 ## Why
 
