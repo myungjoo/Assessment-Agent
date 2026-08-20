@@ -2,7 +2,10 @@
 id: T-1621
 title: k6 부하 job 의 부하 대상 기동 배선 (PostgreSQL service + 앱 컨테이너 + K6_BASE_URL 겨냥)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-20T05:51:51Z
+prNumber: 1298
+mergeCommit: 1f939d5c
 commitMode: pr
 coversReq: [REQ-047]
 estimatedDiff: 140
