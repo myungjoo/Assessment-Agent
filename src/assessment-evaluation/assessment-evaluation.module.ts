@@ -6,17 +6,18 @@
 // 의 provider/export 패턴을 mirror 한다.
 //
 // 책임 범위:
-//   - LlmModule import — LlmModule 이 `LlmHttpGateway`(`LlmGateway` 구현체)를
-//     export(llm.module.ts L58/L66)하므로, 본 module 이 import 하면 그 singleton 을
-//     LLM_GATEWAY token 에 useExisting 으로 바인딩할 수 있다. EvaluationScoringService
+//   - LlmModule import — LlmModule 이 `LlmHttpGateway` 와 `LlmStubGateway`(둘 다
+//     `LlmGateway` 구현체)를 export 하므로, 본 module 이 import 하면 그 두 singleton 중
+//     하나를 LLM_GATEWAY token 에 바인딩할 수 있다. EvaluationScoringService
 //     의 @Inject(LLM_GATEWAY) 생성자 주입이 이 바인딩으로 DI resolve 된다
 //     (평가 → llm 단방향, llm 은 평가를 모름).
-//   - LLM_GATEWAY token → LlmHttpGateway useExisting 바인딩 — 구현체를 직접 import
+//   - LLM_GATEWAY token → env 로 고르는 gateway 바인딩 — 구현체를 직접 import
 //     의존하지 않고 interface/token 의존으로 두기 위한 indirection(test 에서 mock
-//     gateway 주입 용이). confluence.module.ts 의 CONFLUENCE_PERMISSION_DENIED_EMITTER
-//     useClass 바인딩 패턴 mirror — 단 LlmHttpGateway 는 LlmModule 이 이미 등록한
-//     singleton 이라 useClass(새 인스턴스) 대신 useExisting(동일 singleton 재사용)으로
-//     바인딩해 중복 생성을 피한다.
+//     gateway 주입 용이). T-1629(ADR-0057 `D1`)부터 단일 `useExisting: LlmHttpGateway`
+//     대신 `useFactory` + `inject: [LlmHttpGateway, LlmStubGateway]` 로 두 singleton 중
+//     하나를 고른다 — 둘 다 LlmModule 이 등록한 인스턴스를 그대로 재사용하므로 중복 생성
+//     0(useExisting 시절의 이점 보존). 선택 규칙은 fail-safe default OFF 로, `LOAD_TEST_STUB`
+//     가 정확히 `"1"` 일 때만 stub 이고 그 외 모든 값은 실 gateway 다.
 //   - EvaluationScoringService provider 등록 + export — orchestrator slice 가
 //     inject 받아 단위 평가를 조립한다.
 //   - EvaluationOrchestratorService provider 등록 + export(T-0292) — Activity[] →
@@ -33,8 +34,10 @@
 import { Module } from "@nestjs/common";
 
 import { AssessmentCollectionModule } from "../assessment-collection/assessment-collection.module";
+import { isLoadTestStubEnabled } from "../common/load-test-stub-gating";
 import { LLM_GATEWAY } from "../llm/llm-gateway.interface";
 import { LlmHttpGateway } from "../llm/llm-http-gateway.service";
+import { LlmStubGateway } from "../llm/llm-stub-gateway.service";
 import { LlmModule } from "../llm/llm.module";
 import { UserModule } from "../user/user.module";
 
@@ -142,12 +145,25 @@ import { UnevaluatedFillRunOrchestratorService } from "./unevaluated-fill-run-or
     // runUnevaluatedFillRunCore(T-0563)에 1 회 위임한다. 추가 module import 0. 후속
     // controller slice(POST /unevaluated-fill-run)가 같은 module 내 DI 로 inject 받는다.
     UnevaluatedFillRunOrchestratorService,
-    // LLM_GATEWAY → LlmHttpGateway useExisting 바인딩. LlmModule 이 등록·export 한
-    // LlmHttpGateway singleton 을 그대로 재사용하므로 새 인스턴스 생성 0. interface
-    // 가 runtime 소거라 string token 으로 주입을 닫는다.
+    // LLM_GATEWAY → env 로 고르는 gateway 바인딩(T-1629, ADR-0057 `D1`). 기존
+    // `useExisting: LlmHttpGateway` 단일 고정을 useFactory 분기로 바꾼다 — 두 후보 모두
+    // LlmModule 이 등록·export 한 singleton 이라 inject 로 받아 **그대로 재사용**하므로
+    // 새 인스턴스 생성은 여전히 0 이다(useClass 였다면 중복 생성이 생긴다).
+    //
+    // 분기는 정확히 1 개 — `isLoadTestStubEnabled()`(T-1627, `LOAD_TEST_STUB` 가 정확히
+    // `"1"` 일 때만 true)가 true 면 stub, 그 외에는 실 LlmHttpGateway 다. **fail-safe
+    // default OFF**(ADR-0057 `D1` · `## Consequences` 부정 3): env 미설정 / 빈 문자열 /
+    // `" 1"` / `"0"` / `"true"` / `"yes"` 같은 어떤 변형도 stub 을 켜지 못하고 실 gateway 로
+    // fall-through 한다 — 오활성은 프로덕션에서 LLM 이 조용히 가짜 응답을 내는 사고이기
+    // 때문이다. 판정 자체는 helper 가 전담하고 본 factory 는 고르기만 한다(다른 로직 0).
+    //
+    // 판정 시점은 module 초기화 1 회다(요청마다 재판정 아님) — 부하 run 중간에 gateway 가
+    // 바뀌면 측정이 오염되므로 프로세스 수명 동안 고정되는 편이 옳다.
     {
       provide: LLM_GATEWAY,
-      useExisting: LlmHttpGateway,
+      useFactory: (httpGateway: LlmHttpGateway, stubGateway: LlmStubGateway) =>
+        isLoadTestStubEnabled() ? stubGateway : httpGateway,
+      inject: [LlmHttpGateway, LlmStubGateway],
     },
   ],
   // 후속 controller / orchestrator-상위 slice 가 inject 받기 위해 service 들을 export.

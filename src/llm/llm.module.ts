@@ -42,6 +42,7 @@ import { LlmProviderConfigResolver } from "./llm-provider-config-resolver.servic
 import { LlmProviderConfigController } from "./llm-provider-config.controller";
 import { LlmProviderConfigRepository } from "./llm-provider-config.repository";
 import { LlmProviderConfigService } from "./llm-provider-config.service";
+import { LlmStubGateway } from "./llm-stub-gateway.service";
 
 @Module({
   // DifficultyMappingController (T-0139) — Admin 난이도 모델 지정 endpoint. service 는
@@ -66,6 +67,12 @@ import { LlmProviderConfigService } from "./llm-provider-config.service";
     // controller wiring task (chain item 3) 가 AssessmentEvaluationModule 에서
     // LlmModule import 로 inject 받아 runUnevaluatedFill 진입 시 1 회 호출하므로 export.
     LlmProviderConfigResolver,
+    // LlmStubGateway (T-1629, ADR-0057 `D1` 의 마지막 조각인 module binding) — 부하
+    // harness 전용 stub 구현체. 의존 0 인 class 라 추가 module import 0 이며, 등록만으로는
+    // 어떤 실행 경로도 바뀌지 않는다(`LLM_GATEWAY` binding 선택은 소비 module 의 factory
+    // 책임 — 여기서는 "선택 가능한 부품" 으로 세워 두기만 한다).
+    // AssessmentEvaluationModule 의 `LLM_GATEWAY` factory 가 inject 로 집어가야 하므로 export.
+    LlmStubGateway,
   ],
   exports: [
     LlmProviderConfigRepository,
@@ -75,6 +82,7 @@ import { LlmProviderConfigService } from "./llm-provider-config.service";
     LlmApiKeyCipher,
     LlmHttpGateway,
     LlmProviderConfigResolver,
+    LlmStubGateway,
   ],
 })
 export class LlmModule {}
