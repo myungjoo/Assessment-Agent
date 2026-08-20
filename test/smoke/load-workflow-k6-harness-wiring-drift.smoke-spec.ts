@@ -539,13 +539,19 @@ describe("load-k6.yml ↔ test/load/s2-read.js ↔ package.json test:load:s2 S2 
       );
     });
 
-    it("(2) 타격 경로에 id 파라미터 경로가 없다(빈 DB 404 → non-2xx 오염 차단)", () => {
+    it("(2) 조회 iteration 에 id 파라미터 경로가 없다(빈 DB 404 → non-2xx 오염 차단)", () => {
       const script = s2Script();
+      // T-1623 이후 teardown 이 `/api/<x>/<id>` DELETE 를 쓰므로 본 단언의 대상을 부하 측정
+      // iteration(= default 함수 본문)으로 좁힌다. seed / 정리는 별도 tag 라 route tag 별
+      // p95 임계 3 종을 오염시키지 않는다.
+      const readBody = (
+        extractTopLevelBlock(script, "export default function") as string[]
+      ).join("\n");
       S2_ROUTES.forEach(([, route]) => {
-        expect(script).not.toContain(`${route}/`);
+        expect(readBody).not.toContain(`${route}/`);
       });
-      expect(script).not.toContain("${id}");
-      expect(script).not.toMatch(/\/api\/\w+\/\d/);
+      expect(readBody).not.toContain("${id}");
+      expect(readBody).not.toMatch(/\/api\/\w+\/\d/);
     });
 
     it("(3) load-k6.yml 에 여전히 pull_request · push · schedule 트리거가 없다", () => {
@@ -587,6 +593,194 @@ describe("load-k6.yml ↔ test/load/s2-read.js ↔ package.json test:load:s2 S2 
         extractStep(driftedYml, S2_RUN_STEP_NAME).run,
       );
       expect(existsSync(path.join(REPO_ROOT, drifted as string))).toBe(false);
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-1623 — S2 조회 부하의 seed 배선(setup/teardown) drift.
+// 존재 이유 — 부하 job 의 DB 는 run 마다 빈 상태라, seed 배선이 빠지거나 갈리면 S2 는 0 행
+// 목록만 읽으면서도 p95 게이트를 통과해 "측정했다" 는 착시를 만든다. 또 seed / 정리 요청이 읽기
+// route tag 를 재사용하면 쓰기 지연이 조회 임계에 섞인다. 어느 쪽도 상시 CI 를 red 로 만들지
+// 않으므로 문자열 배선 parity 를 정적으로 대조한다. 새 helper 1 개 + 기존 helper 재사용.
+//      🔥 실 GitHub Actions 발화 0 · 실 k6 실행 0 · 실 docker 실행 0 · 실 HTTP 0 · YAML 파서 0 ·
+//         새 dependency 0 · DB 의존 0 · process.env 읽기/쓰기 0 — 파일 read + 합성 문자열 주입만.
+const SEED_ENV_KEY = "K6_SEED_PERSONS";
+/** seed / 정리 전용 route tag — 읽기 route tag 3 종과 겹치면 안 된다. */
+const WRITE_TAGS = ["seed", "teardown"];
+
+/**
+ * s2-read.js 의 top-level 블록 하나(`header` 로 시작하는 행 ~ 열 0 의 닫는 `}` 행)를 잘라낸다.
+ * 닫는 행이 없으면 파일 끝까지, 대상 부재면 `null`(추측 0).
+ * @throws {TypeError} `source`/`header` 가 non-string 일 때(0-byte fallback false-PASS 방지).
+ */
+function extractTopLevelBlock(source: string, header: string): string[] | null {
+  if (typeof source !== "string" || typeof header !== "string") {
+    throw new TypeError(
+      "extractTopLevelBlock: source·header 는 string 이어야 함",
+    );
+  }
+  const lines = source.split("\n");
+  const startIdx = lines.findIndex((l) => l.startsWith(header));
+  if (startIdx < 0) {
+    return null;
+  }
+  const offset = lines.slice(startIdx + 1).findIndex((l) => l === "}");
+  const end = offset < 0 ? lines.length : startIdx + offset + 2;
+  return lines.slice(startIdx, end);
+}
+
+/** s2-read.js 의 한 함수 본문 텍스트(재사용 축약). */
+const s2Body = (header: string): string =>
+  (extractTopLevelBlock(s2Script(), header) as string[]).join("\n");
+
+describe("test/load/s2-read.js ↔ load-k6.yml S2 seed/teardown 배선 drift smoke (T-1623)", () => {
+  describe("Happy-path: setup/teardown 선언 · seed POST · 정리 DELETE · env parity", () => {
+    it("setup() 이 3 종 POST 를 seed tag 로 때리고 규모를 __ENV 로 읽으며 id 를 return 한다", () => {
+      const script = s2Script();
+      expect(script).toContain("export function setup()");
+      const setup = s2Body("export function setup");
+      S2_ROUTES.forEach(([, route]) => expect(setup).toContain(route));
+      expect(setup.match(/http\.post\(/g)).toHaveLength(3);
+      // 반환값이 teardown 으로 전달되도록 setup 이 실제로 id 를 return 한다.
+      expect(setup).toContain("return {");
+      ["personIds", "groupIds", "partIds"].forEach((k) =>
+        expect(setup).toContain(k),
+      );
+      expect(script).toContain('tags: { route: "seed" }');
+      expect(script).toContain(`__ENV.${SEED_ENV_KEY}`);
+    });
+
+    it("teardown(data) 가 3 종 DELETE 로 setup 산출 id 를 모두 지운다", () => {
+      const script = s2Script();
+      expect(script).toMatch(/export function teardown\(\w+\)/);
+      const body = s2Body("export function teardown");
+      S2_ROUTES.forEach(([, route]) => expect(body).toContain(`${route}/`));
+      expect(body.match(/http\.del\(/g)).toHaveLength(3);
+      expect(script).toContain('tags: { route: "teardown" }');
+    });
+
+    it("workflow S2 step 의 K6_SEED_PERSONS 가 스크립트 __ENV 기본값과 parity 다", () => {
+      const block = extractStepBlock(loadYml(), S2_RUN_STEP_NAME) as string[];
+      const injected = extractKey(block, SEED_ENV_KEY) as string;
+      expect(Number(injected)).toBeGreaterThan(0);
+      const fallback = s2Script().match(
+        new RegExp(`__ENV\\.${SEED_ENV_KEY}\\s*\\|\\|\\s*(\\d+)`),
+      ) as RegExpMatchArray;
+      expect(fallback[1]).toBe(injected);
+      // 기존 배선은 불변 — run 명령 · base URL 주입값이 그대로다.
+      expect(extractKey(block, "run")).toBe(`k6 run ${S2_SCRIPT_REL}`);
+      expect(extractKey(block, "K6_BASE_URL")).toBe(EXPECTED_BASE_URL);
+    });
+  });
+
+  describe("flow / 분기 cover — 블록 종료 조건 · env 키 1개/2개 · 따옴표 유무", () => {
+    it("extractTopLevelBlock: 닫는 } 로 끝남 / 파일 끝에서 끝남 / 대상 부재", () => {
+      const closed = extractTopLevelBlock(
+        "export function a() {\n  x();\n}\nexport function b() {\n  y();\n}",
+        "export function a",
+      ) as string[];
+      expect(closed).toHaveLength(3);
+      expect(closed.join("\n")).not.toContain("y()");
+      // 닫는 행이 없는 입력은 파일 끝까지(EOF 분기), 대상 부재면 null(미발견 정규형).
+      expect(
+        extractTopLevelBlock(
+          "export function a() {\n  x();",
+          "export function a",
+        ),
+      ).toHaveLength(2);
+      expect(
+        extractTopLevelBlock("const x = 1;", "export function a"),
+      ).toBeNull();
+    });
+
+    it("S2 step env 키 2개/1개 · 값 따옴표 유무가 같은 정규형으로 추출된다", () => {
+      // 실 파일 — env 키 2 개(K6_BASE_URL + K6_SEED_PERSONS), seed 값은 따옴표 있음.
+      const real = extractStepBlock(loadYml(), S2_RUN_STEP_NAME) as string[];
+      expect(extractKey(real, SEED_ENV_KEY)).toBe("30");
+      expect(extractKey(real, "K6_BASE_URL")).toBe(EXPECTED_BASE_URL);
+      // 합성 — env 키 1 개 · 따옴표 없음 · 다음 헤더에서 종료(비-EOF 분기).
+      const oneKey = extractStepBlock(
+        `      - name: ${S2_RUN_STEP_NAME}\n        env:\n          ${SEED_ENV_KEY}: 30\n        run: k6 run x.js\n      - name: 다음`,
+        S2_RUN_STEP_NAME,
+      ) as string[];
+      expect(extractKey(oneKey, SEED_ENV_KEY)).toBe("30");
+      expect(extractKey(oneKey, "K6_BASE_URL")).toBeNull();
+    });
+  });
+
+  describe("Error path — 대상 부재 / non-string 계약", () => {
+    it("seed 키·step 이 없는 합성 YAML → throw 하지 않고 미발견 정규형", () => {
+      const synthetic = "      - name: Lint\n        run: pnpm lint";
+      expect(extractStepBlock(synthetic, S2_RUN_STEP_NAME)).toBeNull();
+      expect(extractStep(synthetic, S2_RUN_STEP_NAME).found).toBe(false);
+      // step 은 있으나 seed 키만 없는 경우도 null(부분 drift 검출).
+      const noSeedKey = extractStepBlock(
+        `      - name: ${S2_RUN_STEP_NAME}\n        run: k6 run ${S2_SCRIPT_REL}`,
+        S2_RUN_STEP_NAME,
+      ) as string[];
+      expect(extractKey(noSeedKey, SEED_ENV_KEY)).toBeNull();
+    });
+
+    it("non-string 입력 → TypeError(0-byte fallback false-PASS 방지)", () => {
+      expect(() =>
+        extractTopLevelBlock(undefined as unknown as string, "export function"),
+      ).toThrow(TypeError);
+      expect(() =>
+        extractTopLevelBlock(s2Script(), 42 as unknown as string),
+      ).toThrow(TypeError);
+      expect(() =>
+        extractStepBlock(null as unknown as string, S2_RUN_STEP_NAME),
+      ).toThrow(TypeError);
+    });
+  });
+
+  describe("negative cases 충분 cover — 지표 오염 · 임계 재산정 · 상시 CI 유출", () => {
+    it("(1) seed 배선 후에도 guarded prefix 0 · 조건 분기 0 규약이 유지된다", () => {
+      const script = s2Script();
+      GUARDED_PREFIXES.forEach((prefix) =>
+        expect(script).not.toContain(prefix),
+      );
+      ["if (", "} else", " ? ", " && "].forEach((token) =>
+        expect(script).not.toContain(token),
+      );
+      // 카운트 기반 for 반복문은 허용 — seed 1 + 정리 3 블록에서 쓰인다.
+      expect(script.match(/for \(let i = 0;/g)).toHaveLength(4);
+    });
+
+    it("(2) seed / teardown tag 가 읽기 route tag 3 종과 겹치지 않는다", () => {
+      const readTags = S2_ROUTES.map(([tag]) => tag);
+      WRITE_TAGS.forEach((tag) => expect(readTags).not.toContain(tag));
+      const script = s2Script();
+      // 읽기 tag 는 options 임계 1 회 + http.get 1 회로 정확히 2 회만 등장한다 — seed /
+      // 정리가 읽기 tag 를 재사용하면 이 수가 늘어 drift 로 검출된다.
+      readTags.forEach((tag) =>
+        expect(
+          script.match(new RegExp(`route:${tag}|route: "${tag}"`, "g")),
+        ).toHaveLength(2),
+      );
+      WRITE_TAGS.forEach((tag) => expect(script).toContain(`route: "${tag}"`));
+    });
+
+    it("(3) 임계 5 종의 값·개수와 vus / duration 이 불변이다(재산정 금지)", () => {
+      const script = s2Script();
+      expect(script.match(/p\(95\)<3000/g)).toHaveLength(4);
+      expect(script).not.toMatch(/p\(95\)<(?!3000)\d+/);
+      expect(script.match(/rate<0\.01/g)).toHaveLength(1);
+      expect(script).toContain("vus: 5");
+      expect(script).toContain('duration: "20s"');
+      expect(script).not.toContain("stages:");
+    });
+
+    it("(4) 트리거 3 종 부재 · k6 dependency 부재 규약이 그대로다", () => {
+      const triggers = triggerSection(loadYml());
+      ["pull_request:", "push:", "schedule:"].forEach((t) =>
+        expect(triggers).not.toContain(t),
+      );
+      const p = pkg();
+      expect(Object.keys(p.dependencies)).not.toContain("k6");
+      expect(Object.keys(p.devDependencies)).not.toContain("k6");
+      expect(p.scripts["test:load:s2"]).toBe(`k6 run ${S2_SCRIPT_REL}`);
     });
   });
 });

@@ -88,6 +88,9 @@ jobs:
       - name: k6 S2 조회 부하 시나리오 실행
         env:
           K6_BASE_URL: http://localhost:3000
+          # T-1623 — s2-read.js 의 setup() 이 만들 조회 대상 인원 수. 빈 DB 조회는 측정 의미가
+          # 없어 seed 후 부하를 인가한다 (스크립트 __ENV 기본값과 동일 값 — drift-guard 가 대조).
+          K6_SEED_PERSONS: "30"
         run: k6 run test/load/s2-read.js
 
       - name: 부하 대상 정리
