@@ -1,7 +1,7 @@
 ---
 id: ADR-0054
 title: 부하·내성 harness 도구 선택 — k6 권고 (권고만, dependency 도입은 owner 승인 후 별도 task)
-status: PROPOSED
+status: ACCEPTED
 date: 2026-07-08
 relatedTask: [T-0827]
 relatedReq: [REQ-047, REQ-048]
@@ -11,6 +11,8 @@ supersedes: null
 # ADR-0054 — 부하·내성 harness 도구 선택
 
 ## Status
+
+**ACCEPTED** (2026-07-30) — owner 가 CLAUDE.md §5 게이트에서 부하 harness 도구 도입을 **승인**(대화 "새 의존성 허가", 권고 도구 **k6** 채택). flip 조건 (a)owner 승인 + (b)권고 도구 일치 충족 → 본문 무수정 flip. (c) `package.json` 의 k6 추가는 후속 **k6-도입 pr-mode task** 가 반영하며 그 task 가 본 ACCEPTED 를 재확인한다(선-ACCEPTED 로 planner 의 R-91 착수 unblock). 아래 PROPOSED 서술은 결정 시점 historical record.
 
 **PROPOSED**. 본 ADR 은 부하·내성 harness 의 도구를 **권고만** 한다. 실제 dependency
 도입(`package.json` 변경)은 [CLAUDE.md](../../CLAUDE.md) §5 (새 외부 dependency 추가 =
