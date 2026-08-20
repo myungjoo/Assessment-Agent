@@ -6,9 +6,9 @@
 // 의 provider/export 패턴을 mirror 한다.
 //
 // 책임 범위:
-//   - LlmModule import — LlmModule 이 `LlmHttpGateway`(`LlmGateway` 구현체)를
-//     export(llm.module.ts L58/L66)하므로, 본 module 이 import 하면 그 singleton 을
-//     LLM_GATEWAY token 에 useExisting 으로 바인딩할 수 있다. EvaluationScoringService
+//   - LlmModule import — LlmModule 이 `LlmHttpGateway` 와 `LlmStubGateway`(둘 다
+//     `LlmGateway` 구현체)를 export 하므로, 본 module 이 import 하면 그 두 singleton 중
+//     하나를 LLM_GATEWAY token 에 바인딩할 수 있다. EvaluationScoringService
 //     의 @Inject(LLM_GATEWAY) 생성자 주입이 이 바인딩으로 DI resolve 된다
 //     (평가 → llm 단방향, llm 은 평가를 모름).
 //   - LLM_GATEWAY token → env 로 고르는 gateway 바인딩 — 구현체를 직접 import
