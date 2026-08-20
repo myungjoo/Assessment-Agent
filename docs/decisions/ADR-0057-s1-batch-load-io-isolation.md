@@ -170,13 +170,14 @@ step 순서 덕에 S1 `setup()` 의 signup 이 그 run 의 첫 user = `SuperAdmi
 
 **credential 0 유지.** 채택안은 **실 LLM API key 를 요구하지 않고 repo secret 을 신설하지
 않는다** — 넣는 값은 (i) 32-byte 더미 암호화 키와 (ii) `provider` · `endpointUrl` ·
-`apiKey` · `modelId` 4 필드의 **test-only 더미 문자열**뿐이며, 어느 것도 실 provider 에
-인증되지 않는다. D1 의 stub 이 켜진(`LOAD_TEST_STUB=1`) 부하 job 에서는 실 gateway
+`apiKey` · `modelId` 4 필드의 **test-only 더미 값**뿐이다(`provider` 만
+[src/llm/llm-gateway.interface.ts](../../src/llm/llm-gateway.interface.ts) `40 행`
+`isLlmProvider` 의 허용 집합 안의 값이어야 400 을 피하고, 나머지 3 필드는 임의 더미로 족하다).
+어느 값도 실 provider 에 인증되지 않는다. D1 의 stub 이 켜진(`LOAD_TEST_STUB=1`) 부하 job 에서는 실 gateway
 ([src/llm/llm-http-gateway.service.ts](../../src/llm/llm-http-gateway.service.ts) `143 행`
 의 `cipher.decrypt(config.apiKey)`)가 바인딩되지 않아 그 더미 apiKey 는 **복호화조차 되지
 않고**, 외부로 나가는 호출도 0 이다. 프로덕션 secret 처리 · DB schema · 인증/권한 모델은
 전부 무변경이라 [CLAUDE.md](../../CLAUDE.md) `§5` HITL 게이트는 발화하지 않는다.
-
 
 ## Consequences
 
