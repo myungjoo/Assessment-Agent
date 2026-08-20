@@ -129,6 +129,10 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 2. **S2 조회 latency 경량 harness** (supertest 기반, 신규 dependency 불요 가능) — 위 1
    과 독립적으로 먼저 착수 가능한 최소 measure.
 3. **S1 / S3 부하 harness 구현** — 1 의 도구 결정 후. 배치 부하·동시성 내성 스크립트. → [ADR-0057](../decisions/ADR-0057-s1-batch-load-io-isolation.md) (ACCEPTED, S1 외부 I/O 격리 4 축 확정 — 스크립트·배선은 후속 slice).
+   S1 스크립트 착수 전 **전제조건**은 같은 ADR 의 `D5`(T-1630 개정) 가 확정했다 — 타격 route 가
+   `LlmProviderConfigResolver` 를 먼저 await 해 provider row 0 이면 503 이므로, S1 `setup()` 이
+   `POST /api/llm/providers` 로 **정확히 1 row** 를 멱등 seed 하고 `teardown()` 이 회수한다
+   (test-only 더미 값 + 더미 `LLM_APIKEY_ENC_KEY` — credential 0 유지). `§3` 임계는 무변경.
 4. **CI 통합** — 부하 harness 를 `.github/workflows/` 에 별도 job(정기/수동 trigger)으로
    편입. 상시 PR CI 와 분리(부하는 무거움).
 5. **baseline 확정 + 임계 fix** — 최초 실측으로 §3 의 "baseline 후 fix" 임계를 실 수치로
