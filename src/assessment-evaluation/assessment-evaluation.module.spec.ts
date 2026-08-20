@@ -82,12 +82,24 @@ jest.mock("../persistence/prisma.service", () => ({
 }));
 
 // eslint-disable-next-line import/first
+import { BadRequestException } from "@nestjs/common";
+// eslint-disable-next-line import/first
 import { Test, type TestingModule } from "@nestjs/testing";
 
 // eslint-disable-next-line import/first
-import { LLM_GATEWAY } from "../llm/llm-gateway.interface";
+import {
+  LOAD_TEST_STUB_ENV,
+  isLoadTestStubEnabled,
+} from "../common/load-test-stub-gating";
+// eslint-disable-next-line import/first
+import { LLM_GATEWAY, type LlmGateway } from "../llm/llm-gateway.interface";
 // eslint-disable-next-line import/first
 import { LlmHttpGateway } from "../llm/llm-http-gateway.service";
+// eslint-disable-next-line import/first
+import {
+  LLM_STUB_NARRATIVE_PREFIX,
+  LlmStubGateway,
+} from "../llm/llm-stub-gateway.service";
 // eslint-disable-next-line import/first
 import { PersistenceModule } from "../persistence/persistence.module";
 
@@ -115,6 +127,34 @@ import { SummaryNarrativeService } from "./summary-narrative.service";
 import { SummaryPersistService } from "./summary-persist.service";
 
 describe("AssessmentEvaluationModule", () => {
+  // T-1629 — env 누수 차단 가드. 본 spec 은 `LOAD_TEST_STUB` 를 켜고 끄며 LLM_GATEWAY
+  // 바인딩 분기를 검증하므로, 매 test 후 **원래 값 그대로**(미설정이었으면 미설정으로)
+  // 복원해 같은 jest worker 의 다른 spec 이 오염되지 않게 한다.
+  const originalStubEnv = process.env[LOAD_TEST_STUB_ENV];
+
+  afterEach(() => {
+    if (originalStubEnv === undefined) {
+      delete process.env[LOAD_TEST_STUB_ENV];
+    } else {
+      process.env[LOAD_TEST_STUB_ENV] = originalStubEnv;
+    }
+  });
+
+  // 분기 검증용 공통 compile helper — env 값을 세팅(undefined 면 삭제)한 뒤 module 을
+  // compile 한다. 판정은 module 초기화 1 회 시점에 일어나므로 compile 전에 세팅해야 한다.
+  const compileWithStubEnv = async (
+    value: string | undefined,
+  ): Promise<TestingModule> => {
+    if (value === undefined) {
+      delete process.env[LOAD_TEST_STUB_ENV];
+    } else {
+      process.env[LOAD_TEST_STUB_ENV] = value;
+    }
+    return Test.createTestingModule({
+      imports: [PersistenceModule, AssessmentEvaluationModule],
+    }).compile();
+  };
+
   // Happy path: PersistenceModule(@Global, mocked PrismaService)와 함께 imports 하면
   // EvaluationScoringService 가 정상 resolve 된다.
   it("compile 시 EvaluationScoringService provider 가 resolve 된다", async () => {
@@ -282,5 +322,94 @@ describe("AssessmentEvaluationModule", () => {
     expect(resolved).toBe(sentinel);
 
     await moduleRef.close();
+  });
+
+  // ── T-1629 (ADR-0057 D1) — LLM_GATEWAY env 기반 stub binding ──────────────────
+
+  // Happy path: LOAD_TEST_STUB=1 이면 LLM_GATEWAY 가 LlmStubGateway 로 resolve 되고,
+  // 그 인스턴스는 LlmModule 이 등록한 singleton 그대로다(useFactory + inject 라 새
+  // 인스턴스 생성 0 — useClass 였다면 중복 생성이 생긴다).
+  it("LOAD_TEST_STUB=1 이면 LLM_GATEWAY 가 LlmStubGateway singleton 으로 바인딩된다", async () => {
+    const moduleRef = await compileWithStubEnv("1");
+
+    const gateway = moduleRef.get(LLM_GATEWAY);
+    expect(gateway).toBeInstanceOf(LlmStubGateway);
+    expect(gateway).toBe(moduleRef.get(LlmStubGateway));
+    // 실 gateway 는 선택되지 않았다 — 두 후보가 서로 다른 인스턴스임을 함께 박제.
+    expect(gateway).not.toBe(moduleRef.get(LlmHttpGateway));
+
+    await moduleRef.close();
+  });
+
+  // Branch (b): env 미설정 → fail-safe default OFF 로 실 LlmHttpGateway 로 fall-through.
+  // helper 가 delete 로 "미설정" 상태를 명시적으로 만든다(다른 spec 이 남긴 값 무시).
+  it("LOAD_TEST_STUB 미설정이면 LLM_GATEWAY 가 실 LlmHttpGateway 로 fall-through 한다", async () => {
+    const moduleRef = await compileWithStubEnv(undefined);
+
+    const gateway = moduleRef.get(LLM_GATEWAY);
+    expect(gateway).toBeInstanceOf(LlmHttpGateway);
+    expect(gateway).toBe(moduleRef.get(LlmHttpGateway));
+    expect(gateway).not.toBeInstanceOf(LlmStubGateway);
+
+    await moduleRef.close();
+  });
+
+  // Negative cases 충분 cover: 오활성 방어선을 값별로 전수 고정한다. 단일 negative 로는
+  // 부족하다 — trim / 대소문자 folding / truthy 해석 중 어느 하나라도 슬며시 들어오면
+  // 프로덕션에서 LLM 이 조용히 가짜 응답을 낸다(ADR-0057 `## Consequences` 부정 3).
+  it.each([
+    ["빈 문자열", ""],
+    ["공백 포함 ' 1'", " 1"],
+    ["'0'", "0"],
+    ["'true'", "true"],
+    ["'TRUE'", "TRUE"],
+    ["'yes'", "yes"],
+  ])(
+    "LOAD_TEST_STUB 가 %s 이면 stub 이 켜지지 않고 실 LlmHttpGateway 로 fall-through 한다",
+    async (_label: string, value: string) => {
+      const moduleRef = await compileWithStubEnv(value);
+
+      // 판정 helper 자체도 false 여야 한다 — factory 와 helper 의 해석이 갈리지 않음을 고정.
+      expect(isLoadTestStubEnabled()).toBe(false);
+
+      const gateway = moduleRef.get(LLM_GATEWAY);
+      expect(gateway).toBeInstanceOf(LlmHttpGateway);
+      expect(gateway).not.toBeInstanceOf(LlmStubGateway);
+
+      await moduleRef.close();
+    },
+  );
+
+  // Error path (AC 의 대체 옵션): stub 이 켜진 상태에서 resolve 된 gateway 가 **실 HTTP
+  // 왕복 0** 으로 generate 를 수행하고, 잘못된 입력은 조용히 삼키지 않고 4xx 로 거절한다.
+  // 부하 harness 가 credential 0 환경에서 성립하는지의 실질 게이트다.
+  it("stub 활성 시 resolve 된 gateway 가 HTTP 왕복 0 으로 generate 하고 빈 prompt 는 거절한다", async () => {
+    const fetchSpy = jest
+      .spyOn(globalThis, "fetch")
+      .mockImplementation((): never => {
+        throw new Error("stub 경로에서 외부 HTTP 왕복이 발생했다");
+      });
+
+    const moduleRef = await compileWithStubEnv("1");
+    try {
+      const gateway = moduleRef.get<LlmGateway>(LLM_GATEWAY);
+
+      const result = await gateway.generate("부하용 프롬프트", {
+        modelId: "gpt-4o-mini",
+      });
+      expect(result.narrative.startsWith(LLM_STUB_NARRATIVE_PREFIX)).toBe(true);
+      expect(result.modelId).toBe("gpt-4o-mini");
+      // 외부 왕복 0 — fetch 는 단 한 번도 호출되지 않았다.
+      expect(fetchSpy).not.toHaveBeenCalled();
+
+      // error path — 공백-only prompt 는 BadRequestException 으로 거절(조용한 기본값 0).
+      await expect(
+        gateway.generate("   ", { modelId: "gpt-4o-mini" }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      await moduleRef.close();
+      fetchSpy.mockRestore();
+    }
   });
 });

@@ -28,6 +28,8 @@ jest.mock("../persistence/prisma.service", () => ({
 import { Test, type TestingModule } from "@nestjs/testing";
 
 // eslint-disable-next-line import/first
+import { LOAD_TEST_STUB_ENV } from "../common/load-test-stub-gating";
+// eslint-disable-next-line import/first
 import { PersistenceModule } from "../persistence/persistence.module";
 
 // eslint-disable-next-line import/first
@@ -35,9 +37,24 @@ import { LlmProviderConfigResolver } from "./llm-provider-config-resolver.servic
 // eslint-disable-next-line import/first
 import { LlmProviderConfigRepository } from "./llm-provider-config.repository";
 // eslint-disable-next-line import/first
+import { LlmStubGateway } from "./llm-stub-gateway.service";
+// eslint-disable-next-line import/first
 import { LlmModule } from "./llm.module";
 
 describe("LlmModule", () => {
+  // T-1629 — env 누수 차단 가드. 본 spec 자체는 `LOAD_TEST_STUB` 를 쓰지 않지만, stub
+  // 배선을 다루는 spec 군이 같은 규율을 공유하도록 원래 값 복원을 명시해 둔다(미설정이면
+  // 미설정 그대로 — 다른 spec 오염 0).
+  const originalStubEnv = process.env[LOAD_TEST_STUB_ENV];
+
+  afterEach(() => {
+    if (originalStubEnv === undefined) {
+      delete process.env[LOAD_TEST_STUB_ENV];
+    } else {
+      process.env[LOAD_TEST_STUB_ENV] = originalStubEnv;
+    }
+  });
+
   // Happy path: PersistenceModule (@Global, mocked PrismaService) 와 함께
   // imports 하면 LlmProviderConfigRepository 가 정상 resolve 된다.
   it("compile 시 LlmProviderConfigRepository provider 가 resolve 된다", async () => {
@@ -96,6 +113,45 @@ describe("LlmModule", () => {
     const resolver = moduleRef.get(LlmProviderConfigResolver);
     expect(resolver).toBeDefined();
     expect(resolver).toBeInstanceOf(LlmProviderConfigResolver);
+
+    await moduleRef.close();
+  });
+
+  // T-1629 — LlmStubGateway (ADR-0057 `D1` 의 module binding 조각) 가 providers 에
+  // 등록되어 DI resolve 되는지 검증. 의존 0 인 class 라 추가 module import 없이 resolve
+  // 돼야 하며, 등록 누락이면 소비 module 의 LLM_GATEWAY factory inject 가 깨진다.
+  it("compile 시 LlmStubGateway provider 가 resolve 된다 (T-1629, ADR-0057 D1)", async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, LlmModule],
+    }).compile();
+
+    const stub = moduleRef.get(LlmStubGateway);
+    expect(stub).toBeDefined();
+    expect(stub).toBeInstanceOf(LlmStubGateway);
+    // 의존 0 계약 — 생성자 파라미터가 0 이어야 한다(의존이 생기면 "외부 왕복 0 / 결정적"
+    // 보장이 깨져 부하 기준선이 흔들린다). metadata 부재 또는 빈 배열 둘 다 의존 0 이다.
+    const paramTypes = Reflect.getMetadata(
+      "design:paramtypes",
+      LlmStubGateway,
+    ) as unknown[] | undefined;
+    expect(paramTypes ?? []).toHaveLength(0);
+
+    await moduleRef.close();
+  });
+
+  // exports 정합: LlmStubGateway 를 sentinel 로 override 해도 compile 되고 module.get 이
+  // sentinel 을 돌려준다 — exports 등록이 정상이라 외부 module(AssessmentEvaluationModule
+  // 의 LLM_GATEWAY factory)이 inject 가능함의 간접 검증(기존 override 패턴 mirror).
+  it("LlmStubGateway provider 가 sentinel 로 override 되어도 compile 한다 (exports 정합)", async () => {
+    const sentinel = { __sentinel: "llm-stub-gateway-override" };
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, LlmModule],
+    })
+      .overrideProvider(LlmStubGateway)
+      .useValue(sentinel)
+      .compile();
+
+    expect(moduleRef.get(LlmStubGateway)).toBe(sentinel);
 
     await moduleRef.close();
   });
