@@ -987,3 +987,236 @@ describe("test/load/s2-read.js 인증 조회 확장(signup → login → me) 배
     });
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-1625 — S3 동시 요청 내성(read + write 혼합 · 동시성 단계 상승) 배선 drift.
+// 존재 이유 — ① ramping stages 가 고정 vus 로 되돌아가거나 ② write 가 자기 정리를 잃어 DB 를
+// 무한 성장시키거나 ③ read / write 가 같은 route tag 를 공유해 지표가 섞이거나 ④ 임계가
+// 재산정되어도 상시 CI 는 green 이다(부하 job 은 수동 발화 전용). 새 helper 2 개 + 기존 재사용.
+//      🔥 실 GitHub Actions 발화 0 · 실 k6 실행 0 · 실 HTTP 0 · YAML 파서 0 · 새 dependency 0 ·
+//         DB 의존 0 · process.env 읽기/쓰기 0 — 파일 read + 합성 문자열 주입만.
+const S3_RUN_STEP_NAME = "k6 S3 동시 요청 내성 시나리오 실행";
+const S3_SCRIPT_REL = "test/load/s3-concurrent.js";
+/** S3 임계 정본 — 전역 2 + route tag 2(read / write) = 4 종, 선언 순서 그대로. */
+const S3_THRESHOLD_KEYS = [
+  "http_req_duration",
+  "http_req_failed",
+  "http_req_duration{route:read}",
+  "http_req_duration{route:write}",
+];
+const S3_MAX_SEC = 40; // 수동 job 비용 상한 — stages 총 지속시간(초).
+const s3Script = (): string =>
+  readFileSync(path.join(REPO_ROOT, S3_SCRIPT_REL), "utf8");
+const s3Body = (header: string): string =>
+  (extractTopLevelBlock(s3Script(), header) as string[]).join("\n");
+
+/**
+ * `stages: [` 블록의 `target:` 값 목록(선언 순서 보존). 블록은 `],` 행에서 끝나고 없으면 파일
+ * 끝까지, 대상 부재면 `[]`(추측 0). non-string 이면 `TypeError`(0-byte false-PASS 방지).
+ */
+function stageTargets(script: string): number[] {
+  if (typeof script !== "string") {
+    throw new TypeError("stageTargets: script 는 string 이어야 함");
+  }
+  const lines = script.split("\n");
+  const start = lines.findIndex((l) => l.trim() === "stages: [");
+  if (start < 0) {
+    return [];
+  }
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex((l) => l.trim() === "],");
+  return rest
+    .slice(0, end < 0 ? rest.length : end)
+    .map((l) => l.match(/target:\s*(\d+)/))
+    .filter((m): m is RegExpMatchArray => m !== null)
+    .map((m) => Number(m[1]));
+}
+
+/** `duration: "<n>s"` 선언의 초 값 목록 — 총합으로 수동 job 비용 상한을 대조한다. */
+const stageSeconds = (script: string): number[] =>
+  (script.match(/duration: "\d+s"/g) || []).map((d) =>
+    Number(d.replace(/\D/g, "")),
+  );
+
+describe("load-k6.yml ↔ test/load/s3-concurrent.js ↔ package.json test:load:s3 S3 동시 요청 내성 배선 drift smoke (T-1625)", () => {
+  describe("Happy-path: 혼합 iteration · ramping stages · 임계 · workflow 배선 · parity", () => {
+    it("s3-concurrent.js 가 실재하고 read + write 를 별도 route tag 로 타격하며 자기 정리한다", () => {
+      expect(existsSync(path.join(REPO_ROOT, S3_SCRIPT_REL))).toBe(true);
+      const script = s3Script();
+      const body = s3Body("export default function");
+      // 생성 id 를 같은 iteration 이 DELETE 로 회수하고, 식별자는 stamp 접미사로 충돌을 피한다.
+      [
+        "http.post(",
+        "http.get(",
+        "http.del(",
+        'created.json("id")',
+        "/api/persons/",
+        "Date.now()",
+        "__VU",
+        "__ITER",
+      ].forEach((t) => expect(body).toContain(t));
+      expect(script).toContain('tags: { route: "read" }');
+      expect(script).toContain('tags: { route: "write" }');
+    });
+
+    it("동시성 단계 상승(stages)을 선언하고 고정 vus 는 없으며 총 지속시간이 40s 이내다", () => {
+      const script = s3Script();
+      const targets = stageTargets(script);
+      expect(targets.length).toBeGreaterThanOrEqual(3);
+      // 마지막 ramp-down(0) 을 뺀 앞 단계가 중복 없이 단조 증가 — "단계 상승" 의 실체.
+      const rampUp = targets.slice(0, -1);
+      expect(rampUp).toEqual([...rampUp].sort((a, b) => a - b));
+      expect(targets[targets.length - 1]).toBe(0);
+      expect(script).not.toMatch(/^\s*vus:/m);
+      const total = stageSeconds(script).reduce((a, b) => a + b, 0);
+      expect(total).toBeLessThanOrEqual(S3_MAX_SEC);
+    });
+
+    it("임계 4 종을 계획 §3 값(p95 3000ms · rate<0.01) 그대로 선언하고 cliff 는 관찰만 한다", () => {
+      const script = s3Script();
+      expect(thresholdKeys(script)).toEqual(S3_THRESHOLD_KEYS);
+      expect(script.match(/p\(95\)<3000/g)).toHaveLength(3);
+      expect(script.match(/rate<0\.01/g)).toHaveLength(1);
+      expect(script).toContain("latency cliff");
+    });
+
+    it("workflow S3 step 이 S2 뒤 · 정리 앞에 있고 경로가 test:load:s3 와 parity 다", () => {
+      const yml = loadYml();
+      const step = extractStep(yml, S3_RUN_STEP_NAME);
+      expect(step.found).toBe(true);
+      expect(step.uses).toBeNull();
+      const rel = scriptPathOf(step.run) as string;
+      expect(rel).toBe(S3_SCRIPT_REL);
+      expect(existsSync(path.join(REPO_ROOT, rel))).toBe(true);
+      const s2Idx = stepIndexOf(yml, S2_RUN_STEP_NAME);
+      const s3Idx = stepIndexOf(yml, S3_RUN_STEP_NAME);
+      expect(s2Idx).toBeGreaterThan(0);
+      expect(s3Idx).toBeGreaterThan(s2Idx);
+      expect(stepIndexOf(yml, TEARDOWN_STEP_NAME)).toBeGreaterThan(s3Idx);
+      // 실행 경로 parity + 기존 script 2 종 불변.
+      const p = pkg();
+      expect(rel).toBe(scriptPathOf(p.scripts["test:load:s3"]));
+      expect(p.scripts["test:load"]).toBe(`k6 run ${LOAD_SCRIPT_REL}`);
+      expect(p.scripts["test:load:s2"]).toBe(`k6 run ${S2_SCRIPT_REL}`);
+    });
+  });
+
+  describe("flow / 분기 cover — 블록 종료 조건 · 따옴표 유무 · stages 항목 1 개/다수", () => {
+    it("extractStepBlock: S3 step 이 다음 헤더에서 끊김 / 파일 끝에서 끊김 · 따옴표 무관", () => {
+      const block = extractStepBlock(loadYml(), S3_RUN_STEP_NAME) as string[];
+      expect(block.join("\n")).not.toContain(TEARDOWN_STEP_NAME);
+      // 파일 끝에서 끊기는 분기 — S3 step 을 마지막에 둔 합성 YAML(값은 따옴표로 감쌈).
+      const synthetic = `jobs:\n  load:\n    steps:\n      - name: ${S3_RUN_STEP_NAME}\n        env:\n          K6_BASE_URL: "${EXPECTED_BASE_URL}"\n        run: k6 run ${S3_SCRIPT_REL}`;
+      const tail = extractStepBlock(synthetic, S3_RUN_STEP_NAME) as string[];
+      expect(tail).toHaveLength(4);
+      expect(extractKey(tail, "K6_BASE_URL")).toBe(EXPECTED_BASE_URL);
+      expect(extractKey(block, "K6_BASE_URL")).toBe(EXPECTED_BASE_URL);
+      // S3 는 seed 주입이 없다(write 자기 정리) — 부재 키는 null.
+      expect(extractKey(block, SEED_ENV_KEY)).toBeNull();
+    });
+
+    it("stageTargets / stageSeconds: 항목 1 개 · 다수 · EOF 종료 · 블록 밖 값 · 대상 부재", () => {
+      const one = 'stages: [\n  { duration: "5s", target: 7 },\n],';
+      expect(stageTargets(one)).toEqual([7]);
+      expect(stageTargets(`${one.slice(0, -2)}  { target: 9 },\n],`)).toEqual([
+        7, 9,
+      ]);
+      // 닫는 `],` 가 없으면 파일 끝까지 (미종료 블록도 throw 0). 블록 밖 값·부재는 [].
+      expect(stageTargets(one.slice(0, -2))).toEqual([7]);
+      expect(stageTargets("target: 99\nvus: 5")).toEqual([]);
+      expect(stageSeconds(one)).toEqual([5]);
+      expect(stageSeconds("stages: []")).toEqual([]);
+    });
+  });
+
+  describe("Error path — 대상 부재 / non-string 계약", () => {
+    it("S3 step 이 없는 합성 YAML → throw 하지 않고 미발견 정규형(found=false)", () => {
+      const withoutS3 = loadYml()
+        .split("\n")
+        .filter((l) => l.trim() !== `- name: ${S3_RUN_STEP_NAME}`)
+        .join("\n");
+      expect(extractStep(withoutS3, S3_RUN_STEP_NAME)).toEqual({
+        found: false,
+        uses: null,
+        run: null,
+      });
+      expect(stepIndexOf(withoutS3, S3_RUN_STEP_NAME)).toBe(-1);
+      // 커맨드 형태가 다르면 경로도 추측하지 않는다.
+      expect(scriptPathOf("k6 run")).toBeNull();
+    });
+
+    it("non-string 입력 → TypeError(0-byte fallback false-PASS 방지)", () => {
+      [null, undefined, 42, {}, []].forEach((v) => {
+        expect(() => stageTargets(v as unknown as string)).toThrow(TypeError);
+        expect(() => thresholdKeys(v as unknown as string)).toThrow(TypeError);
+        expect(() =>
+          extractStepBlock(v as unknown as string, S3_RUN_STEP_NAME),
+        ).toThrow(TypeError);
+      });
+      // 0-byte 문자열은 정상 입력 — throw 없이 미발견 정규형.
+      expect(stageTargets("")).toEqual([]);
+      expect(extractStepBlock("", S3_RUN_STEP_NAME)).toBeNull();
+    });
+  });
+
+  describe("negative cases 충분 cover — 상시 CI 유출 · 임계 오염 · dependency 규약", () => {
+    it("(1) load-k6.yml 에 여전히 pull_request · push · schedule 트리거가 없다", () => {
+      const triggers = triggerSection(loadYml());
+      ["pull_request:", "push:", "schedule:"].forEach((t) =>
+        expect(triggers).not.toContain(t),
+      );
+    });
+
+    it("(2) ci.yml 에 S3 실행 문자열이 없다(부하가 상시 CI 로 새지 않음 — read only)", () => {
+      const ci = readFileSync(CI_YML_PATH, "utf8");
+      [S3_SCRIPT_REL, "test:load:s3", S3_RUN_STEP_NAME].forEach((token) =>
+        expect(ci).not.toContain(token),
+      );
+    });
+
+    it("(3) package.json 어디에도 k6 dependency 키가 없다(정적 바이너리 규약)", () => {
+      const p = pkg();
+      const deps = Object.keys({ ...p.dependencies, ...p.devDependencies });
+      ["k6", "@types/k6"].forEach((n) => expect(deps).not.toContain(n));
+    });
+
+    it("(4) S3 스크립트에 auth-guarded prefix 가 없고 조건 분기 0 규약이 유지된다", () => {
+      const script = s3Script(); // 401 오염 차단 — guarded 경로 타격 0 + 분기 토큰 0.
+      const banned = ["/api/users", "Authorization", "if (", "} else", " ? "];
+      [...GUARDED_PREFIXES, ...banned, " && "].forEach((t) =>
+        expect(script).not.toContain(t),
+      );
+    });
+
+    it("(5) 정리 step 의 if: always() 와 기동 배선이 S3 추가 후에도 불변이다", () => {
+      const yml = loadYml();
+      const block = extractStepBlock(yml, TEARDOWN_STEP_NAME) as string[];
+      expect(extractKey(block, "if")).toBe("always()");
+      expect(block.join("\n")).toContain("docker rm -f aa-load");
+      expect(stepIndexOf(yml, BOOT_STEP_NAME)).toBeGreaterThan(
+        stepIndexOf(yml, BUILD_STEP_NAME),
+      );
+    });
+
+    it("(6) 임계가 3000 / 0.01 이외 값으로 재산정되지 않았고 합성 mutation 이 검출된다", () => {
+      const script = s3Script();
+      expect(script).not.toMatch(/p\(95\)<(?!3000)\d+/);
+      expect(script).not.toMatch(/rate<(?!0\.01)[\d.]+/);
+      // 합성 mutation 대조군 ① 임계 완화 ② route 임계 삭제 ③ 실행 경로 갈림.
+      const relaxed = script.replace(
+        'write}": ["p(95)<3000',
+        'write}": ["p(95)<90',
+      );
+      expect(relaxed).toMatch(/p\(95\)<(?!3000)\d+/);
+      const dropped = script.replace('"http_req_duration{route:read}"', "//");
+      expect(thresholdKeys(dropped)).not.toContain(S3_THRESHOLD_KEYS[2]);
+      const drifted = scriptPathOf(
+        extractStep(
+          loadYml().replace(S3_SCRIPT_REL, "test/load/s3-other.js"),
+          S3_RUN_STEP_NAME,
+        ).run,
+      ) as string;
+      expect(existsSync(path.join(REPO_ROOT, drifted))).toBe(false);
+    });
+  });
+});

@@ -22,6 +22,7 @@
     "test:perf": "jest --config ./test/perf/jest-perf.json",
     "test:load": "k6 run test/load/smoke.js",
     "test:load:s2": "k6 run test/load/s2-read.js",
+    "test:load:s3": "k6 run test/load/s3-concurrent.js",
     "postinstall": "prisma generate"
   },
   "dependencies": {
