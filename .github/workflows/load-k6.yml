@@ -1,0 +1,32 @@
+name: Load (k6)
+
+# R-91 / REQ-047 부하 harness 의 실행 배선 골격 (T-1620). ADR-0054 §Consequences —
+# "PR CI 무영향: k6 는 별도 정기/수동 job 으로 분리" 라서 수동 trigger 만 두고(상시 PR CI 오염
+# 차단), k6 는 npm 패키지가 아닌 정적 바이너리라 lockfile 대신 runner 설치 step 으로 편입한다.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 부하 job 이 겹쳐 돌지 않도록 직렬화. 진행 중 run 은 중도 취소하지 않는다 (부분 측정치 오염 방지).
+concurrency:
+  group: load-k6
+  cancel-in-progress: false
+
+jobs:
+  load:
+    name: k6 부하 smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 checkout
+        uses: actions/checkout@v4
+
+      - name: k6 설치
+        uses: grafana/setup-k6-action@v1
+
+      # package.json 의 `test:load` 와 동일한 스크립트 경로 (drift-guard smoke 가 parity 대조).
+      # K6_BASE_URL 미주입 시 스크립트 기본값 — 실 인스턴스 기동 배선은 후속 slice.
+      - name: k6 부하 스크립트 실행
+        run: k6 run test/load/smoke.js
