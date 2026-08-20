@@ -2,7 +2,10 @@
 id: T-1620
 title: k6 부하 job 최소 골격 배선 (상시 PR CI 와 분리된 별도 workflow + smoke 스크립트)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-20T04:08:12Z
+prNumber: 1297
+mergeCommit: 98eae7f4
 commitMode: pr
 coversReq: [REQ-047]
 estimatedDiff: 250
