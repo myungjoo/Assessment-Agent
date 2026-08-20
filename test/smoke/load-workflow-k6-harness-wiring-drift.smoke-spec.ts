@@ -383,3 +383,210 @@ describe("load-k6.yml ↔ test/load/smoke.js ↔ package.json test:load 부하 h
     });
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-1622 — S2(조회 API 응답 지연, REQ-048) 시나리오 배선 drift.
+// 존재 이유 — S2 는 workflow step · 스크립트 · package.json script 3 자가 전부 문자열 배선이라
+// ① 경로 갈림 ② 임계 재산정 ③ auth-guarded route 혼입(401 이 error rate 임계 오염) ④ id 경로
+// 혼입(빈 DB 404) 어느 것도 상시 CI 를 red 로 만들지 않는다. 기존 helper 재사용 + 새 helper 1 개.
+//      🔥 실 GitHub Actions 발화 0 · 실 k6 실행 0 · 실 docker 실행 0 · 실 HTTP 0 · YAML 파서 0 ·
+//         새 dependency 0 · DB 의존 0 · process.env 읽기/쓰기 0 — 파일 read + 합성 문자열 주입만.
+const S2_RUN_STEP_NAME = "k6 S2 조회 부하 시나리오 실행";
+const S2_SCRIPT_REL = "test/load/s2-read.js";
+/** 타격 대상 — guard-free 목록 GET 3 종(route tag 이름 ↔ 경로). */
+const S2_ROUTES: ReadonlyArray<[string, string]> = [
+  ["persons", "/api/persons"],
+  ["groups", "/api/groups"],
+  ["parts", "/api/parts"],
+];
+/** 타격 금지 — @UseGuards 가 붙어 토큰 없이는 401 인 조회 prefix. */
+const GUARDED_PREFIXES = [
+  "/api/assessments",
+  "/api/contributions",
+  "/api/summaries",
+  "/api/users",
+];
+
+/** S2 스크립트 본문(신규 helper 1 개 — 그 외는 T-1620 helper 재사용). 분기 없음. */
+const s2Script = (): string =>
+  readFileSync(path.join(REPO_ROOT, S2_SCRIPT_REL), "utf8");
+
+describe("load-k6.yml ↔ test/load/s2-read.js ↔ package.json test:load:s2 S2 조회 부하 배선 drift smoke (T-1622)", () => {
+  describe("Happy-path: 스크립트 신설 · 임계 게이트 · workflow 배선 · parity", () => {
+    it("s2-read.js 가 실재하고 guard-free 3 route 를 route tag 와 함께 타격한다", () => {
+      expect(existsSync(path.join(REPO_ROOT, S2_SCRIPT_REL))).toBe(true);
+      const script = s2Script();
+      S2_ROUTES.forEach(([tag, route]) => {
+        expect(script).toContain(route);
+        expect(script).toContain(`tags: { route: "${tag}" }`);
+      });
+      // base URL 기본값이 smoke.js · workflow 주입값과 동일해야 배선이 일관된다.
+      const fallback = script.match(
+        /__ENV\.K6_BASE_URL\s*\|\|\s*"([^"]+)"/,
+      ) as RegExpMatchArray;
+      expect(fallback[1]).toBe(EXPECTED_BASE_URL);
+    });
+
+    it("반복 조회 프로파일(vus + duration)을 선언하고 ramping stages 는 쓰지 않는다", () => {
+      const script = s2Script();
+      const vus = script.match(/vus:\s*(\d+)/) as RegExpMatchArray;
+      expect(Number(vus[1])).toBeGreaterThan(1);
+      expect(script).toMatch(/duration:\s*"\d+s"/);
+      expect(script).not.toContain("stages:");
+    });
+
+    it("전역 임계 2 종 + route tag 임계 3 종을 계획 §3 값(3000ms) 그대로 선언한다", () => {
+      const script = s2Script();
+      expect(script).toContain('http_req_duration: ["p(95)<3000"]');
+      expect(script).toContain('http_req_failed: ["rate<0.01"]');
+      S2_ROUTES.forEach(([tag]) => {
+        expect(script).toContain(
+          `"http_req_duration{route:${tag}}": ["p(95)<3000"]`,
+        );
+      });
+    });
+
+    it("workflow 의 S2 실행 step 이 실재 파일을 겨냥하고 smoke 실행 뒤 · 정리 앞에 온다", () => {
+      const src = loadYml();
+      const step = extractStep(src, S2_RUN_STEP_NAME);
+      expect(step.found).toBe(true);
+      const scriptPath = scriptPathOf(step.run);
+      expect(scriptPath).toBe(S2_SCRIPT_REL);
+      expect(existsSync(path.join(REPO_ROOT, scriptPath as string))).toBe(true);
+      const order = [
+        stepIndexOf(src, RUN_STEP_NAME),
+        stepIndexOf(src, S2_RUN_STEP_NAME),
+        stepIndexOf(src, TEARDOWN_STEP_NAME),
+      ];
+      expect(order.every((i) => i > -1)).toBe(true);
+      expect([...order].sort((a, b) => a - b)).toEqual(order);
+      // 기존 smoke 실행 step 의 run 은 불변(T-1620 parity 보존).
+      expect(extractStep(src, RUN_STEP_NAME).run).toBe(
+        `k6 run ${LOAD_SCRIPT_REL}`,
+      );
+    });
+
+    it("workflow S2 경로 ↔ package.json test:load:s2 경로가 동일하고 test:load 는 불변이다", () => {
+      const fromPkg = scriptPathOf(pkg().scripts["test:load:s2"]);
+      expect(fromPkg).toBe(S2_SCRIPT_REL);
+      expect(scriptPathOf(extractStep(loadYml(), S2_RUN_STEP_NAME).run)).toBe(
+        fromPkg,
+      );
+      expect(pkg().scripts["test:load"]).toBe(`k6 run ${LOAD_SCRIPT_REL}`);
+    });
+  });
+
+  describe("flow / 분기 cover — 따옴표 유무 · 블록 종료 조건 · env 존재/부재", () => {
+    it("S2 step 은 다음 헤더에서 끊기고(비-EOF) env 주입값을 갖는다 / 따옴표 유무 무관", () => {
+      const block = extractStepBlock(loadYml(), S2_RUN_STEP_NAME) as string[];
+      expect(block).not.toBeNull();
+      // 비-EOF 종료 분기 — 정리 step 을 삼키지 않는다.
+      expect(block.join("\n")).not.toContain(TEARDOWN_STEP_NAME);
+      // env 존재 분기 — 따옴표 없는 실 값과 따옴표 있는 합성 값이 같은 정규형으로 나온다.
+      expect(extractKey(block, "K6_BASE_URL")).toBe(EXPECTED_BASE_URL);
+      const quoted = extractStepBlock(
+        `      - name: ${S2_RUN_STEP_NAME}\n        env:\n          K6_BASE_URL: "${EXPECTED_BASE_URL}"\n        run: k6 run ${S2_SCRIPT_REL}\n      - name: 다음`,
+        S2_RUN_STEP_NAME,
+      ) as string[];
+      expect(extractKey(quoted, "K6_BASE_URL")).toBe(EXPECTED_BASE_URL);
+      // EOF 종료 분기 + env 부재 분기 — 합성 입력이 파일 끝에서 끝나고 env 키가 없다.
+      const eof = extractStepBlock(
+        `      - name: ${S2_RUN_STEP_NAME}\n        run: k6 run ${S2_SCRIPT_REL}`,
+        S2_RUN_STEP_NAME,
+      ) as string[];
+      expect(eof).toHaveLength(2);
+      expect(extractKey(eof, "K6_BASE_URL")).toBeNull();
+      expect(scriptPathOf(extractKey(eof, "run"))).toBe(S2_SCRIPT_REL);
+    });
+  });
+
+  describe("Error path — 재사용 helper 계약(미발견 정규형 / TypeError) 이 S2 상수에서도 성립", () => {
+    it("S2 step 이 없는 합성 YAML → throw 하지 않고 미발견 정규형(found=false)", () => {
+      const synthetic = "      - name: Lint\n        run: pnpm lint";
+      expect(extractStep(synthetic, S2_RUN_STEP_NAME)).toEqual({
+        found: false,
+        uses: null,
+        run: null,
+      });
+      expect(extractStepBlock(synthetic, S2_RUN_STEP_NAME)).toBeNull();
+      expect(stepIndexOf(synthetic, S2_RUN_STEP_NAME)).toBe(-1);
+      expect(scriptPathOf(null)).toBeNull();
+      expect(scriptPathOf("k6 run a.js --vus 5")).toBeNull();
+    });
+
+    it("non-string 입력 → TypeError(0-byte fallback false-PASS 방지)", () => {
+      expect(() =>
+        extractStepBlock(undefined as unknown as string, S2_RUN_STEP_NAME),
+      ).toThrow(TypeError);
+      expect(() =>
+        extractStepBlock(loadYml(), null as unknown as string),
+      ).toThrow(TypeError);
+      expect(() =>
+        lineIndexOf(42 as unknown as string, S2_RUN_STEP_NAME),
+      ).toThrow(TypeError);
+      // 존재하지 않는 스크립트 경로 → existsSync false · readFileSync throw.
+      const bad = path.join(REPO_ROOT, "test/load/s2-read.absent.js");
+      expect(existsSync(bad)).toBe(false);
+      expect(() => readFileSync(bad, "utf8")).toThrow();
+    });
+  });
+
+  describe("negative cases 충분 cover — 임계 오염 · 상시 CI 유출 · dependency 규약", () => {
+    it("(1) s2-read.js 에 auth-guarded 조회 prefix 가 없다(401 이 error rate 임계 오염 차단)", () => {
+      const script = s2Script();
+      GUARDED_PREFIXES.forEach((prefix) =>
+        expect(script).not.toContain(prefix),
+      );
+    });
+
+    it("(2) 타격 경로에 id 파라미터 경로가 없다(빈 DB 404 → non-2xx 오염 차단)", () => {
+      const script = s2Script();
+      S2_ROUTES.forEach(([, route]) => {
+        expect(script).not.toContain(`${route}/`);
+      });
+      expect(script).not.toContain("${id}");
+      expect(script).not.toMatch(/\/api\/\w+\/\d/);
+    });
+
+    it("(3) load-k6.yml 에 여전히 pull_request · push · schedule 트리거가 없다", () => {
+      const triggers = triggerSection(loadYml());
+      ["pull_request:", "push:", "schedule:"].forEach((t) =>
+        expect(triggers).not.toContain(t),
+      );
+    });
+
+    it("(4) ci.yml 에 S2 실행 문자열이 없다(부하가 상시 CI 로 새지 않음 — read only)", () => {
+      const ci = readFileSync(CI_YML_PATH, "utf8");
+      expect(ci).not.toContain(S2_SCRIPT_REL);
+      expect(ci).not.toContain("test:load:s2");
+      expect(ci).not.toContain("k6 run");
+    });
+
+    it("(5) package.json 어디에도 k6 dependency 키가 없다(정적 바이너리 규약)", () => {
+      const p = pkg();
+      expect(Object.keys(p.dependencies)).not.toContain("k6");
+      expect(Object.keys(p.devDependencies)).not.toContain("k6");
+      expect(p.scripts["test:load:s2"]).toBe(`k6 run ${S2_SCRIPT_REL}`);
+    });
+
+    it("(6) 임계 문자열이 3000/0.01 이 아닌 값으로 재산정되지 않았다 + 합성 mutation 검출", () => {
+      const script = s2Script();
+      // 전역 + route tag 임계 4 종이 모두 3000ms. 다른 숫자로 갈리면 아래 count 가 어긋난다.
+      expect(script.match(/p\(95\)<3000/g)).toHaveLength(4);
+      expect(script).not.toMatch(/p\(95\)<(?!3000)\d+/);
+      expect(script.match(/rate<0\.01/g)).toHaveLength(1);
+      // 합성 mutation: 임계가 완화되면 같은 단언이 실패한다(대조군).
+      const mutated = script.replace("p(95)<3000", "p(95)<9000");
+      expect(mutated).toMatch(/p\(95\)<(?!3000)\d+/);
+      // workflow 경로가 갈리면 실재 파일이 아니게 된다(대조군).
+      const driftedYml = loadYml().replace(
+        `k6 run ${S2_SCRIPT_REL}`,
+        "k6 run test/load/s2-other.js",
+      );
+      const drifted = scriptPathOf(
+        extractStep(driftedYml, S2_RUN_STEP_NAME).run,
+      );
+      expect(existsSync(path.join(REPO_ROOT, drifted as string))).toBe(false);
+    });
+  });
+});

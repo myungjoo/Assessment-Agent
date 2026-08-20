@@ -83,6 +83,13 @@ jobs:
           K6_BASE_URL: http://localhost:3000
         run: k6 run test/load/smoke.js
 
+      # package.json 의 `test:load:s2` 와 동일한 스크립트 경로 (drift-guard smoke 가 parity 대조).
+      # smoke 배선 확인 직후 S2(조회 API 응답 지연, REQ-048) 시나리오를 같은 인스턴스에 인가한다.
+      - name: k6 S2 조회 부하 시나리오 실행
+        env:
+          K6_BASE_URL: http://localhost:3000
+        run: k6 run test/load/s2-read.js
+
       - name: 부하 대상 정리
         # k6 가 임계 위반으로 fail 해도 컨테이너가 남지 않도록 always() teardown.
         if: always()
