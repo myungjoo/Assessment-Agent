@@ -20,6 +20,11 @@ const PKG_JSON_PATH = path.join(REPO_ROOT, "package.json");
 const INSTALL_STEP_NAME = "k6 설치";
 const RUN_STEP_NAME = "k6 부하 스크립트 실행";
 const LOAD_SCRIPT_REL = "test/load/smoke.js";
+/** T-1621 — 부하 대상 기동/정리 step 이름과 겨냥 base URL. */
+const BUILD_STEP_NAME = "부하 대상 이미지 빌드";
+const BOOT_STEP_NAME = "부하 대상 컨테이너 기동 + readiness polling";
+const TEARDOWN_STEP_NAME = "부하 대상 정리";
+const EXPECTED_BASE_URL = "http://localhost:3000";
 
 /** load-k6.yml 한 step 의 정규형 — 존재 여부 · uses · run. */
 interface StepExtraction {
@@ -102,6 +107,21 @@ function triggerSection(source: string): string {
   return start < 0 || end < 0 ? "" : lines.slice(start, end).join("\n");
 }
 
+/**
+ * trim 기준으로 정확히 일치하는 행의 index(step 순서 비교 · 섹션 경계 판정 공용). 부재면 -1(추측 0).
+ * @throws {TypeError} non-string 입력일 때(extractStepBlock 과 동형 계약 — 0-byte false-PASS 방지).
+ */
+function lineIndexOf(source: string, trimmedLine: string): number {
+  if (typeof source !== "string" || typeof trimmedLine !== "string") {
+    throw new TypeError("lineIndexOf: source·trimmedLine 은 string 이어야 함");
+  }
+  return source.split("\n").findIndex((l) => l.trim() === trimmedLine);
+}
+
+/** step 헤더 행 index(순서 단언용). 부재면 -1. */
+const stepIndexOf = (source: string, name: string): number =>
+  lineIndexOf(source, `- name: ${name}`);
+
 const loadYml = (): string => readFileSync(LOAD_YML_PATH, "utf8");
 const pkg = (): Record<string, Record<string, string>> =>
   JSON.parse(readFileSync(PKG_JSON_PATH, "utf8"));
@@ -139,6 +159,84 @@ describe("load-k6.yml ↔ test/load/smoke.js ↔ package.json test:load 부하 h
     });
   });
 
+  describe("Happy-path: 부하 대상 기동 배선 (T-1621)", () => {
+    it("jobs.load 에 services.postgres 가 ci.yml deploy-artifacts 와 동일 형태로 실재한다", () => {
+      const src = loadYml();
+      const svcIdx = lineIndexOf(src, "services:");
+      const stepsIdx = lineIndexOf(src, "steps:");
+      expect(svcIdx).toBeGreaterThan(-1);
+      expect(svcIdx).toBeLessThan(stepsIdx);
+      const services = src.split("\n").slice(svcIdx, stepsIdx).join("\n");
+      // image · env 3종 · ports · health 옵션 4종 — health check 가 빠지면 앱이 DB 준비
+      // 전에 붙어 부팅에 실패한다(ci.yml deploy-artifacts 와 동일 형태 요구).
+      [
+        "postgres:",
+        "image: postgres:16-alpine",
+        "POSTGRES_USER: assessment_agent",
+        "POSTGRES_PASSWORD:",
+        "POSTGRES_DB: assessment_agent",
+        "- 5432:5432",
+        '--health-cmd "pg_isready -U assessment_agent"',
+        "--health-interval",
+        "--health-timeout",
+        "--health-retries",
+      ].forEach((fragment) => expect(services).toContain(fragment));
+    });
+
+    it("기동 step 이 이미지 빌드 · 컨테이너 run · readiness polling · crash 감지를 담는다", () => {
+      const build = extractStep(loadYml(), BUILD_STEP_NAME);
+      expect(build.found).toBe(true);
+      expect(build.run).toContain("docker build -t assessment-agent:load");
+      const boot = extractStepBlock(loadYml(), BOOT_STEP_NAME) as string[];
+      expect(boot).not.toBeNull();
+      const bootText = boot.join("\n");
+      // env 3종 주입 + readiness polling(curl) + crash 시 로그. polling 이 빠지면
+      // 부팅 지연이 부하 측정치에 섞여 오염된다. DATABASE_URL 은 services 자격증명과 일치.
+      [
+        "docker run -d --name aa-load --network host",
+        "-e DATABASE_URL=",
+        "-e AUTH_JWT_SECRET=",
+        "-e PORT=3000",
+        "curl -fsS",
+        "docker logs aa-load",
+        "postgresql://assessment_agent:ci_smoke@localhost:5432/assessment_agent",
+      ].forEach((fragment) => expect(bootText).toContain(fragment));
+    });
+
+    it("k6 실행 step 의 K6_BASE_URL 이 smoke.js 기본값(포트 포함)과 동일하다", () => {
+      const runBlock = extractStepBlock(loadYml(), RUN_STEP_NAME) as string[];
+      const injected = extractKey(runBlock, "K6_BASE_URL");
+      expect(injected).toBe(EXPECTED_BASE_URL);
+      const script = readFileSync(
+        path.join(REPO_ROOT, LOAD_SCRIPT_REL),
+        "utf8",
+      );
+      const fallback = script.match(
+        /__ENV\.K6_BASE_URL\s*\|\|\s*"([^"]+)"/,
+      ) as RegExpMatchArray;
+      expect(fallback[1]).toBe(injected);
+      expect(new URL(injected as string).port).toBe(new URL(fallback[1]).port);
+      // run 명령 자체는 T-1620 그대로 유지(parity 불변).
+      expect(extractKey(runBlock, "run")).toBe(`k6 run ${LOAD_SCRIPT_REL}`);
+    });
+
+    it("step 순서가 checkout → 빌드 → 기동 → 설치 → k6 실행 → 정리 로 단조 증가한다", () => {
+      const src = loadYml();
+      const order = [
+        stepIndexOf(src, "저장소 checkout"),
+        stepIndexOf(src, BUILD_STEP_NAME),
+        stepIndexOf(src, BOOT_STEP_NAME),
+        stepIndexOf(src, INSTALL_STEP_NAME),
+        stepIndexOf(src, RUN_STEP_NAME),
+        stepIndexOf(src, TEARDOWN_STEP_NAME),
+      ];
+      expect(order.every((i) => i > -1)).toBe(true);
+      expect([...order].sort((a, b) => a - b)).toEqual(order);
+      // AC (5)④ — 부하 대상이 뜨기 전에 k6 가 발화하면 배선이 무의미하다.
+      expect(order[2]).toBeLessThan(order[4]);
+    });
+  });
+
   describe("flow / 분기 cover — 따옴표 유무 · 블록 종료 조건 · 커맨드 형태", () => {
     it("unquote / scriptPathOf 분기 — 따옴표 유무 · 한쪽만 따옴표 · 커맨드 형태 불일치", () => {
       expect(unquote('  "actions/checkout@v4"  ')).toBe("actions/checkout@v4");
@@ -161,10 +259,26 @@ describe("load-k6.yml ↔ test/load/smoke.js ↔ package.json test:load 부하 h
       expect(terminated).toHaveLength(3);
       expect(extractKey(terminated, "run")).toBe("one");
       expect(extractKey(terminated, "uses")).toBeNull();
-      // 실 load-k6.yml 의 마지막 step 은 파일 끝에서 블록이 끝난다(EOF 분기).
-      const eofBlock = extractStepBlock(loadYml(), RUN_STEP_NAME) as string[];
-      expect(eofBlock[0].trim()).toBe(`- name: ${RUN_STEP_NAME}`);
-      expect(extractKey(eofBlock, "run")).toBe(`k6 run ${LOAD_SCRIPT_REL}`);
+      // 실 load-k6.yml 의 마지막 step(정리)은 파일 끝에서 블록이 끝난다(EOF 분기).
+      const eofBlock = extractStepBlock(
+        loadYml(),
+        TEARDOWN_STEP_NAME,
+      ) as string[];
+      expect(eofBlock[0].trim()).toBe(`- name: ${TEARDOWN_STEP_NAME}`);
+      // k6 실행 step 은 다음 step 헤더에서 끊긴다(비-EOF 분기) — 정리 step 을 삼키지 않는다.
+      const midBlock = extractStepBlock(loadYml(), RUN_STEP_NAME) as string[];
+      expect(midBlock.join("\n")).not.toContain(TEARDOWN_STEP_NAME);
+      expect(extractKey(midBlock, "run")).toBe(`k6 run ${LOAD_SCRIPT_REL}`);
+    });
+    it("env 블록 존재/부재 분기 — 값 추출 vs null (합성 입력 대조)", () => {
+      const withEnv = extractStepBlock(
+        '      - name: A\n        env:\n          K6_BASE_URL: "http://localhost:3000"\n        run: k6 run x.js',
+        "A",
+      ) as string[];
+      expect(extractKey(withEnv, "K6_BASE_URL")).toBe(EXPECTED_BASE_URL);
+      // env 블록이 없는 step(설치 step)은 같은 키에서 null — 미주입 drift 를 검출한다.
+      const noEnv = extractStepBlock(loadYml(), INSTALL_STEP_NAME) as string[];
+      expect(extractKey(noEnv, "K6_BASE_URL")).toBeNull();
     });
   });
 
@@ -190,6 +304,18 @@ describe("load-k6.yml ↔ test/load/smoke.js ↔ package.json test:load 부하 h
       expect(() =>
         extractStepBlock("- name: x", 42 as unknown as string),
       ).toThrow(TypeError);
+    });
+    it("lineIndexOf: 대상 행 부재 → -1(미발견 정규형), non-string 입력 → TypeError", () => {
+      const synthetic = "jobs:\n  load:\n    steps:\n      - name: Lint";
+      expect(lineIndexOf(synthetic, "services:")).toBe(-1);
+      expect(stepIndexOf(synthetic, BOOT_STEP_NAME)).toBe(-1);
+      expect(lineIndexOf(synthetic, "jobs:")).toBe(0);
+      expect(() => lineIndexOf(null as unknown as string, "jobs:")).toThrow(
+        TypeError,
+      );
+      expect(() => lineIndexOf("jobs:", 7 as unknown as string)).toThrow(
+        TypeError,
+      );
     });
   });
 
@@ -231,6 +357,29 @@ describe("load-k6.yml ↔ test/load/smoke.js ↔ package.json test:load 부하 h
         "on:\n  workflow_dispatch:\n  pull_request:",
       );
       expect(triggerSection(mutatedTrigger)).toContain("pull_request:");
+    });
+
+    it("(5) 정리 step 이 if: always() 를 가진다(k6 실패 시 컨테이너 잔존 차단)", () => {
+      const teardown = extractStepBlock(
+        loadYml(),
+        TEARDOWN_STEP_NAME,
+      ) as string[];
+      expect(teardown).not.toBeNull();
+      expect(extractKey(teardown, "if")).toBe("always()");
+      expect(teardown.join("\n")).toContain("docker rm -f aa-load");
+    });
+
+    it("(6) K6_BASE_URL 이 외부 host 가 아니라 로컬 인스턴스를 겨냥한다", () => {
+      const injected = extractKey(
+        extractStepBlock(loadYml(), RUN_STEP_NAME) as string[],
+        "K6_BASE_URL",
+      ) as string;
+      const host = new URL(injected).hostname;
+      expect(["localhost", "127.0.0.1"]).toContain(host);
+      expect(injected).not.toContain("https://");
+      // 합성 mutation: 외부 host 로 갈리면 같은 단언이 실패한다(대조군).
+      const drifted = new URL(injected.replace(host, "example.com")).hostname;
+      expect(["localhost", "127.0.0.1"]).not.toContain(drifted);
     });
   });
 });

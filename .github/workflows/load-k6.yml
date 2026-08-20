@@ -3,6 +3,8 @@ name: Load (k6)
 # R-91 / REQ-047 부하 harness 의 실행 배선 골격 (T-1620). ADR-0054 §Consequences —
 # "PR CI 무영향: k6 는 별도 정기/수동 job 으로 분리" 라서 수동 trigger 만 두고(상시 PR CI 오염
 # 차단), k6 는 npm 패키지가 아닌 정적 바이너리라 lockfile 대신 runner 설치 step 으로 편입한다.
+# T-1621 — 부하 대상 기동 배선 추가: PostgreSQL service + 앱 컨테이너를 실제로 띄우고
+# K6_BASE_URL 로 그 인스턴스를 겨냥한다(그 전까지 k6 는 아무도 듣지 않는 포트를 때렸다).
 
 on:
   workflow_dispatch:
@@ -19,14 +21,71 @@ jobs:
   load:
     name: k6 부하 smoke
     runs-on: ubuntu-latest
+    # 부하 대상이 붙을 실 PostgreSQL. image / env / ports / health 옵션은 ci.yml 의
+    # deploy-artifacts job 과 동일 형태 — 이미 증명된 패턴이라 새 추론을 만들지 않는다 (T-1621).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: assessment_agent
+          POSTGRES_PASSWORD: ci_smoke
+          POSTGRES_DB: assessment_agent
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U assessment_agent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: 저장소 checkout
         uses: actions/checkout@v4
+
+      - name: 부하 대상 이미지 빌드
+        # Dockerfile 전체를 빌드해 부하 대상 산출물을 만든다. 레지스트리 push 는 없다.
+        run: docker build -t assessment-agent:load .
+
+      - name: 부하 대상 컨테이너 기동 + readiness polling
+        # --network host 로 services.postgres 가 매핑된 runner localhost:5432 에 도달.
+        # polling 없이 k6 를 바로 돌리면 부팅 지연이 측정치에 섞여 오염되므로 최대 60s 대기하고,
+        # 컨테이너가 crash 하면 로그를 찍고 즉시 fail 한다.
+        run: |
+          docker run -d --name aa-load --network host \
+            -e DATABASE_URL="postgresql://assessment_agent:ci_smoke@localhost:5432/assessment_agent?schema=public" \
+            -e AUTH_JWT_SECRET=ci_load_secret \
+            -e PORT=3000 \
+            assessment-agent:load
+
+          ok=""
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/api >/dev/null 2>&1; then
+              ok=1; echo "✅ 부하 대상 부팅 확인 (${i}회 polling)"; break
+            fi
+            if [ -z "$(docker ps -q --filter name=aa-load --filter status=running)" ]; then
+              echo "::error::부하 대상 컨테이너가 비정상 종료(crash). 아래 로그 참조."
+              docker logs aa-load; exit 1
+            fi
+            sleep 2
+          done
+
+          if [ -z "$ok" ]; then
+            echo "::error::60s 내 HTTP 응답 없음 — 부하 대상 부팅 실패."
+            docker logs aa-load; exit 1
+          fi
 
       - name: k6 설치
         uses: grafana/setup-k6-action@v1
 
       # package.json 의 `test:load` 와 동일한 스크립트 경로 (drift-guard smoke 가 parity 대조).
-      # K6_BASE_URL 미주입 시 스크립트 기본값 — 실 인스턴스 기동 배선은 후속 slice.
+      # K6_BASE_URL 은 위 step 이 띄운 로컬 인스턴스를 겨냥한다 (smoke.js 기본값과 동일 포트).
       - name: k6 부하 스크립트 실행
+        env:
+          K6_BASE_URL: http://localhost:3000
         run: k6 run test/load/smoke.js
+
+      - name: 부하 대상 정리
+        # k6 가 임계 위반으로 fail 해도 컨테이너가 남지 않도록 always() teardown.
+        if: always()
+        run: |
+          docker logs aa-load || true
+          docker rm -f aa-load || true
