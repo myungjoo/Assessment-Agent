@@ -2,13 +2,15 @@
 id: T-1626
 title: S1 배치 부하의 외부 I/O 격리 전략 ADR-0057 박제 (S1 harness 선행 결정)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047]
 estimatedDiff: 215
 estimatedFiles: 2
 created: 2026-08-20
 createdAt: 2026-08-20T14:35:00Z
+completedAt: 2026-08-20T15:58:04Z
+prNumber: 1303
 independentStream: load-harness-k6
 dependsOn: [T-1625]
 touchesFiles:
@@ -73,4 +75,6 @@ plannerNote: P5 R-91 chain 7/N — S1(REQ-047 배치 1h) harness 를 막고 있�
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 발견한 관련 작업을 여기 append 한다.)
+- **S1 stub 배선 구현** — ADR-0057 D1(stub 주입) 을 `src/` 에 실제로 배선한다. 기본 OFF 이며 env 로만 켜지고, OFF 일 때 프로덕션 경로가 그대로임을 확인하는 negative test 를 포함한다.
+- **`test/load/s1-batch.js` 신설** — ADR-0057 D2(fill-run 진입점) · D3(tag 분해) · D4(축소표본 외삽) 를 따르는 S1 배치 부하 스크립트.
+- **`load-k6.yml` step 재배치** — smoke → S1 → S2 → S3 순서로 정리하고 S1 step 에 stub env 를 주입한다.
