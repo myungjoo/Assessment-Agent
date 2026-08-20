@@ -2,13 +2,15 @@
 id: T-1627
 title: ADR-0057 D1 stub 활성 판정 helper 박제 (기본 OFF fail-safe + negative 충분 cover)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047]
 estimatedDiff: 230
 estimatedFiles: 2
 created: 2026-08-20
 createdAt: 2026-08-20T16:40:00Z
+completedAt: 2026-08-20T17:48:17Z
+prNumber: 1304
 independentStream: load-harness-k6
 dependsOn: [T-1626]
 touchesFiles:
@@ -48,20 +50,20 @@ unit-test 하기 어렵고, 그 결과가 곧 D1 이 경고한 오활성 risk �
 
 ## Acceptance Criteria
 
-- [ ] `src/common/load-test-stub-gating.ts` 신설. export 는 다음 2 개만:
-  - [ ] `LOAD_TEST_STUB_ENV` — env 변수 **이름** 문자열 상수(`"LOAD_TEST_STUB"`). 실값 0.
-  - [ ] `isLoadTestStubEnabled(env?: NodeJS.ProcessEnv): boolean` — 부수효과 0 순수 함수. 인자 미제공 시 `process.env` 를 default 로 읽는다.
-- [ ] 판정 규칙은 ADR-0057 `D1` 그대로: `env[LOAD_TEST_STUB_ENV]` 가 **정확히 문자열 `"1"`** 일 때만 `true`. trim 도 대소문자 folding 도 하지 않는다(관대한 해석이 곧 오활성 표면이므로). 그 외 전부 `false`.
-- [ ] 파일 상단에 책임 경계 주석(한국어) — 본 helper 는 판정만 하고 binding 은 후속 slice 책임이라는 점, ADR-0057 `D1` pointer 를 명시.
-- [ ] `src/common/load-test-stub-gating.spec.ts` (colocated) 신설. 아래 R-112 4 종을 모두 cover:
-  - [ ] **happy path** — `{ LOAD_TEST_STUB: "1" }` 주입 시 `true` 반환 1+ test.
-  - [ ] **error / 미설정 path** — env 객체에 키 자체가 없을 때(`{}`) 와 값이 `undefined` 일 때 각각 `false` 1+ test.
-  - [ ] **분기 cover** — 함수의 두 분기(정확히 `"1"` → true / 그 외 → false)를 각각 최소 1 test 로 통과. 인자 생략 경로(`process.env` default) 도 1 test — spec 안에서 `process.env` 를 저장·복원해 오염 0.
-  - [ ] **negative 충분 cover** — 값 변형마다 각각 `false` 임을 assert: 빈 문자열 `""`, 공백-only `" "`, 앞뒤 공백 `" 1"` / `"1 "`, `"0"`, `"true"` / `"TRUE"` / `"True"`, `"yes"`, `"on"`, `"01"`, `"11"`. (각 케이스 1+ test 또는 `it.each` 테이블 1 개.)
-  - [ ] `LOAD_TEST_STUB_ENV` 상수 값이 `"LOAD_TEST_STUB"` 임을 고정하는 test 1(후속 workflow env 주입과의 drift 방지).
-- [ ] `pnpm lint && pnpm build && pnpm test` 통과.
-- [ ] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%).
-- [ ] 신규 dependency 0 · `package.json` 변경 0 · schema 변경 0 · 기존 파일 수정 0(신규 2 파일만).
+- [x] `src/common/load-test-stub-gating.ts` 신설. export 는 다음 2 개만:
+  - [x] `LOAD_TEST_STUB_ENV` — env 변수 **이름** 문자열 상수(`"LOAD_TEST_STUB"`). 실값 0.
+  - [x] `isLoadTestStubEnabled(env?: NodeJS.ProcessEnv): boolean` — 부수효과 0 순수 함수. 인자 미제공 시 `process.env` 를 default 로 읽는다.
+- [x] 판정 규칙은 ADR-0057 `D1` 그대로: `env[LOAD_TEST_STUB_ENV]` 가 **정확히 문자열 `"1"`** 일 때만 `true`. trim 도 대소문자 folding 도 하지 않는다(관대한 해석이 곧 오활성 표면이므로). 그 외 전부 `false`.
+- [x] 파일 상단에 책임 경계 주석(한국어) — 본 helper 는 판정만 하고 binding 은 후속 slice 책임이라는 점, ADR-0057 `D1` pointer 를 명시.
+- [x] `src/common/load-test-stub-gating.spec.ts` (colocated) 신설. 아래 R-112 4 종을 모두 cover:
+  - [x] **happy path** — `{ LOAD_TEST_STUB: "1" }` 주입 시 `true` 반환 1+ test.
+  - [x] **error / 미설정 path** — env 객체에 키 자체가 없을 때(`{}`) 와 값이 `undefined` 일 때 각각 `false` 1+ test.
+  - [x] **분기 cover** — 함수의 두 분기(정확히 `"1"` → true / 그 외 → false)를 각각 최소 1 test 로 통과. 인자 생략 경로(`process.env` default) 도 1 test — spec 안에서 `process.env` 를 저장·복원해 오염 0.
+  - [x] **negative 충분 cover** — 값 변형마다 각각 `false` 임을 assert: 빈 문자열 `""`, 공백-only `" "`, 앞뒤 공백 `" 1"` / `"1 "`, `"0"`, `"true"` / `"TRUE"` / `"True"`, `"yes"`, `"on"`, `"01"`, `"11"`. (각 케이스 1+ test 또는 `it.each` 테이블 1 개.)
+  - [x] `LOAD_TEST_STUB_ENV` 상수 값이 `"LOAD_TEST_STUB"` 임을 고정하는 test 1(후속 workflow env 주입과의 drift 방지).
+- [x] `pnpm lint && pnpm build && pnpm test` 통과.
+- [x] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%).
+- [x] 신규 dependency 0 · `package.json` 변경 0 · schema 변경 0 · 기존 파일 수정 0(신규 2 파일만).
 
 ## Out of Scope
 
@@ -79,3 +81,12 @@ unit-test 하기 어렵고, 그 결과가 곧 D1 이 경고한 오활성 risk �
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 발견 시 append)
+
+## 결과 요약 (2026-08-20 완료)
+
+**DONE** — `pr` 모드, PR [#1304](https://github.com/myungjoo/AA_S1/pull/1304) 라운드 1 APPROVE → 스쿼시 머지 `f6052cf3`.
+
+- `src/common/load-test-stub-gating.ts` 신설 — `LOAD_TEST_STUB_ENV` 상수 + `isLoadTestStubEnabled()` 판정 함수 2 export 만. 부수효과 0 순수 함수로, [src/llm/llm-live-test-gating.ts](../../src/llm/llm-live-test-gating.ts) 선례를 그대로 승계했다.
+- 판정 규칙은 ADR-0057 `D1` 그대로 — env 값이 **정확히 `"1"`** 일 때만 `true`. 미설정 · 빈 문자열 · 공백 · `"true"` · `"0"` 등 그 외 전부 `false`(trim · case folding 없음). fail-safe default OFF 가 곧 stub 오활성(프로덕션 LLM 이 조용히 가짜 응답) 차단선이다.
+- colocated spec 29 test 로 R-112 4 종(happy / error·미설정 / 분기 / negative 충분 cover) 전수 고정. 신규 파일 line · branch · function 100%, 전체 442 suite / 12709 test green.
+- **호출처 0** — stub 구현 class · module binding · `test/load/s1-batch.js` · `load-k6.yml` 은 Out of Scope 그대로 후속 slice. 본 commit 만으로 바뀌는 실행 경로 없음. 신규 dependency 0 · `package.json` 무변경 · 기존 파일 수정 0.
