@@ -2,13 +2,15 @@
 id: T-1623
 title: k6 S2 조회 부하의 seed 배선 (setup/teardown 으로 조회 대상 row 생성·정리)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 200
 estimatedFiles: 3
 created: 2026-08-20
 createdAt: 2026-08-20T08:10:00Z
+completedAt: 2026-08-20T09:54:12Z
+prNumber: 1300
 independentStream: load-harness-k6
 dependsOn: [T-1622]
 touchesFiles:
@@ -146,3 +148,13 @@ R-91 chain 잔여(T-1622 Follow-ups 승계, 의존성 순서):
 4. **baseline 확정 + 임계 fix** — 최초 실측으로 계획 `§3` 의 "baseline 후 fix" 항목 확정.
 5. **REQ-047 / REQ-048 상태 전이** — 실측 근거 확보 후 `docs/requirements.md` · `docs/PLAN.md`
    `140~142 행` 동기(direct doc-sync).
+
+## 완료 기록 (2026-08-20T09:54:12Z)
+
+- PR [#1300](https://github.com/myungjoo/Assessment-Agent/pull/1300) 라운드 1 APPROVE → 스쿼시 머지 `89add1dd`.
+- 변경 3 파일 +274/-4 — `test/load/s2-read.js` 의 `setup()` 이 persons N(`__ENV.K6_SEED_PERSONS`, 기본 30) + group 1 + part 1 을
+  seed tag 로 생성해 id 를 return 하고 `teardown()` 이 3 종 DELETE 로 정리, `.github/workflows/load-k6.yml` 의 S2 step env 에
+  `K6_SEED_PERSONS` 1 줄 추가, drift-guard smoke 확장(it 9 개 추가 · 해당 spec 45 test green).
+- 충돌 회피는 `Date.now()` 접미사(email · part name unique), 지표 오염은 seed/teardown 별도 tag 로 차단(임계 5 종 불변).
+- dependency 추가 0 · `ci.yml` 무변경 · 실 k6/HTTP 발화 0 · `src/` 변경 0 이라 coverage 영향 0.
+- Acceptance Criteria 13 항 전량 ok, `pnpm lint`/`build` green, `pnpm test` 12680 test pass.
