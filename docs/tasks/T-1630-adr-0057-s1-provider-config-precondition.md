@@ -2,7 +2,7 @@
 id: T-1630
 title: ADR-0057 에 S1 전제조건(LlmProviderConfig 단일-row seed 경로) D5 결정 박제
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047]
 estimatedDiff: 140
@@ -81,3 +81,10 @@ workflow · script 배선은 후속 slice 로 유지한다(결정-전용 PR 은 
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 요약 (2026-08-20T23:51:53Z)
+
+- PR [#1308](https://github.com/myungjoo/Assessment-Agent/pull/1308) 라운드 1 APPROVE → squash merge `4192fdce`.
+- ADR-0057 에 `D5` 신설 — S1 `setup()` 이 `POST /api/llm/providers` 로 **멱등 단일-row seed** 하는 ① 안 채택, 탈락 2 안(workflow psql 직접 INSERT · 부하 전용 resolver 우회)은 Alternatives 행으로 박제. 단일-row invariant(0-row·2+row 양쪽 fail-fast) + credential 0(test-only 더미, repo secret 0) 명시, Consequences 부정 1 항 추가.
+- D1~D4 문구 변경 0 · status `ACCEPTED` 유지 · frontmatter `relatedTask` 에 T-1630 추가. `docs/ops/load-resilience-test-plan.md` 는 §5 pointer 4 줄만(§3 임계 무수정).
+- production code 변경 0 → 신규 public symbol 부재로 R-112 4 종 해당 없음. lint/build/test(443 suite · 12738 test) + `test:cov` 전량 green 으로 무해성 확인.
