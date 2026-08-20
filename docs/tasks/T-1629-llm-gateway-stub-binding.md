@@ -2,7 +2,8 @@
 id: T-1629
 title: ADR-0057 D1 LLM_GATEWAY binding 을 env 기반 stub 분기로 배선
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-20T21:52:16Z
 commitMode: pr
 coversReq: [REQ-047]
 estimatedDiff: 210
@@ -50,17 +51,17 @@ default OFF** 다 — env 미설정·다른 값이면 반드시 실 `LlmHttpGate
 
 ## Acceptance Criteria
 
-- [ ] `src/llm/llm.module.ts` 의 `providers` 와 `exports` 에 `LlmStubGateway` 를 등록한다 — 의존 0 인 class 라 추가 module import 0. 등록 이유(ADR-0057 `D1` 의 binding 조각) 를 한국어 주석 1~3 줄로 남긴다.
-- [ ] `src/assessment-evaluation/assessment-evaluation.module.ts` 의 `LLM_GATEWAY` 바인딩을 `useExisting: LlmHttpGateway` 에서 **`useFactory` + `inject: [LlmHttpGateway, LlmStubGateway]`** 형태로 바꾼다. factory 는 `isLoadTestStubEnabled()` 가 `true` 일 때만 stub 을, 그 외에는 실 `LlmHttpGateway` 를 반환한다 (조건 분기 1 개, 다른 로직 0).
-- [ ] **happy path** — `LlmModule` compile 시 `LlmStubGateway` provider 가 resolve 되고 export 로 외부 module 이 inject 가능함을 검증하는 test 1+ (`src/llm/llm.module.spec.ts`).
-- [ ] **happy path** — `LOAD_TEST_STUB=1` 인 상태로 `AssessmentEvaluationModule` 을 compile 하면 `LLM_GATEWAY` 로 resolve 되는 인스턴스가 `LlmStubGateway` 임을 검증하는 test 1+ (`src/assessment-evaluation/assessment-evaluation.module.spec.ts`).
-- [ ] **branch cover** — 위 factory 의 두 분기 각각 1+ test: (a) env 가 정확히 `"1"` → stub, (b) env 미설정 → `LlmHttpGateway`.
-- [ ] **negative cases 충분 cover** — 오활성 방어선을 값별로 전수 고정: env 가 `""`(빈 문자열) / `" 1"`(공백 포함) / `"0"` / `"true"` / `"TRUE"` / `"yes"` 각각에 대해 `LLM_GATEWAY` 가 **실 `LlmHttpGateway` 로 fall-through** 함을 검증하는 test 를 값마다 1+ 작성한다 (단일 negative 만으로 부족).
-- [ ] **error path** — `LlmStubGateway` 를 module 에서 제거하거나 factory 의존을 만족시키지 못한 구성이 DI resolve 에 실패함을 확인하는 test 1+ (또는 env 를 켠 상태에서 resolve 된 gateway 가 실 HTTP 왕복 없이 `generate` 를 수행함을 검증하는 test 1+ 로 대체 가능).
-- [ ] 각 spec 은 `process.env[LOAD_TEST_STUB_ENV]` 를 `afterEach` 에서 **원래 값으로 복원**한다 (env 누수로 다른 spec 이 오염되지 않게).
-- [ ] `pnpm lint && pnpm build && pnpm test` 전량 green.
-- [ ] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%).
-- [ ] 변경 파일 4 개 이내 · diff ≤ 300 LOC · 신규 dependency 0 · DB schema 변경 0.
+- [x] `src/llm/llm.module.ts` 의 `providers` 와 `exports` 에 `LlmStubGateway` 를 등록한다 — 의존 0 인 class 라 추가 module import 0. 등록 이유(ADR-0057 `D1` 의 binding 조각) 를 한국어 주석 1~3 줄로 남긴다.
+- [x] `src/assessment-evaluation/assessment-evaluation.module.ts` 의 `LLM_GATEWAY` 바인딩을 `useExisting: LlmHttpGateway` 에서 **`useFactory` + `inject: [LlmHttpGateway, LlmStubGateway]`** 형태로 바꾼다. factory 는 `isLoadTestStubEnabled()` 가 `true` 일 때만 stub 을, 그 외에는 실 `LlmHttpGateway` 를 반환한다 (조건 분기 1 개, 다른 로직 0).
+- [x] **happy path** — `LlmModule` compile 시 `LlmStubGateway` provider 가 resolve 되고 export 로 외부 module 이 inject 가능함을 검증하는 test 1+ (`src/llm/llm.module.spec.ts`).
+- [x] **happy path** — `LOAD_TEST_STUB=1` 인 상태로 `AssessmentEvaluationModule` 을 compile 하면 `LLM_GATEWAY` 로 resolve 되는 인스턴스가 `LlmStubGateway` 임을 검증하는 test 1+ (`src/assessment-evaluation/assessment-evaluation.module.spec.ts`).
+- [x] **branch cover** — 위 factory 의 두 분기 각각 1+ test: (a) env 가 정확히 `"1"` → stub, (b) env 미설정 → `LlmHttpGateway`.
+- [x] **negative cases 충분 cover** — 오활성 방어선을 값별로 전수 고정: env 가 `""`(빈 문자열) / `" 1"`(공백 포함) / `"0"` / `"true"` / `"TRUE"` / `"yes"` 각각에 대해 `LLM_GATEWAY` 가 **실 `LlmHttpGateway` 로 fall-through** 함을 검증하는 test 를 값마다 1+ 작성한다 (단일 negative 만으로 부족).
+- [x] **error path** — `LlmStubGateway` 를 module 에서 제거하거나 factory 의존을 만족시키지 못한 구성이 DI resolve 에 실패함을 확인하는 test 1+ (또는 env 를 켠 상태에서 resolve 된 gateway 가 실 HTTP 왕복 없이 `generate` 를 수행함을 검증하는 test 1+ 로 대체 가능).
+- [x] 각 spec 은 `process.env[LOAD_TEST_STUB_ENV]` 를 `afterEach` 에서 **원래 값으로 복원**한다 (env 누수로 다른 spec 이 오염되지 않게).
+- [x] `pnpm lint && pnpm build && pnpm test` 전량 green.
+- [x] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%).
+- [x] 변경 파일 4 개 이내 · diff ≤ 300 LOC · 신규 dependency 0 · DB schema 변경 0.
 
 ## Out of Scope
 
@@ -78,3 +79,10 @@ default OFF** 다 — env 미설정·다른 값이면 반드시 실 `LlmHttpGate
 ## Follow-ups
 
 (생성 시 비어 있음)
+
+## 완료 요약 (2026-08-20T21:52:16Z)
+
+- PR [#1307](https://github.com/myungjoo/Assessment-Agent/pull/1307) 라운드 1 APPROVE → squash merge `8338572e`.
+- `llm.module.ts` 에 `LlmStubGateway` 등록·export(의존 0 이라 추가 import 0), `assessment-evaluation.module.ts` `149 행` 의 `useExisting: LlmHttpGateway` 를 `useFactory` + `inject: [LlmHttpGateway, LlmStubGateway]` env 분기로 전환 — 두 후보 모두 `LlmModule` singleton 재사용이라 새 인스턴스 생성 0.
+- fail-safe default OFF 를 R-112 negative 6 종(`""` · `" 1"` · `"0"` · `"true"` · `"TRUE"` · `"yes"`)으로 고정, env 는 각 spec `afterEach` 에서 원복. 443 suite / 12738 test green, line 99.95% · function 100%.
+- ADR-0057 `D1` 의 stub 배선 3 조각(T-1627 판정 helper · T-1628 stub class · 본 slice module binding) 완결 — 부하 job 이 credential 0 으로 D2 진입점 타격 가능.
