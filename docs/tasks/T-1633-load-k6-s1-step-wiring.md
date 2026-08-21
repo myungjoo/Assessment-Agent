@@ -2,7 +2,7 @@
 id: T-1633
 title: load-k6.yml 에 S1 배치 step 배선 + stub env 주입 + test:load:s1 parity
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047]
 estimatedDiff: 215
@@ -51,17 +51,17 @@ env 주입도 두 갈래가 모두 필수다 — (a) `LOAD_TEST_STUB=1` 이 없�
 
 ## Acceptance Criteria
 
-- [ ] `.github/workflows/load-k6.yml` 에 S1 실행 step 1 개 추가 — step 이름은 S2/S3 선례와 동형(예 `k6 S1 평가 배치 부하 시나리오 실행`), `run: k6 run test/load/s1-batch.js`, `env` 에 `K6_BASE_URL: http://localhost:3000` + `K6_S1_PERSONS: "10"`(스크립트 `__ENV` 기본값과 동일 값). step 위치는 smoke step **뒤**, S2 step **앞**(ADR-0057 `D2` 의 smoke → S1 → S2 → S3).
-- [ ] 부하 대상 컨테이너 기동 step 의 `docker run` 에 `-e LOAD_TEST_STUB=1` 추가 — 값은 정확히 `1`(`D1` 판정 규칙). 같은 컨테이너를 S2/S3 도 쓰므로 stub 활성이 그 두 시나리오에 무해하다는 근거를 주석 1~2 줄로 남긴다(두 시나리오는 LLM gateway 를 타지 않음).
-- [ ] 같은 `docker run` 에 `-e LLM_APIKEY_ENC_KEY=<더미>` 추가 — base64 또는 hex 로 **정확히 32 byte** 디코딩되는 리터럴 더미(예 base64 `YXNzZXNzbWVudC1hZ2VudC1jaS1sb2FkLTMyYnl0ZSE=`). 실 키·`${{ secrets.* }}` 참조 0.
-- [ ] `package.json` 에 `"test:load:s1": "k6 run test/load/s1-batch.js"` 1 줄 추가 — 기존 3 script 와 동형이고 다른 script 변경 0, dependency 변경 0.
-- [ ] **happy-path**: drift-guard smoke 에 신규 describe 추가(T-1625 패턴 승계) — (a) S1 step 이 실재하고 `run` 이 `test/load/s1-batch.js` 를 정확히 가리킨다, (b) step 의 `K6_BASE_URL` 이 `EXPECTED_BASE_URL` 과 일치하고 `K6_S1_PERSONS` 값이 스크립트 `__ENV` 기본값과 같다, (c) `package.json` 의 `test:load:s1` 이 같은 스크립트 경로를 가리킨다(3 자 parity), (d) `stepIndexOf` 로 smoke < S1 < S2 < S3 순서를 단언, (e) 기동 step 에 `-e LOAD_TEST_STUB=1` 과 `-e LLM_APIKEY_ENC_KEY=` 가 존재한다 — 각 `it` 1+.
-- [ ] **error path**: 재사용 helper 계약이 신규 상수에서도 성립함을 `it` 1+ 로 고정 — S1 step 행을 제거한 합성 YAML 에서 `extractStep` 이 미발견 정규형을, `stepIndexOf` 가 `-1` 을 돌려주고, `extractStepBlock` 이 non-string 입력에 `TypeError` 를 던진다(기존 T-1625 `Error path` 블록 패턴 승계).
-- [ ] **분기 cover**: (a) env 값의 따옴표 유무 두 형태를 합성 문자열로 각각 통과시킨다, (b) step 블록이 다음 step 헤더로 끝나는 경우 / 파일 끝으로 끝나는 경우 두 갈래, (c) `docker run` 의 `-e` flag 가 존재/부재인 두 갈래 — 각 `it` 1+. 신규 helper 를 추가하지 않고 기존 helper 만 재사용했다면 그 사실을 spec 주석에 명시한다.
-- [ ] **negative 충분 cover**: (a) `LOAD_TEST_STUB` 값이 `1` 외 문자열(`true` · `0` · 빈 값)이 아님을 단언(`D1` fail-safe 오활성 차단), (b) `load-k6.yml` 전체에 `${{ secrets.` 참조 0 · 실 endpoint/실 API key 리터럴 0, (c) `on:` 트리거가 여전히 `workflow_dispatch` 단독(상시 PR CI 오염 0 — step 추가가 트리거를 늘리지 않음), (d) `package.json` 의 `dependencies`/`devDependencies` 에 k6 편입 0(ADR-0054 규약), (e) S1 step 이 `if:` 조건이나 `continue-on-error` 를 달지 않음(임계 위반이 조용히 green 이 되는 우회 차단), (f) S1 step 의 `run` 이 `k6 run` 단일 커맨드이고 다른 스크립트 경로를 함께 부르지 않음 — 각 `it` 1+.
-- [ ] `pnpm lint && pnpm build && pnpm test` green, `pnpm test:smoke` green(신규 describe 포함, 기존 S1/S2/S3 describe 회귀 0).
-- [ ] `pnpm test:cov` 통과 — line ≥ 80% AND function ≥ 80%(`src/` 변경 0 이므로 회귀 없음 확인).
-- [ ] 신규 dependency 0 · DB schema 변경 0 · 인증/권한 모델 변경 0 · `src/` 변경 0 · `test/load/*.js` 변경 0 · 변경 파일 3 개 이내.
+- [x] `.github/workflows/load-k6.yml` 에 S1 실행 step 1 개 추가 — step 이름은 S2/S3 선례와 동형(예 `k6 S1 평가 배치 부하 시나리오 실행`), `run: k6 run test/load/s1-batch.js`, `env` 에 `K6_BASE_URL: http://localhost:3000` + `K6_S1_PERSONS: "10"`(스크립트 `__ENV` 기본값과 동일 값). step 위치는 smoke step **뒤**, S2 step **앞**(ADR-0057 `D2` 의 smoke → S1 → S2 → S3).
+- [x] 부하 대상 컨테이너 기동 step 의 `docker run` 에 `-e LOAD_TEST_STUB=1` 추가 — 값은 정확히 `1`(`D1` 판정 규칙). 같은 컨테이너를 S2/S3 도 쓰므로 stub 활성이 그 두 시나리오에 무해하다는 근거를 주석 1~2 줄로 남긴다(두 시나리오는 LLM gateway 를 타지 않음).
+- [x] 같은 `docker run` 에 `-e LLM_APIKEY_ENC_KEY=<더미>` 추가 — base64 또는 hex 로 **정확히 32 byte** 디코딩되는 리터럴 더미(예 base64 `YXNzZXNzbWVudC1hZ2VudC1jaS1sb2FkLTMyYnl0ZSE=`). 실 키·`${{ secrets.* }}` 참조 0.
+- [x] `package.json` 에 `"test:load:s1": "k6 run test/load/s1-batch.js"` 1 줄 추가 — 기존 3 script 와 동형이고 다른 script 변경 0, dependency 변경 0.
+- [x] **happy-path**: drift-guard smoke 에 신규 describe 추가(T-1625 패턴 승계) — (a) S1 step 이 실재하고 `run` 이 `test/load/s1-batch.js` 를 정확히 가리킨다, (b) step 의 `K6_BASE_URL` 이 `EXPECTED_BASE_URL` 과 일치하고 `K6_S1_PERSONS` 값이 스크립트 `__ENV` 기본값과 같다, (c) `package.json` 의 `test:load:s1` 이 같은 스크립트 경로를 가리킨다(3 자 parity), (d) `stepIndexOf` 로 smoke < S1 < S2 < S3 순서를 단언, (e) 기동 step 에 `-e LOAD_TEST_STUB=1` 과 `-e LLM_APIKEY_ENC_KEY=` 가 존재한다 — 각 `it` 1+.
+- [x] **error path**: 재사용 helper 계약이 신규 상수에서도 성립함을 `it` 1+ 로 고정 — S1 step 행을 제거한 합성 YAML 에서 `extractStep` 이 미발견 정규형을, `stepIndexOf` 가 `-1` 을 돌려주고, `extractStepBlock` 이 non-string 입력에 `TypeError` 를 던진다(기존 T-1625 `Error path` 블록 패턴 승계).
+- [x] **분기 cover**: (a) env 값의 따옴표 유무 두 형태를 합성 문자열로 각각 통과시킨다, (b) step 블록이 다음 step 헤더로 끝나는 경우 / 파일 끝으로 끝나는 경우 두 갈래, (c) `docker run` 의 `-e` flag 가 존재/부재인 두 갈래 — 각 `it` 1+. 신규 helper 를 추가하지 않고 기존 helper 만 재사용했다면 그 사실을 spec 주석에 명시한다.
+- [x] **negative 충분 cover**: (a) `LOAD_TEST_STUB` 값이 `1` 외 문자열(`true` · `0` · 빈 값)이 아님을 단언(`D1` fail-safe 오활성 차단), (b) `load-k6.yml` 전체에 `${{ secrets.` 참조 0 · 실 endpoint/실 API key 리터럴 0, (c) `on:` 트리거가 여전히 `workflow_dispatch` 단독(상시 PR CI 오염 0 — step 추가가 트리거를 늘리지 않음), (d) `package.json` 의 `dependencies`/`devDependencies` 에 k6 편입 0(ADR-0054 규약), (e) S1 step 이 `if:` 조건이나 `continue-on-error` 를 달지 않음(임계 위반이 조용히 green 이 되는 우회 차단), (f) S1 step 의 `run` 이 `k6 run` 단일 커맨드이고 다른 스크립트 경로를 함께 부르지 않음 — 각 `it` 1+.
+- [x] `pnpm lint && pnpm build && pnpm test` green, `pnpm test:smoke` green(신규 describe 포함, 기존 S1/S2/S3 describe 회귀 0).
+- [x] `pnpm test:cov` 통과 — line ≥ 80% AND function ≥ 80%(`src/` 변경 0 이므로 회귀 없음 확인).
+- [x] 신규 dependency 0 · DB schema 변경 0 · 인증/권한 모델 변경 0 · `src/` 변경 0 · `test/load/*.js` 변경 0 · 변경 파일 3 개 이내.
 
 ## Out of Scope
 
@@ -78,4 +78,11 @@ env 주입도 두 갈래가 모두 필수다 — (a) `LOAD_TEST_STUB=1` 이 없�
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 추가한다.)
+- `test/load/s1-batch.js` 머리 주석의 "범위 밖(후속 slice): `load-k6.yml` step · `package.json` script" 문단이 본 slice 완료로 사실과 어긋난다 — 후속 doc-sync slice 에서 갱신 (본 task 의 Out of Scope 로 의도적 제외).
+
+## 완료 기록
+
+- **Status: DONE** — 2026-08-21T02:54Z (cron@AKIHA-77d6a7d0 fire).
+- PR [#1311](https://github.com/myungjoo/AA_S1/pull/1311) 라운드 1 reviewer APPROVE → 4-게이트 충족 → squash merge `63555e09`, feature branch 삭제.
+- 결과: `.github/workflows/load-k6.yml` 에 S1 step(smoke 뒤 · S2 앞) + `docker run` 에 `-e LOAD_TEST_STUB=1` · 32 byte 더미 `-e LLM_APIKEY_ENC_KEY` 추가, `package.json` 에 `test:load:s1` 1 줄, drift-guard smoke 에 T-1633 describe 4 블록 · `it` 16 추가 (+266/-0, 3 파일).
+- 검증: lint · build · jest 443 suite / 12,738 test green, coverage 임계(line · function ≥ 80%) 통과, 해당 smoke spec 105 test green(기존 describe 회귀 0).
