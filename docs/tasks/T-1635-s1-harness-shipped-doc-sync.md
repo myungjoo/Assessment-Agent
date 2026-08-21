@@ -2,7 +2,7 @@
 id: T-1635
 title: S1 배치 부하 harness shipped 사실을 PLAN 141 행 · 부하계획 4 곳에 doc-sync
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 estimatedDiff: 80
@@ -91,3 +91,10 @@ ADR-0054 를 "PROPOSED 대기" 로 가리키며(실제 `status: ACCEPTED`),
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가)
+
+## 완료 기록
+
+- **Status: DONE** — 2026-08-21T04:40Z (cron@AKIHA-7d1cb06b fire).
+- `commitMode: direct` doc-only — main 직접 commit `91ed6dcd` (PR · reviewer 없음, CLAUDE.md §3.1).
+- 결과: [PLAN.md](../PLAN.md) `141 행` 을 "미착수" → harness shipped 사실(근거 task ID · 머지 sha · 잔여 실측 명시)로 교체하고 ADR-0054 pointer 를 ACCEPTED 로 정정, [load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) `§2` S1 주의에 ADR-0057 D1 격리 완료 pointer 1 줄 추가 · `§4.2` LLM 격리 항목을 결정·구현 완료로 현행화 · `§5` item 1·3·4 정정 + item 5(baseline 실측) 미착수 유지 (+19/-9, 2 파일).
+- 검증: 코드 diff 0(`src/` · `test/` · workflow · `package.json` 무변경) — R-110 면제 대상 direct doc-only. `140 행` checkbox 는 실측 부재로 `[ ]` 유지.
