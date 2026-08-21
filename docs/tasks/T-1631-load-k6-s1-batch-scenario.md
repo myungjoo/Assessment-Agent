@@ -2,7 +2,7 @@
 id: T-1631
 title: k6 S1 평가 배치 부하 시나리오 골격 신설 (D2 진입점 · D3 tag · D4 외삽 임계)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047]
 estimatedDiff: 265
@@ -76,3 +76,15 @@ T-1622 → T-1623 선례(스크립트 먼저, seed 배선 다음)를 따라 후�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 추가한다.)
+
+## 완료 요약 (2026-08-21T00:26:41Z)
+
+- PR [#1309](https://github.com/myungjoo/Assessment-Agent/pull/1309) 라운드 1 APPROVE → squash merge `fa0aad91`.
+- `test/load/s1-batch.js` 신설 — ADR-0057 `D2` 타격 route(`unevaluated-fill-run`) 단일 진입점, `D3` route tag 3 종 분리(임계는 batch tag 에만), `D4` 외삽 임계를 **산식 선언**(표본 수 변경 시 ADR ↔ 스크립트 drift 0), 전역 `http_req_failed rate<0.01`.
+- `s2-read.js` 규약 승계 — `__ENV` 기본값 · signup→login→cookie · `setup`/`teardown` 자기 정리(person seed 후 전량 DELETE) · 조건 분기 0.
+- drift-guard smoke 에 S1 describe 3 블록 / it 10 종 추가(기존 4 describe 무수정). lint · tsc · unit 443 suite / 12738 test · drift smoke 84 test 전량 green. `src/` · `load-k6.yml` · `package.json` 변경 0.
+- 본 slice 는 CLAUDE.md §2.5 multi-task chain 의 두 번째 task (`FIRE-BATCH: T-1630+T-1631`).
+
+## Follow-ups
+
+- `Number(__ENV.K6_S1_PERSONS || 10)` 의 비-숫자 주입 시 `NaN` 처리 — `s2-read.js` · `s3-concurrent.js` 와 동일 관례라 3 스크립트를 한 번에 다루는 별도 task 가 적절(reviewer Nit, 본 PR 차단 사유 아님).
