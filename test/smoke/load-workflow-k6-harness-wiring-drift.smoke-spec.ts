@@ -1233,7 +1233,23 @@ const S1_BATCH_ROUTE = "/api/assessment-evaluation/unevaluated-fill-run";
 /** S1 임계 정본 — batch p95(외삽 산식) + 전역 error rate = 2 종, 선언 순서 그대로. */
 const S1_THRESHOLD_KEYS = ["http_req_duration{route:batch}", "http_req_failed"];
 /** 때려도 되는 route 전량 — seed / auth / batch 의 합집합(그 밖은 임의 route 혼입). */
-const S1_ROUTES = ["/api/persons", "/api/users", "/api/auth/login"];
+const S1_ROUTES = [
+  "/api/persons",
+  "/api/users",
+  "/api/auth/login",
+  // T-1632 — ADR-0057 D5 의 provider 단일-row seed 왕복(GET 열거 · DELETE 전량 · POST 1 회).
+  "/api/llm/providers",
+];
+/** D5 seed POST body 의 allow-list 정본 4 필드(그 밖의 키는 forbidNonWhitelisted 가 400). */
+const S1_PROVIDER_FIELDS = ["provider", "endpointUrl", "apiKey", "modelId"];
+/** src/llm/llm-gateway.interface.ts 의 LlmProvider 허용 집합 5 값(이 밖이면 service 가 400). */
+const S1_ALLOWED_PROVIDERS = [
+  "custom",
+  "azure_openai",
+  "anthropic",
+  "google_gemini",
+  "openai",
+];
 const s1Script = (): string =>
   readFileSync(path.join(REPO_ROOT, S1_SCRIPT_REL), "utf8");
 const s1Body = (header: string): string =>
@@ -1315,12 +1331,40 @@ describe("test/load/s1-batch.js S1 평가 배치 부하 골격 drift smoke (T-16
 
     it("setup 이 seed / auth tag 로 준비하고 teardown 이 seed person 을 전량 회수한다", () => {
       const setup = s1Body("export function setup");
-      // 표본 person seed(반복문) + signup + login = POST 3 회.
-      expect(setup.match(/http\.post\(/g)).toHaveLength(3);
-      expect(setup).toMatch(/SEED_PARAMS[\s\S]*AUTH_PARAMS[\s\S]*authCookie:/);
+      // signup + login + provider seed POST + 표본 person seed(반복문) = POST 4 회.
+      expect(setup.match(/http\.post\(/g)).toHaveLength(4);
+      // T-1632 이후 인증이 person seed 보다 앞선다(D5 provider 왕복이 Admin+ gate 라서).
+      expect(setup).toMatch(/AUTH_PARAMS[\s\S]*authCookie =[\s\S]*SEED_PARAMS/);
       const down = s1Body("export function teardown");
       expect(down).toMatch(/personIds\.length[\s\S]*http\.del\(/);
       expect(down).toContain("SEED_DELETE_PARAMS");
+    });
+
+    it("(T-1632) setup 이 D5 의 멱등 3 단 왕복으로 provider row 를 1 개로 수렴시킨다", () => {
+      const setup = s1Body("export function setup");
+      // (a) 열거 GET → (b) 열거 전량 DELETE(카운트 반복) → (c) POST 1 회, 순서까지 고정.
+      expect(setup).toMatch(
+        /http\.get\(`\$\{BASE_URL\}\/api\/llm\/providers`[\s\S]*http\.del\([\s\S]*http\.post\(\s*`\$\{BASE_URL\}\/api\/llm\/providers`/,
+      );
+      expect(setup).toMatch(/existing\.length[\s\S]*existing\[i\]\.id/);
+      // 세 왕복 모두 seed tag — cookie 를 실은 params 2 종이 batch 임계를 오염시키지 않는다.
+      expect(setup.match(/tags: \{ route: "seed" \}/g)).toHaveLength(2);
+      expect(setup).toContain("Cookie: authCookie");
+    });
+
+    it("(T-1632) POST body 는 더미 4 필드뿐이고 id 가 setup 반환 → teardown 회수로 흐른다", () => {
+      const setup = s1Body("export function setup");
+      // allow-list 4 필드가 선언 순서 그대로, 추가 키 0(정규식이 닫는 중괄호까지 고정).
+      expect(setup).toMatch(
+        /JSON\.stringify\(\{\s*provider: "custom",\s*endpointUrl: `[^`]+`,\s*apiKey: `[^`]+`,\s*modelId: `[^`]+`,\s*\}\)/,
+      );
+      S1_PROVIDER_FIELDS.forEach((f) => expect(setup).toContain(`${f}: `));
+      expect(setup).toContain('providerId: provider.json("id")');
+      const down = s1Body("export function teardown");
+      expect(down).toContain("data.providerId");
+      expect(down).toMatch(
+        /http\.del\(`\$\{BASE_URL\}\/api\/llm\/providers\/\$\{data\.providerId\}`[\s\S]*route: "seed"/,
+      );
     });
   });
 
@@ -1336,6 +1380,27 @@ describe("test/load/s1-batch.js S1 평가 배치 부하 골격 drift smoke (T-16
       expect(
         routeP95Expression(literal.replace("p(95)<", "avg<"), "batch"),
       ).toBeNull();
+    });
+
+    it("(T-1632) 신규 단언도 재사용 helper 계약 위에서만 성립한다(신규 helper 0)", () => {
+      // 본 slice 는 helper 를 추가하지 않고 s1Body / apiRoutesOf / routeP95Expression 3 종을
+      // 재사용만 했다 — 그래서 "대상 있음 / 없음" 분기 cover 를 아래 두 helper 로 승계한다.
+      expect(
+        extractTopLevelBlock(s1Script(), "export function seedProvider"),
+      ).toBeNull();
+      expect(s1Body("export function setup")).toContain("/api/llm/providers");
+      // 대상 있음 / 없음 — 주석 행만 있는 입력은 타격 route 0 으로 접힌다.
+      expect(apiRoutesOf("// ${BASE_URL}/api/llm/providers")).toEqual([]);
+      expect(apiRoutesOf("`${BASE_URL}/api/llm/providers/${id}`")).toEqual([
+        "/api/llm/providers",
+      ]);
+      // non-string 계약(T-1631 블록과 동형)이 신규 단언 대상에서도 그대로다.
+      [null, undefined, 42].forEach((v) =>
+        expect(() =>
+          extractTopLevelBlock(v as unknown as string, "export function setup"),
+        ).toThrow(TypeError),
+      );
+      expect(routeP95Expression(s1Script(), "seed")).toBeNull();
     });
 
     it("부재 경로 read 는 throw · 부재 블록은 null · non-string 은 TypeError", () => {
@@ -1360,7 +1425,7 @@ describe("test/load/s1-batch.js S1 평가 배치 부하 골격 drift smoke (T-16
   });
 
   describe("negative cases 충분 cover — route 혼입 · 임계 오염 · 자격증명 · 분기", () => {
-    it("(1) 허용 route 4 종 외 임의 route 가 없고 guarded 조회 prefix 도 없다", () => {
+    it("(1) 허용 route 5 종 외 임의 route 가 없고 guarded 조회 prefix 도 없다", () => {
       const script = s1Script();
       expect(apiRoutesOf(script).sort()).toEqual(
         [...S1_ROUTES, S1_BATCH_ROUTE].sort(),
@@ -1385,12 +1450,21 @@ describe("test/load/s1-batch.js S1 평가 배치 부하 골격 drift smoke (T-16
       expect(script).not.toMatch(/rate<(?!0\.01)[\d.]+/);
     });
 
-    it("(4) 고정 리터럴 자격증명이 없다(stamp 파생 값만 · 실 secret 문자열 0)", () => {
+    it("(4) 자격증명이 전부 stamp 파생 더미다(실 secret 리터럴 0 · 암호화 키 문자열 0)", () => {
       const script = s1Script();
       expect(s1Body("export function setup")).toContain("${stamp}");
-      [/password:\s*"/, /apiKey/, /Bearer /, /LLM_APIKEY/].forEach((p) =>
-        expect(script).not.toMatch(p),
-      );
+      // T-1632 이후 apiKey 키 자체는 존재해야 한다(D5 의 필수 4 필드) — 대신 그 값이 stamp
+      // 파생임을 고정해 run 마다 달라지는 더미임을 못박는다(T-1631 의 /apiKey/ 부재 단언 대체).
+      expect(script).toMatch(/apiKey: `load-s1-dummy-\$\{stamp\}`/);
+      expect(script).toMatch(/endpointUrl: `[^`"]*\$\{stamp\}`/);
+      // 실 secret 리터럴 · 암호화 키 env 이름 · Bearer 헤더 · 평문 password 리터럴은 전부 0.
+      [
+        /password:\s*"/,
+        /Bearer /,
+        /LLM_APIKEY/,
+        /apiKey: "/,
+        /sk-[A-Za-z0-9]/,
+      ].forEach((p) => expect(script).not.toMatch(p));
     });
 
     it("(5) 조건 분기 로직이 0 이다(카운트 기반 반복문만)", () => {
@@ -1400,6 +1474,26 @@ describe("test/load/s1-batch.js S1 평가 배치 부하 골격 drift smoke (T-16
       );
       // __ENV 기본값의 `||` 는 분기가 아니라 fallback 관용구다(S2·S3 동형) — 2 회로 한정.
       expect(script.match(/\|\|/g)).toHaveLength(2);
+    });
+
+    it("(6) seed 왕복이 default() 측정 iteration 으로 새지 않는다", () => {
+      const body = s1Body("export default function");
+      ["/api/llm/providers", 'route: "seed"', "http.del(", "http.get("].forEach(
+        (t) => expect(body).not.toContain(t),
+      );
+      // 측정 iteration 은 여전히 batch tag 1 회 호출뿐이다.
+      expect(body.match(/tags: \{ route: "batch" \}/g)).toHaveLength(1);
+    });
+
+    it("(7) seed 의 provider 값이 LlmProvider 허용 집합 안에 있다(400 차단)", () => {
+      const declared = (
+        s1Body("export function setup").match(
+          /provider: "([a-z_]+)"/,
+        ) as string[]
+      )[1];
+      expect(S1_ALLOWED_PROVIDERS).toContain(declared);
+      // 합성 mutation — 허용 집합 밖 값이면 본 단언이 무너진다.
+      expect(S1_ALLOWED_PROVIDERS).not.toContain(`${declared}_unsupported`);
     });
   });
 });
