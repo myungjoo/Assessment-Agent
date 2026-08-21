@@ -100,7 +100,48 @@ jobs:
           K6_BASE_URL: http://localhost:3000
           # ADR-0057 D4 의 축소 표본 인원 (스크립트 __ENV 기본값과 동일 값 — drift-guard 가 대조).
           K6_S1_PERSONS: "10"
-        run: k6 run test/load/s1-batch.js
+        # T-1636 — `--summary-export` 로 S1 실측을 기계 판독 가능한 JSON 파일로 남긴다. 경로는
+        # 바로 뒤 기록 step 의 `summary_file` 과 문자열이 정확히 같아야 한다 (drift-guard 가 대조).
+        run: k6 run --summary-export=k6-s1-summary.json test/load/s1-batch.js
+
+      # T-1636 — S1 실측 회수 step. `if: always()` 인 이유 — k6 가 임계 위반으로 exit 1 이어도
+      # 수치가 남아야 baseline (load-resilience-test-plan.md §5 item 5) 을 잡을 수 있다.
+      # jq 등으로 특정 metric 을 뽑지 않는다 — k6 summary schema 가 바뀌어도 안 깨지도록 원문
+      # 그대로 적재하고, 같은 문서 §3 이 요구하는 환경 메타 (커널·아키텍처·vCPU·메모리·image
+      # 태그) 와 ADR-0057 D4 의 표본 인원을 함께 적어 run 간 비교가 가능하게 한다.
+      - name: S1 실측 요약 기록
+        if: always()
+        env:
+          # 위 S1 step 주입값과 동일해야 한다 (drift-guard 가 스크립트 __ENV 기본값까지 3 자 대조).
+          K6_S1_PERSONS: "10"
+        run: |
+          summary_file=k6-s1-summary.json
+          {
+            echo "## k6 S1 평가 배치 부하 실측 (baseline 후보)"
+            echo ""
+            echo "| 항목 | 값 |"
+            echo "| --- | --- |"
+            echo "| runner 커널 | $(uname -sr) |"
+            echo "| 아키텍처 | $(uname -m) |"
+            echo "| vCPU | $(nproc) |"
+            echo "| 메모리 | $(free -h | awk '/^Mem:/ {print $2}') |"
+            echo "| PostgreSQL image | postgres:16-alpine |"
+            echo "| 부하 대상 image | assessment-agent:load |"
+            echo "| 표본 인원 (K6_S1_PERSONS) | ${K6_S1_PERSONS} |"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -f "$summary_file" ]; then
+            {
+              echo "### S1 summary JSON 전문"
+              echo ""
+              echo '```json'
+              cat "$summary_file"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "요약 파일 없음 — k6 가 요약을 남기기 전에 종료했다 (설치/부팅 실패 등)." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       # package.json 의 `test:load:s2` 와 동일한 스크립트 경로 (drift-guard smoke 가 parity 대조).
       # smoke 배선 확인 직후 S2(조회 API 응답 지연, REQ-048) 시나리오를 같은 인스턴스에 인가한다.
