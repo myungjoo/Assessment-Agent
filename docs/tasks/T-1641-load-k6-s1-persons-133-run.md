@@ -2,7 +2,7 @@
 id: T-1641
 title: load-k6 를 s1_persons=133 으로 dispatch — 실 scale 표본 실측 후 부하계획 §3.1·§5 item 5 갱신
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 estimatedDiff: 90
@@ -58,5 +58,24 @@ plannerNote: "P5 R-91 chain 22/N — T-1640 이 연 s1_persons input 을 133 으
 ## Suggested Sub-agents
 
 `implementer`
+
+## Result (2026-08-22)
+
+DONE — direct commit `e9a5189e` (main, CI run `32525267293` = `success`).
+
+T-1640 이 연 `workflow_dispatch` input `s1_persons` 를 **`133` 으로 정확히 1 회** 사용해
+load-k6 run **32524618230**(head sha `8b9a9bfe`, job 약 2분 14초, conclusion `success`,
+12 step 전부 success) 을 돌리고 수치·환경 메타를 박제했다. "S1 실측 요약 기록" step 로그의
+표본 인원 행이 `133` 으로 찍혀 **input 배선의 첫 실사용이 성공**임을 실증했다(`10` 으로
+떨어지는 주입 실패 없음). 수치는 `http_req_duration{route:batch}` **p95 760.91ms** ·
+`http_req_failed` **0.00%(0/272)** — 표본이 외삽 기준(`EXTRAPOLATION_PERSONS = 133`)과 같아
+외삽 계수가 1 이 되면서 임계가 1h 예산 전체(`p(95)<3600000ms`)로 넓어진 조건에서의 통과다
+(ADR-0057 `D4`). [load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) `§3.1` 에
+"3 회차" 소제목을 신설(1·2 회차 기록 무수정)하고 표본이 달라 **1·2 회차와 직접 비교 불가**임을
+명시했으며, `§3` 각주는 "실측 3 회분" 으로 갱신하되 같은 조건 반복 표본은 여전히 2 개뿐이라
+**임계 숫자는 무변경**. `§5` item 5 잔여 ① 은 **인원 축 해소 / 실 dataset seed 축 존치**로
+분리했고, PLAN `141 행` 에 3 회차 run id·표본 수를 반영하되 `140 행` checkbox 는 실 수집 축
+미검증 사유와 함께 `[ ]` 유지. 워크플로 · 스크립트 · 임계 · input default 수정 0,
+`src/`·`test/`·`.github/`·`package.json` 변경 0 이라 coverage 수치 변동 없음.
 
 ## Follow-ups
