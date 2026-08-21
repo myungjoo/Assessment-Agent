@@ -8,6 +8,15 @@ name: Load (k6)
 
 on:
   workflow_dispatch:
+    # T-1640 — S1 표본 인원을 dispatch 시점에 주입할 수 있게 한다. 기본값이 현행 리터럴과 같은
+    # `10` 이라 무인자 dispatch 의 동작은 그대로이고, 실 scale(133 명) 실측과 같은 조건의 반복
+    # run 을 workflow 재수정 0 으로 열 수 있다 (load-resilience-test-plan.md §5 item 5 잔여 ①·②).
+    inputs:
+      s1_persons:
+        description: "S1 평가 배치 부하의 표본 인원 (미지정 시 기본값 10 — ADR-0057 D4 축소 표본)"
+        required: false
+        type: string
+        default: "10"
 
 permissions:
   contents: read
@@ -98,8 +107,9 @@ jobs:
       - name: k6 S1 평가 배치 부하 시나리오 실행
         env:
           K6_BASE_URL: http://localhost:3000
-          # ADR-0057 D4 의 축소 표본 인원 (스크립트 __ENV 기본값과 동일 값 — drift-guard 가 대조).
-          K6_S1_PERSONS: "10"
+          # ADR-0057 D4 의 축소 표본 인원. T-1640 부터 리터럴이 아니라 dispatch input 을 가리키며,
+          # 그 input 의 default 가 스크립트 __ENV 기본값과 동일 값이다 (drift-guard 가 대조).
+          K6_S1_PERSONS: "${{ inputs.s1_persons }}"
         # T-1636 — `--summary-export` 로 S1 실측을 기계 판독 가능한 JSON 파일로 남긴다. 경로는
         # 바로 뒤 기록 step 의 `summary_file` 과 문자열이 정확히 같아야 한다 (drift-guard 가 대조).
         run: k6 run --summary-export=k6-s1-summary.json test/load/s1-batch.js
@@ -112,8 +122,9 @@ jobs:
       - name: S1 실측 요약 기록
         if: always()
         env:
-          # 위 S1 step 주입값과 동일해야 한다 (drift-guard 가 스크립트 __ENV 기본값까지 3 자 대조).
-          K6_S1_PERSONS: "10"
+          # 위 S1 step 주입값과 **같은 input 표현식** 이어야 한다 — 한쪽만 리터럴로 남으면 회차 간
+          # 기록이 실 표본과 어긋난다 (drift-guard 가 스크립트 __ENV 기본값까지 3 자 대조).
+          K6_S1_PERSONS: "${{ inputs.s1_persons }}"
         run: |
           summary_file=k6-s1-summary.json
           # T-1638 — 아래 세 출력은 stdout(job 로그) 과 step summary 파일 양쪽으로 한 번에
