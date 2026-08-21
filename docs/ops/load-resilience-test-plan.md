@@ -94,6 +94,37 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
   rate 는 non-2xx / 전체.
 - **환경 고정**: 측정 결과는 실행 환경(CPU/메모리/DB/네트워크)에 종속되므로, 각 run 은
   환경 메타(하드웨어·동시성·데이터 규모)를 함께 기록해 비교 가능하게 한다.
+- **각주 — 임계 fix 시점**: 위 표의 "baseline 후 fix" 표기는 아래 baseline 실측 기록으로
+  **실측 1 회분**(run `32459501970`)만 확보된 상태다. 1 회 실측으로 임계 숫자를 고정하면
+  over-fitting 이라 **표의 임계 숫자는 이번에 바꾸지 않으며**, 임계 fix 는 반복 run(및 실 scale
+  표본) 확보 후로 미룬다.
+
+### 3.1 baseline 실측 기록 (S1, 1 회분)
+
+- **측정 일시 / run**: 2026-08-21T07:38:12Z dispatch(`workflow_dispatch`, ref `main`),
+  [`load-k6.yml`](../../.github/workflows/load-k6.yml) run id **32459501970**, job
+  07:38:16Z~07:40:26Z(약 2분 10초). **conclusion `success`** — smoke → S1 → 요약 기록 → S2 →
+  S3 → 정리 12 step 전부 success. S1 step 자체는 07:39:36Z~07:39:37Z.
+- **환경 메타**: GitHub-hosted runner label `ubuntu-latest`(runner image `ubuntu-24.04`
+  버전 20260816.277.1, OS Ubuntu 24.04.4 LTS, runner 2.336.0), DB 는 service container
+  `postgres:16-alpine`, 부하 대상은 저장소 `Dockerfile` 을 run 안에서 빌드한 `assessment-agent:load`
+  컨테이너(`--network host`), LLM 은 `LOAD_TEST_STUB=1` 의 stub gateway(ADR-0057 `D1`),
+  표본 인원 `K6_S1_PERSONS=10`. **커널(`uname -sr`)·아키텍처·vCPU·메모리 수치는 워크플로의
+  "S1 실측 요약 기록" step 이 `$GITHUB_STEP_SUMMARY` 에만 적재해 run 페이지 job summary 에서만
+  열람 가능**하고 REST API·job 로그로는 회수되지 않았다(§5 item 5 · 본 task Follow-ups).
+- **S1 수치**: `http_req_duration{route:batch}` **p95 = 99.29ms** — 임계 `p(95)<270677ms`
+  (= 3,600,000ms × 10/133, ADR-0057 `D4` 산식을 스크립트가 계산) 통과. `http_req_failed`
+  **0.00%(0/26)** — 임계 `rate<0.01` 통과. `iteration_duration` **99.72ms**(iterations 1),
+  전체 `http_reqs` 26(66.19 req/s), data_received 9.9 kB / data_sent 12 kB, k6 wall-clock
+  00m00.4s. 배치 왕복은 `POST /api/assessment-evaluation/unevaluated-fill-run` 1 회(10 person
+  rawBridges)이고 seed·auth 왕복은 `route:seed` / `route:auth` 로 분리돼 위 batch 지표에 섞이지 않는다.
+- **한계 / 해석**: 표본은 **10 명 축소 표본**이라 REQ-047 의 100~200 명(실 devset 133 명,
+  [realdata-scale-devset.md](realdata-scale-devset.md)) 규모를 **직접 검증하지 않는다**. 해석은
+  [ADR-0057](../decisions/ADR-0057-s1-batch-load-io-isolation.md) `D4` 의 선형 외삽 산식을 따르되
+  같은 `D4` 가 명시한 한계도 그대로다 — 선형 외삽은 상한 보증이 아니고, ① LLM 이 stub 이며
+  ② 현 표본 person 은 `ServiceIdentity` 가 없어 수집(GitHub/Confluence) 왕복이 0 이고
+  ③ 단일 iteration 이라 p95 가 곧 단일 표본값이다. 따라서 위 수치는 **서버 내부 처리 경로의
+  baseline 후보**일 뿐 1h 예산 충족의 증거가 아니다(PLAN `140 행` checkbox `[ ]` 유지 근거).
 
 ---
 
@@ -145,8 +176,15 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 4. **CI 통합** — **편입 완료**: 부하 harness 는 [`load-k6.yml`](../../.github/workflows/load-k6.yml)
    별도 수동 job(`workflow_dispatch`)으로 편입돼 smoke → S1 → S2 → S3 step 을 실행하며, 상시
    PR CI(`ci.yml`)와 분리돼 있다(부하는 무거움).
-5. **baseline 확정 + 임계 fix** — **미착수 유지**(S1 은 harness 만 shipped, 실측 run 0). 최초
-   실측으로 §3 의 "baseline 후 fix" 임계를 실 수치로 확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 29 까지 도달**: slice 1(T-1500, main
+5. **baseline 확정 + 임계 fix** — **S1 baseline 실측 1 회 완료**(T-1637, 2026-08-21,
+   [`load-k6.yml`](../../.github/workflows/load-k6.yml) run **32459501970**, conclusion
+   `success`, 12 step 전부 success). 결론: `http_req_duration{route:batch}` p95 **99.29ms** ·
+   `http_req_failed` **0.00%(0/26)** 로 두 임계를 모두 통과했고 수치·환경 메타는 위 `§3.1` 에
+   박제했다. **§3 표의 "baseline 후 fix" 임계 숫자는 무변경** — 1 회 실측 over-fitting 방지(§3 각주).
+   **잔여**: ① 실 scale 실측(133 명, [realdata-scale-devset.md](realdata-scale-devset.md) —
+   `K6_S1_PERSONS` 상향 + dataset seed) 과 ② **반복 run 기반 임계 fix**(run-to-run 분산 확보 후
+   §3 표 확정), ③ 환경 메타 회수 경로 보강(커널·vCPU·메모리가 job summary 에만 남아 API 로
+   회수되지 않음). **실 DB round-trip 실측이 slice 29 까지 도달**: slice 1(T-1500, main
    `0395c51e`) 의 [`person-read-realdb.perf-spec.ts`](../../test/perf/person-read-realdb.perf-spec.ts)
    가 mock override 0 부트스트랩 + 실 Prisma seed 로 `GET /api/persons` 의 p95 < 3000ms 를 실측했고,
    slice 2(T-1502, main `97198504`) 의
