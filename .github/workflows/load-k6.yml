@@ -116,6 +116,11 @@ jobs:
           K6_S1_PERSONS: "10"
         run: |
           summary_file=k6-s1-summary.json
+          # T-1638 — 아래 세 출력은 stdout(job 로그) 과 step summary 파일 양쪽으로 한 번에
+          # 갈라 보낸다. append 의미(`-a`)를 보존하므로 앞 step 이 적은 요약을 덮어쓰지 않고,
+          # 같은 문자열을 두 번 적는 복제도 0 이다. 로그로도 남기는 이유 — 사람이 run 페이지를
+          # 열지 않아도 REST API 로 환경 메타를 회수해 run 간 비교(계획 §3) 를 자동화할 수
+          # 있어야 한다. T-1637 의 첫 실측이 이 회수 실패를 실증했다.
           {
             echo "## k6 S1 평가 배치 부하 실측 (baseline 후보)"
             echo ""
@@ -129,7 +134,7 @@ jobs:
             echo "| 부하 대상 image | assessment-agent:load |"
             echo "| 표본 인원 (K6_S1_PERSONS) | ${K6_S1_PERSONS} |"
             echo ""
-          } >> "$GITHUB_STEP_SUMMARY"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
 
           if [ -f "$summary_file" ]; then
             {
@@ -138,9 +143,9 @@ jobs:
               echo '```json'
               cat "$summary_file"
               echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
+            } | tee -a "$GITHUB_STEP_SUMMARY"
           else
-            echo "요약 파일 없음 — k6 가 요약을 남기기 전에 종료했다 (설치/부팅 실패 등)." >> "$GITHUB_STEP_SUMMARY"
+            echo "요약 파일 없음 — k6 가 요약을 남기기 전에 종료했다 (설치/부팅 실패 등)." | tee -a "$GITHUB_STEP_SUMMARY"
           fi
 
       # package.json 의 `test:load:s2` 와 동일한 스크립트 경로 (drift-guard smoke 가 parity 대조).
