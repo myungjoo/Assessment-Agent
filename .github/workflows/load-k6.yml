@@ -49,11 +49,19 @@ jobs:
         # --network host 로 services.postgres 가 매핑된 runner localhost:5432 에 도달.
         # polling 없이 k6 를 바로 돌리면 부팅 지연이 측정치에 섞여 오염되므로 최대 60s 대기하고,
         # 컨테이너가 crash 하면 로그를 찍고 즉시 fail 한다.
+        # T-1633 — env 2 종 추가. LOAD_TEST_STUB 은 ADR-0057 D1 의 "정확히 1" 판정값이라
+        # 다른 표기(true / 0 / 빈 값)를 쓰면 fail-safe default OFF 로 실 LLM gateway 가 붙는다.
+        # 같은 컨테이너를 S2/S3 도 쓰지만 두 시나리오는 조회·생성/삭제 route 만 때려 LLM
+        # gateway 를 타지 않으므로 stub 활성이 그 측정치에 무해하다.
+        # LLM_APIKEY_ENC_KEY 는 S1 setup() 의 provider seed(POST /api/llm/providers)가 cipher
+        # 로 암호화할 때 필요한 32-byte 더미다 — base64 로 정확히 32 byte 이며 실 키가 아니다.
         run: |
           docker run -d --name aa-load --network host \
             -e DATABASE_URL="postgresql://assessment_agent:ci_smoke@localhost:5432/assessment_agent?schema=public" \
             -e AUTH_JWT_SECRET=ci_load_secret \
             -e PORT=3000 \
+            -e LOAD_TEST_STUB=1 \
+            -e LLM_APIKEY_ENC_KEY=YXNzZXNzbWVudC1hZ2VudC1jaS1sb2FkLTMyYnl0ZSE= \
             assessment-agent:load
 
           ok=""
@@ -82,6 +90,17 @@ jobs:
         env:
           K6_BASE_URL: http://localhost:3000
         run: k6 run test/load/smoke.js
+
+      # package.json 의 `test:load:s1` 과 동일한 스크립트 경로 (drift-guard smoke 가 parity 대조).
+      # 순서가 smoke 직후인 이유 — ADR-0057 D2: 대상 route 가 Admin+ 라 S1 setup() 의 signup 이
+      # 이 run 의 첫 user(=SuperAdmin)여야 한다. S2 를 먼저 돌리면 S1 계정이 두 번째가 되어
+      # 403 이 뜨고 그 403 이 전역 error rate 임계를 오염시킨다.
+      - name: k6 S1 평가 배치 부하 시나리오 실행
+        env:
+          K6_BASE_URL: http://localhost:3000
+          # ADR-0057 D4 의 축소 표본 인원 (스크립트 __ENV 기본값과 동일 값 — drift-guard 가 대조).
+          K6_S1_PERSONS: "10"
+        run: k6 run test/load/s1-batch.js
 
       # package.json 의 `test:load:s2` 와 동일한 스크립트 경로 (drift-guard smoke 가 parity 대조).
       # smoke 배선 확인 직후 S2(조회 API 응답 지연, REQ-048) 시나리오를 같은 인스턴스에 인가한다.

@@ -1497,3 +1497,249 @@ describe("test/load/s1-batch.js S1 평가 배치 부하 골격 drift smoke (T-16
     });
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-1633 — S1 실행 step 배선 + stub/cipher env 주입 + `test:load:s1` parity drift.
+// 존재 이유 — ADR-0057 `범위 밖` 3 번째 항목이 지정한 배선은 전부 문자열이라 ① S1 step 이
+// 사라지거나 ② 순서가 S2 뒤로 밀려 첫 user 가 SuperAdmin 이 아니게 되거나(403 → error rate
+// 오염) ③ `LOAD_TEST_STUB` 이 `1` 아닌 표기로 drift 해 실 LLM gateway 가 붙거나 ④ 32-byte
+// cipher 키가 빠져 D5 provider seed 가 throw 하거나 ⑤ `if:` / `continue-on-error` 로 임계
+// 위반이 조용히 green 이 되어도, 상시 CI 는 여전히 green 이다(부하 job 은 수동 발화 전용).
+//      🔥 실 GitHub Actions 발화 0 · 실 k6 실행 0 · 실 docker 실행 0 · 새 dependency 0 ·
+//         process.env 읽기/쓰기 0 — 파일 read + 합성 문자열 주입만.
+const S1_RUN_STEP_NAME = "k6 S1 평가 배치 부하 시나리오 실행";
+/** 기동 step 이 주입해야 하는 env 이름 2 종 — load-test-stub-gating.ts 21 행 / cipher ENC_KEY_ENV. */
+const STUB_ENV_KEY = "LOAD_TEST_STUB";
+const ENC_KEY_ENV = "LLM_APIKEY_ENC_KEY";
+/** ADR-0057 D1 이 stub 활성으로 인정하는 유일한 값(그 밖은 전부 실 gateway fall-through). */
+const STUB_ENABLED_VALUE = "1";
+/** 표본 인원 주입 env 이름 — 값 자체는 스크립트 __ENV 기본값에서 뽑아 대조한다(리터럴 고정 0). */
+const S1_PERSONS_ENV_KEY = "K6_S1_PERSONS";
+/** AES-256 키 길이 — llm-apikey-cipher.service.ts 36 행 KEY_LENGTH_BYTES 와 동일 값. */
+const ENC_KEY_BYTES = 32;
+
+/**
+ * `docker run ... -e KEY=VALUE \` 형태에서 값만 뽑는다(행 끝의 이음표 백슬래시는 제거). 부재면
+ * `null`(추측 0) — 이 두 갈래가 "`-e` flag 존재 / 부재" 분기의 실체다.
+ * @throws {TypeError} 입력이 non-string 일 때(extractStepBlock 과 동형 계약).
+ */
+function dockerEnvValue(source: string, key: string): string | null {
+  if (typeof source !== "string" || typeof key !== "string") {
+    throw new TypeError("dockerEnvValue: source·key 는 string 이어야 함");
+  }
+  const m = source.match(new RegExp(`-e\\s+${key}=(\\S+)`));
+  return m ? unquote(m[1].replace(/\\$/, "")) : null;
+}
+
+describe("load-k6.yml S1 step 배선 ↔ stub/cipher env 주입 ↔ package.json test:load:s1 drift smoke (T-1633)", () => {
+  describe("Happy-path: S1 step 실재 · env 주입 · 3 자 parity · 실행 순서", () => {
+    it("(a) S1 실행 step 이 실재하고 run 이 test/load/s1-batch.js 를 정확히 가리킨다", () => {
+      const step = extractStep(loadYml(), S1_RUN_STEP_NAME);
+      expect(step.found).toBe(true);
+      expect(step.uses).toBeNull();
+      const rel = scriptPathOf(step.run) as string;
+      expect(rel).toBe(S1_SCRIPT_REL);
+      // 경로 오타 drift 검출 — 겨냥한 파일이 실재해야 한다.
+      expect(existsSync(path.join(REPO_ROOT, rel))).toBe(true);
+    });
+
+    it("(b) step 주입 env 2 종이 스크립트 __ENV 기본값과 동형이다", () => {
+      const block = extractStepBlock(loadYml(), S1_RUN_STEP_NAME) as string[];
+      expect(extractKey(block, "K6_BASE_URL")).toBe(EXPECTED_BASE_URL);
+      // 표본 인원은 리터럴로 굳히지 않고 스크립트 기본값에서 뽑아 대조한다(양쪽 동시 drift 차단).
+      const declared = (
+        s1Script().match(/__ENV\.K6_S1_PERSONS \|\| (\d+)/) as string[]
+      )[1];
+      expect(extractKey(block, S1_PERSONS_ENV_KEY)).toBe(declared);
+    });
+
+    it("(c) workflow 실행 경로 · package.json test:load:s1 · 실 파일 3 자 parity", () => {
+      const p = pkg();
+      const fromPkg = scriptPathOf(p.scripts["test:load:s1"]);
+      expect(fromPkg).toBe(S1_SCRIPT_REL);
+      expect(scriptPathOf(extractStep(loadYml(), S1_RUN_STEP_NAME).run)).toBe(
+        fromPkg,
+      );
+      // 기존 3 script 는 불변 — 본 slice 는 1 줄 추가만 한다.
+      expect(p.scripts["test:load"]).toBe(`k6 run ${LOAD_SCRIPT_REL}`);
+      expect(p.scripts["test:load:s2"]).toBe(`k6 run ${S2_SCRIPT_REL}`);
+      expect(p.scripts["test:load:s3"]).toBe(`k6 run ${S3_SCRIPT_REL}`);
+    });
+
+    it("(d) step 순서가 smoke < S1 < S2 < S3 < 정리 다(ADR-0057 D2)", () => {
+      const yml = loadYml();
+      const smokeIdx = stepIndexOf(yml, RUN_STEP_NAME);
+      const s1Idx = stepIndexOf(yml, S1_RUN_STEP_NAME);
+      const s2Idx = stepIndexOf(yml, S2_RUN_STEP_NAME);
+      const s3Idx = stepIndexOf(yml, S3_RUN_STEP_NAME);
+      expect(smokeIdx).toBeGreaterThan(0);
+      expect(s1Idx).toBeGreaterThan(smokeIdx);
+      expect(s2Idx).toBeGreaterThan(s1Idx);
+      expect(s3Idx).toBeGreaterThan(s2Idx);
+      expect(stepIndexOf(yml, TEARDOWN_STEP_NAME)).toBeGreaterThan(s3Idx);
+    });
+
+    it("(e) 기동 step 이 stub env 1 과 32-byte cipher 더미 키를 주입한다", () => {
+      const bootText = (
+        extractStepBlock(loadYml(), BOOT_STEP_NAME) as string[]
+      ).join("\n");
+      expect(dockerEnvValue(bootText, STUB_ENV_KEY)).toBe(STUB_ENABLED_VALUE);
+      const encKey = dockerEnvValue(bootText, ENC_KEY_ENV) as string;
+      expect(encKey).not.toBeNull();
+      // base64 우선 → 아니면 hex(resolveKey 43~65 행 동형). 어느 쪽이든 정확히 32 byte 여야
+      // provider seed 가 cipher throw 없이 성립한다.
+      const decoded = [
+        Buffer.from(encKey, "base64"),
+        Buffer.from(encKey, "hex"),
+      ].map((b) => b.length);
+      expect(decoded).toContain(ENC_KEY_BYTES);
+      // 기존 env 3 종은 S1 배선 후에도 불변(T-1621 배선 회귀 0).
+      ["-e DATABASE_URL=", "-e AUTH_JWT_SECRET=", "-e PORT=3000"].forEach((f) =>
+        expect(bootText).toContain(f),
+      );
+    });
+  });
+
+  describe("flow / 분기 cover — 따옴표 유무 · 블록 종료 2 갈래 · -e flag 존재/부재", () => {
+    it("(a) env 값의 따옴표 유무 두 형태를 extractKey 가 동일하게 처리한다", () => {
+      const quoted = `      - name: ${S1_RUN_STEP_NAME}\n        env:\n          K6_BASE_URL: "${EXPECTED_BASE_URL}"\n          ${S1_PERSONS_ENV_KEY}: "10"\n        run: k6 run ${S1_SCRIPT_REL}\n      - name: 다음\n`;
+      const bare = quoted.replace(/"/g, "");
+      [quoted, bare].forEach((src) => {
+        const b = extractStepBlock(src, S1_RUN_STEP_NAME) as string[];
+        expect(extractKey(b, "K6_BASE_URL")).toBe(EXPECTED_BASE_URL);
+        expect(extractKey(b, S1_PERSONS_ENV_KEY)).toBe("10");
+      });
+    });
+
+    it("(b) 블록이 다음 step 헤더에서 끊김 / 파일 끝에서 끊김 두 갈래", () => {
+      // 실 파일 — 다음 헤더(S2)에서 끊긴다.
+      const block = extractStepBlock(loadYml(), S1_RUN_STEP_NAME) as string[];
+      expect(block.join("\n")).not.toContain(S2_RUN_STEP_NAME);
+      // 합성 — S1 step 이 마지막이라 파일 끝에서 끊긴다.
+      const tailOnly = `jobs:\n  load:\n    steps:\n      - name: ${S1_RUN_STEP_NAME}\n        env:\n          K6_BASE_URL: ${EXPECTED_BASE_URL}\n        run: k6 run ${S1_SCRIPT_REL}`;
+      const tail = extractStepBlock(tailOnly, S1_RUN_STEP_NAME) as string[];
+      expect(tail).toHaveLength(4);
+      // S1 step 에는 seed 인원 env(S2 전용)가 없다 — 부재 키는 null.
+      expect(extractKey(block, SEED_ENV_KEY)).toBeNull();
+    });
+
+    it("(c) dockerEnvValue: -e flag 존재 / 부재 두 갈래", () => {
+      const withFlag = `docker run -d --name aa-load \\\n  -e ${STUB_ENV_KEY}=1 \\\n  image`;
+      expect(dockerEnvValue(withFlag, STUB_ENV_KEY)).toBe(STUB_ENABLED_VALUE);
+      const withoutFlag = withFlag.replace(`-e ${STUB_ENV_KEY}=1 \\\n  `, "");
+      expect(dockerEnvValue(withoutFlag, STUB_ENV_KEY)).toBeNull();
+      expect(dockerEnvValue("", ENC_KEY_ENV)).toBeNull();
+    });
+  });
+
+  describe("Error path — 대상 부재 / non-string 계약", () => {
+    it("S1 step 이 없는 합성 YAML → throw 0 · 미발견 정규형 · index -1", () => {
+      const withoutS1 = loadYml()
+        .split("\n")
+        .filter((l) => l.trim() !== `- name: ${S1_RUN_STEP_NAME}`)
+        .join("\n");
+      expect(extractStep(withoutS1, S1_RUN_STEP_NAME)).toEqual({
+        found: false,
+        uses: null,
+        run: null,
+      });
+      expect(stepIndexOf(withoutS1, S1_RUN_STEP_NAME)).toBe(-1);
+      expect(extractStepBlock(withoutS1, S1_RUN_STEP_NAME)).toBeNull();
+    });
+
+    it("non-string 입력 → TypeError(0-byte fallback false-PASS 방지)", () => {
+      [null, undefined, 42, {}, []].forEach((v) => {
+        expect(() =>
+          extractStepBlock(v as unknown as string, S1_RUN_STEP_NAME),
+        ).toThrow(TypeError);
+        expect(() =>
+          dockerEnvValue(v as unknown as string, STUB_ENV_KEY),
+        ).toThrow(TypeError);
+      });
+      expect(() =>
+        dockerEnvValue("docker run", 7 as unknown as string),
+      ).toThrow(TypeError);
+      // 0-byte 문자열은 정상 입력 — throw 없이 미발견 정규형.
+      expect(extractStepBlock("", S1_RUN_STEP_NAME)).toBeNull();
+    });
+  });
+
+  describe("negative cases 충분 cover — stub 오활성 · secret 유출 · 트리거 · 우회 flag", () => {
+    it("(a) LOAD_TEST_STUB 이 1 외 표기(true · 0 · 빈 값)로 drift 하지 않았다", () => {
+      const yml = loadYml();
+      [
+        `${STUB_ENV_KEY}=true`,
+        `${STUB_ENV_KEY}=TRUE`,
+        `${STUB_ENV_KEY}=0`,
+        `${STUB_ENV_KEY}=yes`,
+        `${STUB_ENV_KEY}="1"`,
+        `${STUB_ENV_KEY}= `,
+      ].forEach((t) => expect(yml).not.toContain(t));
+      expect(yml.match(new RegExp(`${STUB_ENV_KEY}=`, "g"))).toHaveLength(1);
+      // 합성 mutation 대조군 — 관대한 표기로 바뀌면 판정값 단언이 무너진다.
+      const drifted = yml.replace(`${STUB_ENV_KEY}=1`, `${STUB_ENV_KEY}=true`);
+      expect(dockerEnvValue(drifted, STUB_ENV_KEY)).not.toBe(
+        STUB_ENABLED_VALUE,
+      );
+    });
+
+    it("(b) load-k6.yml 에 secrets 참조 · 실 API key · 외부 endpoint 리터럴이 0 이다", () => {
+      const yml = loadYml();
+      [
+        "${{ secrets.",
+        "sk-",
+        "api.openai.com",
+        "openai.azure.com",
+        "https://",
+      ].forEach((t) => expect(yml).not.toContain(t));
+      // 겨냥 대상은 전부 runner localhost — 외부로 나가는 부하 0(readiness curl 1 + 시나리오 4).
+      expect(yml.match(/http:\/\/localhost:3000/g)).toHaveLength(5);
+    });
+
+    it("(c) 트리거가 여전히 workflow_dispatch 단독이다(상시 PR CI 오염 0)", () => {
+      const triggers = triggerSection(loadYml());
+      expect(triggers).toContain("workflow_dispatch:");
+      ["pull_request:", "push:", "schedule:"].forEach((t) =>
+        expect(triggers).not.toContain(t),
+      );
+      // ci.yml 로 S1 실행이 새지 않는다(read only).
+      const ci = readFileSync(CI_YML_PATH, "utf8");
+      [S1_SCRIPT_REL, "test:load:s1", S1_RUN_STEP_NAME].forEach((t) =>
+        expect(ci).not.toContain(t),
+      );
+    });
+
+    it("(d) package.json 에 k6 dependency 편입 0(ADR-0054 정적 바이너리 규약)", () => {
+      const p = pkg();
+      const deps = Object.keys({ ...p.dependencies, ...p.devDependencies });
+      ["k6", "@types/k6", "xk6"].forEach((n) => expect(deps).not.toContain(n));
+      // load script 는 4 종뿐 — 다른 script 가 함께 바뀌지 않았다.
+      expect(
+        Object.keys(p.scripts).filter((k) => k.startsWith("test:load")),
+      ).toEqual(["test:load", "test:load:s1", "test:load:s2", "test:load:s3"]);
+    });
+
+    it("(e) S1 step 에 if: / continue-on-error 우회 flag 가 없다", () => {
+      const block = extractStepBlock(loadYml(), S1_RUN_STEP_NAME) as string[];
+      expect(extractKey(block, "if")).toBeNull();
+      expect(extractKey(block, "continue-on-error")).toBeNull();
+      // 정리 step 만 always() 를 갖는다(teardown 규약 불변).
+      expect(
+        extractKey(
+          extractStepBlock(loadYml(), TEARDOWN_STEP_NAME) as string[],
+          "if",
+        ),
+      ).toBe("always()");
+    });
+
+    it("(f) S1 step 의 run 이 k6 run 단일 커맨드이고 다른 스크립트를 함께 부르지 않는다", () => {
+      const run = extractStep(loadYml(), S1_RUN_STEP_NAME).run as string;
+      expect(scriptPathOf(run)).toBe(S1_SCRIPT_REL);
+      ["&&", ";", "|", S2_SCRIPT_REL, S3_SCRIPT_REL, LOAD_SCRIPT_REL].forEach(
+        (t) => expect(run).not.toContain(t),
+      );
+      // 체이닝 합성 mutation — 단일 커맨드 정규형이 깨지면 경로를 추측하지 않는다.
+      expect(scriptPathOf(`${run} && k6 run ${S2_SCRIPT_REL}`)).toBeNull();
+    });
+  });
+});
