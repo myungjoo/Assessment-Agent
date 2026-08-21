@@ -2,7 +2,7 @@
 id: T-1634
 title: S1/S2 부하 스크립트의 표본 인원 __ENV 파싱 방어 + s1-batch.js 머리 주석 doc-sync
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047]
 estimatedDiff: 230
@@ -107,3 +107,9 @@ load-k6.yml step · package.json script · 133명 full seed" 문단은 T-1633 �
 ## Follow-ups
 
 (작성 시 비어 있음)
+## 완료 기록
+
+- **Status: DONE** — 2026-08-21T03:53Z (cron@AKIHA-c0c2ed00 fire).
+- PR [#1312](https://github.com/myungjoo/Assessment-Agent/pull/1312) 라운드 1 reviewer APPROVE → 4-게이트 충족 → squash merge `971c716c`, feature branch 삭제.
+- 결과: `test/load/s1-batch.js` `SAMPLE_PERSONS` · `test/load/s2-read.js` `SEED_PERSONS` 를 `Math.max(1, Math.trunc(Number(__ENV.X)) || 기본값)` 로 정규화(분기 0, 기본값 10 / 30 유지 — workflow 주입값 parity 불변) + `s1-batch.js` 머리 주석의 "범위 밖" 문단을 T-1633 완료 사실에 맞춰 doc-sync + drift-guard smoke 에 T-1634 describe(`it` 12) 추가 (+201/-11, 3 파일).
+- 검증: lint · build · jest 443 suite / 12,738 test green, coverage 임계(line · function ≥ 80%) 통과(`src/` 변경 0 이라 수치 불변), 해당 smoke spec 119 test green.
