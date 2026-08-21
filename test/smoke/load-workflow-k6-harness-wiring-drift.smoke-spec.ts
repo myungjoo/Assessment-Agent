@@ -1220,3 +1220,186 @@ describe("load-k6.yml ↔ test/load/s3-concurrent.js ↔ package.json test:load:
     });
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-1631 — S1 평가 배치 부하(ADR-0057 D2 진입점 · D3 tag 3 종 · D4 외삽 임계) 골격 drift.
+// 존재 이유 — ① 대상 route 가 부하 전용 신규 route 로 갈리거나 ② tag 가 합쳐져 준비·인증 왕복이
+// 판정 지표를 오염시키거나 ③ 외삽 임계가 리터럴로 굳어 표본 수와 drift 하거나 ④ 자격증명이 고정
+// 리터럴로 박히거나 ⑤ 조건 분기가 스며들어도 상시 CI 는 green 이다(부하 job 은 수동 발화 전용).
+//      🔥 실 k6 실행 0 · 실 HTTP 0 · 새 dependency 0 · DB 의존 0 — 파일 read + 합성 문자열만.
+const S1_SCRIPT_REL = "test/load/s1-batch.js";
+/** ADR-0057 D2 가 확정한 유일한 타격 route(신규 route 노출 0). */
+const S1_BATCH_ROUTE = "/api/assessment-evaluation/unevaluated-fill-run";
+/** S1 임계 정본 — batch p95(외삽 산식) + 전역 error rate = 2 종, 선언 순서 그대로. */
+const S1_THRESHOLD_KEYS = ["http_req_duration{route:batch}", "http_req_failed"];
+/** 때려도 되는 route 전량 — seed / auth / batch 의 합집합(그 밖은 임의 route 혼입). */
+const S1_ROUTES = ["/api/persons", "/api/users", "/api/auth/login"];
+const s1Script = (): string =>
+  readFileSync(path.join(REPO_ROOT, S1_SCRIPT_REL), "utf8");
+const s1Body = (header: string): string =>
+  (extractTopLevelBlock(s1Script(), header) as string[]).join("\n");
+
+/** 주석 행을 뺀 코드의 타격 `/api/...` 경로(중복 제거). 분기 없음 — 필터 + 매칭만. */
+const apiRoutesOf = (script: string): string[] =>
+  Array.from(
+    new Set(
+      script
+        .split("\n")
+        .filter((l) => !l.trim().startsWith("//"))
+        .join("\n")
+        .match(/\/api\/[a-zA-Z0-9-]+(?:\/[a-zA-Z0-9-]+)*/g) || [],
+    ),
+  );
+
+/**
+ * 한 route tag 의 `p(95)<...` 임계 표현식(산식이면 산식 문자열 그대로). 대상 임계 행이 없거나
+ * p95 형태가 아니면 `null`(추측 0) — 이 두 갈래가 "대상 블록 있음 / 없음" 분기의 실체다.
+ * @throws {TypeError} 입력이 non-string 일 때.
+ */
+function routeP95Expression(script: string, tag: string): string | null {
+  if (typeof script !== "string" || typeof tag !== "string") {
+    throw new TypeError("routeP95Expression: script·tag 는 string 이어야 함");
+  }
+  const line = script
+    .split("\n")
+    .find((l) => l.trim().startsWith(`"http_req_duration{route:${tag}}"`));
+  if (line === undefined) return null;
+  const m = line.match(/p\(95\)<([^`"']+)/);
+  return m ? m[1] : null;
+}
+
+describe("test/load/s1-batch.js S1 평가 배치 부하 골격 drift smoke (T-1631)", () => {
+  describe("Happy-path: 실재 · 대상 route · tag 3 종 · 임계 key · setup/teardown", () => {
+    it("s1-batch.js 가 실재하고 setup / default / teardown export 와 __ENV 기본값 2 종을 갖는다", () => {
+      expect(existsSync(path.join(REPO_ROOT, S1_SCRIPT_REL))).toBe(true);
+      const script = s1Script();
+      expect(script).toMatch(
+        /export function setup\(\)[\s\S]*export default function \(data\)[\s\S]*export function teardown\(data\)/,
+      );
+      // 표본 인원 기본 10 + base URL 은 smoke.js·S2·S3 와 동일(workflow 주입값 parity).
+      expect(script).toContain("__ENV.K6_S1_PERSONS || 10");
+      expect(script).toContain(`__ENV.K6_BASE_URL || "${EXPECTED_BASE_URL}"`);
+    });
+
+    it("타격 route 는 D2 의 batch route 하나이고 default 가 좌표 4 축 + cookie 로 1 회 때린다", () => {
+      const body = s1Body("export default function");
+      expect(body).toContain(S1_BATCH_ROUTE);
+      expect(body.match(/http\.post\(/g)).toHaveLength(1);
+      // 좌표 4 축은 PeriodBridgeDto 의 필수 필드 — 선언 순서까지 그대로.
+      expect(body).toMatch(
+        /rawBridges[\s\S]*personId:[\s\S]*period:[\s\S]*scope:[\s\S]*periodStart:/,
+      );
+      expect(body).toContain("Cookie: data.authCookie");
+      expect(body).toContain('tags: { route: "batch" }');
+    });
+
+    it("route tag 3 종(batch / seed / auth)이 전부 선언된다", () => {
+      const script = s1Script();
+      ["batch", "seed", "auth"].forEach((tag) =>
+        expect(script).toContain(`route: "${tag}"`),
+      );
+    });
+
+    it("임계 key 2 종이 목록·순서까지 일치하고 상한이 외삽 산식으로 계산된다", () => {
+      const script = s1Script();
+      expect(thresholdKeys(script)).toEqual(S1_THRESHOLD_KEYS);
+      expect(routeP95Expression(script, "batch")).toBe("${BATCH_P95_MS}");
+      expect(script).toMatch(
+        /EXTRAPOLATION_PERSONS = 133;[\s\S]*FULL_RUN_BUDGET_MS = 3600000;/,
+      );
+      expect(script).toContain(
+        "FULL_RUN_BUDGET_MS * (SAMPLE_PERSONS / EXTRAPOLATION_PERSONS)",
+      );
+      expect(script).toContain("rate<0.01");
+    });
+
+    it("setup 이 seed / auth tag 로 준비하고 teardown 이 seed person 을 전량 회수한다", () => {
+      const setup = s1Body("export function setup");
+      // 표본 person seed(반복문) + signup + login = POST 3 회.
+      expect(setup.match(/http\.post\(/g)).toHaveLength(3);
+      expect(setup).toMatch(/SEED_PARAMS[\s\S]*AUTH_PARAMS[\s\S]*authCookie:/);
+      const down = s1Body("export function teardown");
+      expect(down).toMatch(/personIds\.length[\s\S]*http\.del\(/);
+      expect(down).toContain("SEED_DELETE_PARAMS");
+    });
+  });
+
+  describe("flow / 분기 cover · Error path — 대상 있음 / 없음 · non-string 계약", () => {
+    it("routeP95Expression: 대상 행 있음 / 없음 / p95 형태 아님 3 갈래", () => {
+      const script = s1Script();
+      expect(routeP95Expression(script, "batch")).toBe("${BATCH_P95_MS}");
+      expect(routeP95Expression(script, "seed")).toBeNull();
+      const dropped = script.replace('"http_req_duration{route:batch}"', "//");
+      expect(routeP95Expression(dropped, "batch")).toBeNull();
+      const literal = '  "http_req_duration{route:batch}": ["p(95)<270676"],';
+      expect(routeP95Expression(literal, "batch")).toBe("270676");
+      expect(
+        routeP95Expression(literal.replace("p(95)<", "avg<"), "batch"),
+      ).toBeNull();
+    });
+
+    it("부재 경로 read 는 throw · 부재 블록은 null · non-string 은 TypeError", () => {
+      const bad = path.join(REPO_ROOT, "test/load/s1-batch.absent.js");
+      expect(existsSync(bad)).toBe(false);
+      expect(() => readFileSync(bad, "utf8")).toThrow();
+      expect(
+        extractTopLevelBlock(s1Script(), "export function absent"),
+      ).toBeNull();
+      [null, undefined, 42, {}, []].forEach((v) =>
+        expect(() =>
+          routeP95Expression(v as unknown as string, "batch"),
+        ).toThrow(TypeError),
+      );
+      expect(() =>
+        routeP95Expression(s1Script(), 42 as unknown as string),
+      ).toThrow(TypeError);
+      // 0-byte 문자열은 정상 입력 — throw 없이 미발견 정규형.
+      expect(routeP95Expression("", "batch")).toBeNull();
+      expect(apiRoutesOf("")).toEqual([]);
+    });
+  });
+
+  describe("negative cases 충분 cover — route 혼입 · 임계 오염 · 자격증명 · 분기", () => {
+    it("(1) 허용 route 4 종 외 임의 route 가 없고 guarded 조회 prefix 도 없다", () => {
+      const script = s1Script();
+      expect(apiRoutesOf(script).sort()).toEqual(
+        [...S1_ROUTES, S1_BATCH_ROUTE].sort(),
+      );
+      GUARDED_PREFIXES.forEach((p) => expect(script).not.toContain(p));
+    });
+
+    it("(2) batch 외 tag 에는 p95 임계가 걸리지 않는다(준비·인증 왕복 오염 차단)", () => {
+      const script = s1Script();
+      ["seed", "auth"].forEach((tag) =>
+        expect(routeP95Expression(script, tag)).toBeNull(),
+      );
+      expect(script.match(/p\(95\)</g)).toHaveLength(1);
+    });
+
+    it("(3) 임계가 리터럴 상수로 굳어있지 않다(합성 mutation 이 검출된다)", () => {
+      const script = s1Script();
+      expect(routeP95Expression(script, "batch")).not.toMatch(/^\d+$/);
+      const frozen = script.replace("${BATCH_P95_MS}", "270676");
+      expect(routeP95Expression(frozen, "batch")).toMatch(/^\d+$/);
+      // error rate 는 계획 §3 표 그대로 — 재산정 0.
+      expect(script).not.toMatch(/rate<(?!0\.01)[\d.]+/);
+    });
+
+    it("(4) 고정 리터럴 자격증명이 없다(stamp 파생 값만 · 실 secret 문자열 0)", () => {
+      const script = s1Script();
+      expect(s1Body("export function setup")).toContain("${stamp}");
+      [/password:\s*"/, /apiKey/, /Bearer /, /LLM_APIKEY/].forEach((p) =>
+        expect(script).not.toMatch(p),
+      );
+    });
+
+    it("(5) 조건 분기 로직이 0 이다(카운트 기반 반복문만)", () => {
+      const script = s1Script();
+      ["if (", "} else", " ? ", " && ", " || ("].forEach((t) =>
+        expect(script).not.toContain(t),
+      );
+      // __ENV 기본값의 `||` 는 분기가 아니라 fallback 관용구다(S2·S3 동형) — 2 회로 한정.
+      expect(script.match(/\|\|/g)).toHaveLength(2);
+    });
+  });
+});
