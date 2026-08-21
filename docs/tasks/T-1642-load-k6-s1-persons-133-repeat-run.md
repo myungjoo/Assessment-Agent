@@ -2,7 +2,7 @@
 id: T-1642
 title: load-k6 를 s1_persons=133 으로 재 dispatch — 같은 조건 run-to-run 분산 확보 후 부하계획 §3.1·§5 item 5 갱신
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 estimatedDiff: 80
@@ -32,14 +32,14 @@ plannerNote: "P5 R-91 chain 23/N — 133 표본 2 번째 run 으로 같은 조�
 
 ## Acceptance Criteria
 
-- [ ] `gh workflow run load-k6.yml --ref main -f s1_persons=133` 으로 **정확히 1 회** dispatch 하고 run id 를 확보한다 (`gh run list --workflow=load-k6.yml --limit 3`). 재 dispatch·재시도 금지 — 실패해도 그 사실을 기록한다.
-- [ ] run conclusion 을 확인한다 (`gh run view <id>` 또는 `gh run watch <id>`). **45 분** 넘게 미종료면 대기를 중단하고 그 사실(진행 중이던 step 포함)을 기록한다.
-- [ ] `gh run view <id> --log` 로 "S1 실측 요약 기록" step 의 **표본 인원 행이 `133`** 임을 확인한다 — `10` 이면 input 주입 실패이므로 결함으로 기록하고 워크플로는 고치지 않는다(Follow-ups 로 넘긴다).
-- [ ] 같은 로그에서 4 회차 수치(`http_req_duration{route:batch}` p95 · `http_req_failed` rate 와 분자/분모 · `iteration_duration` · `http_reqs`)와 환경 메타 7 항목(커널·아키텍처·vCPU·메모리·DB image·대상 image·표본 인원)을 회수한다. 임계 위반으로 k6 가 exit 1 이어도 `if: always()` 기록 step 이 남긴 수치를 그대로 회수해 적는다.
-- [ ] [docs/ops/load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) `§3.1` 에 기존 1~3 회차 소제목을 **삭제·수정 없이** 두고 `#### 4 회차 (T-1642, run <id>, 표본 133 반복)` 소제목을 덧붙인다. 3 회차와 **같은 표본 조건**이므로 batch p95 의 두 값과 그 차이(절대·상대)를 명시하고, 이것이 실 scale 축의 **첫 run-to-run 쌍(표본 2 개)** 임을 적는다.
-- [ ] 같은 문서 `§5` item 5 의 잔여 ② 를 결과에 맞게 갱신한다 — 133 축 run-to-run 쌍 확보는 반영하되, **표본 2 개로는 분산 추정이 불충분해 `§3` 표 임계 숫자는 여전히 무변경**임을 명시한다(§3 각주 취지 승계). 잔여 ①(실 dataset seed + `ServiceIdentity` 실 수집)은 그대로 존치.
-- [ ] [docs/PLAN.md](../PLAN.md) `141 행` R-91 실측 서술을 "baseline 실측 4 회(그중 실 scale 표본 133 이 2 회)" 형태로 갱신한다. `140 행` REQ-047 checkbox 는 `[ ]` **유지** — LLM stub · 수집 왕복 0 · 단일 iteration 한계가 그대로이므로 승격 금지.
-- [ ] 변경 파일 2 개(`docs/ops/load-resilience-test-plan.md`, `docs/PLAN.md`) 를 넘지 않는다. 코드·워크플로·스크립트 변경 0 이라 CLAUDE.md §3.2 R-112 unit test 4 항목은 **비적용**(doc-only direct commit) — 대신 위 로그 회수 항목이 검증 수단이다.
+- [x] `gh workflow run load-k6.yml --ref main -f s1_persons=133` 으로 **정확히 1 회** dispatch 하고 run id 를 확보한다 (`gh run list --workflow=load-k6.yml --limit 3`). 재 dispatch·재시도 금지 — 실패해도 그 사실을 기록한다.
+- [x] run conclusion 을 확인한다 (`gh run view <id>` 또는 `gh run watch <id>`). **45 분** 넘게 미종료면 대기를 중단하고 그 사실(진행 중이던 step 포함)을 기록한다.
+- [x] `gh run view <id> --log` 로 "S1 실측 요약 기록" step 의 **표본 인원 행이 `133`** 임을 확인한다 — `10` 이면 input 주입 실패이므로 결함으로 기록하고 워크플로는 고치지 않는다(Follow-ups 로 넘긴다).
+- [x] 같은 로그에서 4 회차 수치(`http_req_duration{route:batch}` p95 · `http_req_failed` rate 와 분자/분모 · `iteration_duration` · `http_reqs`)와 환경 메타 7 항목(커널·아키텍처·vCPU·메모리·DB image·대상 image·표본 인원)을 회수한다. 임계 위반으로 k6 가 exit 1 이어도 `if: always()` 기록 step 이 남긴 수치를 그대로 회수해 적는다.
+- [x] [docs/ops/load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) `§3.1` 에 기존 1~3 회차 소제목을 **삭제·수정 없이** 두고 `#### 4 회차 (T-1642, run <id>, 표본 133 반복)` 소제목을 덧붙인다. 3 회차와 **같은 표본 조건**이므로 batch p95 의 두 값과 그 차이(절대·상대)를 명시하고, 이것이 실 scale 축의 **첫 run-to-run 쌍(표본 2 개)** 임을 적는다.
+- [x] 같은 문서 `§5` item 5 의 잔여 ② 를 결과에 맞게 갱신한다 — 133 축 run-to-run 쌍 확보는 반영하되, **표본 2 개로는 분산 추정이 불충분해 `§3` 표 임계 숫자는 여전히 무변경**임을 명시한다(§3 각주 취지 승계). 잔여 ①(실 dataset seed + `ServiceIdentity` 실 수집)은 그대로 존치.
+- [x] [docs/PLAN.md](../PLAN.md) `141 행` R-91 실측 서술을 "baseline 실측 4 회(그중 실 scale 표본 133 이 2 회)" 형태로 갱신한다. `140 행` REQ-047 checkbox 는 `[ ]` **유지** — LLM stub · 수집 왕복 0 · 단일 iteration 한계가 그대로이므로 승격 금지.
+- [x] 변경 파일 2 개(`docs/ops/load-resilience-test-plan.md`, `docs/PLAN.md`) 를 넘지 않는다. 코드·워크플로·스크립트 변경 0 이라 CLAUDE.md §3.2 R-112 unit test 4 항목은 **비적용**(doc-only direct commit) — 대신 위 로그 회수 항목이 검증 수단이다.
 
 ## Out of Scope
 
@@ -57,3 +57,11 @@ plannerNote: "P5 R-91 chain 23/N — 133 표본 2 번째 run 으로 같은 조�
 ## Follow-ups
 
 (작성 시점 비어 있음)
+
+## 결과 (2026-08-21 완료)
+
+**Status: DONE.** `gh workflow run load-k6.yml --ref main -f s1_persons=133` 을 **정확히 1 회** dispatch 해 run **32533779832**(head sha `1236a880`, job 22:38:22Z~22:40:36Z 약 2분 14초) 를 얻었고 **conclusion `success`**(12 step 전부 success, 45 분 대기 임계 훨씬 이내) 였다. "S1 실측 요약 기록" step 로그의 표본 인원 행이 `| 표본 인원 (K6_S1_PERSONS) | 133 |` 이라 input 주입 성공(주입 실패 `10` 없음).
+
+4 회차 수치: `http_req_duration{route:batch}` p95 **730.81ms**(임계 `p(95)<3600000ms` 통과) · `http_req_failed` **0.00%(0/272)** · `iteration_duration` **731.89ms**(iterations 1) · `http_reqs` **272**(191.57 req/s). 환경 메타 7 항목은 3 회차와 전부 동일(커널 `Linux 6.17.0-1022-azure` · `x86_64` · vCPU 4 · 메모리 15Gi · `postgres:16-alpine` · `assessment-agent:load` · 표본 133).
+
+3 회차(760.91ms) 대비 **Δ −30.10ms · 약 −3.96%** 로, 외삽 계수 1 인 **실 scale 축의 첫 run-to-run 쌍**을 확보했다. 이를 [load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) `§3.1` 4 회차 소제목(1~3 회차 무수정)·`§3` 각주(4 회분)·`§5` item 5(잔여 ② 부분 해소 — 표본 2 개로는 분산 추정 불충분이라 `§3` 표 임계 숫자 무변경, 잔여 ① 존치) 와 [PLAN.md](../PLAN.md) `141 행`(baseline 4 회, 그중 실 scale 133 이 2 회) 에 박제했다. `140 행` checkbox 는 `[ ]` 유지(LLM stub · 수집 왕복 0 · 단일 iteration 한계 그대로). 워크플로·스크립트·임계 변경 0.

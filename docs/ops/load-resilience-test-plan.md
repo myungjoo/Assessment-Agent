@@ -95,12 +95,12 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 - **환경 고정**: 측정 결과는 실행 환경(CPU/메모리/DB/네트워크)에 종속되므로, 각 run 은
   환경 메타(하드웨어·동시성·데이터 규모)를 함께 기록해 비교 가능하게 한다.
 - **각주 — 임계 fix 시점**: 위 표의 "baseline 후 fix" 표기는 아래 baseline 실측 기록으로
-  **실측 3 회분**(run `32459501970` · `32503914467` · `32524618230`)이 확보된 상태다. 다만
-  셋 중 앞 2 회는 표본 10 명, 3 회차는 표본 133 명이라 **같은 조건의 반복 표본은 여전히 2 개**뿐이고,
-  이 정도로 임계 숫자를 고정하면 over-fitting 이라 **표의 임계 숫자는 이번에도 바꾸지 않으며**,
-  임계 fix 는 같은 조건의 반복 run 확보 후로 미룬다.
+  **실측 4 회분**(run `32459501970` · `32503914467` · `32524618230` · `32533779832`)이 확보된
+  상태다. 다만 앞 2 회는 표본 10 명, 뒤 2 회는 표본 133 명이라 **같은 조건의 반복 표본은 각 축
+  2 개**뿐이고, 이 정도로 임계 숫자를 고정하면 over-fitting 이라 **표의 임계 숫자는 이번에도 바꾸지
+  않으며**, 임계 fix 는 같은 조건의 반복 표본을 더 쌓은 뒤로 미룬다.
 
-### 3.1 baseline 실측 기록 (S1, 3 회분)
+### 3.1 baseline 실측 기록 (S1, 4 회분)
 
 #### 1 회차 (T-1637, run 32459501970)
 
@@ -187,6 +187,41 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
   ③ 단일 iteration 이라 p95 가 곧 단일 표본값이다. 즉 인원 축만 실 scale 이고 데이터·외부 I/O 축은
   그대로 미검증이라 PLAN `140 행` checkbox 는 `[ ]` 유지다.
 
+#### 4 회차 (T-1642, run 32533779832, 표본 133 반복)
+
+- **측정 일시 / run**: 2026-08-21T22:38:18Z dispatch(`workflow_dispatch`, ref `main`, head sha
+  `1236a880`), run id **32533779832**, job 22:38:22Z~22:40:36Z(약 2분 14초). **conclusion
+  `success`** — 12 step 전부 success(비-success step 0). S1 step 자체는 22:39:44Z~22:39:46Z.
+  dispatch 는 `-f s1_persons=133` 으로 **정확히 1 회**만 했고 재시도·재 dispatch 는 없다.
+- **표본 인원 주입 확인**: "S1 실측 요약 기록" step 로그의 표본 인원 행이
+  `| 표본 인원 (K6_S1_PERSONS) | 133 |` 로 찍혔고 S1 실행 step 의 env 행도 `K6_S1_PERSONS: 133`
+  이라, T-1640 이 연 input 배선이 3 회차에 이어 **두 번째로도 성공**했다(default `10` 으로
+  떨어지는 주입 실패 없음).
+- **환경 메타(로그로 회수됨)**: `gh run view 32533779832 --log` 만으로 메타 7 항목 전부 회수 —
+  커널 `Linux 6.17.0-1022-azure`, 아키텍처 `x86_64`, vCPU **4**, 메모리 **15Gi**, DB image
+  `postgres:16-alpine`, 부하 대상 image `assessment-agent:load`, 표본 인원
+  `K6_S1_PERSONS=133`. **7 항목이 3 회차와 전부 동일**해 runner 사양도 표본 인원도 갈리지 않은,
+  조건이 일치하는 반복 run 이다.
+- **S1 수치**: `http_req_duration{route:batch}` **p95 = 730.81ms** — 임계 `p(95)<3600000ms`
+  통과(표본 133 = `EXTRAPOLATION_PERSONS` 라 외삽 계수 1, ADR-0057 `D4`). `http_req_failed`
+  **0.00%(0/272)** — 임계 `rate<0.01` 통과. `iteration_duration` **731.89ms**(iterations 1),
+  전체 `http_reqs` 272(191.57 req/s), data_received 102 kB / data_sent 123 kB, k6 wall-clock
+  00m01.4s. 요청 수 272 는 3 회차와 같은 산식(고정 왕복 6 + person 당 2 × 133)이라 요청 구성도
+  동일하다.
+- **실 scale 축의 첫 run-to-run 쌍(표본 2 개)**: 3 회차와 **표본 조건이 같아** 두 run 은 직접
+  비교 가능하다 — batch p95 **760.91ms(3 회차) → 730.81ms(4 회차)**, 차이는 **절대 Δ −30.10ms ·
+  상대 약 −3.96%**(두 값 평균 745.86ms, 범위 30.10ms). `iteration_duration` 은 **761.86ms →
+  731.89ms**(Δ −29.97ms, 약 −3.93%), `http_req_failed` 은 두 회 모두 **0.00%(0/272)**,
+  `http_reqs` count 는 두 회 모두 **272**(rate 182.73 → 191.57 req/s). 즉 이것이 외삽 계수 1 인
+  **실 scale 축의 첫 run-to-run 쌍**이다 — 1·2 회차가 만든 쌍은 표본 10 축이었다.
+- **의미 / 한계**: 실 scale 축에 같은 조건 표본이 2 개가 됐지만 **표본 2 개로는 표준편차·신뢰구간
+  같은 분산 추정을 말할 수 없다** — 따라서 `§3` 표의 "baseline 후 fix" 임계 숫자는 **이번에도
+  무변경**이다(§3 각주 취지 그대로). 미검증 축도 3 회차와 똑같이 남는다 — ① LLM 이 여전히
+  `LOAD_TEST_STUB=1` stub(ADR-0057 `D1`), ② 표본 person 에 `ServiceIdentity` 가 없어 GitHub/
+  Confluence **수집 왕복이 0**(50~100 repo · ~1000 page 축 미검증), ③ 단일 iteration
+  (`vus: 1, iterations: 1`)이라 p95 가 곧 단일 표본값. 그래서 PLAN `140 행` checkbox 는
+  `[ ]` 유지다.
+
 ---
 
 ## 4. 접근 방식·도구 후보
@@ -237,24 +272,31 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 4. **CI 통합** — **편입 완료**: 부하 harness 는 [`load-k6.yml`](../../.github/workflows/load-k6.yml)
    별도 수동 job(`workflow_dispatch`)으로 편입돼 smoke → S1 → S2 → S3 step 을 실행하며, 상시
    PR CI(`ci.yml`)와 분리돼 있다(부하는 무거움).
-5. **baseline 확정 + 임계 fix** — **S1 baseline 실측 3 회 완료**(T-1637 run **32459501970** ·
-   T-1639 run **32503914467** · T-1641 run **32524618230**, 셋 다 2026-08-21,
+5. **baseline 확정 + 임계 fix** — **S1 baseline 실측 4 회 완료**(T-1637 run **32459501970** ·
+   T-1639 run **32503914467** · T-1641 run **32524618230** · T-1642 run **32533779832**,
+   넷 다 2026-08-21,
    [`load-k6.yml`](../../.github/workflows/load-k6.yml), conclusion `success`, 12 step 전부 success).
    결론: `http_req_duration{route:batch}` p95 **99.29ms → 96.98ms**(표본 10) ·
-   **760.91ms**(표본 133) 이고 `http_req_failed` 은 세 회 모두 **0.00%**(0/26 · 0/26 · 0/272) 로
+   **760.91ms → 730.81ms**(표본 133) 이고 `http_req_failed` 은 네 회 모두
+   **0.00%**(0/26 · 0/26 · 0/272 · 0/272) 로
    임계를 모두 통과했으며 수치·환경 메타는 위 `§3.1` 에 회차별로 박제했다.
-   **§3 표의 "baseline 후 fix" 임계 숫자는 무변경** — 표본 조건이 갈려 같은 축 반복이 2 회뿐이라
-   여전히 over-fitting 방지(§3 각주).
+   **§3 표의 "baseline 후 fix" 임계 숫자는 무변경** — 표본 10 축 2 회 · 표본 133 축 2 회로
+   각 축 반복이 2 회뿐이라 여전히 over-fitting 방지(§3 각주).
    **잔여**: ① 실 scale 실측(133 명, [realdata-scale-devset.md](realdata-scale-devset.md)) 은
    **부분 해소** — `K6_S1_PERSONS` **상향 축은 닫혔다**(T-1640 이 연 `s1_persons` input 을 T-1641 이
    `133` 으로 dispatch 해 run `32524618230` 에서 외삽 계수 1 조건의 실측 확보). **잔여로 남는 축은
    실 dataset seed** — 133 명 `Person` 을 실 devset 규모로 채우고 각자 github `ServiceIdentity` 를
    붙여 **실 수집 왕복(50~100 repo · ~1000 page)** 을 태우는 것. 현 표본은 스크립트가 만든 합성
-   person 이라 수집 왕복이 0 이고 LLM 도 stub(ADR-0057 `D1`)이다. ② **반복 run 기반 임계 fix**
-   (같은 표본 조건의 run-to-run 분산 확보 후 §3 표 확정) 는 **그대로 잔여**. ③ 환경 메타 회수 경로
+   person 이라 수집 왕복이 0 이고 LLM 도 stub(ADR-0057 `D1`)이다. ② **반복 run 기반 임계 fix** 는
+   **부분 해소** — 같은 표본 조건의 run-to-run 쌍은 실 scale 축(표본 133)에서 T-1642 run
+   `32533779832` 로 확보됐다(3 회차 760.91ms → 4 회차 730.81ms, Δ −30.10ms · 약 −3.96%, 위
+   `§3.1` 4 회차). 그러나 **표본 2 개로는 표준편차·신뢰구간 같은 분산 추정이 불충분**해
+   `§3` 표의 임계 숫자는 **여전히 무변경**이며(§3 각주 취지 승계), 임계 확정은 같은 조건 반복을
+   더 쌓은 뒤로 미룬다. ③ 환경 메타 회수 경로
    보강은 **해소** — T-1638(main `55b81dea`) 의 `tee -a` 배선을 T-1639 가 run `32503914467` 에서
    실증해 커널·아키텍처·vCPU·메모리 등 메타 7 항목을 `gh run view --log` 만으로 회수했고,
-   T-1641 run `32524618230` 이 같은 경로로 표본 인원 `133` 주입까지 재확인했다. **실 DB round-trip 실측이 slice 29 까지 도달**: slice 1(T-1500, main
+   T-1641 run `32524618230` · T-1642 run `32533779832` 두 run 이 같은 경로로 표본 인원 `133`
+   주입까지 재확인했다. **실 DB round-trip 실측이 slice 29 까지 도달**: slice 1(T-1500, main
    `0395c51e`) 의 [`person-read-realdb.perf-spec.ts`](../../test/perf/person-read-realdb.perf-spec.ts)
    가 mock override 0 부트스트랩 + 실 Prisma seed 로 `GET /api/persons` 의 p95 < 3000ms 를 실측했고,
    slice 2(T-1502, main `97198504`) 의
