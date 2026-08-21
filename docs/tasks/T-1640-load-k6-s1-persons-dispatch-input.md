@@ -2,7 +2,7 @@
 id: T-1640
 title: load-k6.yml 에 S1 표본 인원 workflow_dispatch input 을 신설해 run 마다 표본을 바꿀 수 있게 한다
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047]
 estimatedDiff: 240
@@ -60,5 +60,22 @@ plannerNote: "P5 R-91 chain 21/N — 오너 PLAN 144 행 ②. §5 item 5 잔여 
 ## Suggested Sub-agents
 
 `implementer → tester`
+
+## Result (2026-08-22)
+
+PR **#1315** 스쿼시 머지 **f6c34b2d** (2 파일 +249/-12, reviewer round 1 APPROVE · 4-게이트 통과).
+`load-k6.yml` 의 `on: workflow_dispatch:` 에 input **`s1_persons`** 1 개만 신설했다 — 한국어 description
+(표본 인원 + 미지정 시 기본값 의미) · `required: false` · `type: string` · `default: "10"`. "k6 S1 평가 배치
+부하 시나리오 실행" step 과 "S1 실측 요약 기록" step 두 곳에 리터럴로 굳어 있던 `K6_S1_PERSONS: "10"` 은
+**같은 input 표현식 하나**로 통일해, 한쪽만 리터럴로 남아 회차 기록이 drift 하는 경로를 없앴다.
+`test/load/s1-batch.js` 는 **변경 0** — `__ENV.K6_S1_PERSONS` 기본값 10 · `EXTRAPOLATION_PERSONS = 133` ·
+재 선형 외삽 게이트(ADR-0057 `D4`)는 그대로이고 본 slice 는 주입 경로만 파라미터화했다.
+drift-guard smoke spec 의 기존 표본 parity 단언 4 지점은 삭제·완화 없이 "`workflow_dispatch` input 의
+`default` ↔ 스크립트 `__ENV` 기본값 대조" 형태로 옮겨 양쪽 동시 drift 차단이라는 원래 취지를 보존했고,
+신설 helper 는 `resolveInputExpr` **1 개뿐**(non-string 입력에 `TypeError` 를 던지는 기존 helper 계약과 동형).
+T-1640 describe 1 블록(it 14 개 — happy 3 · error 3 · 분기 2 · negative 6) 추가로 smoke 160 test pass,
+unit 443 suite / 12738 test pass, `test:cov` 임계(line·function 80%) 통과 — `src/` 변경 0 이라 수치 불변.
+이로써 [load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) `§5` item 5 의 잔여
+①(실 scale 133 명 실측) · ②(반복 run 기반 임계 fix) 를 **workflow 재수정 0** 으로 열 수 있다.
 
 ## Follow-ups
