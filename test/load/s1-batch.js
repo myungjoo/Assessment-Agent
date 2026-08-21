@@ -7,11 +7,13 @@
 //   D3 tag  : batch(대상 route) / seed(준비 write · 정리) / auth(signup · login) 3 종 분리 —
 //              임계는 batch 에만 걸어 준비·인증 왕복이 판정 지표에 섞이지 않게 한다.
 //   D4 게이트: 133명 full run 대신 축소 표본(K6_S1_PERSONS 기본 10) 1 회를 재 선형 외삽 한다.
+//   D5 전제: 대상 route 는 orchestrator 위임 전에 LlmProviderConfigResolver 를 await 하고 그
+//            resolver 가 0-row 와 2+row 를 모두 throw(→ 503) 로 막는다. 그래서 setup() 이 실
+//            등록 경로(POST /api/llm/providers)로 provider row 를 정확히 1 개로 수렴시킨다.
 // 대상 route 가 Admin+ 라 이 run 의 첫 user 가 SuperAdmin 이어야 하고(src/user/user.controller.ts
 // 9~11 행), 그 전제는 workflow step 순서 smoke → S1 → S2 → S3 이 보장한다. 규약 승계(s2-read.js):
 // __ENV 기본값 · route tag 분리 · signup → login → cookie · setup/teardown 자기 정리 · 분기 0.
-// 범위 밖(후속 slice): ADR-0057 D5 의 LlmProviderConfig 단일-row seed(그 row 가 없으면 대상
-// route 는 resolver fail-fast 로 503) · load-k6.yml step · package.json script · 133명 full seed.
+// 범위 밖(후속 slice): load-k6.yml step · package.json script · 133명 full seed.
 import http from "k6/http";
 
 // __ENV 기본값 2 종 — base URL 은 workflow 주입값과 동형(smoke.js · s2-read.js · s3-concurrent.js),
@@ -48,8 +50,57 @@ export const options = {
 
 export function setup() {
   // run 마다 유일한 접미사 — @unique 충돌(409)이 전역 http_req_failed 임계를 오염시키지 않게
-  // 한다(stamp 규약 승계). (a) 표본 인원만큼 평가 대상 person seed → id 수집.
+  // 한다(stamp 규약 승계). (a) 인증 부트스트랩을 person seed 보다 먼저 끝낸다 — 뒤따르는 D5
+  // provider seed 3 왕복이 전부 Admin+ gate 라 cookie 가 선행돼야 한다. signup(이 run 의 첫
+  // user = SuperAdmin) → login → cookie. 자격증명은 stamp 로 매 run 새로 만든다(고정 리터럴 0).
+  // user row 는 삭제 endpoint 자체가 없어 남긴다.
   const stamp = Date.now();
+  const credentials = {
+    email: `load-s1-auth-${stamp}@example.com`,
+    password: `load-s1-pass-${stamp}`,
+  };
+  http.post(`${BASE_URL}/api/users`, JSON.stringify(credentials), AUTH_PARAMS);
+  const login = http.post(
+    `${BASE_URL}/api/auth/login`,
+    JSON.stringify(credentials),
+    AUTH_PARAMS,
+  );
+  // 토큰은 Set-Cookie 로만 온다 — response.cookies 는 이름별 배열이라 index 접근만(분기 0).
+  const authCookie = `access_token=${login.cookies["access_token"][0].value}`;
+  // (b) ADR-0057 D5 의 단일-row invariant — "있으면 된다" 가 아니라 "정확히 1" 이어야 하므로
+  // 열거 → 전량 제거 → 1 회 생성의 멱등 3 단 왕복을 돈다. 세 왕복 모두 seed tag 라 batch 임계에
+  // 섞이지 않는다. Admin+ gate 때문에 cookie 를 실은 seed params 2 종을 여기서 만든다.
+  const providerParams = {
+    headers: { "Content-Type": "application/json", Cookie: authCookie },
+    tags: { route: "seed" },
+  };
+  const providerDeleteParams = {
+    headers: { Cookie: authCookie },
+    tags: { route: "seed" },
+  };
+  const listed = http.get(`${BASE_URL}/api/llm/providers`, providerParams);
+  const existing = listed.json();
+  for (let i = 0; i < existing.length; i += 1) {
+    http.del(
+      `${BASE_URL}/api/llm/providers/${existing[i].id}`,
+      null,
+      providerDeleteParams,
+    );
+  }
+  // 더미 4 필드만 싣는다(allow-list 밖 키는 forbidNonWhitelisted 가 400). provider 만
+  // LlmProvider 허용 집합 안의 값이어야 하고 나머지 3 개는 stamp 파생 더미다 — 실 endpoint ·
+  // 실 key 0, 외부 호출 0(stub 이 켜진 부하 job 에서는 복호화조차 되지 않는다).
+  const provider = http.post(
+    `${BASE_URL}/api/llm/providers`,
+    JSON.stringify({
+      provider: "custom",
+      endpointUrl: `http://load-s1-stub.invalid/${stamp}`,
+      apiKey: `load-s1-dummy-${stamp}`,
+      modelId: `load-s1-model-${stamp}`,
+    }),
+    providerParams,
+  );
+  // (c) 표본 인원만큼 평가 대상 person seed → id 수집.
   const personIds = [];
   for (let i = 0; i < SAMPLE_PERSONS; i += 1) {
     const created = http.post(
@@ -62,23 +113,10 @@ export function setup() {
     );
     personIds.push(created.json("id"));
   }
-  // (b) 인증 부트스트랩 — signup(이 run 의 첫 user = SuperAdmin) → login → cookie. 자격증명은
-  // stamp 로 매 run 새로 만든다(고정 리터럴 0). user row 는 삭제 endpoint 자체가 없어 남긴다.
-  const credentials = {
-    email: `load-s1-auth-${stamp}@example.com`,
-    password: `load-s1-pass-${stamp}`,
-  };
-  http.post(`${BASE_URL}/api/users`, JSON.stringify(credentials), AUTH_PARAMS);
-  const login = http.post(
-    `${BASE_URL}/api/auth/login`,
-    JSON.stringify(credentials),
-    AUTH_PARAMS,
-  );
-  // 토큰은 Set-Cookie 로만 온다 — response.cookies 는 이름별 배열이라 index 접근만(분기 0).
-  const accessToken = login.cookies["access_token"][0].value;
   return {
     personIds,
-    authCookie: `access_token=${accessToken}`,
+    providerId: provider.json("id"),
+    authCookie,
     periodStart: new Date(stamp).toISOString(),
   };
 }
@@ -114,4 +152,9 @@ export function teardown(data) {
       SEED_DELETE_PARAMS,
     );
   }
+  // D5 의 단일-row invariant 회수 — setup 이 만든 provider row 를 같은 DELETE 로 되돌린다.
+  http.del(`${BASE_URL}/api/llm/providers/${data.providerId}`, null, {
+    headers: { Cookie: data.authCookie },
+    tags: { route: "seed" },
+  });
 }
