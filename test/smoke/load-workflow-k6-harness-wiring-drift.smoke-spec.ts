@@ -611,6 +611,25 @@ describe("load-k6.yml ↔ test/load/s2-read.js ↔ package.json test:load:s2 S2 
 //      🔥 실 GitHub Actions 발화 0 · 실 k6 실행 0 · 실 docker 실행 0 · 실 HTTP 0 · YAML 파서 0 ·
 //         새 dependency 0 · DB 의존 0 · process.env 읽기/쓰기 0 — 파일 read + 합성 문자열 주입만.
 const SEED_ENV_KEY = "K6_SEED_PERSONS";
+
+/**
+ * 부하 스크립트의 `__ENV.<envKey>` 선언에서 fallback 기본값 리터럴을 뽑는다(S1 · S2 공유 helper).
+ * 정규화 표현(`Math.trunc(Number(__ENV.X)) || N`) 과 옛 직접 표현(`__ENV.X || N`) 을 같은 정규형
+ * 으로 뽑아, 표현 형태가 바뀌어도 workflow 주입값 ↔ 스크립트 기본값 대조력이 유지된다.
+ * 대상 부재면 `null`(추측 0).
+ * @throws {TypeError} `source`/`envKey` 가 non-string 일 때(0-byte fallback false-PASS 방지).
+ */
+function extractEnvFallback(source: string, envKey: string): string | null {
+  if (typeof source !== "string" || typeof envKey !== "string") {
+    throw new TypeError(
+      "extractEnvFallback: source·envKey 는 string 이어야 함",
+    );
+  }
+  const m = source.match(
+    new RegExp("__ENV[.]" + envKey + "[^\\n]*?[|][|]\\s*(\\d+)"),
+  );
+  return m ? m[1] : null;
+}
 /** seed / 정리 전용 route tag — 읽기 route tag 3 종과 겹치면 안 된다. */
 const WRITE_TAGS = ["seed", "teardown"];
 
@@ -670,10 +689,8 @@ describe("test/load/s2-read.js ↔ load-k6.yml S2 seed/teardown 배선 drift smo
       const block = extractStepBlock(loadYml(), S2_RUN_STEP_NAME) as string[];
       const injected = extractKey(block, SEED_ENV_KEY) as string;
       expect(Number(injected)).toBeGreaterThan(0);
-      const fallback = s2Script().match(
-        new RegExp(`__ENV\\.${SEED_ENV_KEY}\\s*\\|\\|\\s*(\\d+)`),
-      ) as RegExpMatchArray;
-      expect(fallback[1]).toBe(injected);
+      const fallback = extractEnvFallback(s2Script(), SEED_ENV_KEY) as string;
+      expect(fallback).toBe(injected);
       // 기존 배선은 불변 — run 명령 · base URL 주입값이 그대로다.
       expect(extractKey(block, "run")).toBe(`k6 run ${S2_SCRIPT_REL}`);
       expect(extractKey(block, "K6_BASE_URL")).toBe(EXPECTED_BASE_URL);
@@ -1293,7 +1310,7 @@ describe("test/load/s1-batch.js S1 평가 배치 부하 골격 drift smoke (T-16
         /export function setup\(\)[\s\S]*export default function \(data\)[\s\S]*export function teardown\(data\)/,
       );
       // 표본 인원 기본 10 + base URL 은 smoke.js·S2·S3 와 동일(workflow 주입값 parity).
-      expect(script).toContain("__ENV.K6_S1_PERSONS || 10");
+      expect(extractEnvFallback(script, S1_PERSONS_ENV_KEY)).toBe("10");
       expect(script).toContain(`__ENV.K6_BASE_URL || "${EXPECTED_BASE_URL}"`);
     });
 
@@ -1547,9 +1564,10 @@ describe("load-k6.yml S1 step 배선 ↔ stub/cipher env 주입 ↔ package.json
       const block = extractStepBlock(loadYml(), S1_RUN_STEP_NAME) as string[];
       expect(extractKey(block, "K6_BASE_URL")).toBe(EXPECTED_BASE_URL);
       // 표본 인원은 리터럴로 굳히지 않고 스크립트 기본값에서 뽑아 대조한다(양쪽 동시 drift 차단).
-      const declared = (
-        s1Script().match(/__ENV\.K6_S1_PERSONS \|\| (\d+)/) as string[]
-      )[1];
+      const declared = extractEnvFallback(
+        s1Script(),
+        S1_PERSONS_ENV_KEY,
+      ) as string;
       expect(extractKey(block, S1_PERSONS_ENV_KEY)).toBe(declared);
     });
 
@@ -1740,6 +1758,167 @@ describe("load-k6.yml S1 step 배선 ↔ stub/cipher env 주입 ↔ package.json
       );
       // 체이닝 합성 mutation — 단일 커맨드 정규형이 깨지면 경로를 추측하지 않는다.
       expect(scriptPathOf(`${run} && k6 run ${S2_SCRIPT_REL}`)).toBeNull();
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-1634 — S1/S2 부하 스크립트의 표본 인원 __ENV 파싱 방어 drift.
+// 존재 이유 — 인원 env 가 비수치(오타 · 단위 접미사 · 공백)면 옛 표현은 NaN 을 내고, 그 NaN 이
+// S1 의 BATCH_P95_MS 산식을 타고 `p(95)<NaN` 임계로 굳어 run 이 통째로 깨진다. S2 는 seed 인원이
+// NaN 이 되어 0 행 위에서 p95 를 통과하는 착시를 만든다. 정규화 표현은 실행 없이는 회귀를 알 수
+// 없으므로 문자열 형태를 정적으로 고정한다. 새 helper 0 — 위 extractEnvFallback 공유.
+//      🔥 실 GitHub Actions 발화 0 · 실 k6 실행 0 · 실 docker 실행 0 · 실 HTTP 0 · YAML 파서 0 ·
+//         새 dependency 0 · DB 의존 0 · process.env 읽기/쓰기 0 — 파일 read + 합성 문자열 주입만.
+
+/** 본 spec 자신의 경로 — 외부 프로세스 호출 0 을 자기 소스로 단언한다. */
+const SELF_SPEC_REL =
+  "test/smoke/load-workflow-k6-harness-wiring-drift.smoke-spec.ts";
+
+/** 정규화 표현 정규형 — `Math.max(1, Math.trunc(Number(__ENV.<key>)) || <기본값>)`. */
+const normalizedPersonsExpr = (envKey: string, fallback: string): RegExp =>
+  new RegExp(
+    `Math\\.max\\(\\s*1,\\s*Math\\.trunc\\(Number\\(__ENV\\.${envKey}\\)\\)\\s*\\|\\|\\s*${fallback},?\\s*\\)`,
+  );
+
+describe("test/load S1·S2 표본 인원 __ENV 파싱 방어 drift smoke (T-1634)", () => {
+  describe("Happy-path: 정규화 표현 · 기본값 parity · 머리 주석 doc-sync", () => {
+    it("s1-batch.js 의 SAMPLE_PERSONS 가 정규화 표현이고 기본값 10 이 workflow 주입값과 parity 다", () => {
+      const script = s1Script();
+      expect(script).toMatch(normalizedPersonsExpr(S1_PERSONS_ENV_KEY, "10"));
+      // 기본값은 리터럴로 굳히지 않고 스크립트에서 뽑아 workflow 주입값과 대조한다.
+      const declared = extractEnvFallback(script, S1_PERSONS_ENV_KEY) as string;
+      const block = extractStepBlock(loadYml(), S1_RUN_STEP_NAME) as string[];
+      expect(extractKey(block, S1_PERSONS_ENV_KEY)).toBe(declared);
+    });
+
+    it("s2-read.js 의 SEED_PERSONS 가 정규화 표현이고 기본값 30 이 workflow 주입값과 parity 다", () => {
+      const script = s2Script();
+      expect(script).toMatch(normalizedPersonsExpr(SEED_ENV_KEY, "30"));
+      const declared = extractEnvFallback(script, SEED_ENV_KEY) as string;
+      const block = extractStepBlock(loadYml(), S2_RUN_STEP_NAME) as string[];
+      expect(extractKey(block, SEED_ENV_KEY)).toBe(declared);
+    });
+
+    it("두 선언 위 주석이 '정규화' 의도와 '임계 무변경' 을 한국어로 남긴다", () => {
+      [s1Script(), s2Script()].forEach((script) => {
+        expect(script).toContain("정규화");
+        expect(script).toContain("무변경");
+      });
+    });
+
+    it("s1-batch.js 머리 주석의 '범위 밖' 문단이 load-k6.yml · package.json 을 후속으로 적지 않는다", () => {
+      const scope = s1Script()
+        .split("\n")
+        .find((l) => l.startsWith("// 범위 밖(후속 slice):")) as string;
+      expect(scope).toBeDefined();
+      ["load-k6.yml", "package.json", "script"].forEach((t) =>
+        expect(scope).not.toContain(t),
+      );
+      // 남는 3 항목은 ADR-0057 ## 범위 밖 잔여와 같다.
+      ["133명 full seed", "baseline", "분해 지표"].forEach((t) =>
+        expect(scope).toContain(t),
+      );
+    });
+  });
+
+  describe("Error path: extractEnvFallback 계약 — non-string throw · 대상 부재 null", () => {
+    it("non-string source·envKey 는 TypeError (0-byte read false-PASS 차단)", () => {
+      expect(() =>
+        extractEnvFallback(undefined as unknown as string, "K6_X"),
+      ).toThrow(TypeError);
+      expect(() =>
+        extractEnvFallback("const a = 1;", 7 as unknown as string),
+      ).toThrow(TypeError);
+      expect(() =>
+        extractEnvFallback(null as unknown as string, "K6_X"),
+      ).toThrow(/string 이어야 함/);
+    });
+
+    it("대상 env 키가 없으면 null 정규형(추측 0)", () => {
+      expect(extractEnvFallback("const a = 1;", "K6_ABSENT")).toBeNull();
+      // 키는 있으나 숫자 fallback 이 없으면(문자열 기본값) 역시 null.
+      expect(
+        extractEnvFallback(
+          'const u = __ENV.K6_BASE_URL || "http://x";',
+          "K6_BASE_URL",
+        ),
+      ).toBeNull();
+    });
+  });
+
+  describe("flow / 분기 cover — 패턴 발견/미발견 · Number() 안쪽/바깥 형태", () => {
+    it("helper 의 두 갈래: 발견 시 리터럴 문자열 · 미발견 시 null", () => {
+      expect(
+        extractEnvFallback("const n = Number(__ENV.K6_P) || 42;", "K6_P"),
+      ).toBe("42");
+      expect(
+        extractEnvFallback("const n = Number(__ENV.K6_Q) || 42;", "K6_P"),
+      ).toBeNull();
+    });
+
+    it("옛 표현(Number 안쪽 ||) · 새 표현(Number 바깥 ||) 양쪽에서 같은 정규형을 뽑는다", () => {
+      const legacy = "const n = Number(__ENV.K6_P || 10);";
+      const hardened =
+        "const n = Math.max(1, Math.trunc(Number(__ENV.K6_P)) || 10);";
+      expect(extractEnvFallback(legacy, "K6_P")).toBe("10");
+      expect(extractEnvFallback(hardened, "K6_P")).toBe("10");
+      // 표현 형태가 바뀌어도 parity 대조력이 유지된다 — 두 형태의 추출 결과가 동일.
+      expect(extractEnvFallback(legacy, "K6_P")).toBe(
+        extractEnvFallback(hardened, "K6_P"),
+      );
+    });
+  });
+
+  describe("Negative: 옛 취약 표현 잔존 0 · 분기 0 · 기본값/상수 무변경 · 실행 0", () => {
+    it("① s1-batch.js 에 옛 취약 표현 Number(__ENV.K6_S1_PERSONS || 10) 이 남아 있지 않다", () => {
+      expect(s1Script()).not.toContain("Number(__ENV.K6_S1_PERSONS || 10)");
+    });
+
+    it("② s2-read.js 에 옛 취약 표현 Number(__ENV.K6_SEED_PERSONS || 30) 이 남아 있지 않다", () => {
+      expect(s2Script()).not.toContain("Number(__ENV.K6_SEED_PERSONS || 30)");
+    });
+
+    it("③ 두 스크립트에 if( · 삼항 ? 조건 분기가 새로 들어오지 않는다(분기 0 규약)", () => {
+      [s1Script(), s2Script()].forEach((script) => {
+        const code = script
+          .split("\n")
+          .filter((l) => !l.trim().startsWith("//"))
+          .join("\n");
+        expect(code).not.toMatch(/\bif\s*\(/);
+        expect(code).not.toContain("?");
+      });
+    });
+
+    it("④ 기본값이 0 · 음수 리터럴로 바뀌지 않는다", () => {
+      const s1 = extractEnvFallback(s1Script(), S1_PERSONS_ENV_KEY) as string;
+      const s2 = extractEnvFallback(s2Script(), SEED_ENV_KEY) as string;
+      [s1, s2].forEach((v) => expect(Number(v)).toBeGreaterThan(0));
+      [s1Script(), s2Script()].forEach((script) => {
+        expect(script).not.toMatch(/\|\|\s*-?0\b/);
+        expect(script).not.toMatch(/\|\|\s*-\d/);
+      });
+    });
+
+    it("⑤ S1 임계 산식 상수(133 · 3600000)와 산식 형태가 무변경이다", () => {
+      const script = s1Script();
+      expect(script).toContain("const EXTRAPOLATION_PERSONS = 133;");
+      expect(script).toContain("const FULL_RUN_BUDGET_MS = 3600000;");
+      expect(script).toMatch(
+        /BATCH_P95_MS = Math\.round\(\s*FULL_RUN_BUDGET_MS \* \(SAMPLE_PERSONS \/ EXTRAPOLATION_PERSONS\),?\s*\)/,
+      );
+    });
+
+    it("⑥ 본 spec 은 실 HTTP · 실 k6 · 실 docker 실행 0 — 파일 read + 합성 문자열만", () => {
+      const imports = readFileSync(path.join(REPO_ROOT, SELF_SPEC_REL), "utf8")
+        .split("\n")
+        .filter((l) => l.startsWith("import "));
+      expect(imports.length).toBeGreaterThan(0);
+      // import 는 파일 read 계열(fs · path) 뿐 — child_process · http client 편입 0.
+      imports.forEach((l) => expect(l).toMatch(/from "(node:)?(fs|path)";$/));
+      // 합성 문자열만으로도 helper 가 동작한다 = 외부 프로세스 · 네트워크 의존 0.
+      expect(extractEnvFallback("Number(__ENV.K6_Z) || 1", "K6_Z")).toBe("1");
+      expect(extractEnvFallback("", "K6_Z")).toBeNull();
     });
   });
 });
