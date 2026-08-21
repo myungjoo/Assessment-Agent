@@ -50,6 +50,10 @@ correctness)은 unit / e2e 가 이미 cover 하므로 본 문서 범위 밖이�
 - **관찰**: 완료 시간, 단계별(수집 / LLM / 저장) 소요 분포, 실패·재시도 건수.
 - **주의**: 실 LLM·외부 수집 endpoint 의존도가 커, 부하 측정 시 stub/record-replay 또는
   격리 endpoint 필요(§4 참조) — 순수 서버 처리량과 외부 I/O 대기를 분리 측정.
+- **(현행) 위 격리 설계는 닫혔다**: [ADR-0057](../decisions/ADR-0057-s1-batch-load-io-isolation.md)
+  `D1` 이 env 기반 stub gateway 주입(env `LOAD_TEST_STUB` 가 정확히 `1` 일 때만 stub LLM
+  gateway 바인딩, fail-safe default OFF)으로 결정했고 배선까지 완료됐다(T-1627 ~ T-1629,
+  `load-k6.yml` 의 S1 step 이 해당 env 를 주입). 잔여는 baseline 실측(§5 item 5).
 
 ### S2. 조회 API 응답 지연 (REQ-048)
 
@@ -114,8 +118,13 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
   작성 후 도입)이다. 따라서 **도구 선택·도입 결정 자체는 본 계획 문서 범위 밖**이며, §5
   의 follow-up 으로 넘긴다.
 - **LLM/외부 수집 의존 격리**: S1 은 실 LLM·GitHub/Confluence I/O 대기가 지배적일 수
-  있어, 순수 서버 처리량 측정 시 stub / record-replay / 격리 endpoint 를 선행 설계해야
-  한다(도구 ADR 에서 함께 결정).
+  있어, 순수 서버 처리량 측정 시 stub / record-replay / 격리 endpoint 가 필요하다. **LLM 축은
+  결정 완료 + 구현 완료** — [ADR-0057](../decisions/ADR-0057-s1-batch-load-io-isolation.md)
+  `D1` 이 env 기반 stub gateway 주입(`LOAD_TEST_STUB` 가 정확히 `1` 일 때만, fail-safe
+  default OFF)으로 결정했고 helper·stub class·module binding 이 모두 배선됐다(T-1627 ~ T-1629).
+  **수집(GitHub/Confluence) 축은 아직 stub 미배선** 이다 — 현 S1 표본 person 은
+  `ServiceIdentity` 가 없어 외부 수집 왕복이 0 이라 현 측정에는 영향이 없고, 실 scale 표본으로
+  확대할 때 같은 adapter 경계에 같은 방식의 배선이 필요하다.
 
 ---
 
@@ -125,18 +134,19 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 
 1. **부하 도구 선택 ADR** (pr-mode + 신규 dependency, 사람 승인) — k6 / artillery /
    autocannon 중 택1, trade-off·격리 endpoint 전략 박제. [CLAUDE.md §5](../../CLAUDE.md)
-   BLOCKED 해소 전제. → [ADR-0054](../decisions/ADR-0054-load-resilience-harness-tool.md) (PROPOSED, k6 권고 — 도입은 owner 승인 후 별도 task).
+   BLOCKED 해소 전제. → [ADR-0054](../decisions/ADR-0054-load-resilience-harness-tool.md) (**ACCEPTED** — frontmatter date 2026-07-08, 2026-07-30 owner 가 k6 dependency 를 승인해 flip. k6 는 `package.json` 의 `test:load:*` script 로 도입 완료).
 2. **S2 조회 latency 경량 harness** (supertest 기반, 신규 dependency 불요 가능) — 위 1
    과 독립적으로 먼저 착수 가능한 최소 measure.
-3. **S1 / S3 부하 harness 구현** — 1 의 도구 결정 후. 배치 부하·동시성 내성 스크립트. → [ADR-0057](../decisions/ADR-0057-s1-batch-load-io-isolation.md) (ACCEPTED, S1 외부 I/O 격리 4 축 확정 — 스크립트·배선은 후속 slice).
+3. **S1 / S3 부하 harness 구현** — 1 의 도구 결정 후. 배치 부하·동시성 내성 스크립트. → [ADR-0057](../decisions/ADR-0057-s1-batch-load-io-isolation.md) (ACCEPTED, S1 외부 I/O 격리 4 축 확정). **스크립트 · workflow step · npm script 배선 완료** — S1 은 [`test/load/s1-batch.js`](../../test/load/s1-batch.js)(T-1631 main `fa0aad91`, D5 seed T-1632 `9099d99f`, 표본 env 방어 T-1634 `971c716c`) + `load-k6.yml` S1 step(T-1633 `63555e09`) + `package.json` `test:load:s1`, S3 는 `s3-concurrent.js`(T-1625 `efd2f5bb`).
    S1 스크립트 착수 전 **전제조건**은 같은 ADR 의 `D5`(T-1630 개정) 가 확정했다 — 타격 route 가
    `LlmProviderConfigResolver` 를 먼저 await 해 provider row 0 이면 503 이므로, S1 `setup()` 이
    `POST /api/llm/providers` 로 **정확히 1 row** 를 멱등 seed 하고 `teardown()` 이 회수한다
    (test-only 더미 값 + 더미 `LLM_APIKEY_ENC_KEY` — credential 0 유지). `§3` 임계는 무변경.
-4. **CI 통합** — 부하 harness 를 `.github/workflows/` 에 별도 job(정기/수동 trigger)으로
-   편입. 상시 PR CI 와 분리(부하는 무거움).
-5. **baseline 확정 + 임계 fix** — 최초 실측으로 §3 의 "baseline 후 fix" 임계를 실 수치로
-   확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 29 까지 도달**: slice 1(T-1500, main
+4. **CI 통합** — **편입 완료**: 부하 harness 는 [`load-k6.yml`](../../.github/workflows/load-k6.yml)
+   별도 수동 job(`workflow_dispatch`)으로 편입돼 smoke → S1 → S2 → S3 step 을 실행하며, 상시
+   PR CI(`ci.yml`)와 분리돼 있다(부하는 무거움).
+5. **baseline 확정 + 임계 fix** — **미착수 유지**(S1 은 harness 만 shipped, 실측 run 0). 최초
+   실측으로 §3 의 "baseline 후 fix" 임계를 실 수치로 확정하고 본 문서를 갱신. **실 DB round-trip 실측이 slice 29 까지 도달**: slice 1(T-1500, main
    `0395c51e`) 의 [`person-read-realdb.perf-spec.ts`](../../test/perf/person-read-realdb.perf-spec.ts)
    가 mock override 0 부트스트랩 + 실 Prisma seed 로 `GET /api/persons` 의 p95 < 3000ms 를 실측했고,
    slice 2(T-1502, main `97198504`) 의
