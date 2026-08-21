@@ -13,13 +13,19 @@
 // 대상 route 가 Admin+ 라 이 run 의 첫 user 가 SuperAdmin 이어야 하고(src/user/user.controller.ts
 // 9~11 행), 그 전제는 workflow step 순서 smoke → S1 → S2 → S3 이 보장한다. 규약 승계(s2-read.js):
 // __ENV 기본값 · route tag 분리 · signup → login → cookie · setup/teardown 자기 정리 · 분기 0.
-// 범위 밖(후속 slice): load-k6.yml step · package.json script · 133명 full seed.
+// 범위 밖(후속 slice): 133명 full seed · baseline 실측/임계 fix · 서버 단계별 분해 지표.
+// (load-k6.yml step · package.json test:load:s1 은 T-1633 으로 배선 완료 — 후속 아님.)
 import http from "k6/http";
 
 // __ENV 기본값 2 종 — base URL 은 workflow 주입값과 동형(smoke.js · s2-read.js · s3-concurrent.js),
 // 축소 표본 인원은 ADR-0057 D4 의 기본 10.
 const BASE_URL = __ENV.K6_BASE_URL || "http://localhost:3000";
-const SAMPLE_PERSONS = Number(__ENV.K6_S1_PERSONS || 10);
+// 표본 인원은 오입력(비수치 · 빈 문자열 · 단위 접미사 · 0 이하)을 기본값 · 양의 정수로 정규화한다
+// — 값 재산정이 아니라 방어일 뿐이라 ADR-0057 D4 산식과 계획 §3 임계는 무변경이다(분기 0 표현).
+const SAMPLE_PERSONS = Math.max(
+  1,
+  Math.trunc(Number(__ENV.K6_S1_PERSONS)) || 10,
+);
 // 외삽 기준 — realdata-scale-devset.md 6 행의 실 devset 133명 + REQ-047 1h 예산(§3 표) 그대로.
 const EXTRAPOLATION_PERSONS = 133;
 const FULL_RUN_BUDGET_MS = 3600000;

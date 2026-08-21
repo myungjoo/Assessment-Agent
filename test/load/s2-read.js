@@ -28,7 +28,12 @@ const BASE_URL = __ENV.K6_BASE_URL || "http://localhost:3000";
 
 // seed 인원 수. workflow 의 K6_SEED_PERSONS 주입값을 읽고 미지정 시 30 (BASE_URL 과 동형의
 // __ENV 기본값 규약). 조회 목록이 비지 않을 정도의 합성 소규모 fixture — 133명 실 seed 는 S1 소관.
-const SEED_PERSONS = Number(__ENV.K6_SEED_PERSONS || 30);
+// 인원 오입력(비수치 · 빈 문자열 · 단위 접미사 · 0 이하)은 기본값 · 양의 정수로 정규화한다 — seed
+// 인원이 NaN 이 되어 0 행 위에서 p95 를 통과하는 착시 차단. 임계 · 프로파일은 무변경(분기 0 표현).
+const SEED_PERSONS = Math.max(
+  1,
+  Math.trunc(Number(__ENV.K6_SEED_PERSONS)) || 30,
+);
 
 // seed / 정리 요청 파라미터. route tag 는 조회 3 종(persons / groups / parts) 과 겹치지 않는
 // 별도 이름이라, route tag 별 p95 임계 3 종이 조회 지연만 측정한다 (지표 오염 차단).
