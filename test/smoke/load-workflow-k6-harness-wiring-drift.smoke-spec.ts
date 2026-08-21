@@ -115,6 +115,40 @@ function triggerSection(source: string): string {
 }
 
 /**
+ * workflow 의 env 주입 표현식을 "실제로 선언된 값" 으로 해석한다 (T-1640).
+ * - `${{ inputs.<name> }}`(또는 `${{ github.event.inputs.<name> }}`) 형태면 같은 workflow 의
+ *   `workflow_dispatch.inputs.<name>.default` 를 돌려준다 — 선언 부재면 `null`(추측 0).
+ * - 그 외에는 따옴표만 벗긴 리터럴 그대로 (파라미터화 이전 형태 하위호환 분기).
+ * @throws {TypeError} `source`/`expr` 이 non-string 일 때(위 helper 들과 동형 계약 — false-PASS 방지).
+ */
+function resolveInputExpr(source: string, expr: string): string | null {
+  if (typeof source !== "string" || typeof expr !== "string") {
+    throw new TypeError("resolveInputExpr: source·expr 은 string 이어야 함");
+  }
+  const ref = unquote(expr).match(
+    /^\$\{\{\s*(?:github\.event\.)?inputs\.([A-Za-z0-9_-]+)\s*\}\}$/,
+  );
+  if (ref === null) {
+    return unquote(expr);
+  }
+  const lines = triggerSection(source).split("\n");
+  const head = lines.findIndex((l) => l.trim() === `${ref[1]}:`);
+  if (head < 0) {
+    return null;
+  }
+  const headIndent = indentOf(lines[head]);
+  for (let i = head + 1; i < lines.length; i += 1) {
+    if (lines[i].trim() !== "" && indentOf(lines[i]) <= headIndent) {
+      break;
+    }
+    if (lines[i].trim().startsWith("default:")) {
+      return unquote(lines[i].trim().slice("default:".length));
+    }
+  }
+  return null;
+}
+
+/**
  * trim 기준으로 정확히 일치하는 행의 index(step 순서 비교 · 섹션 경계 판정 공용). 부재면 -1(추측 0).
  * @throws {TypeError} non-string 입력일 때(extractStepBlock 과 동형 계약 — 0-byte false-PASS 방지).
  */
@@ -1571,11 +1605,17 @@ describe("load-k6.yml S1 step 배선 ↔ stub/cipher env 주입 ↔ package.json
       const block = extractStepBlock(loadYml(), S1_RUN_STEP_NAME) as string[];
       expect(extractKey(block, "K6_BASE_URL")).toBe(EXPECTED_BASE_URL);
       // 표본 인원은 리터럴로 굳히지 않고 스크립트 기본값에서 뽑아 대조한다(양쪽 동시 drift 차단).
+      // T-1640 — 주입값이 dispatch input 표현식이 되었으므로 선언된 default 로 해석한 뒤 대조한다.
       const declared = extractEnvFallback(
         s1Script(),
         S1_PERSONS_ENV_KEY,
       ) as string;
-      expect(extractKey(block, S1_PERSONS_ENV_KEY)).toBe(declared);
+      expect(
+        resolveInputExpr(
+          loadYml(),
+          extractKey(block, S1_PERSONS_ENV_KEY) as string,
+        ),
+      ).toBe(declared);
     });
 
     it("(c) workflow 실행 경로 · package.json test:load:s1 · 실 파일 3 자 parity", () => {
@@ -1794,9 +1834,15 @@ describe("test/load S1·S2 표본 인원 __ENV 파싱 방어 drift smoke (T-1634
       const script = s1Script();
       expect(script).toMatch(normalizedPersonsExpr(S1_PERSONS_ENV_KEY, "10"));
       // 기본값은 리터럴로 굳히지 않고 스크립트에서 뽑아 workflow 주입값과 대조한다.
+      // T-1640 — 주입값은 dispatch input 표현식이라 선언된 default 로 해석해 비교한다.
       const declared = extractEnvFallback(script, S1_PERSONS_ENV_KEY) as string;
       const block = extractStepBlock(loadYml(), S1_RUN_STEP_NAME) as string[];
-      expect(extractKey(block, S1_PERSONS_ENV_KEY)).toBe(declared);
+      expect(
+        resolveInputExpr(
+          loadYml(),
+          extractKey(block, S1_PERSONS_ENV_KEY) as string,
+        ),
+      ).toBe(declared);
     });
 
     it("s2-read.js 의 SEED_PERSONS 가 정규화 표현이고 기본값 30 이 workflow 주입값과 parity 다", () => {
@@ -2073,11 +2119,15 @@ describe("load-k6.yml S1 summary export ↔ 실측 기록 step 배선 drift smok
         S1_PERSONS_ENV_KEY,
       ) as string;
       const yml = loadYml();
+      // T-1640 — 두 step 모두 dispatch input 표현식을 가리키므로 선언된 default 로 해석해 대조한다.
       [S1_RUN_STEP_NAME, S1_SUMMARY_STEP_NAME].forEach((name) =>
         expect(
-          extractKey(
-            extractStepBlock(yml, name) as string[],
-            S1_PERSONS_ENV_KEY,
+          resolveInputExpr(
+            yml,
+            extractKey(
+              extractStepBlock(yml, name) as string[],
+              S1_PERSONS_ENV_KEY,
+            ) as string,
           ),
         ).toBe(declared),
       );
@@ -2259,10 +2309,14 @@ describe("load-k6.yml S1 실측 기록 step 의 stdout 회수 배선 drift smoke
     it("③ 기록 step 의 K6_S1_PERSONS 가 s1-batch.js __ENV 기본값과 여전히 parity 다", () => {
       const declared = extractEnvFallback(s1Script(), S1_PERSONS_ENV_KEY);
       expect(declared).not.toBeNull();
+      // T-1640 — 기록 step 주입값도 input 표현식이라 선언된 default 로 해석해 비교한다.
       expect(
-        extractKey(
-          extractStepBlock(loadYml(), S1_SUMMARY_STEP_NAME) as string[],
-          S1_PERSONS_ENV_KEY,
+        resolveInputExpr(
+          loadYml(),
+          extractKey(
+            extractStepBlock(loadYml(), S1_SUMMARY_STEP_NAME) as string[],
+            S1_PERSONS_ENV_KEY,
+          ) as string,
         ),
       ).toBe(declared);
     });
@@ -2295,6 +2349,178 @@ describe("load-k6.yml S1 실측 기록 step 의 stdout 회수 배선 drift smoke
       [STEP_SUMMARY_ENV, "tee"].forEach((t) =>
         expect(teardown).not.toContain(t),
       );
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-1640 — S1 표본 인원을 `workflow_dispatch` input 으로 파라미터화한 배선 drift.
+// 존재 이유 — 표본 인원이 workflow 안 리터럴로 굳어 있으면 실 scale(133 명) 실측과 같은 조건의
+// 반복 run(load-resilience-test-plan.md §5 item 5 잔여 ①·②) 마다 pr-mode slice 가 필요해진다.
+// 파라미터화 자체는 순전히 문자열 배선이라 실 dispatch 없이는 회귀를 알 수 없고, 특히 두 step
+// (실행 · 기록) 중 한쪽만 리터럴로 남으면 기록이 실 표본과 어긋난 채로 CI 는 green 이다.
+// 새 helper 1(resolveInputExpr) — 나머지는 위 공유.
+//      🔥 실 GitHub Actions 발화 0 · 실 dispatch 0 · 실 k6 실행 0 · YAML 파서 0 ·
+//         새 dependency 0 · process.env 읽기/쓰기 0 — 파일 read + 합성 문자열 주입만.
+
+/** 표본 인원 dispatch input 의 이름과 step env 가 가리켜야 하는 표현식 정본. */
+const S1_PERSONS_INPUT_NAME = "s1_persons";
+const S1_PERSONS_INPUT_EXPR = `\${{ inputs.${S1_PERSONS_INPUT_NAME} }}`;
+
+describe("load-k6.yml S1 표본 인원 workflow_dispatch input 파라미터화 drift smoke (T-1640)", () => {
+  describe("Happy-path: input 선언 · default parity · 두 step 동일 표현식", () => {
+    it("① workflow_dispatch 가 s1_persons input 1 개를 갖고 그 default 가 스크립트 __ENV 기본값과 같다", () => {
+      const triggers = triggerSection(loadYml());
+      expect(triggers).toContain("inputs:");
+      expect(triggers).toContain(`${S1_PERSONS_INPUT_NAME}:`);
+      // input 은 정확히 1 개 — description / default 등장 횟수로 증식을 막는다.
+      expect(triggers.match(/description:/g)).toHaveLength(1);
+      expect(triggers.match(/^\s*default:/gm)).toHaveLength(1);
+      expect(triggers).toContain("type: string");
+      // default 는 리터럴로 굳히지 않고 스크립트 기본값에서 뽑아 대조한다(양쪽 동시 drift 차단).
+      expect(resolveInputExpr(loadYml(), S1_PERSONS_INPUT_EXPR)).toBe(
+        extractEnvFallback(s1Script(), S1_PERSONS_ENV_KEY),
+      );
+    });
+
+    it("② S1 실행 step 의 K6_S1_PERSONS 가 그 input 표현식을 가리킨다", () => {
+      const block = extractStepBlock(loadYml(), S1_RUN_STEP_NAME) as string[];
+      expect(extractKey(block, S1_PERSONS_ENV_KEY)).toBe(S1_PERSONS_INPUT_EXPR);
+    });
+
+    it("③ 기록 step 의 K6_S1_PERSONS 도 같은 표현식을 가리킨다(두 곳 문자열 동일)", () => {
+      const yml = loadYml();
+      const injected = [S1_RUN_STEP_NAME, S1_SUMMARY_STEP_NAME].map((name) =>
+        extractKey(extractStepBlock(yml, name) as string[], S1_PERSONS_ENV_KEY),
+      );
+      expect(injected[1]).toBe(S1_PERSONS_INPUT_EXPR);
+      // 한쪽만 바뀌는 형태(회차 간 기록 drift 원인)를 문자열 동일성으로 차단한다.
+      expect(injected[0]).toBe(injected[1]);
+    });
+  });
+
+  describe("Error path: 오타 참조 · non-string throw · 미선언 input null", () => {
+    it("① 주입 표현식이 오타난 input 이름을 가리키지 않는다(선언된 이름 집합과 대조)", () => {
+      const yml = loadYml();
+      // 선언된 이름 집합 — 트리거 섹션에서 default 를 되찾을 수 있는 이름만 유효하다.
+      ["s1_person", "s1_persons_", "S1_PERSONS", "persons"].forEach((name) =>
+        expect(resolveInputExpr(yml, `\${{ inputs.${name} }}`)).toBeNull(),
+      );
+      // 실 배선이 가리키는 이름은 그 집합 안에 있어 해석에 성공한다.
+      expect(
+        resolveInputExpr(
+          yml,
+          extractKey(
+            extractStepBlock(yml, S1_RUN_STEP_NAME) as string[],
+            S1_PERSONS_ENV_KEY,
+          ) as string,
+        ),
+      ).not.toBeNull();
+    });
+
+    it("② resolveInputExpr 이 non-string 입력에 TypeError 를 던진다(기존 helper 와 동형 계약)", () => {
+      expect(() =>
+        resolveInputExpr(undefined as unknown as string, "x"),
+      ).toThrow(TypeError);
+      expect(() =>
+        resolveInputExpr("on:\njobs:\n", 7 as unknown as string),
+      ).toThrow(TypeError);
+      expect(() => resolveInputExpr(null as unknown as string, "x")).toThrow(
+        /string 이어야 함/,
+      );
+    });
+
+    it("③ 선언되지 않은 input 을 조회하면 null 이다(추측 0) — default 누락도 null", () => {
+      // 트리거 섹션 자체가 없는 문서.
+      expect(resolveInputExpr("name: X\n", S1_PERSONS_INPUT_EXPR)).toBeNull();
+      // 이름은 선언됐지만 default 가 없는 형태 — 값을 지어내지 않는다.
+      const noDefault =
+        "on:\n  workflow_dispatch:\n    inputs:\n      s1_persons:\n        required: false\njobs:\n";
+      expect(resolveInputExpr(noDefault, S1_PERSONS_INPUT_EXPR)).toBeNull();
+    });
+  });
+
+  describe("flow / 분기 cover — input 참조 갈래 · 리터럴 갈래(하위호환)", () => {
+    it("(a) 표현식이 input 참조면 선언된 default 로 해석한다(github.event.inputs 형태 포함)", () => {
+      const src =
+        'on:\n  workflow_dispatch:\n    inputs:\n      s1_persons:\n        default: "42"\njobs:\n';
+      expect(resolveInputExpr(src, S1_PERSONS_INPUT_EXPR)).toBe("42");
+      expect(
+        resolveInputExpr(src, "${{ github.event.inputs.s1_persons }}"),
+      ).toBe("42");
+      // 감싼 따옴표가 있어도 같은 갈래로 들어간다.
+      expect(resolveInputExpr(src, `"${S1_PERSONS_INPUT_EXPR}"`)).toBe("42");
+    });
+
+    it("(b) 표현식이 리터럴이면 값 그대로 돌려준다(파라미터화 이전 형태 하위호환)", () => {
+      const legacy =
+        'on:\n  workflow_dispatch:\njobs:\n  load:\n    steps:\n      - name: x\n        env:\n          K6_S1_PERSONS: "10"\n        run: k6 run test/load/s1-batch.js\n';
+      const block = extractStepBlock(legacy, "x") as string[];
+      expect(
+        resolveInputExpr(
+          legacy,
+          extractKey(block, S1_PERSONS_ENV_KEY) as string,
+        ),
+      ).toBe("10");
+      // 리터럴 갈래는 트리거 섹션 유무와 무관하다.
+      expect(resolveInputExpr("name: X\n", "133")).toBe("133");
+    });
+  });
+
+  describe("negative cases 충분 cover — 무인자 dispatch · default 형태 · 트리거 · 순서 · 리터럴 잔재", () => {
+    it("① input 이 required: true 가 아니다(무인자 dispatch 가 그대로 동작)", () => {
+      const triggers = triggerSection(loadYml());
+      expect(triggers).toContain("required: false");
+      expect(triggers).not.toMatch(/required:\s*true/);
+    });
+
+    it("② default 가 비어 있거나 숫자 아닌 문자열이 아니다", () => {
+      const d = resolveInputExpr(loadYml(), S1_PERSONS_INPUT_EXPR) as string;
+      expect(d).not.toBeNull();
+      expect(d.trim()).not.toBe("");
+      expect(d).toMatch(/^\d+$/);
+      expect(Number(d)).toBeGreaterThan(0);
+    });
+
+    it("③ input 신설이 pull_request · push · schedule 트리거 유입을 동반하지 않는다", () => {
+      const triggers = triggerSection(loadYml());
+      expect(triggers).toContain("workflow_dispatch:");
+      ["pull_request:", "push:", "schedule:"].forEach((t) =>
+        expect(triggers).not.toContain(t),
+      );
+    });
+
+    it("④ 기록 step 이 여전히 if: always() 이고 S1 step 뒤에 온다(T-1636/T-1638 회귀 0)", () => {
+      const yml = loadYml();
+      const block = extractStepBlock(yml, S1_SUMMARY_STEP_NAME) as string[];
+      expect(extractKey(block, "if")).toBe("always()");
+      expect(stepIndexOf(yml, S1_SUMMARY_STEP_NAME)).toBeGreaterThan(
+        stepIndexOf(yml, S1_RUN_STEP_NAME),
+      );
+    });
+
+    it("⑤ 기록 step 의 메타 7 항목과 tee -a append 배선이 그대로다(T-1638 회귀 0)", () => {
+      const text = summaryStepText();
+      S1_META_FRAGMENTS.forEach((f) => expect(text).toContain(f));
+      expect(S1_META_FRAGMENTS).toHaveLength(7);
+      // append 3 갈래(환경 메타 · JSON 전문 · 부재 메시지) 전부가 tee 로 stdout 과 갈라진다.
+      expect(teeAppendTargetsOf(text)).toEqual([
+        STEP_SUMMARY_ENV,
+        STEP_SUMMARY_ENV,
+        STEP_SUMMARY_ENV,
+      ]);
+    });
+
+    it("⑥ 두 step 의 env 에 표본 인원 리터럴 10 이 남아 있지 않다(파라미터화 누락 차단)", () => {
+      const yml = loadYml();
+      [S1_RUN_STEP_NAME, S1_SUMMARY_STEP_NAME].forEach((name) => {
+        const injected = extractKey(
+          extractStepBlock(yml, name) as string[],
+          S1_PERSONS_ENV_KEY,
+        ) as string;
+        expect(injected).not.toMatch(/^\d+$/);
+        expect(injected).toContain("inputs.");
+      });
     });
   });
 });
