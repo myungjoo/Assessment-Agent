@@ -92,10 +92,17 @@ function extractStep(source: string, stepName: string): StepExtraction {
       };
 }
 
-/** `k6 run <path>` 에서 스크립트 상대경로만 뽑는다. 형태가 다르면 null(추측 0). */
+/**
+ * `k6 run [--flag ...] <path>` 에서 스크립트 상대경로만 뽑는다. 형태가 다르면 null(추측 0).
+ * T-1636 — S1 step 이 `--summary-export=<path>` 를 실행 경로 앞에 달게 되어 **선행 flag 토큰만**
+ * 건너뛴다. 경로 뒤 인자가 붙는 형태(`k6 run a.js --vus 10`)는 종전대로 null 이라 "단일 커맨드
+ * 정규형" 대조력은 불변이다.
+ */
 function scriptPathOf(command: string | null): string | null {
   const m =
-    command === null ? null : command.trim().match(/^k6\s+run\s+(\S+)$/);
+    command === null
+      ? null
+      : command.trim().match(/^k6\s+run\s+(?:-\S+\s+)*(\S+)$/);
   return m ? m[1] : null;
 }
 
@@ -1919,6 +1926,192 @@ describe("test/load S1·S2 표본 인원 __ENV 파싱 방어 drift smoke (T-1634
       // 합성 문자열만으로도 helper 가 동작한다 = 외부 프로세스 · 네트워크 의존 0.
       expect(extractEnvFallback("Number(__ENV.K6_Z) || 1", "K6_Z")).toBe("1");
       expect(extractEnvFallback("", "K6_Z")).toBeNull();
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-1636 — S1 실측 회수 배선(`--summary-export` + `$GITHUB_STEP_SUMMARY` 기록 step) drift.
+// 존재 이유 — S1 결과가 stdout 으로만 흐르면 run log 안에서 사라져 baseline(계획 §5 item 5) 을
+// 잡을 수 없고, 같은 문서 §3 의 "환경 메타를 함께 기록해 비교 가능하게" 요구도 미충족이다. 이
+// 배선은 순전히 문자열 parity(생성 경로 ↔ 소비 경로 · append 연산자 · step 순서)라 실 run 없이는
+// 회귀를 알 수 없어 정적으로 고정한다. 새 helper 1(summaryExportPathOf) — 나머지는 위 공유.
+//      🔥 실 GitHub Actions 발화 0 · 실 k6 실행 0 · 실 docker 실행 0 · 새 dependency 0 ·
+//         process.env 읽기/쓰기 0 — 파일 read + 합성 문자열 주입만.
+
+/** S1 실측 기록 step 이름 — 생성(S1 run) ↔ 소비(본 step) 문자열 parity 의 한쪽 끝. */
+const S1_SUMMARY_STEP_NAME = "S1 실측 요약 기록";
+/** 기록 step 이 요약을 append 하는 GitHub 제공 파일 경로 env. */
+const STEP_SUMMARY_ENV = "$GITHUB_STEP_SUMMARY";
+
+/**
+ * `k6 run --summary-export=<path> ...` 에서 export 경로만 뽑는다. flag 부재면 null(추측 0).
+ * @throws {TypeError} command 가 string·null 이 아닐 때(위 helper 들과 동형 계약).
+ */
+function summaryExportPathOf(command: string | null): string | null {
+  if (command !== null && typeof command !== "string") {
+    throw new TypeError(
+      "summaryExportPathOf: command 는 string | null 이어야 함",
+    );
+  }
+  const m = command === null ? null : command.match(/--summary-export=(\S+)/);
+  return m ? unquote(m[1]) : null;
+}
+
+/** 기록 step script 의 `summary_file=<path>` 대입에서 소비 경로를 뽑는다. 부재면 null. */
+function summaryFileVarOf(script: string): string | null {
+  const m = script.match(/^\s*summary_file=(\S+)$/m);
+  return m ? unquote(m[1]) : null;
+}
+
+/** 기록 step 블록 전문(개행 결합) — 대상 부재면 빈 문자열(추측 0). */
+const summaryStepText = (): string =>
+  (extractStepBlock(loadYml(), S1_SUMMARY_STEP_NAME) ?? []).join("\n");
+
+describe("load-k6.yml S1 summary export ↔ 실측 기록 step 배선 drift smoke (T-1636)", () => {
+  describe("Happy-path: export flag · 경로 parity · always() · step 순서 · 메타 적재", () => {
+    it("(a) S1 step run 이 --summary-export 를 달고 그 경로가 기록 step 참조 경로와 동일 문자열이다", () => {
+      const run = extractStep(loadYml(), S1_RUN_STEP_NAME).run as string;
+      const exported = summaryExportPathOf(run) as string;
+      expect(exported).not.toBeNull();
+      expect(summaryFileVarOf(summaryStepText())).toBe(exported);
+      // 스크립트 경로 parity 는 회귀 0 — flag 가 붙어도 겨냥 대상은 s1-batch.js 그대로다.
+      expect(scriptPathOf(run)).toBe(S1_SCRIPT_REL);
+    });
+
+    it("(b) 기록 step 이 실재하고 if: always() 이며 S1 step 뒤에 온다", () => {
+      const yml = loadYml();
+      const block = extractStepBlock(yml, S1_SUMMARY_STEP_NAME) as string[];
+      expect(block).not.toBeNull();
+      expect(extractKey(block, "if")).toBe("always()");
+      // 임계 위반으로 k6 가 exit 1 이어도 수치가 남아야 baseline 을 잡을 수 있다.
+      expect(stepIndexOf(yml, S1_SUMMARY_STEP_NAME)).toBeGreaterThan(
+        stepIndexOf(yml, S1_RUN_STEP_NAME),
+      );
+    });
+
+    it("(c) 기록 step 이 환경 메타 · 표본 인원 · summary JSON 전문을 요약에 싣는다", () => {
+      const text = summaryStepText();
+      // 계획 §3 의 환경 고정 요구 — 커널 · 아키텍처 · vCPU · 메모리 · image 태그 2 종.
+      [
+        "uname -sr",
+        "uname -m",
+        "nproc",
+        "free -h",
+        "postgres:16-alpine",
+        "assessment-agent:load",
+        "${K6_S1_PERSONS}",
+        "```json",
+        'cat "$summary_file"',
+      ].forEach((fragment) => expect(text).toContain(fragment));
+    });
+  });
+
+  describe("Error path: append 연산자 · 경로 등장 횟수 · helper 계약", () => {
+    it("(a) $GITHUB_STEP_SUMMARY 참조가 전부 >> append 이고 > 덮어쓰기가 0 이다", () => {
+      const parts = summaryStepText().split(STEP_SUMMARY_ENV);
+      // 3 회 참조(환경 메타 · JSON 전문 · 부재 메시지) — 앞 step 요약을 지우는 회귀 차단.
+      expect(parts).toHaveLength(4);
+      parts.slice(0, -1).forEach((p) => expect(p.endsWith('>> "')).toBe(true));
+      expect(summaryStepText()).not.toMatch(
+        /(^|[^>])>\s*"?\$GITHUB_STEP_SUMMARY/,
+      );
+    });
+
+    it("(b) export 경로가 workflow 안에서 생성·소비 2 곳에만 등장한다", () => {
+      const yml = loadYml();
+      const exported = summaryExportPathOf(
+        extractStep(yml, S1_RUN_STEP_NAME).run,
+      ) as string;
+      expect(yml.split(exported)).toHaveLength(3);
+    });
+
+    it("(c) summaryExportPathOf 계약 — non-string throw · flag 부재 null", () => {
+      [42, {}, [], undefined].forEach((v) =>
+        expect(() => summaryExportPathOf(v as unknown as string)).toThrow(
+          TypeError,
+        ),
+      );
+      expect(summaryExportPathOf(null)).toBeNull();
+      expect(summaryExportPathOf(`k6 run ${S1_SCRIPT_REL}`)).toBeNull();
+      expect(summaryFileVarOf("")).toBeNull();
+    });
+  });
+
+  describe("flow / 분기 cover — 요약 파일 존재 / 부재 두 갈래", () => {
+    it("(a) 존재 분기가 파일 본문을 fenced block 으로 적재한다", () => {
+      const text = summaryStepText();
+      expect(text).toContain('if [ -f "$summary_file" ]; then');
+      expect(text).toContain('cat "$summary_file"');
+    });
+
+    it("(b) 부재 분기가 fail 없이 '요약 파일 없음' 을 명시한다", () => {
+      const text = summaryStepText();
+      expect(text).toContain("else");
+      expect(text).toContain("요약 파일 없음");
+      // 부재를 error 로 승격하지 않는다 — exit / ::error:: 로 step 을 깨지 않아야 한다.
+      expect(text).not.toContain("exit 1");
+      expect(text).not.toContain("::error::");
+    });
+  });
+
+  describe("negative cases 충분 cover — jq 파싱 · 인원 parity · 순서 · 경로 위치 · secret", () => {
+    it("① 기록 step 에 jq 등 schema 의존 파싱 로직이 없다", () => {
+      const text = summaryStepText();
+      ["jq ", "jq.", "python", "node -e", "grep ", "sed "].forEach((t) =>
+        expect(text).not.toContain(t),
+      );
+    });
+
+    it("② S1 step · 기록 step 의 K6_S1_PERSONS 가 s1-batch.js __ENV 기본값과 여전히 동일하다", () => {
+      const declared = extractEnvFallback(
+        s1Script(),
+        S1_PERSONS_ENV_KEY,
+      ) as string;
+      const yml = loadYml();
+      [S1_RUN_STEP_NAME, S1_SUMMARY_STEP_NAME].forEach((name) =>
+        expect(
+          extractKey(
+            extractStepBlock(yml, name) as string[],
+            S1_PERSONS_ENV_KEY,
+          ),
+        ).toBe(declared),
+      );
+    });
+
+    it("③ 기록 step 이 S2 · S3 step 보다 앞에 온다(뒤 시나리오 실패에 가려지지 않음)", () => {
+      const yml = loadYml();
+      const recIdx = stepIndexOf(yml, S1_SUMMARY_STEP_NAME);
+      expect(recIdx).toBeGreaterThan(0);
+      [S2_RUN_STEP_NAME, S3_RUN_STEP_NAME, TEARDOWN_STEP_NAME].forEach((n) =>
+        expect(stepIndexOf(yml, n)).toBeGreaterThan(recIdx),
+      );
+    });
+
+    it("④ export 경로가 test/load/ 밑이 아니다(스크립트 디렉토리 오염 0)", () => {
+      const exported = summaryExportPathOf(
+        extractStep(loadYml(), S1_RUN_STEP_NAME).run,
+      ) as string;
+      expect(exported.startsWith("test/load/")).toBe(false);
+      expect(exported).not.toContain("..");
+      expect(exported.endsWith(".json")).toBe(true);
+      // 실 스크립트 4 종 경로와 충돌하지 않는다.
+      [LOAD_SCRIPT_REL, S1_SCRIPT_REL, S2_SCRIPT_REL, S3_SCRIPT_REL].forEach(
+        (p) => expect(exported).not.toBe(p),
+      );
+    });
+
+    it("⑤ 기록 step 이 secret / credential 리터럴을 요약에 싣지 않는다", () => {
+      const text = summaryStepText();
+      [
+        "AUTH_JWT_SECRET",
+        ENC_KEY_ENV,
+        "ci_load_secret",
+        "ci_smoke",
+        "DATABASE_URL",
+        "${{ secrets.",
+        "docker logs",
+      ].forEach((t) => expect(text).not.toContain(t));
     });
   });
 });
