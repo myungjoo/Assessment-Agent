@@ -2012,7 +2012,11 @@ describe("load-k6.yml S1 summary export ↔ 실측 기록 step 배선 drift smok
       const parts = summaryStepText().split(STEP_SUMMARY_ENV);
       // 3 회 참조(환경 메타 · JSON 전문 · 부재 메시지) — 앞 step 요약을 지우는 회귀 차단.
       expect(parts).toHaveLength(4);
-      parts.slice(0, -1).forEach((p) => expect(p.endsWith('>> "')).toBe(true));
+      // T-1638 — append 경로가 `>> "..."` 에서 `| tee -a "..."` 로 바뀌었다. 둘 다 append 의미라
+      // 본 단언의 취지(덮어쓰기 형태 0)는 그대로 두고 허용 형태만 두 갈래로 넓힌다.
+      parts
+        .slice(0, -1)
+        .forEach((p) => expect(/(?:>>|tee -a) "$/.test(p)).toBe(true));
       expect(summaryStepText()).not.toMatch(
         /(^|[^>])>\s*"?\$GITHUB_STEP_SUMMARY/,
       );
@@ -2112,6 +2116,185 @@ describe("load-k6.yml S1 summary export ↔ 실측 기록 step 배선 drift smok
         "${{ secrets.",
         "docker logs",
       ].forEach((t) => expect(text).not.toContain(t));
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-1638 — S1 실측 기록 step 의 환경 메타·요약을 job 로그(stdout) 에도 남기는 배선 drift.
+// 존재 이유 — 같은 블록이 step summary 파일로만 흐르면 사람이 run 페이지를 열어야만 읽혀, REST
+// API 로 메타를 회수해 run 간 비교(load-resilience-test-plan.md §3) 를 자동화할 수 없다. T-1637
+// 의 첫 실측(run 32459501970) 이 그 회수 실패를 실증했다. 본 배선은 순전히 문자열(단일 출력을
+// 두 목적지로 가르는 `tee -a`)이라 실 run 없이는 회귀를 알 수 없어 정적으로 고정한다.
+// 새 helper 1(teeAppendTargetsOf) — 나머지는 위 공유.
+//      🔥 실 GitHub Actions 발화 0 · 실 k6 실행 0 · 실 docker 실행 0 · 새 dependency 0 ·
+//         process.env 읽기/쓰기 0 — 파일 read + 합성 문자열 주입만.
+
+/** 기록 step 이 실어야 하는 환경 메타 7 항목 — 늘리지도 줄이지도 않는다(본 slice 는 경로만 변경). */
+const S1_META_FRAGMENTS = [
+  "uname -sr",
+  "uname -m",
+  "nproc",
+  "free -h",
+  "postgres:16-alpine",
+  "assessment-agent:load",
+  "${K6_S1_PERSONS}",
+];
+
+/**
+ * script 안 `| tee -a <target>` 의 append 대상들을 등장 순서대로 뽑는다. 부재면 빈 배열(추측 0).
+ * @throws {TypeError} script 가 string 이 아닐 때(위 helper 들과 동형 계약 — 0-byte false-PASS 방지).
+ */
+function teeAppendTargetsOf(script: string): string[] {
+  if (typeof script !== "string") {
+    throw new TypeError("teeAppendTargetsOf: script 는 string 이어야 함");
+  }
+  return [...script.matchAll(/\|\s*tee\s+-a\s+(\S+)/g)].map((m) =>
+    unquote(m[1]),
+  );
+}
+
+/** 기록 step script 를 요약 파일 존재 / 부재 두 갈래로 자른다(경계 부재면 빈 문자열 쌍). */
+function summaryBranches(): { present: string; absent: string } {
+  const text = summaryStepText();
+  const ifIdx = text.indexOf('if [ -f "$summary_file" ]; then');
+  const elseIdx = text.indexOf("\n          else\n");
+  return ifIdx < 0 || elseIdx < 0
+    ? { present: "", absent: "" }
+    : {
+        present: text.slice(ifIdx, elseIdx),
+        absent: text.slice(elseIdx),
+      };
+}
+
+describe("load-k6.yml S1 실측 기록 step 의 stdout 회수 배선 drift smoke (T-1638)", () => {
+  describe("Happy-path: tee 경유 이중 목적지 · 메타 7 항목 불변 · always()/순서", () => {
+    it("(a) 기록 step 의 append 3 회가 모두 tee 를 경유해 step summary 로 간다", () => {
+      const targets = teeAppendTargetsOf(summaryStepText());
+      // 환경 메타 · JSON 전문 · 부재 메시지 3 갈래 전부가 stdout 과 summary 로 갈라져야 한다.
+      expect(targets).toEqual([
+        STEP_SUMMARY_ENV,
+        STEP_SUMMARY_ENV,
+        STEP_SUMMARY_ENV,
+      ]);
+    });
+
+    it("(b) 환경 메타 7 항목이 여전히 모두 기록 step 안에 있다(집합 불변)", () => {
+      const text = summaryStepText();
+      S1_META_FRAGMENTS.forEach((f) => expect(text).toContain(f));
+      expect(S1_META_FRAGMENTS).toHaveLength(7);
+    });
+
+    it("(c) 기록 step 이 여전히 if: always() 이고 S1 실행 step 뒤에 온다", () => {
+      const yml = loadYml();
+      const block = extractStepBlock(yml, S1_SUMMARY_STEP_NAME) as string[];
+      expect(extractKey(block, "if")).toBe("always()");
+      expect(stepIndexOf(yml, S1_SUMMARY_STEP_NAME)).toBeGreaterThan(
+        stepIndexOf(yml, S1_RUN_STEP_NAME),
+      );
+    });
+  });
+
+  describe("Error path: -a 없는 tee · 단일 리다이렉트 · 부재 분기 fail 승격", () => {
+    it("(a) `-a` 없는 tee 사용이 0 이다(summary 덮어쓰기 회귀 차단)", () => {
+      expect(summaryStepText()).not.toMatch(/tee\s+(?!-a\s)/);
+    });
+
+    it("(b) step summary 를 `>` 단일 리다이렉트로 여는 표현이 0 이다", () => {
+      expect(summaryStepText()).not.toMatch(
+        /(^|[^>])>\s*"?\$GITHUB_STEP_SUMMARY/,
+      );
+    });
+
+    it("(c) 요약 파일 부재를 여전히 fail 로 승격하지 않는다(부재 분기 생존)", () => {
+      const text = summaryStepText();
+      expect(text).toContain("요약 파일 없음");
+      expect(text).not.toContain("exit 1");
+      expect(text).not.toContain("::error::");
+    });
+
+    it("(d) teeAppendTargetsOf 계약 — non-string throw · tee 부재 빈 배열", () => {
+      [42, {}, [], undefined, null].forEach((v) =>
+        expect(() => teeAppendTargetsOf(v as unknown as string)).toThrow(
+          TypeError,
+        ),
+      );
+      expect(teeAppendTargetsOf("")).toEqual([]);
+      expect(teeAppendTargetsOf('echo x >> "$GITHUB_STEP_SUMMARY"')).toEqual(
+        [],
+      );
+      expect(teeAppendTargetsOf('echo x | tee -a "/tmp/a"')).toEqual([
+        "/tmp/a",
+      ]);
+    });
+  });
+
+  describe("flow / 분기 cover — 존재 / 부재 두 갈래 모두 stdout 으로도 나간다", () => {
+    it("(a) 존재 분기의 JSON 전문이 tee 를 경유한다", () => {
+      const { present } = summaryBranches();
+      expect(present).toContain('cat "$summary_file"');
+      expect(teeAppendTargetsOf(present)).toEqual([STEP_SUMMARY_ENV]);
+    });
+
+    it("(b) 부재 분기의 안내 문구가 tee 를 경유한다", () => {
+      const { absent } = summaryBranches();
+      expect(absent).toContain("요약 파일 없음");
+      expect(teeAppendTargetsOf(absent)).toEqual([STEP_SUMMARY_ENV]);
+    });
+  });
+
+  describe("negative cases 충분 cover — 복제 · jq · 인원 parity · secret · 타 step 무변경", () => {
+    it("① 메타 블록이 script 안에 복제돼 있지 않다(각 항목 등장 1 회)", () => {
+      const text = summaryStepText();
+      S1_META_FRAGMENTS.forEach((f) => expect(text.split(f)).toHaveLength(2));
+    });
+
+    it("② jq 등 schema 의존 파싱 로직이 새로 유입되지 않았다(T-1636 계약 유지)", () => {
+      const text = summaryStepText();
+      ["jq ", "jq.", "python", "node -e", "grep ", "sed "].forEach((t) =>
+        expect(text).not.toContain(t),
+      );
+    });
+
+    it("③ 기록 step 의 K6_S1_PERSONS 가 s1-batch.js __ENV 기본값과 여전히 parity 다", () => {
+      const declared = extractEnvFallback(s1Script(), S1_PERSONS_ENV_KEY);
+      expect(declared).not.toBeNull();
+      expect(
+        extractKey(
+          extractStepBlock(loadYml(), S1_SUMMARY_STEP_NAME) as string[],
+          S1_PERSONS_ENV_KEY,
+        ),
+      ).toBe(declared);
+    });
+
+    it("④ 로그 공개 범위가 넓어져도 secret 리터럴을 출력하지 않는다", () => {
+      const text = summaryStepText();
+      [
+        "AUTH_JWT_SECRET",
+        ENC_KEY_ENV,
+        "ci_load_secret",
+        "ci_smoke",
+        "DATABASE_URL",
+        "${{ secrets.",
+        "docker logs",
+      ].forEach((t) => expect(text).not.toContain(t));
+    });
+
+    it("⑤ S2 · S3 · 정리 step 의 run 본문은 본 slice 가 건드리지 않았다", () => {
+      const yml = loadYml();
+      expect(extractStep(yml, S2_RUN_STEP_NAME).run).toBe(
+        `k6 run ${S2_SCRIPT_REL}`,
+      );
+      expect(extractStep(yml, S3_RUN_STEP_NAME).run).toBe(
+        `k6 run ${S3_SCRIPT_REL}`,
+      );
+      const teardown = (
+        extractStepBlock(yml, TEARDOWN_STEP_NAME) as string[]
+      ).join("\n");
+      expect(teardown).toContain("docker rm -f aa-load || true");
+      [STEP_SUMMARY_ENV, "tee"].forEach((t) =>
+        expect(teardown).not.toContain(t),
+      );
     });
   });
 });
