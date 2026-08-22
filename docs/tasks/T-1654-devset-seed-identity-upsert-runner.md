@@ -2,12 +2,14 @@
 id: T-1654
 title: 133 로그인 upsert-args 의 ServiceIdentity leg 실행 runner (client 주입형) 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1322
 coversReq: [REQ-047, REQ-023, REQ-024]
 estimatedDiff: 270
 estimatedFiles: 2
 created: 2026-08-22
+completedAt: 2026-08-22T23:15:46Z
 independentStream: load-r91
 dependsOn: [T-1653]
 touchesFiles:
