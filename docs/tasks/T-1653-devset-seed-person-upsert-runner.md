@@ -2,7 +2,7 @@
 id: T-1653
 title: 133 로그인 upsert-args 의 Person leg 실행 runner (client 주입형) 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047, REQ-023, REQ-024]
 estimatedDiff: 260
@@ -13,6 +13,8 @@ dependsOn: [T-1652]
 touchesFiles:
   - test/helpers/realdata-devset-seed-person-upsert-runner.ts
   - test/helpers/realdata-devset-seed-person-upsert-runner.spec.ts
+prNumber: 1321
+completed: 2026-08-22
 plannerNote: R-91 chain 34/N — seed 실행 경로 3 번째 slice: upsert-args 의 Person leg 실행 + email→id map 회수만 (identity leg · 워크플로 0).
 ---
 
@@ -34,16 +36,16 @@ plannerNote: R-91 chain 34/N — seed 실행 경로 3 번째 slice: upsert-args 
 
 ## Acceptance Criteria
 
-- [ ] `test/helpers/realdata-devset-seed-person-upsert-runner.ts` 를 신설하고 public symbol 을 정확히 다음으로 한정한다 — 타입 `DevsetSeedPersonClient` (구조적 client interface: `person.upsert(args) => Promise<{ id: string }>`), 함수 `upsertDevsetSeedPersons(client, upsertArgsList)` (Promise<Map<string, string>> 반환, key = `personUpsert.where.email`, value = 실 `person.id`).
-- [ ] 실행은 **입력 순서대로 순차 await** — 동시 실행 금지 (`email @unique` 경합 회피 + 결정론 보장). 각 호출은 `args.personUpsert` 객체를 **그대로** 전달하고 새 필드를 만들지 않는다 (R-59 raw 데이터 미포함 유지).
-- [ ] `@prisma/client` 값 import 0 · 새 dependency 0 · env 읽기 0 · 실 네트워크/DB 접속 0. `src/` · `prisma/` · `.github/workflows/` · `package.json` 무변경.
-- [ ] colocated spec `test/helpers/realdata-devset-seed-person-upsert-runner.spec.ts` 를 신설하고, 아래 R-112 4 종을 모두 cover 한다.
-- [ ] **happy path 1+**: mock client 로 2~3 건 args 를 넣어 (a) `person.upsert` 가 args 개수만큼 입력 순서대로 호출되고 (b) 반환 Map 이 `email → id` 로 정확히 맺어지는지 검증. `resolveDevsetSeedUpsertArgs(3)` 산출물을 그대로 넣는 통합 happy 케이스 1+ 포함.
-- [ ] **error path 1+**: client 결손 (`undefined` · `person` 없음 · `person.upsert` 가 함수 아님) 각각 `TypeError`, upsert 결과가 객체 아님 / `id` 필드 없음 / `id` 가 빈 문자열·공백뿐인 경우 각각 명시적 throw (메시지에 해당 email 포함) 를 검증.
-- [ ] **분기 cover**: 빈 배열 입력 → 빈 Map 반환 + client 호출 0 회 (throw 0) 분기, 정상 1 건 분기, 다건 분기를 각각 별도 test 로 분리. 각 분기 1+ test.
-- [ ] **negative cases 충분 cover**: 입력이 배열 아님 → `TypeError`, `personUpsert`/`where`/`email` 구조 결손 → `TypeError`, 같은 email 이 두 번 들어옴 → `RangeError` (map 이 조용히 덮어쓰기 되는 일 차단), client 가 reject 하는 경우 → 그 rejection 을 그대로 전파하고 후속 호출을 하지 않음 (fail-fast), 반환 Map 이 caller mutate 로부터 무공유 — 각 1+ test.
-- [ ] `pnpm lint && pnpm build && pnpm test` 전부 통과.
-- [ ] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%).
+- [x] `test/helpers/realdata-devset-seed-person-upsert-runner.ts` 를 신설하고 public symbol 을 정확히 다음으로 한정한다 — 타입 `DevsetSeedPersonClient` (구조적 client interface: `person.upsert(args) => Promise<{ id: string }>`), 함수 `upsertDevsetSeedPersons(client, upsertArgsList)` (Promise<Map<string, string>> 반환, key = `personUpsert.where.email`, value = 실 `person.id`).
+- [x] 실행은 **입력 순서대로 순차 await** — 동시 실행 금지 (`email @unique` 경합 회피 + 결정론 보장). 각 호출은 `args.personUpsert` 객체를 **그대로** 전달하고 새 필드를 만들지 않는다 (R-59 raw 데이터 미포함 유지).
+- [x] `@prisma/client` 값 import 0 · 새 dependency 0 · env 읽기 0 · 실 네트워크/DB 접속 0. `src/` · `prisma/` · `.github/workflows/` · `package.json` 무변경.
+- [x] colocated spec `test/helpers/realdata-devset-seed-person-upsert-runner.spec.ts` 를 신설하고, 아래 R-112 4 종을 모두 cover 한다.
+- [x] **happy path 1+**: mock client 로 2~3 건 args 를 넣어 (a) `person.upsert` 가 args 개수만큼 입력 순서대로 호출되고 (b) 반환 Map 이 `email → id` 로 정확히 맺어지는지 검증. `resolveDevsetSeedUpsertArgs(3)` 산출물을 그대로 넣는 통합 happy 케이스 1+ 포함.
+- [x] **error path 1+**: client 결손 (`undefined` · `person` 없음 · `person.upsert` 가 함수 아님) 각각 `TypeError`, upsert 결과가 객체 아님 / `id` 필드 없음 / `id` 가 빈 문자열·공백뿐인 경우 각각 명시적 throw (메시지에 해당 email 포함) 를 검증.
+- [x] **분기 cover**: 빈 배열 입력 → 빈 Map 반환 + client 호출 0 회 (throw 0) 분기, 정상 1 건 분기, 다건 분기를 각각 별도 test 로 분리. 각 분기 1+ test.
+- [x] **negative cases 충분 cover**: 입력이 배열 아님 → `TypeError`, `personUpsert`/`where`/`email` 구조 결손 → `TypeError`, 같은 email 이 두 번 들어옴 → `RangeError` (map 이 조용히 덮어쓰기 되는 일 차단), client 가 reject 하는 경우 → 그 rejection 을 그대로 전파하고 후속 호출을 하지 않음 (fail-fast), 반환 Map 이 caller mutate 로부터 무공유 — 각 1+ test.
+- [x] `pnpm lint && pnpm build && pnpm test` 전부 통과.
+- [x] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%).
 
 ## Out of Scope
 
@@ -61,3 +63,10 @@ plannerNote: R-91 chain 34/N — seed 실행 경로 3 번째 slice: upsert-args 
 ## Follow-ups
 
 (작성 시점 비어 있음)
+
+## 결과 요약 (2026-08-22 완료)
+
+- PR [#1321](https://github.com/myungjoo/Assessment-Agent/pull/1321) squash 머지 (`26a9e8f9`), reviewer round 1 APPROVE + CI green 으로 4-게이트 충족.
+- `test/helpers/realdata-devset-seed-person-upsert-runner.ts` 신설 — public symbol 2 개 (`DevsetSeedPersonClient` 구조적 interface + `upsertDevsetSeedPersons`). 입력 `RealDataUpsertArgs[]` 순서대로 **순차 await** 로 `person.upsert` 호출 (email `@unique` 경합 회피) 하고 `email → person.id` Map 을 회수한다. `args.personUpsert` 는 동일 참조 그대로 client 에 전달 (R-59 유지), `@prisma/client` 값 import 0 · 새 dependency 0.
+- colocated spec 26 test 추가 (happy 2 / 분기 3 / error 10 / negative 11) — 전체 448 suite · 12869 test green, `test:cov` line·function 80% threshold 통과.
+
