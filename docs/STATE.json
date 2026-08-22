@@ -45,8 +45,8 @@
   "ci": {
     "status": "running",
     "consecutiveFails": 0,
-    "lastRun": "2026-08-22T20:57:41Z",
-    "note": "본 fire(cron@aa-local-fa2a09a8-fa2a5574) 는 T-1653 실행 turn. [1] main HEAD fa2a09a8 기준 fetch 후 lock 브랜치 tip 이 tombstone(free) 이라 acquire-lock.sh 로 CAS 획득(8cd8e2a6). 미해결 humanQuestion 0 · blocker 0 · consecutiveFails 0. [2] server-time(Sat, 22 Aug 2026 20:37:19 GMT, gh api -i rate_limit Date 헤더) 주입 reclaim 결과 회수 대상 0, 활성 claim 0 < maxConcurrentClaims 2 라 select-claim.sh 로 T-1653 atomic claim(claimedAt 2026-08-22T20:37:29Z — server-time 정합) 후 lock tombstone release. [3~4] executor 1 회 호출로 pr-mode 완주 — PR #1321 open + claim prNumber sync(1321/PR_OPEN) + reviewer round 1 APPROVE(20:53:22Z PR comment 외부 존재) + CI green 으로 4-게이트 충족, squash merge 26a9e8f9 (20:57:41Z). [5] merge 직후 main run(26a9e8f9) 은 pending — R-114 상 CI 는 trigger 됐고 conclusion 은 다음 fire 로 이월(status running, consecutiveFails 0 유지). PR CI 는 머지 전 green 확인됨. [6] counters tasksCompleted 1642→1643. nextTask 는 비움 — 다음 fire 는 planner dispatch turn."
+    "lastRun": "2026-08-22T21:40:17Z",
+    "note": "본 fire(cron@aa-local-a08199bd-1909) 는 T-1654 큐잉 turn. [1] main HEAD a08199bd 기준 fetch 후 lock 브랜치 tip 이 tombstone(free) 이라 acquire-lock.sh 로 CAS 획득(47dae012). 미해결 humanQuestion 0 · blocker 0 · consecutiveFails 0. [2] claims.json 이 빈 배열([]) 이라 회수 대상 0 · 활성 claim 0 이었고, currentTask · nextTask 가 모두 null 이라 claim 대상 후보 자체가 없어 CLAUDE.md §2 step 3 대로 planner dispatch 경로로 분기(select-claim 미호출). [3] planner 가 T-1654 (133 로그인 upsert-args 의 ServiceIdentity leg 실행 runner, commitMode: pr, 2 파일 ~270 LOC) 를 큐잉하고 STATE.nextTask 를 갱신. [4] planner 큐잉을 direct commit a7f4d82c 로 main push 완료 — 실행은 다음 fire (§2 step 3 '생성 후 종료'). [5] main CI run 32600262424 in_progress — conclusion 은 다음 turn [1] 에서 최우선 재확인. counters 불변(tasksCompleted 1643 — 본 fire 는 task 완료 0)."
   },
   "reviewRounds": {
     "T-1648": 1,
