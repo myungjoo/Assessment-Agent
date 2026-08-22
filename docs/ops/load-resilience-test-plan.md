@@ -411,7 +411,17 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    `133` 으로 dispatch 해 run `32524618230` 에서 외삽 계수 1 조건의 실측 확보). **잔여로 남는 축은
    실 dataset seed** — 133 명 `Person` 을 실 devset 규모로 채우고 각자 github `ServiceIdentity` 를
    붙여 **실 수집 왕복(50~100 repo · ~1000 page)** 을 태우는 것. 현 표본은 스크립트가 만든 합성
-   person 이라 수집 왕복이 0 이고 LLM 도 stub(ADR-0057 `D1`)이다. ② **반복 run 기반 임계 fix** 는
+   person 이라 수집 왕복이 0 이고 LLM 도 stub(ADR-0057 `D1`)이다. 그 seed 축도 **입력 데이터와
+   이중 정본 안전장치까지는 확보**됐다 — T-1648(main `c95b7dec`, PR #1317)이 정본 문서
+   `§A` 33 명 + `§B` 100 명 = **133 로그인**을 기계 판독 fixture
+   [`realdata-devset-logins.json`](../../test/load/realdata-devset-logins.json) + 검증 로더
+   [`realdata-devset-logins.ts`](../../test/helpers/realdata-devset-logins.ts) 로 박제했고,
+   T-1649(main `87cdb828`, PR #1318)가 정본 markdown 표 ↔ fixture **drift guard**
+   ([`realdata-devset-logins-doc-consistency.ts`](../../test/helpers/realdata-devset-logins-doc-consistency.ts),
+   colocated spec 이 `pnpm test` 에서 CI 게이트)를 신설해 한쪽만 갱신되는 drift 를 차단했다.
+   따라서 **잔여는 seed 실행 경로** 로 좁혀졌다 — 그 133 로그인을 소비해 `Person` + 각자
+   github `ServiceIdentity` 를 적재하고 실 수집 왕복을 태우는 경로(workflow step 또는 k6
+   `setup()`). seed 실행은 여전히 **0 회**라 **① 자체는 미해소**다. ② **반복 run 기반 임계 fix** 는
    **해소 — 임계 확정 완료(T-1644)**. 실 scale 축(표본 133)의 같은 조건 표본이 T-1643 run
    `32540981922` 로 **3 개**가 됐고(3·4·5 회차 760.91ms → 730.81ms → 711.23ms), 그 batch p95
    기술통계는 평균 **734.32ms** · 범위 **49.68ms** · 표본표준편차 **25.02ms** · 변동계수
@@ -433,7 +443,9 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    792.27ms, 900ms 까지 여유 107.73ms · 약 11.97%), 실 scale 표본 4 개의 평균 + 3σ
    (748.81 + 3 × 35.46 = 855.19ms) 도 900ms 안이라 `§3` 표 임계 재확정 사유는 생기지 않았다
    (계산 근거는 `§3.1` 6 회차). 그 결과 **본 item 의 잔여는 위 ① 의 실 dataset seed 축
-   (133 명 `Person` + 각자 github `ServiceIdentity` 로 실 수집 왕복) 1 개뿐**이고,
+   (133 명 `Person` + 각자 github `ServiceIdentity` 로 실 수집 왕복) 1 개뿐**이고 — 그 1 개도
+   입력 데이터(133 로그인 fixture, T-1648)와 이중 정본 drift guard(T-1649)까지 확보돼 **내용이
+   seed 실행 경로로 좁혀진 상태**다(위 ① 참조, 잔여 개수는 1 개 그대로) —
    ② 임계 fix · ③ 환경 메타 회수는 각 항 표기대로 이미 해소다.
    ③ 환경 메타 회수 경로
    보강은 **해소** — T-1638(main `55b81dea`) 의 `tee -a` 배선을 T-1639 가 run `32503914467` 에서

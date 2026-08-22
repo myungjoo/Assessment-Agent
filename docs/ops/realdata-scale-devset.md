@@ -154,6 +154,23 @@ seed 방식: 각 개발자 = Person + github.com `ServiceIdentity`(login) → `a
 | sahilnara99              | 4 |
 | safir-srbd               | 4 |
 
+## 기계 판독 사본 · drift guard
+
+- **기계 판독 사본**: 위 `§A` 33 명 + `§B` 100 명 = **133 로그인**의 기계 판독 사본이
+  [`test/load/realdata-devset-logins.json`](../../test/load/realdata-devset-logins.json) 에 있고,
+  이를 읽어 검증하는 로더는 [`test/helpers/realdata-devset-logins.ts`](../../test/helpers/realdata-devset-logins.ts)
+  다(T-1648, main `c95b7dec`, PR #1317). 로더의 public symbol 은 `parseDevsetLogins` ·
+  `loadRealdataDevsetLogins` · `resolveRealdataDevsetLogins` 3 종이고 33 / 100 / 133 규모를
+  상수로 못 박아 위반 시 fail-fast 한다.
+- **drift guard**: [`test/helpers/realdata-devset-logins-doc-consistency.ts`](../../test/helpers/realdata-devset-logins-doc-consistency.ts)
+  (T-1649, main `87cdb828`, PR #1318) 가 **본 문서의 `## A.` / `## B.` 표를 직접 파싱해**
+  (`parseDevsetLoginsDoc` · `loadRealdataDevsetLoginsDoc` · `assertDevsetLoginsFixtureMatchesDoc`)
+  fixture 와 **길이 · 원소 · 순서**까지 대조한다. 구조 결손은 `TypeError`, 값 정합 위반은
+  `RangeError` 다. colocated spec 이 `pnpm test` 에서 함께 돌아 **CI 게이트**에 걸린다.
+- **편집 규칙** — 본 문서의 `§A` / `§B` 표를 고치면 **같은 commit 에서 fixture JSON 도 고쳐야 한다**.
+  한쪽만 고치면 위 guard 가 `RangeError` 로 `pnpm test` 를 실패시킨다(부하 테스트가 조용히 옛
+  로그인 집합을 쓰는 것을 막는 장치다).
+
 ## 재생성(refresh) 명령
 
 ```bash
