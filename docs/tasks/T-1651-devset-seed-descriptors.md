@@ -2,8 +2,10 @@
 id: T-1651
 title: 133 로그인 fixture → Person + github ServiceIdentity seed descriptor 순수 빌더 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1319
+completedAt: 2026-08-22T16:55:58Z
 coversReq: [REQ-047, REQ-023, REQ-024]
 estimatedDiff: 280
 estimatedFiles: 2
@@ -34,19 +36,19 @@ plannerNote: R-91 chain 32/N — seed 실행 경로의 첫 slice: 133 로그인�
 
 ## Acceptance Criteria
 
-- [ ] `test/helpers/realdata-devset-seed-descriptors.ts` 신설. public symbol 은 **정확히 2 개**:
+- [x] `test/helpers/realdata-devset-seed-descriptors.ts` 신설. public symbol 은 **정확히 2 개**:
   - `buildDevsetSeedDescriptors(logins: string[]): RealDataSeedDescriptor[]` — 순수 함수. login 마다 descriptor 1 개를 만든다: `person = { fullName: <login>, email: "<login>@load.devset.test", active: true }`, `serviceIdentities = [{ service: "github.com", externalId: <login>, isPrimary: true }]`. 입력 순서를 보존하고, 매 호출 **새 객체 트리** 를 반환한다 (caller 가 mutate 해도 다음 호출에 전파 0).
   - `resolveDevsetSeedDescriptors(count?: number): RealDataSeedDescriptor[]` — T-1648 의 `resolveRealdataDevsetLogins(count)` 로 로그인을 얻어 위 빌더에 통과시킨다. 무인자 호출은 133 개 descriptor.
-- [ ] 타입은 `realdata-e2e-seed-fixture` 에서 **`import type` 으로만** 가져온다 (value import 0 → CommonJS 순환 의존 0). 새 dependency 0 — `node:*` 내장과 기존 helper 재사용만.
-- [ ] 이메일 도메인은 실 e2e seed (`@e2e.realdata.test`) 와 **다른** `@load.devset.test` 를 쓴다. 한 DB 에 두 seed 가 공존해도 `email @unique` 충돌 0 임을 spec 으로 못 박는다.
-- [ ] 에러 정책: 구조 결손 (배열 아님 · 원소가 문자열 아님 · github login 형식 위반) 은 `TypeError`, 값 정합 위반 (빈 배열 · 파생 email 중복 = 대소문자 무시 중복 login) 은 `RangeError`. 두 메시지 모두 한국어 사유 + 위반 index / 값 포함 (§12).
-- [ ] colocated spec `test/helpers/realdata-devset-seed-descriptors.spec.ts` 를 같은 commit 에 추가하고, R-112 4 종을 모두 cover:
-  - [ ] **happy-path**: public symbol 2 개 각각 1+ — 3 개 로그인 입력의 descriptor shape 전량 검증, 무인자 `resolveDevsetSeedDescriptors()` 가 133 개 · 각 `serviceIdentities` 길이 1 · `isPrimary` 전량 true.
-  - [ ] **error path**: 사유별 1+ — 배열 아님 (`null` · 객체 · `undefined`), 원소가 문자열 아님, login 형식 위반 (`"has space"` · `"-leading"`), `count` 범위 위반이 T-1648 의 `RangeError` 로 전파.
-  - [ ] **branch cover**: 분기마다 1+ — 기본값 133 경로 vs 명시 `count` 경로, 정상 매핑 경로 vs 각 throw 분기.
-  - [ ] **negative cases 충분 cover**: 빈 배열, 대소문자만 다른 중복 로그인 (`"Foo"` + `"foo"` → email 충돌 `RangeError`), 완전 동일 로그인 중복, 반환값 mutate 후 재호출이 오염되지 않음, `count` 0 · 134 · 1.5 · `NaN` 각 1+.
-- [ ] `pnpm lint && pnpm build && pnpm test` 통과. `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%) — `src/` 무변경이라 전역 coverage 는 불변이어야 한다.
-- [ ] `src/` · `prisma/` · `test/load/` · `.github/workflows/` · `package.json` 변경 0 임을 diff 로 확인.
+- [x] 타입은 `realdata-e2e-seed-fixture` 에서 **`import type` 으로만** 가져온다 (value import 0 → CommonJS 순환 의존 0). 새 dependency 0 — `node:*` 내장과 기존 helper 재사용만.
+- [x] 이메일 도메인은 실 e2e seed (`@e2e.realdata.test`) 와 **다른** `@load.devset.test` 를 쓴다. 한 DB 에 두 seed 가 공존해도 `email @unique` 충돌 0 임을 spec 으로 못 박는다.
+- [x] 에러 정책: 구조 결손 (배열 아님 · 원소가 문자열 아님 · github login 형식 위반) 은 `TypeError`, 값 정합 위반 (빈 배열 · 파생 email 중복 = 대소문자 무시 중복 login) 은 `RangeError`. 두 메시지 모두 한국어 사유 + 위반 index / 값 포함 (§12).
+- [x] colocated spec `test/helpers/realdata-devset-seed-descriptors.spec.ts` 를 같은 commit 에 추가하고, R-112 4 종을 모두 cover:
+  - [x] **happy-path**: public symbol 2 개 각각 1+ — 3 개 로그인 입력의 descriptor shape 전량 검증, 무인자 `resolveDevsetSeedDescriptors()` 가 133 개 · 각 `serviceIdentities` 길이 1 · `isPrimary` 전량 true.
+  - [x] **error path**: 사유별 1+ — 배열 아님 (`null` · 객체 · `undefined`), 원소가 문자열 아님, login 형식 위반 (`"has space"` · `"-leading"`), `count` 범위 위반이 T-1648 의 `RangeError` 로 전파.
+  - [x] **branch cover**: 분기마다 1+ — 기본값 133 경로 vs 명시 `count` 경로, 정상 매핑 경로 vs 각 throw 분기.
+  - [x] **negative cases 충분 cover**: 빈 배열, 대소문자만 다른 중복 로그인 (`"Foo"` + `"foo"` → email 충돌 `RangeError`), 완전 동일 로그인 중복, 반환값 mutate 후 재호출이 오염되지 않음, `count` 0 · 134 · 1.5 · `NaN` 각 1+.
+- [x] `pnpm lint && pnpm build && pnpm test` 통과. `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%) — `src/` 무변경이라 전역 coverage 는 불변이어야 한다.
+- [x] `src/` · `prisma/` · `test/load/` · `.github/workflows/` · `package.json` 변경 0 임을 diff 로 확인.
 
 ## Out of Scope
 
@@ -64,3 +66,7 @@ plannerNote: R-91 chain 32/N — seed 실행 경로의 첫 slice: 133 로그인�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 요약 (2026-08-22)
+
+PR [#1319](https://github.com/myungjoo/Assessment-Agent/pull/1319) squash merge (`4e0697c6`). 신설 2 파일 +300 LOC — `buildDevsetSeedDescriptors` · `resolveDevsetSeedDescriptors` 순수 빌더 2 심볼 + colocated spec 31 test (happy / error / branch / negative 4 종 전량). 타입은 `import type` 전용이라 순환 의존 0, 새 dependency 0. 에러 정책은 구조 결손 = `TypeError` / 값 정합 위반 = `RangeError` 로 분리. reviewer VERDICT=APPROVE (round 1, finding 0), CI green, `src/` 무변경이라 전역 coverage 불변 (line 99.95% / function 100%).
