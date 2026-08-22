@@ -2,7 +2,7 @@
 id: T-1644
 title: S1 batch p95 stub-조건 baseline 임계 확정 (§3 표 숫자 fix)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 estimatedDiff: 80
@@ -85,3 +85,19 @@ T-1641 ~ T-1643 이 실 scale 표본(`s1_persons=133`) 반복 run 3 개(760.91 �
 - (신설 후보) 확정된 stub-조건 관찰 임계 **900ms** 를 `test/load/s1-batch.js` 의
   `thresholds` 에 `route:batch` 관찰 게이트로 배선 — pr-mode, 표본 133 조건에서만 적용되도록
   분기 + spec 필요.
+
+---
+
+## 완료 기록
+
+- **완료 시각**: 2026-08-22T02:52Z (direct commit `f7bf6761`, 2 파일 +40/-21)
+- **결과 요약**: 실 scale 표본 3 개(760.91 / 730.81 / 711.23ms, 평균 734.32ms · 표본표준편차
+  25.02ms)에서 **평균 + 3σ = 809.38ms → 100ms 올림 = p95 ≤ 900ms** 를 도출해
+  `load-resilience-test-plan.md` `§3` 표에 **S1 관찰용 latency** 행으로 확정. max 대신 평균+3σ 를
+  쓴 이유(3 표본 단조 감소 추세 성분 흡수)와 실측 max 대비 여유 139.09ms 를 도출식과 함께 병기.
+  같은 표의 **S1 실패·재시도율**은 "baseline 후 fix" 해제 → **error rate < 1%** 확정(근거 = 5 회 run
+  전부 `http_req_failed` 0.00%). 본 임계가 **관찰용 baseline 이지 REQ-047 판정 임계가 아님**을 명시
+  (REQ-047 판정은 1h 예산 `FULL_RUN_BUDGET_MS` 유지) + **stub 조건(ADR-0057 `D1`) · 표본 인원 133**
+  전제 병기. S2 · S3 행 무변경, `§3` 각주 "S1 fix 완료" 갱신, `§5` item 5 잔여 ② **해소** ·
+  잔여 ① 존치, PLAN `141 행` 반영 · `140 행` checkbox `[ ]` 유지.
+- **CI**: main run `32547132889` conclusion `success` (본 turn 안에서 확인 — R-114 충족).
