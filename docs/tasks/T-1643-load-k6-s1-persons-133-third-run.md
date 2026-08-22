@@ -2,7 +2,7 @@
 id: T-1643
 title: load-k6 를 s1_persons=133 으로 3 번째 dispatch — 실 scale 표본 3 개로 기술통계 산출 후 임계 fix 착수 판정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 estimatedDiff: 95
@@ -32,15 +32,15 @@ plannerNote: "P5 R-91 chain 24/N — 133 축 3 번째 반복 run 으로 표본 3
 
 ## Acceptance Criteria
 
-- [ ] `gh workflow run load-k6.yml --ref main -f s1_persons=133` 으로 **정확히 1 회** dispatch 하고 run id 를 확보한다 (`gh run list --workflow=load-k6.yml --limit 3`). 재 dispatch·재시도 금지 — 실패해도 그 사실을 기록한다.
-- [ ] run conclusion 을 확인한다 (`gh run view <id>` 또는 `gh run watch <id>`). **45 분** 넘게 미종료면 대기를 중단하고 그 사실(진행 중이던 step 포함)을 기록한다.
-- [ ] `gh run view <id> --log` 로 "S1 실측 요약 기록" step 의 **표본 인원 행이 `133`** 임을 확인한다 — `10` 이면 input 주입 실패이므로 결함으로 기록하고 워크플로는 고치지 않는다(Follow-ups 로 넘긴다).
-- [ ] 같은 로그에서 5 회차 수치(`http_req_duration{route:batch}` p95 · `http_req_failed` rate 와 분자/분모 · `iteration_duration` · `http_reqs`)와 환경 메타 7 항목(커널·아키텍처·vCPU·메모리·DB image·대상 image·표본 인원)을 회수한다. 임계 위반으로 k6 가 exit 1 이어도 `if: always()` 기록 step 이 남긴 수치를 그대로 회수해 적는다. 메타 7 항목이 3·4 회차와 **다른 항목이 있으면 그 차이를 명시**한다(비교 가능성 판단의 전제).
-- [ ] [docs/ops/load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) `§3.1` 에 기존 1~4 회차 소제목을 **삭제·수정 없이** 두고 `#### 5 회차 (T-1643, run <id>, 표본 133 3 회째)` 소제목을 덧붙인다. 소제목 제목의 회차 수와 `§3.1` 헤더의 "N 회분" 표기를 함께 맞춘다.
-- [ ] 같은 5 회차 항목에 **실 scale 표본 3 개(3·4·5 회차)의 기술통계**를 batch p95 기준으로 적는다 — 세 값 나열 · 평균 · 범위(max−min) · 표준편차(표본표준편차, 계산식 또는 계산 근거 1 줄 포함) · 평균 대비 상대 변동폭(%). `iteration_duration` 과 `http_req_failed` 도 세 회차 값을 함께 나열한다.
-- [ ] 같은 문서 `§5` item 5 의 잔여 ② 를 결과에 맞게 갱신하되, **임계 fix 착수 가능 여부를 명시적으로 판정**한다 — (a) 3 표본 분산이 충분히 작아 `§3` 표 임계 확정을 별도 slice 로 착수한다, 또는 (b) 표본을 더 쌓아야 한다, 둘 중 하나를 **판정 근거(위 표준편차·범위 수치)와 함께** 한 문장 이상으로 적는다. 잔여 ①(실 dataset seed + `ServiceIdentity` 실 수집)은 그대로 존치.
-- [ ] [docs/PLAN.md](../PLAN.md) `141 행` R-91 실측 서술을 "baseline 실측 5 회(그중 실 scale 표본 133 이 3 회)" 형태로 갱신하고 본 run id·기술통계 요약(평균·범위)을 한 구절로 반영한다. `140 행` REQ-047 checkbox 는 `[ ]` **유지** — LLM stub · 수집 왕복 0 · 단일 iteration 한계가 그대로이므로 승격 금지.
-- [ ] 변경 파일 2 개(`docs/ops/load-resilience-test-plan.md`, `docs/PLAN.md`) 를 넘지 않고 diff ≤ 300 LOC. 코드·워크플로·스크립트 변경 0 이라 CLAUDE.md §3.2 R-112 unit test 4 항목은 **비적용**(doc-only direct commit) — 대신 위 로그 회수 항목이 검증 수단이다.
+- [x] `gh workflow run load-k6.yml --ref main -f s1_persons=133` 으로 **정확히 1 회** dispatch 하고 run id 를 확보한다 (`gh run list --workflow=load-k6.yml --limit 3`). 재 dispatch·재시도 금지 — 실패해도 그 사실을 기록한다.
+- [x] run conclusion 을 확인한다 (`gh run view <id>` 또는 `gh run watch <id>`). **45 분** 넘게 미종료면 대기를 중단하고 그 사실(진행 중이던 step 포함)을 기록한다.
+- [x] `gh run view <id> --log` 로 "S1 실측 요약 기록" step 의 **표본 인원 행이 `133`** 임을 확인한다 — `10` 이면 input 주입 실패이므로 결함으로 기록하고 워크플로는 고치지 않는다(Follow-ups 로 넘긴다).
+- [x] 같은 로그에서 5 회차 수치(`http_req_duration{route:batch}` p95 · `http_req_failed` rate 와 분자/분모 · `iteration_duration` · `http_reqs`)와 환경 메타 7 항목(커널·아키텍처·vCPU·메모리·DB image·대상 image·표본 인원)을 회수한다. 임계 위반으로 k6 가 exit 1 이어도 `if: always()` 기록 step 이 남긴 수치를 그대로 회수해 적는다. 메타 7 항목이 3·4 회차와 **다른 항목이 있으면 그 차이를 명시**한다(비교 가능성 판단의 전제).
+- [x] [docs/ops/load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) `§3.1` 에 기존 1~4 회차 소제목을 **삭제·수정 없이** 두고 `#### 5 회차 (T-1643, run <id>, 표본 133 3 회째)` 소제목을 덧붙인다. 소제목 제목의 회차 수와 `§3.1` 헤더의 "N 회분" 표기를 함께 맞춘다.
+- [x] 같은 5 회차 항목에 **실 scale 표본 3 개(3·4·5 회차)의 기술통계**를 batch p95 기준으로 적는다 — 세 값 나열 · 평균 · 범위(max−min) · 표준편차(표본표준편차, 계산식 또는 계산 근거 1 줄 포함) · 평균 대비 상대 변동폭(%). `iteration_duration` 과 `http_req_failed` 도 세 회차 값을 함께 나열한다.
+- [x] 같은 문서 `§5` item 5 의 잔여 ② 를 결과에 맞게 갱신하되, **임계 fix 착수 가능 여부를 명시적으로 판정**한다 — (a) 3 표본 분산이 충분히 작아 `§3` 표 임계 확정을 별도 slice 로 착수한다, 또는 (b) 표본을 더 쌓아야 한다, 둘 중 하나를 **판정 근거(위 표준편차·범위 수치)와 함께** 한 문장 이상으로 적는다. 잔여 ①(실 dataset seed + `ServiceIdentity` 실 수집)은 그대로 존치.
+- [x] [docs/PLAN.md](../PLAN.md) `141 행` R-91 실측 서술을 "baseline 실측 5 회(그중 실 scale 표본 133 이 3 회)" 형태로 갱신하고 본 run id·기술통계 요약(평균·범위)을 한 구절로 반영한다. `140 행` REQ-047 checkbox 는 `[ ]` **유지** — LLM stub · 수집 왕복 0 · 단일 iteration 한계가 그대로이므로 승격 금지.
+- [x] 변경 파일 2 개(`docs/ops/load-resilience-test-plan.md`, `docs/PLAN.md`) 를 넘지 않고 diff ≤ 300 LOC. 코드·워크플로·스크립트 변경 0 이라 CLAUDE.md §3.2 R-112 unit test 4 항목은 **비적용**(doc-only direct commit) — 대신 위 로그 회수 항목이 검증 수단이다.
 
 ## Out of Scope
 
@@ -59,3 +59,13 @@ plannerNote: "P5 R-91 chain 24/N — 133 축 3 번째 반복 run 으로 표본 3
 ## Follow-ups
 
 (작성 시점 비어 있음)
+
+## 결과 (2026-08-22 완료)
+
+**Status: DONE.** `gh workflow run load-k6.yml --ref main -f s1_persons=133` 을 **정확히 1 회** dispatch 해 run **32540981922**(head sha `a9a08e43`, job 00:38:26Z~00:40:45Z 약 2분 19초) 를 얻었고 **conclusion `success`**(전 step success, 45 분 대기 임계 훨씬 이내) 였다. "S1 실측 요약 기록" step 로그의 표본 인원 행이 `| 표본 인원 (K6_S1_PERSONS) | 133 |` 이라 input 주입 성공(주입 실패 `10` 없음).
+
+5 회차 수치: `http_req_duration{route:batch}` p95 **711.23ms**(임계 `p(95)<3600000ms` 통과) · `http_req_failed` **0.00%(0/272)** · `iteration_duration` **712.30ms**(iterations 1) · `http_reqs` **272**(194.61 req/s). 환경 메타 7 항목은 3·4 회차와 **전부 동일**(커널 `Linux 6.17.0-1022-azure` · `x86_64` · vCPU 4 · 메모리 15Gi · `postgres:16-alpine` · `assessment-agent:load` · 표본 133) — 다른 항목 없음.
+
+실 scale 표본 3 개(3·4·5 회차) batch p95 기술통계: 760.91 · 730.81 · 711.23ms → **평균 734.32ms · 범위 49.68ms · 표본표준편차 25.02ms**(편차 제곱합 1252.49 / 자유도 2 = 626.25 의 제곱근) · 범위 상대폭 6.77% · **변동계수 3.41%**. `iteration_duration` 은 761.86 · 731.89 · 712.30ms(평균 735.35ms), `http_req_failed` 은 세 회 모두 0.00%(0/272).
+
+**판정: (a) 임계 확정을 별도 slice 로 착수 가능.** 근거 — 산포가 평균의 3~7% 로 작고, 세 값 모두 1h 예산의 약 0.02% 라 여유가 3 자릿수 배수이며, 남은 지배적 불확실성은 분산이 아니라 stub 조건의 **작업부하 대표성**이라 같은 조건 반복으로는 줄지 않는다. 다만 세 값이 단조 감소라 추세 성분을 배제할 수 없어, fix slice 는 **max 또는 평균+k·표준편차 형태의 마진 임계** + "stub 조건 baseline" 명시로 잡아야 한다. 본 slice 는 판정까지이고 `§3` 표 숫자는 무변경. 잔여 ①(실 dataset seed + `ServiceIdentity` 실 수집) 존치, PLAN `140 행` checkbox `[ ]` 유지. 워크플로·스크립트 변경 0.
