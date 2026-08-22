@@ -2,7 +2,7 @@
 id: T-1648
 title: Extract realdata devset 133 logins into a machine-readable fixture with a validating loader
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047]
 independentStream: r91-load-k6
@@ -15,6 +15,7 @@ estimatedDiff: 285
 estimatedFiles: 3
 created: 2026-08-22
 createdAt: 2026-08-22
+completedAt: 2026-08-22
 plannerNote: R-91 chain 29/N — 133명 실 dataset seed 축의 1 슬라이스: 로그인 목록 기계 판독화 + 검증 로더 (pr, 3 파일)
 ---
 
@@ -33,17 +34,17 @@ plannerNote: R-91 chain 29/N — 133명 실 dataset seed 축의 1 슬라이스: 
 
 ## Acceptance Criteria
 
-- [ ] `test/load/realdata-devset-logins.json` 신설 — `{"a": [...33개], "b": [...100개]}` 구조. 값은 위 정본 문서 `§A` · `§B` 표의 github login 을 표에 등장한 순서 그대로 옮긴 것이며 **가감·재정렬 0**.
-- [ ] `test/helpers/realdata-devset-logins.ts` 신설 — 다음 3 개 public symbol 만 export:
+- [x] `test/load/realdata-devset-logins.json` 신설 — `{"a": [...33개], "b": [...100개]}` 구조. 값은 위 정본 문서 `§A` · `§B` 표의 github login 을 표에 등장한 순서 그대로 옮긴 것이며 **가감·재정렬 0**.
+- [x] `test/helpers/realdata-devset-logins.ts` 신설 — 다음 3 개 public symbol 만 export:
   - `parseDevsetLogins(raw: unknown): { a: string[]; b: string[]; all: string[] }` — 순수 함수. `a` 33 개 · `b` 100 개 · 합집합 133 개 · 교집합 0 · 각 login 이 github 규칙(`/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/`)에 부합함을 검증하고, 위반 시 사유가 담긴 `Error` throw.
   - `loadRealdataDevsetLogins()` — 위 JSON 을 `fs` 로 읽어 `parseDevsetLogins` 에 통과시킨 결과 반환.
   - `resolveRealdataDevsetLogins(count?: number): string[]` — `all` 의 앞에서부터 `count` 개 반환(기본 133). `count` 가 정수가 아니거나 `< 1` 또는 `> 133` 이면 `RangeError`.
-- [ ] `test/helpers/realdata-devset-logins.spec.ts` (colocated) 신설 — happy-path test: `loadRealdataDevsetLogins()` 가 `a` 33 · `b` 100 · `all` 133 을 반환하고 중복 0 임을 검증, `resolveRealdataDevsetLogins()` 기본 호출이 133 개를 반환함을 검증.
-- [ ] error path test: `parseDevsetLogins` 에 잘못된 입력(`null` · 배열 · `a` 키 누락 · `a` 길이 32 · `b` 길이 99 · A/B 중복 1 건 · login 형식 위반 1 건)을 넣어 각각 `Error` 가 throw 되는지 **사유별 1+ test**.
-- [ ] branch test: `resolveRealdataDevsetLogins` 의 분기(기본값 사용 / 명시 `count` 사용 / 범위 위반)를 각 1+ test 로 분리하고, `parseDevsetLogins` 의 검증 분기마다 1+ test.
-- [ ] negative cases 충분 cover: `count = 0` · `count = 134` · `count = 1.5` · `count = NaN` · `count = -1` 각 1+ test 로 `RangeError` 확인.
-- [ ] `pnpm lint && pnpm build && pnpm test` 통과.
-- [ ] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%) — 본 slice 는 `src/` 를 건드리지 않아 coverage 수치 불변임을 확인.
+- [x] `test/helpers/realdata-devset-logins.spec.ts` (colocated) 신설 — happy-path test: `loadRealdataDevsetLogins()` 가 `a` 33 · `b` 100 · `all` 133 을 반환하고 중복 0 임을 검증, `resolveRealdataDevsetLogins()` 기본 호출이 133 개를 반환함을 검증.
+- [x] error path test: `parseDevsetLogins` 에 잘못된 입력(`null` · 배열 · `a` 키 누락 · `a` 길이 32 · `b` 길이 99 · A/B 중복 1 건 · login 형식 위반 1 건)을 넣어 각각 `Error` 가 throw 되는지 **사유별 1+ test**.
+- [x] branch test: `resolveRealdataDevsetLogins` 의 분기(기본값 사용 / 명시 `count` 사용 / 범위 위반)를 각 1+ test 로 분리하고, `parseDevsetLogins` 의 검증 분기마다 1+ test.
+- [x] negative cases 충분 cover: `count = 0` · `count = 134` · `count = 1.5` · `count = NaN` · `count = -1` 각 1+ test 로 `RangeError` 확인.
+- [x] `pnpm lint && pnpm build && pnpm test` 통과.
+- [x] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%) — 본 slice 는 `src/` 를 건드리지 않아 coverage 수치 불변임을 확인.
 
 ## Out of Scope
 
@@ -61,3 +62,9 @@ plannerNote: R-91 chain 29/N — 133명 실 dataset seed 축의 1 슬라이스: 
 
 - drift-guard slice: `docs/ops/realdata-scale-devset.md` 의 `§A` · `§B` 표를 파싱해 본 JSON 과 정확히 일치하는지 검증하는 consistency spec 1 개 (문서↔fixture 이중 정본 drift 차단).
 - seed slice: 본 로더를 소비해 133 Person + github `ServiceIdentity` 를 부하 테스트용 DB 에 넣는 경로 (workflow step 또는 k6 setup).
+
+## Result
+
+- **DONE (2026-08-22, pr — PR #1317 merge `c95b7dec`).** `test/load/realdata-devset-logins.json`(a 33 · b 100, 정본 표 순서 그대로 가감 0) + `test/helpers/realdata-devset-logins.ts`(`parseDevsetLogins` · `loadRealdataDevsetLogins` · `resolveRealdataDevsetLogins` 3 symbol) + colocated spec 24 test 를 신설했다. 3 파일 +297/-0, 새 dependency 0(`node:fs` · `node:path` 만).
+- reviewer round 1 `APPROVE`(PR comment 외화 완료), PR CI pass, merge 후 main run `32568822741`(`c95b7dec`) conclusion `success` 를 본 fire 안에서 확인 — R-114 이월 없음.
+- `src/` 무변경이라 전역 coverage 불변(line 99.95% / function 100%). 전체 444 suite / 12762 test green.
