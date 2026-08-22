@@ -2,7 +2,9 @@
 id: T-1652
 title: 133 로그인 seed descriptor → Prisma upsert-args 순수 조립 helper 신설
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 1320
+completedAt: 2026-08-22T19:01:11Z
 commitMode: pr
 coversReq: [REQ-047, REQ-023, REQ-024]
 estimatedDiff: 260
@@ -34,18 +36,18 @@ plannerNote: R-91 chain 33/N — seed 실행 경로 2 번째 slice: descriptor �
 
 ## Acceptance Criteria
 
-- [ ] `test/helpers/realdata-devset-seed-upsert-args.ts` 신설. public symbol 은 **정확히 2 개**:
+- [x] `test/helpers/realdata-devset-seed-upsert-args.ts` 신설. public symbol 은 **정확히 2 개**:
   - `buildDevsetSeedUpsertArgs(logins: string[]): RealDataUpsertArgs[]` — 순수 함수. 내부적으로 `buildDevsetSeedDescriptors(logins)` → `buildRealDataUpsertArgs(descriptors)` 를 **호출만** 한다 (upsert args 조립 로직 재구현 0). 입력 순서를 보존하고 매 호출 새 객체 트리를 반환한다.
   - `resolveDevsetSeedUpsertArgs(count?: number): RealDataUpsertArgs[]` — `resolveDevsetSeedDescriptors(count)` 를 거쳐 같은 매퍼에 통과시킨다. 무인자 호출은 133 개 args.
-- [ ] `RealDataUpsertArgs` 등 타입은 `import type` 으로만 가져오고, 값 import 는 재사용 대상 함수 (`buildDevsetSeedDescriptors` · `resolveDevsetSeedDescriptors` · `buildRealDataUpsertArgs`) 로 한정한다. 새 dependency 0, 새 타입 정의 0, 순환 의존 0.
-- [ ] 에러 정책은 **재정의하지 않는다** — 구조 결손 `TypeError` / 값 정합 위반 `RangeError` 를 T-1651 · T-1648 에서 그대로 전파한다. 본 모듈이 새 throw 를 추가하면 안 된다.
-- [ ] colocated spec `test/helpers/realdata-devset-seed-upsert-args.spec.ts` 를 같은 commit 에 추가하고, R-112 4 종을 모두 cover:
-  - [ ] **happy-path**: public symbol 2 개 각각 1+ — 로그인 3 개 입력의 args 트리 전량 검증 (`personUpsert.where.email` · `create {fullName,email,active}` · `update {fullName,active}` · `identityUpsertsByEmail` 길이 1 · `where.personId_service` = `{ personId: PERSON_ID_PLACEHOLDER, service: "github.com" }` · `create {service,externalId,isPrimary}` · `update {isPrimary}`), 무인자 `resolveDevsetSeedUpsertArgs()` 가 133 개 · email 133 개 전량 distinct · 입력 로그인 순서 보존.
-  - [ ] **error path**: 사유별 1+ — 배열 아님 (`null` · 객체), 원소가 문자열 아님, github login 형식 위반이 `TypeError` 로 전파되고, 빈 배열 · 파생 email 중복 (`"Foo"` + `"foo"`) 이 `RangeError` 로 전파.
-  - [ ] **branch cover**: 분기마다 1+ — `count` 무인자 (133) 경로 vs 명시 `count` 경로, 정상 조립 경로 vs 각 throw 전파 경로.
-  - [ ] **negative cases 충분 cover**: `count` 0 · 134 · 1.5 · `NaN` 각 1+ (`RangeError` 전파), 반환 args 트리를 mutate 한 뒤 재호출해도 오염 0, 동일 로그인 완전 중복, 도메인이 실 e2e seed (`@e2e.realdata.test`) 와 달라 한 DB 공존 시 `email @unique` 충돌 0.
-- [ ] `pnpm lint && pnpm build && pnpm test` 통과. `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%) — `src/` 무변경이라 전역 coverage 는 불변이어야 한다.
-- [ ] `src/` · `prisma/` · `test/load/` · `.github/workflows/` · `package.json` · 기존 helper 파일 변경 0 임을 diff 로 확인 (신설 2 파일만).
+- [x] `RealDataUpsertArgs` 등 타입은 `import type` 으로만 가져오고, 값 import 는 재사용 대상 함수 (`buildDevsetSeedDescriptors` · `resolveDevsetSeedDescriptors` · `buildRealDataUpsertArgs`) 로 한정한다. 새 dependency 0, 새 타입 정의 0, 순환 의존 0.
+- [x] 에러 정책은 **재정의하지 않는다** — 구조 결손 `TypeError` / 값 정합 위반 `RangeError` 를 T-1651 · T-1648 에서 그대로 전파한다. 본 모듈이 새 throw 를 추가하면 안 된다.
+- [x] colocated spec `test/helpers/realdata-devset-seed-upsert-args.spec.ts` 를 같은 commit 에 추가하고, R-112 4 종을 모두 cover:
+  - [x] **happy-path**: public symbol 2 개 각각 1+ — 로그인 3 개 입력의 args 트리 전량 검증 (`personUpsert.where.email` · `create {fullName,email,active}` · `update {fullName,active}` · `identityUpsertsByEmail` 길이 1 · `where.personId_service` = `{ personId: PERSON_ID_PLACEHOLDER, service: "github.com" }` · `create {service,externalId,isPrimary}` · `update {isPrimary}`), 무인자 `resolveDevsetSeedUpsertArgs()` 가 133 개 · email 133 개 전량 distinct · 입력 로그인 순서 보존.
+  - [x] **error path**: 사유별 1+ — 배열 아님 (`null` · 객체), 원소가 문자열 아님, github login 형식 위반이 `TypeError` 로 전파되고, 빈 배열 · 파생 email 중복 (`"Foo"` + `"foo"`) 이 `RangeError` 로 전파.
+  - [x] **branch cover**: 분기마다 1+ — `count` 무인자 (133) 경로 vs 명시 `count` 경로, 정상 조립 경로 vs 각 throw 전파 경로.
+  - [x] **negative cases 충분 cover**: `count` 0 · 134 · 1.5 · `NaN` 각 1+ (`RangeError` 전파), 반환 args 트리를 mutate 한 뒤 재호출해도 오염 0, 동일 로그인 완전 중복, 도메인이 실 e2e seed (`@e2e.realdata.test`) 와 달라 한 DB 공존 시 `email @unique` 충돌 0.
+- [x] `pnpm lint && pnpm build && pnpm test` 통과. `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%) — `src/` 무변경이라 전역 coverage 는 불변이어야 한다.
+- [x] `src/` · `prisma/` · `test/load/` · `.github/workflows/` · `package.json` · 기존 helper 파일 변경 0 임을 diff 로 확인 (신설 2 파일만).
 
 ## Out of Scope
 
@@ -63,3 +65,17 @@ plannerNote: R-91 chain 33/N — seed 실행 경로 2 번째 slice: descriptor �
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 요약 (2026-08-22)
+
+PR #1320 → main `bcce5516` squash 머지 (round 1, CI green). 신설 2 파일 +235/-0:
+`test/helpers/realdata-devset-seed-upsert-args.ts` 에 public symbol 정확히 2 개
+(`buildDevsetSeedUpsertArgs` · `resolveDevsetSeedUpsertArgs`) 를 export 하고, 변환은
+T-1651 빌더 (`buildDevsetSeedDescriptors` / `resolveDevsetSeedDescriptors`) 와 T-0716 매퍼
+(`buildRealDataUpsertArgs`) 를 **호출만** 해 재구현 0. 타입은 `import type` 전용이라 순환 의존 0,
+새 dependency 0, 새 throw 0 (TypeError / RangeError 를 하위 helper 에서 그대로 전파).
+colocated spec 30 케이스로 R-112 4 종 cover (happy 6 · TypeError 12 · RangeError 8 · 무공유·공존 4).
+전역 447 suite / 12843 test green, line 99.95% · function 100% 로 80% 임계 유지.
+`src/` · `prisma/` · `test/load/` · workflows · `package.json` 변경 0.
+Out of Scope 였던 실 DB write runner (personId placeholder 치환 포함) · 워크플로 seed step 배선 ·
+정본 문서 doc-sync 는 다음 slice 로 남는다.
