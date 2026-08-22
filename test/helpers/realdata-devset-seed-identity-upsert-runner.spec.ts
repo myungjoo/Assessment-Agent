@@ -149,7 +149,7 @@ describe("upsertDevsetSeedServiceIdentities — negative cases", () => {
     ["compound 결손", withId({ where: {} }), TypeError, /personId_service 가/],
     ["personId 결손", cmp(undefined, "gh"), RangeError, /personId 가 빈 값/],
     ["빈 personId", cmp("  ", "gh"), RangeError, /personId 가 빈 값/],
-    ["personId 비-문자열", cmp(7, "gh"), RangeError, /personId 가 빈 값 \(7\)/],
+    ["personId 비-문자열", cmp(7, "gh"), RangeError, /빈 값\/비-문자열 \(7\)/],
     ["빈 service", cmp("p", ""), RangeError, /service 가 빈 값/],
     ["service 비-문자열", cmp("p", { s: 1 }), RangeError, /service 가 빈 값/],
     ["placeholder 잔존", stale, RangeError, /미치환 — upsertArgsList\[1\]/],

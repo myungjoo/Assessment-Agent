@@ -35,7 +35,7 @@ function obj(value: unknown, at: string): Record<string, unknown> {
 
 function text(v: unknown, at: string): string {
   if (typeof v !== "string" || v.trim() === "") {
-    throw new RangeError(`${PREFIX}: ${at} 가 빈 값 (${String(v)})`);
+    throw new RangeError(`${PREFIX}: ${at} 가 빈 값/비-문자열 (${String(v)})`);
   }
   return v;
 }
