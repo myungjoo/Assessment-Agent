@@ -2,13 +2,14 @@
 id: T-1646
 title: 900ms 게이트 배선 완료를 부하계획 §3 각주 · §5 item 5 · PLAN 141 행에 doc-sync
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 estimatedDiff: 60
 estimatedFiles: 2
 created: 2026-08-22
 createdAt: 2026-08-22T00:00:00Z
+completedAt: 2026-08-22T06:47:00Z
 independentStream: load-k6-s1
 dependsOn: [T-1645]
 touchesFiles:
