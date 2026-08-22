@@ -102,8 +102,14 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 - **위 900ms 는 REQ-047 판정 임계가 아니다**: LLM stub(ADR-0057 `D1`) · 외부 수집 왕복 0 ·
   단일 iteration 조건에서만 성립하는 **회귀 관찰용 기준선**이다. REQ-047 pass/fail 판정은
   1h 예산(`3,600,000ms` — [`s1-batch.js`](../../test/load/s1-batch.js) 의
-  `FULL_RUN_BUDGET_MS`) 그대로 유지하며, 본 회차는 스크립트 배선을 바꾸지 않았다
-  (900ms 를 게이트로 태우는 일은 pr-mode 별도 task).
+  `FULL_RUN_BUDGET_MS`) 그대로 유지한다. **스크립트 배선은 T-1645(PR #1316 → main
+  `874297ca`)로 완료**됐다 — [`s1-batch.js`](../../test/load/s1-batch.js) 가
+  `STUB_BASELINE_PERSONS = 133` · `STUB_BASELINE_P95_MS = 900` 두 상수를 두고
+  `http_req_duration{route:batch}` 임계 배열에 `p(95)<900` 을 **표본이 정확히 133 일 때만**
+  덧붙이는 **조건부 활성**이라, 기본 표본 10 run 에는 영향이 0 이다. 같은 배열의 첫 원소인
+  환산 외삽 임계(`BATCH_P95_MS` = 1h 예산 × 표본/133)는 그대로라 **REQ-047 판정 임계는
+  여전히 1h 예산**이고, 900ms 는 표본 133 조건에서만 얹히는 회귀 관찰용 게이트라는 성격
+  구분이 배선 후에도 유지된다.
 - **S1 error rate `< 1%` 확정 근거**: baseline 5 회 run 의 `http_req_failed` 이 모두
   **0.00%**(0/26 · 0/26 · 0/272 · 0/272 · 0/272) 로 임계를 여유 있게 만족해
   `(baseline 후 fix)` 태그를 해제했다.
@@ -360,8 +366,14 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    900ms)을 택한 것은 세 값이 단조 감소라 추세 성분을 배제할 수 없기 때문이고, 그 임계가
    **REQ-047 판정 임계가 아니라 stub 조건**(LLM stub · 수집 왕복 0 · 단일 iteration)의 회귀
    관찰용임은 `§3` 표 아래 각주에 함께 박제했다 — REQ-047 판정은 1h 예산(`3,600,000ms`,
-   스크립트 `FULL_RUN_BUDGET_MS`) 그대로다. 남은 것은 확정된 900ms 를 스크립트 `thresholds`
-   게이트로 태우는 **배선**(pr-mode 별도 task)뿐이며, 이는 임계 확정과 다른 축이다.
+   스크립트 `FULL_RUN_BUDGET_MS`) 그대로다. 임계 확정과 다른 축이던 **배선 축도 해소** —
+   T-1645(PR #1316 → main `874297ca`)가 [`s1-batch.js`](../../test/load/s1-batch.js) 에
+   `STUB_BASELINE_PERSONS = 133` · `STUB_BASELINE_P95_MS = 900` 두 상수를 두고
+   `http_req_duration{route:batch}` 임계 배열에 `p(95)<900` 을 **표본 133 일 때만** 얹는
+   조건부 활성으로 배선했다(기본 표본 10 run 영향 0, REQ-047 판정 임계는 여전히 1h 예산
+   외삽 `BATCH_P95_MS`). 그 결과 **본 item 의 잔여는 위 ① 의 실 dataset seed 축
+   (133 명 `Person` + 각자 github `ServiceIdentity` 로 실 수집 왕복) 1 개뿐**이고,
+   ② 임계 fix · ③ 환경 메타 회수는 각 항 표기대로 이미 해소다.
    ③ 환경 메타 회수 경로
    보강은 **해소** — T-1638(main `55b81dea`) 의 `tee -a` 배선을 T-1639 가 run `32503914467` 에서
    실증해 커널·아키텍처·vCPU·메모리 등 메타 7 항목을 `gh run view --log` 만으로 회수했고,
