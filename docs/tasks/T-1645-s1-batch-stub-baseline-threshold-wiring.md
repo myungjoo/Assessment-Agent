@@ -2,13 +2,15 @@
 id: T-1645
 title: S1 batch stub-조건 baseline 900ms 를 k6 thresholds 에 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1316
 coversReq: [REQ-047]
 estimatedDiff: 170
 estimatedFiles: 2
 created: 2026-08-22
 createdAt: 2026-08-22T00:00:00Z
+completedAt: 2026-08-22T04:53:54Z
 independentStream: load-k6-s1
 dependsOn: [T-1644]
 touchesFiles:
