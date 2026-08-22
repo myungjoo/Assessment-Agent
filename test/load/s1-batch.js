@@ -13,7 +13,7 @@
 // 대상 route 가 Admin+ 라 이 run 의 첫 user 가 SuperAdmin 이어야 하고(src/user/user.controller.ts
 // 9~11 행), 그 전제는 workflow step 순서 smoke → S1 → S2 → S3 이 보장한다. 규약 승계(s2-read.js):
 // __ENV 기본값 · route tag 분리 · signup → login → cookie · setup/teardown 자기 정리 · 분기 0.
-// 범위 밖(후속 slice): 133명 full seed · baseline 실측/임계 fix · 서버 단계별 분해 지표.
+// 범위 밖(후속 slice): 133명 full seed · 실 scale baseline 재실측 · 서버 단계별 분해 지표.
 // (load-k6.yml step · package.json test:load:s1 은 T-1633 으로 배선 완료 — 후속 아님.)
 import http from "k6/http";
 
@@ -33,6 +33,11 @@ const FULL_RUN_BUDGET_MS = 3600000;
 const BATCH_P95_MS = Math.round(
   FULL_RUN_BUDGET_MS * (SAMPLE_PERSONS / EXTRAPOLATION_PERSONS),
 );
+// stub 조건 baseline — T-1644 가 계획 §3 표에 확정한 stub(ADR-0057 D1) · 표본 133 관찰 임계다.
+// REQ-047 판정 임계(위 외삽 산식) 가 아니라 회귀 감시용이라 둘을 합치지 않고 병기하며, 표본이
+// 133 일 때만 얹는다(축소 표본에 적용하면 근거 없는 red). 조건은 분기문 0 규약대로 식으로만 쓴다.
+const STUB_BASELINE_PERSONS = 133;
+const STUB_BASELINE_P95_MS = 900;
 
 // D3 tag 3 종 — seed(준비 write · 정리 DELETE) · auth(signup · login) 는 대상 route 와 다른
 // 이름을 써 batch 지표를 오염시키지 않는다(S2·S3 오염 차단 규약 승계).
@@ -47,7 +52,13 @@ export const options = {
   iterations: 1,
   thresholds: {
     // 판정 게이트 — 대상 route 에만. 단일 표본에서 p(95) 는 그 표본값 자체다.
-    "http_req_duration{route:batch}": [`p(95)<${BATCH_P95_MS}`],
+    // 둘째 원소는 표본 133 일 때만 활성화되는 stub baseline(위 상수 주석) — filter 콜백이
+    // 조건 표현이라 분기문 0 규약과 삼항 0 규약을 둘 다 유지한다.
+    "http_req_duration{route:batch}": [`p(95)<${BATCH_P95_MS}`].concat(
+      [`p(95)<${STUB_BASELINE_P95_MS}`].filter(
+        () => SAMPLE_PERSONS === STUB_BASELINE_PERSONS,
+      ),
+    ),
     // 배치 실패·재시도율 — 계획 §3 표 그대로, 재산정 0.
     http_req_failed: ["rate<0.01"],
   },

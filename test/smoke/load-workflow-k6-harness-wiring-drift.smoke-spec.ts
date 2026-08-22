@@ -1290,6 +1290,12 @@ const S1_SCRIPT_REL = "test/load/s1-batch.js";
 const S1_BATCH_ROUTE = "/api/assessment-evaluation/unevaluated-fill-run";
 /** S1 임계 정본 — batch p95(외삽 산식) + 전역 error rate = 2 종, 선언 순서 그대로. */
 const S1_THRESHOLD_KEYS = ["http_req_duration{route:batch}", "http_req_failed"];
+/** (T-1645) T-1644 가 계획 §3 표에 확정한 stub 조건 baseline — 표본 133 · p95 900ms. */
+const S1_STUB_BASELINE_PERSONS = 133;
+const S1_STUB_BASELINE_P95_MS = 900;
+/** baseline 원소를 표본 133 에만 얹는 조건식(분기문 0 규약을 지키는 filter 콜백 형태). */
+const S1_BASELINE_GATE =
+  /\.filter\(\s*\(\) => SAMPLE_PERSONS === STUB_BASELINE_PERSONS,?\s*\)/;
 /** 때려도 되는 route 전량 — seed / auth / batch 의 합집합(그 밖은 임의 route 혼입). */
 const S1_ROUTES = [
   "/api/persons",
@@ -1342,6 +1348,53 @@ function routeP95Expression(script: string, tag: string): string | null {
   return m ? m[1] : null;
 }
 
+/**
+ * (T-1645) 한 route tag 의 임계 항목 원문 — 키 행 + 그보다 깊게 들여쓴 이어지는 행 전부. 값이
+ * 여러 행에 걸친 배열·체인이어도 항목 경계를 들여쓰기로만 판정한다. 대상 행 부재면 `null`(추측 0).
+ * @throws {TypeError} 입력이 non-string 일 때.
+ */
+function routeThresholdEntry(script: string, tag: string): string | null {
+  if (typeof script !== "string" || typeof tag !== "string") {
+    throw new TypeError("routeThresholdEntry: script·tag 는 string 이어야 함");
+  }
+  const lines = script.split("\n");
+  const start = lines.findIndex((l) =>
+    l.trim().startsWith(`"http_req_duration{route:${tag}}"`),
+  );
+  if (start < 0) return null;
+  const indentOf = (l: string): number => l.length - l.trimStart().length;
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex(
+    (l) => l.trim() !== "" && indentOf(l) <= indentOf(lines[start]),
+  );
+  return [lines[start], ...rest.slice(0, end < 0 ? rest.length : end)].join(
+    "\n",
+  );
+}
+
+/**
+ * (T-1645) 한 route tag 임계 항목의 `p(95)<...` 표현식 전량(선언 순서 보존). 항목 부재 · p95 아닌
+ * 집계자면 빈 배열(추측 0) — `routeP95Expression` 의 단수 계약을 배열 값으로 확장한 것이다.
+ * @throws {TypeError} 입력이 non-string 일 때.
+ */
+function routeP95Expressions(script: string, tag: string): string[] {
+  const entry = routeThresholdEntry(script, tag);
+  if (entry === null) return [];
+  return (entry.match(/p\(95\)<[^`"']+/g) || []).map((m) =>
+    m.slice("p(95)<".length),
+  );
+}
+
+/** (T-1645) baseline 배선 불변식 — mutation 검출력 확인에 그대로 재사용한다. */
+const baselineWiringIntact = (script: string): boolean =>
+  script.includes(
+    `const STUB_BASELINE_PERSONS = ${S1_STUB_BASELINE_PERSONS};`,
+  ) &&
+  script.includes(`const STUB_BASELINE_P95_MS = ${S1_STUB_BASELINE_P95_MS};`) &&
+  routeP95Expressions(script, "batch").join(",") ===
+    "${BATCH_P95_MS},${STUB_BASELINE_P95_MS}" &&
+  S1_BASELINE_GATE.test(routeThresholdEntry(script, "batch") as string);
+
 describe("test/load/s1-batch.js S1 평가 배치 부하 골격 drift smoke (T-1631)", () => {
   describe("Happy-path: 실재 · 대상 route · tag 3 종 · 임계 key · setup/teardown", () => {
     it("s1-batch.js 가 실재하고 setup / default / teardown export 와 __ENV 기본값 2 종을 갖는다", () => {
@@ -1385,6 +1438,25 @@ describe("test/load/s1-batch.js S1 평가 배치 부하 골격 drift smoke (T-16
         "FULL_RUN_BUDGET_MS * (SAMPLE_PERSONS / EXTRAPOLATION_PERSONS)",
       );
       expect(script).toContain("rate<0.01");
+    });
+
+    it("(T-1645) batch 임계 배열이 외삽 + 표본 133 stub baseline 900ms 2 종이다", () => {
+      const script = s1Script();
+      // 임계 key 목록·순서는 2 종 그대로 — 늘어난 것은 batch 값 배열의 원소뿐이다.
+      expect(thresholdKeys(script)).toEqual(S1_THRESHOLD_KEYS);
+      expect(routeP95Expressions(script, "batch")).toEqual([
+        "${BATCH_P95_MS}",
+        "${STUB_BASELINE_P95_MS}",
+      ]);
+      expect(script).toContain(
+        `const STUB_BASELINE_PERSONS = ${S1_STUB_BASELINE_PERSONS};`,
+      );
+      expect(script).toContain(
+        `const STUB_BASELINE_P95_MS = ${S1_STUB_BASELINE_P95_MS};`,
+      );
+      // 판정 게이트(외삽)와 error rate 항목은 무변경 — 두 성격을 하나로 합치지 않았다.
+      expect(script).toContain('http_req_failed: ["rate<0.01"],');
+      expect(baselineWiringIntact(script)).toBe(true);
     });
 
     it("setup 이 seed / auth tag 로 준비하고 teardown 이 seed person 을 전량 회수한다", () => {
@@ -1440,6 +1512,62 @@ describe("test/load/s1-batch.js S1 평가 배치 부하 골격 drift smoke (T-16
       ).toBeNull();
     });
 
+    it("(T-1645) baseline 원소의 두 갈래가 표본 133 비교식 하나로만 갈린다", () => {
+      const script = s1Script();
+      const entry = routeThresholdEntry(script, "batch") as string;
+      // 스크립트를 실행할 수 없으므로 ① 표본 133 → baseline 포함 / ② 그 밖 → 미포함 두 갈래를
+      // 조건식 텍스트(비교 대상 상수 2 개 · 비교 연산자 형태)로 고정해 대체 cover 한다.
+      expect(entry).toMatch(S1_BASELINE_GATE);
+      expect(entry).toContain("`p(95)<${STUB_BASELINE_P95_MS}`");
+      expect(script).toContain(
+        `const STUB_BASELINE_PERSONS = ${S1_STUB_BASELINE_PERSONS};`,
+      );
+      expect(script).toContain(
+        `const STUB_BASELINE_P95_MS = ${S1_STUB_BASELINE_P95_MS};`,
+      );
+      // 외삽 원소는 조건 밖 — filter 앞의 무조건 원소라 두 갈래 모두에서 살아 있다.
+      expect(entry.indexOf("${BATCH_P95_MS}")).toBeGreaterThanOrEqual(0);
+      expect(entry.indexOf("${BATCH_P95_MS}")).toBeLessThan(
+        entry.indexOf(".filter("),
+      );
+      // 비교 연산자가 느슨한 동등(==)이나 부등호로 완화되지 않았다.
+      expect(entry).not.toMatch(/SAMPLE_PERSONS ==[^=]/);
+      expect(entry).not.toMatch(/SAMPLE_PERSONS [<>]/);
+    });
+
+    it("(T-1645) routeThresholdEntry / routeP95Expressions: 부재 · p95 아님 · non-string", () => {
+      const script = s1Script();
+      // 대상 있음 / 없음 두 갈래 — batch 는 2 종, 다른 tag 는 항목 자체가 없다.
+      expect(routeP95Expressions(script, "batch")).toHaveLength(2);
+      expect(routeThresholdEntry(script, "seed")).toBeNull();
+      expect(routeP95Expressions(script, "seed")).toEqual([]);
+      const dropped = script.replace('"http_req_duration{route:batch}"', "//");
+      expect(routeThresholdEntry(dropped, "batch")).toBeNull();
+      expect(routeP95Expressions(dropped, "batch")).toEqual([]);
+      // p(95) 아닌 집계자 · thresholds 블록 부재 · 0-byte 는 throw 없이 미발견 정규형.
+      expect(
+        routeP95Expressions(
+          '  "http_req_duration{route:batch}": ["avg<900"],',
+          "batch",
+        ),
+      ).toEqual([]);
+      expect(
+        routeThresholdEntry("export const options = {\n  vus: 1,\n};", "batch"),
+      ).toBeNull();
+      expect(routeP95Expressions("", "batch")).toEqual([]);
+      [null, undefined, 42, {}, []].forEach((v) => {
+        expect(() =>
+          routeThresholdEntry(v as unknown as string, "batch"),
+        ).toThrow(TypeError);
+        expect(() =>
+          routeP95Expressions(v as unknown as string, "batch"),
+        ).toThrow(TypeError);
+      });
+      expect(() =>
+        routeP95Expressions(script, 42 as unknown as string),
+      ).toThrow(TypeError);
+    });
+
     it("(T-1632) 신규 단언도 재사용 helper 계약 위에서만 성립한다(신규 helper 0)", () => {
       // 본 slice 는 helper 를 추가하지 않고 s1Body / apiRoutesOf / routeP95Expression 3 종을
       // 재사용만 했다 — 그래서 "대상 있음 / 없음" 분기 cover 를 아래 두 helper 로 승계한다.
@@ -1493,10 +1621,13 @@ describe("test/load/s1-batch.js S1 평가 배치 부하 골격 drift smoke (T-16
 
     it("(2) batch 외 tag 에는 p95 임계가 걸리지 않는다(준비·인증 왕복 오염 차단)", () => {
       const script = s1Script();
-      ["seed", "auth"].forEach((tag) =>
-        expect(routeP95Expression(script, tag)).toBeNull(),
-      );
-      expect(script.match(/p\(95\)</g)).toHaveLength(1);
+      ["seed", "auth"].forEach((tag) => {
+        expect(routeP95Expression(script, tag)).toBeNull();
+        expect(routeP95Expressions(script, tag)).toEqual([]);
+      });
+      // T-1645 이후 p95 표현식은 2 개지만 둘 다 batch 항목 안에 있다(다른 tag 오염 0).
+      expect(script.match(/p\(95\)</g)).toHaveLength(2);
+      expect(routeP95Expressions(script, "batch")).toHaveLength(2);
     });
 
     it("(3) 임계가 리터럴 상수로 굳어있지 않다(합성 mutation 이 검출된다)", () => {
@@ -1506,6 +1637,29 @@ describe("test/load/s1-batch.js S1 평가 배치 부하 골격 drift smoke (T-16
       expect(routeP95Expression(frozen, "batch")).toMatch(/^\d+$/);
       // error rate 는 계획 §3 표 그대로 — 재산정 0.
       expect(script).not.toMatch(/rate<(?!0\.01)[\d.]+/);
+    });
+
+    it("(T-1645) baseline 배선 mutation 4 종이 전부 검출된다", () => {
+      const script = s1Script();
+      expect(baselineWiringIntact(script)).toBe(true);
+      // ① 900 → 다른 숫자로 변조.
+      const shifted = script.replace(
+        "STUB_BASELINE_P95_MS = 900;",
+        "STUB_BASELINE_P95_MS = 1500;",
+      );
+      expect(shifted).not.toBe(script);
+      expect(baselineWiringIntact(shifted)).toBe(false);
+      // ② baseline 표현식 삭제.
+      const removed = script.replace("`p(95)<${STUB_BASELINE_P95_MS}`", "``");
+      expect(baselineWiringIntact(removed)).toBe(false);
+      // ③ 외삽 표현식을 리터럴로 굳힘(기존 (3) 케이스와 동형, 배열 첫 원소 기준).
+      expect(
+        baselineWiringIntact(script.replace("${BATCH_P95_MS}", "270676")),
+      ).toBe(false);
+      // ④ 조건식 제거로 baseline 이 축소 표본에서도 무조건 활성화되는 변조.
+      const always = script.replace(S1_BASELINE_GATE, "");
+      expect(always).not.toBe(script);
+      expect(baselineWiringIntact(always)).toBe(false);
     });
 
     it("(4) 자격증명이 전부 stamp 파생 더미다(실 secret 리터럴 0 · 암호화 키 문자열 0)", () => {
