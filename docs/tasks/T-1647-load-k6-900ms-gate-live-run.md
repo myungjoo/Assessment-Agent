@@ -2,12 +2,14 @@
 id: T-1647
 title: 배선된 900ms 게이트로 load-k6 를 s1_persons=133 재 dispatch — 게이트 런타임 활성·통과 여부 실측 기록
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 estimatedDiff: 100
 estimatedFiles: 2
 created: 2026-08-22
+createdAt: 2026-08-22T07:05:00Z
+completedAt: 2026-08-22T08:52:00Z
 dependsOn: [T-1645, T-1646]
 touchesFiles:
   - docs/ops/load-resilience-test-plan.md
@@ -62,4 +64,6 @@ T-1645(PR #1316 → main `874297ca`) 가 stub 조건 baseline `p(95)<900` 을 [`
 
 ## Follow-ups
 
-(작성 시점 비어 있음)
+- 게이트 결함 0 (임계 2 개 모두 등장·통과) 이라 스크립트 수정 후속 없음.
+- `§3` 표 임계 재확정 불요 — 4 표본 평균+3σ = 855.19ms 로 900ms 미초과. 표본이 더 쌓여 3σ 가 900ms 를 넘으면 그때 별도 slice.
+- 잔여 축은 `§5` item 5 ① 실 dataset seed(133 명 `Person` + github `ServiceIdentity` 실 수집) 1 개.
