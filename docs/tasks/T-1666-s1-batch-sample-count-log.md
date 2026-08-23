@@ -2,13 +2,14 @@
 id: T-1666
 title: s1-batch.js setup() 에 devset 표본 인원 수 로그 1 줄 추가 — 회차마다의 간접 추론 제거
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047]
 estimatedDiff: 210
 estimatedFiles: 2
 created: 2026-08-23
 createdAt: 2026-08-23T21:40:00Z
+completedAt: 2026-08-23T22:52:35Z
 dependsOn: [T-1665]
 touchesFiles:
   - test/load/s1-batch.js
@@ -41,20 +42,20 @@ plannerNote: "P5 R-91 chain 48/N — T-1665 Follow-up 1: setup() 표본 수를 �
 
 ## Acceptance Criteria
 
-- [ ] [test/load/s1-batch.js](../../test/load/s1-batch.js) `setup()` 의 `personIds` 산출 **직후**에 `console.log` **정확히 1 회**를 추가한다. 로그 문자열은 최소 **취한 표본 수(`personIds.length`)** 와 **요청 표본 수(`SAMPLE_PERSONS`)** 두 수치를 포함하고, 다음 사람이 값을 grep 할 수 있도록 고정 prefix(예: `[s1-batch] devset 표본`)로 시작한다. 자격증명·cookie·email 원문 등 민감값은 **출력 금지**.
-- [ ] 위 로그 줄은 기존 단언 4 종(Required Reading 말미)을 **깨지 않는다** — 분기 토큰(`if (`, `} else`, ` ? `, ` && `, ` || (`, `Math.min(`) 0, `||` 총 매치 수 불변(2), 문자열 안에 `/api/` 경로 리터럴 0, `personIds` 단일 식 chain 무변경. `setup()` 의 http 왕복 수·순서·`return` 키 집합도 무변경.
-- [ ] `teardown()` · `export default function` · `options` · 머리 주석의 `// 범위 밖(후속 slice):` 리터럴은 **무변경**.
-- [ ] [test/smoke/load-workflow-k6-harness-wiring-drift.smoke-spec.ts](../../test/smoke/load-workflow-k6-harness-wiring-drift.smoke-spec.ts) 끝에 `describe("s1-batch.js 표본 인원 수 로그 배선 drift smoke (T-1666)")` 를 **최대 12 케이스**로 append 하고, 아래 4 종을 모두 cover 한다:
+- [x] [test/load/s1-batch.js](../../test/load/s1-batch.js) `setup()` 의 `personIds` 산출 **직후**에 `console.log` **정확히 1 회**를 추가한다. 로그 문자열은 최소 **취한 표본 수(`personIds.length`)** 와 **요청 표본 수(`SAMPLE_PERSONS`)** 두 수치를 포함하고, 다음 사람이 값을 grep 할 수 있도록 고정 prefix(예: `[s1-batch] devset 표본`)로 시작한다. 자격증명·cookie·email 원문 등 민감값은 **출력 금지**.
+- [x] 위 로그 줄은 기존 단언 4 종(Required Reading 말미)을 **깨지 않는다** — 분기 토큰(`if (`, `} else`, ` ? `, ` && `, ` || (`, `Math.min(`) 0, `||` 총 매치 수 불변(2), 문자열 안에 `/api/` 경로 리터럴 0, `personIds` 단일 식 chain 무변경. `setup()` 의 http 왕복 수·순서·`return` 키 집합도 무변경.
+- [x] `teardown()` · `export default function` · `options` · 머리 주석의 `// 범위 밖(후속 slice):` 리터럴은 **무변경**.
+- [x] [test/smoke/load-workflow-k6-harness-wiring-drift.smoke-spec.ts](../../test/smoke/load-workflow-k6-harness-wiring-drift.smoke-spec.ts) 끝에 `describe("s1-batch.js 표본 인원 수 로그 배선 drift smoke (T-1666)")` 를 **최대 12 케이스**로 append 하고, 아래 4 종을 모두 cover 한다:
   - **happy-path** — `setup()` 에 `console.log` 가 정확히 1 회 존재하고, 그 인자 문자열이 `personIds.length` 와 `SAMPLE_PERSONS` 를 둘 다 참조하며, 위치가 `personIds` 산출 이후·`return` 이전이다. 고정 prefix 리터럴도 단언한다.
   - **error path** — 정본 파일 부재/오탈자 경로 read 는 throw, 없는 블록 추출(`s1Body("export function nonexistent")`)은 조용히 PASS 하지 않고 throw, 빈 문자열 입력은 `null`, non-string 입력은 `TypeError`.
   - **flow / 분기 cover** — 표본이 조회 결과보다 많을 때·적을 때·조회 결과가 0 일 때 로그가 찍을 수 (`personIds.length`) 가 각각 어떻게 되는지 스크립트와 **같은 식**을 합성 배열에 적용해 동치 검증(실 k6 실행 0). `SAMPLE_PERSONS` 정규화 식(기본값 10)과 workflow 주입 parity 회귀 0 도 함께.
   - **negative cases 충분 cover(각 1+ test)** — ① `console.log` 가 2 회 이상으로 늘거나 `setup()` 밖(`teardown`/`default`)으로 새지 않는다 ② 로그 문자열에 자격증명·cookie·`authCookie`·`credentials`·`apiKey`·`password` 토큰 유입 0 ③ 로그 문자열에 `/api/` 경로 리터럴 유입 0(`apiRoutesOf` 집합 불변으로 확인) ④ 분기 0 규약 회귀 0(분기 토큰 부재 + `||` 매치 수 2) ⑤ `personIds` 단일 식 chain 이 중간 변수로 쪼개지지 않았다(합성 mutation 으로 단언이 실제로 깨지는지 대조 — false-PASS 차단).
-- [ ] 새 케이스는 **합성 mutation 대조군**을 1+ 포함한다 — 원본은 통과하고 mutate 한 문자열은 단언이 깨지는 것을 같은 test 안에서 보여, 단언이 항상 참인 tautology 가 아님을 증명한다(T-1661 negative ④ 선례).
-- [ ] 기존 T-1661 describe 의 단언이 본 변경으로 깨진다면 **삭제하지 말고** 새 계약으로 갱신한다(무엇이 왜 바뀌었는지 한국어 주석 1 줄 동반). 깨지지 않았다면 무변경.
-- [ ] `pnpm lint && pnpm build` green.
-- [ ] `pnpm test` green — 대상 smoke spec 의 기존 케이스 회귀 0(기존 개수 + 신규 개수가 모두 pass), 전체 suite 회귀 0.
-- [ ] `pnpm test:cov` 통과(line ≥ 80% / function ≥ 80%). `src/` 무변경이라 전역 coverage 수치는 불변이어야 한다 — 달라지면 그 사유를 PR 본문에 적는다.
-- [ ] 변경 파일 **2 개**(`test/load/s1-batch.js` · `test/smoke/load-workflow-k6-harness-wiring-drift.smoke-spec.ts`), diff ≤ 300 LOC 유지. 3 번째 파일이 필요하다고 판단되면 Follow-ups 로 넘긴다.
+- [x] 새 케이스는 **합성 mutation 대조군**을 1+ 포함한다 — 원본은 통과하고 mutate 한 문자열은 단언이 깨지는 것을 같은 test 안에서 보여, 단언이 항상 참인 tautology 가 아님을 증명한다(T-1661 negative ④ 선례).
+- [x] 기존 T-1661 describe 의 단언이 본 변경으로 깨진다면 **삭제하지 말고** 새 계약으로 갱신한다(무엇이 왜 바뀌었는지 한국어 주석 1 줄 동반). 깨지지 않았다면 무변경.
+- [x] `pnpm lint && pnpm build` green.
+- [x] `pnpm test` green — 대상 smoke spec 의 기존 케이스 회귀 0(기존 개수 + 신규 개수가 모두 pass), 전체 suite 회귀 0.
+- [x] `pnpm test:cov` 통과(line ≥ 80% / function ≥ 80%). `src/` 무변경이라 전역 coverage 수치는 불변이어야 한다 — 달라지면 그 사유를 PR 본문에 적는다.
+- [x] 변경 파일 **2 개**(`test/load/s1-batch.js` · `test/smoke/load-workflow-k6-harness-wiring-drift.smoke-spec.ts`), diff ≤ 300 LOC 유지. 3 번째 파일이 필요하다고 판단되면 Follow-ups 로 넘긴다.
 
 ## Out of Scope
 
@@ -73,4 +74,9 @@ plannerNote: "P5 R-91 chain 48/N — T-1665 Follow-up 1: setup() 표본 수를 �
 
 ## Follow-ups
 
-(비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 적는다.)
+1. **9 회차 실측 slice 가 로그 줄을 실제로 회수** (direct-mode) — 본 slice 는 배선만이라 `[s1-batch] devset 표본` 줄이 실 run 에 찍히는 것은 아직 확인되지 않았다. 다음 `load-k6.yml` dispatch 회차가 `gh run view --log` 에서 그 줄을 뽑아 `docs/ops/load-resilience-test-plan.md` `§3.1` **9 회차** 소절에 박제하고, 8 회차 소절의 "간접 증거 3 종" 문단에 "9 회차부터 직접 회수" 를 덧붙인다.
+2. **실 수집 왕복 축** (T-1665 Follow-up 2 승계) — 133 건 `ServiceIdentity` 는 적재됐으나 부하 job 에 GitHub/Confluence 자격증명이 없어 왕복이 여전히 0. CLAUDE.md §5 BLOCKED 사유(외부 자격증명)라 오너 결정 선행 — 별도 planner slice 에서 humanQuestion 으로 올릴지 stub 수집기로 대체할지 판정.
+
+## 결과 요약 (2026-08-23)
+
+PR [#1331](https://github.com/myungjoo/Assessment-Agent/pull/1331) squash merge `08767749`. `test/load/s1-batch.js` `setup()` 의 `personIds` 산출 직후에 고정 prefix `[s1-batch] devset 표본` 로그 **정확히 1 회**(+7 LOC) 를 넣어 취한 표본 수(`personIds.length`) 와 요청 표본 수(`SAMPLE_PERSONS`) 를 직접 찍는다. 분기 토큰 0 · `||` 매치 2 불변 · `/api/` 경로 리터럴 0 이라 T-1661 describe 의 기존 단언 4 종은 **깨지지 않아 무변경**. drift-guard smoke 에 `T-1666` describe **12 케이스**(happy 3 · error 2 · flow 2 · negative 5) 를 append 했고, 그중 5 종은 합성 mutation 대조군(중복 로그 · 민감값 · 경로 리터럴 · 분기 토큰 · chain 분해) 으로 단언이 tautology 가 아님을 같은 test 안에서 증명한다. 2 파일 **+246/-0**, 대상 spec 214 pass(기존 202 회귀 0) · 전체 unit 12,994 pass · `src/` 무변경이라 전역 coverage 불변. reviewer APPROVE round 1, 4-게이트 모두 PASS.
