@@ -125,7 +125,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
   되기 때문이다. S2 · S3 의 "baseline 후 fix" 는 해당 축 실측이 0 회라 그대로 남는다
   (`§5` item 5).
 
-### 3.1 baseline 실측 기록 (S1, 7 회분)
+### 3.1 baseline 실측 기록 (S1, 8 회분)
 
 #### 1 회차 (T-1637, run 32459501970)
 
@@ -398,6 +398,58 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
   ③ 단일 iteration) 여기에 ④ **seed 실행 자체가 아직 성공 0 회** 가 더해진다. 그래서 PLAN
   `140 행` checkbox 는 `[ ]` 유지다.
 
+#### 8 회차 (T-1665, run 32665014391, 실 dataset seed 첫 **성공** run — T-1664 fix 후)
+
+- **측정 일시 / run**: 2026-08-23T20:38:13Z dispatch(`workflow_dispatch`, ref `main`, head sha
+  `3319ac41`), run id **32665014391**, job 20:38:16Z~20:40:44Z(약 2분 28초). **conclusion
+  `success`** — 시나리오 step 16 개가 전부 success 이고 skipped 는 0 이다(7 회차의 skipped 5
+  와 대비). dispatch 는 `-f s1_persons=133` 으로 **정확히 1 회**만 했고 재시도·재 dispatch 는
+  0 이다(Out of Scope 준수).
+- **seed step 결과(본 회차 1 순위 관측 대상)** — `133 로그인 실 dataset seed 적재`
+  step(20:39:52Z~20:39:55Z, 약 3 초) **success**. 로그 원문(자격증명 제외):
+  `devset seed 완료 — person 133 건 / serviceIdentity 133 건 적재`. **적재 인원 수 133 명 ·
+  `ServiceIdentity` 133 건**이 처음으로 로그에서 직접 회수됐다(7 회차는 CLI 가 성공 요약만
+  마지막에 찍는 구조라 이 수치가 회수 실패였다). 7 회차를 죽인 ``Argument `person` is
+  missing.`` 은 재현되지 않았다 — T-1664(PR #1330 → main `61f616a1`)가
+  `resolveRealDataPersonId` 로 `create.personId` 를 배선한 fix 가 실 run 에서 확인된 것이다.
+- **`setup()` 소비 경로(T-1661) 검증**: **적재분 조회 경로로 확인 — 합성 생성 흔적 0**.
+  `http_reqs` 가 **7**(6.754967/s) 뿐이고(3~6 회차는 272) 그 7 회는 setup 의
+  `POST /api/users` · `POST /api/auth/login` · `GET /api/llm/providers` ·
+  `POST /api/llm/providers` · `GET /api/persons` 5 왕복 + iteration 의 batch `POST` 1 +
+  teardown 의 provider `DELETE` 1 로 정확히 맞아떨어진다. 즉 **`POST /api/persons` 합성 생성
+  왕복이 사라졌다** — T-1661 배선이 의도대로 조회 경로로 돈다는 뜻이고 배선 결함은 발견되지
+  않았다. 다만 **표본 인원 수 자체를 찍는 로그는 스크립트에 없다**([`s1-batch.js`](../../test/load/s1-batch.js)
+  `setup()` 은 `console.log` 0). `133` 이라는 값은 **간접 증거 3 종**으로만 뒷받침된다 — (a)
+  seed step 이 133 건 적재를 로그로 확정, (b) [`person.service.ts`](../../src/user/person.service.ts)
+  의 `findMany` 가 페이지네이션 없이 전량을 돌려주므로 `@load.devset.test` 필터 뒤
+  `slice(0, 133)` 이 133 을 그대로 취함, (c) batch p95 **757.65ms** 가 표본 133 인 3~6 회차
+  대역(711~792ms) 안이라 표본이 0~소수였다면 나올 수 없는 크기다. 표본 수를 로그로 **직접**
+  확정하려면 스크립트 변경이 필요해 본 slice Out of Scope 다(Follow-ups).
+- **k6 THRESHOLDS(로그 원문 인용)**: `http_req_duration{route:batch}` 임계가 요구대로
+  **2 개** 등장하고 둘 다 통과했다 — `✓ 'p(95)<3600000' p(95)=757.65ms` ·
+  `✓ 'p(95)<900' p(95)=757.65ms`. `http_req_failed` 은 `✓ 'rate<0.01' rate=0.00%`
+  (`0 out of 7`). `iteration_duration` 은 avg=min=med=max=p(95) **758.79ms**(단일 iteration).
+  900ms 게이트까지 여유는 **142.35ms(약 15.82%)** 로 6 회차(107.73ms · 11.97%)보다 넓다.
+- **기술통계(실 scale 표본 5 개)**: 3~6 회차 760.91 · 730.81 · 711.23 · 792.27 에 본 회차
+  **757.65** 를 더해 표본이 **5 개**가 됐다 — 평균 **750.57ms** · 범위 **81.04ms**
+  (711.23~792.27) · 표본표준편차 **30.96ms** · 변동계수 **4.12%** · 평균+3σ **843.45ms**.
+  **900ms 재확정 필요 여부: 불요** — 평균+3σ 가 843.45ms 로 임계 안이고(여유 56.55ms), 표본이
+  4 → 5 로 늘며 표준편차가 35.46 → 30.96ms 로 오히려 줄어 산포가 좁아졌다. `§3` 표의 임계
+  숫자는 무변경이다.
+- **환경 메타(로그로 회수됨)**: 커널 `Linux 6.17.0-1022-azure`, 아키텍처 `x86_64`, vCPU **4**,
+  메모리 **15Gi**, DB image `postgres:16-alpine`, 부하 대상 image `assessment-agent:load`,
+  표본 인원 `K6_S1_PERSONS=133`. **7 항목이 3~7 회차와 전부 동일**하므로 조건은 일치하며,
+  `s1_persons` input 주입도 **여섯 번째로 성공**(default `10` 낙하 없음)이다.
+  `--summary-export` 산출물도 정상이라 "S1 summary JSON 전문" 이 step summary 에 실렸다.
+- **의미 / 한계**: 본 회차로 `§5` item 5 잔여 ① 안의 **"seed 실행 성공 0 회" 축이 해소**됐다 —
+  실 devset 133 로그인이 `Person` + `ServiceIdentity` 로 실제 적재되고, k6 가 그 적재분을 조회해
+  소비하는 경로까지 한 run 안에서 성립했다(배선 4 축이 **실행으로도** 닫힌 첫 run). 그러나
+  ① 자체는 **미해소 유지**다: `ServiceIdentity` 가 붙었어도 job 에 GitHub/Confluence 자격증명이
+  없고 iteration 이 758.79ms 만에 끝난 데서 보듯 **50~100 repo · ~1000 page 실 수집 왕복은
+  여전히 0** 이며, ① LLM 은 `LOAD_TEST_STUB=1` stub(ADR-0057 `D1`), ③ 단일 iteration 이라 p95
+  가 곧 단일 표본값이라는 조건도 3~7 회차 그대로다. 그래서 PLAN `140 행` checkbox 는 `[ ]`
+  유지다.
+
 ---
 
 ## 4. 접근 방식·도구 후보
@@ -487,20 +539,28 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    step). (d) **k6 소비 경로**: T-1661 `499df531` 이
    [`s1-batch.js`](../../test/load/s1-batch.js) `setup()` 을 `POST /api/persons` 합성 생성 대신
    `GET /api/persons` + `@load.devset.test` 접미사 필터로 바꾸고, `teardown()` 이 공유 dataset 을
-   보존하게 했다. 그럼에도 **① 자체는 미해소 유지**다 — 그 배선을 태운 **첫 실 run 이
-   T-1663 의 run `32652307813`**(2026-08-23T16:38:45Z dispatch, head sha `0046e366`,
-   `-f s1_persons=133`, 1 회 한정)로 실행됐고 **conclusion `failure`** 였다. 실패 지점은
-   `133 로그인 실 dataset seed 적재` step 의 **ServiceIdentity leg 첫 upsert** —
-   ``Argument `person` is missing.`` 로,
+   보존하게 했다. 그럼에도 **① 자체는 미해소 유지**다 — 다만 그 내용은 T-1665 로 한 칸 더
+   좁혀졌다. 그 배선을 태운 **첫 실 run 인 T-1663 의 run `32652307813`**(head sha
+   `0046e366`, `-f s1_persons=133`)은 `133 로그인 실 dataset seed 적재` step 의
+   **ServiceIdentity leg 첫 upsert** 가 ``Argument `person` is missing.`` 로 죽어 conclusion
+   `failure` 였고(원인:
    [`realdata-e2e-seed-upsert.ts`](../../test/helpers/realdata-e2e-seed-upsert.ts) 의
    `ServiceIdentityUpsertArgs.create` 가 `where.personId_service.personId` 만 런타임 치환하고
-   `create` 쪽 Person 관계를 비워둔 것이 원인이다(devset chain 은 T-1652 가 그 shape 을 승계).
-   그 step 이 exit 1 이라 k6 5 step(smoke · S1 · S2 · S3 + 설치)이 전부 skipped 로 떨어져
-   `setup()` 소비 경로(T-1661) 검증도 **회수 실패**다. 수치·로그 인용은 위 `§3.1` 7 회차.
-   따라서 잔여 내용은 *배선* → **실행·실측** 으로 좁혀진 뒤 다시 **"seed 실행 성공 0 회 —
-   식별된 결함 1 건(identity create 의 Person 관계 결손) 수정 대기"** 로 구체화됐다(잔여
-   개수는 **1 개** 그대로이며 ② · ③ 표기도 무변경). 수정은 본 계획 문서가 아니라 별도
-   pr-mode slice 의 몫이다(T-1663 은 측정·기록 전용이라 코드 변경 0).
+   `create` 쪽 Person 관계를 비워둔 것 — devset chain 은 T-1652 가 그 shape 을 승계), k6
+   5 step 이 전부 skipped 라 `setup()` 소비 경로 검증도 회수 실패였다(`§3.1` 7 회차).
+   그 결함은 **T-1664**(PR #1330 → main `61f616a1`)가 `resolveRealDataPersonId` 로
+   `create.personId` 를 배선해 닫았고, **T-1665 의 재 dispatch run
+   `32665014391`**(2026-08-23T20:38:13Z, head sha `3319ac41`, `-f s1_persons=133`, 1 회 한정)이
+   **conclusion `success`** 로 그 fix 를 실 run 에서 확인했다 — seed step 이
+   `devset seed 완료 — person 133 건 / serviceIdentity 133 건 적재` 를 찍었고, `http_reqs` 가
+   272 → **7** 로 떨어져 `setup()` 이 `POST /api/persons` 합성 생성 없이 **적재분을 조회해
+   소비**했음이 함께 드러났다(수치·인용은 위 `§3.1` 8 회차). 따라서 잔여 내용은 *배선* →
+   *실행·실측* 을 거쳐 **"seed 실행 성공 1 회 확보(run `32665014391`) — 남은 축은 실 수집
+   왕복 0"** 으로 좁혀졌다: 133 명 `Person` + 133 건 github `ServiceIdentity` 는 적재됐지만
+   부하 job 에 GitHub/Confluence 자격증명이 없고 iteration 이 758.79ms 만에 끝나
+   **50~100 repo · ~1000 page 실 수집 왕복은 여전히 0** 이며 LLM 도 stub(ADR-0057 `D1`)이다
+   (잔여 개수는 **1 개** 그대로이며 ② · ③ 표기도 무변경). 그 수집 왕복 축은 본 계획 문서가
+   아니라 별도 slice 의 몫이다(T-1665 는 측정·기록 전용이라 코드 변경 0).
    ② **반복 run 기반 임계 fix** 는
    **해소 — 임계 확정 완료(T-1644)**. 실 scale 축(표본 133)의 같은 조건 표본이 T-1643 run
    `32540981922` 로 **3 개**가 됐고(3·4·5 회차 760.91ms → 730.81ms → 711.23ms), 그 batch p95

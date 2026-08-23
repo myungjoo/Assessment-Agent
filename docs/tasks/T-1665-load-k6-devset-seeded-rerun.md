@@ -67,4 +67,5 @@ plannerNote: "P5 R-91 chain 47/N — T-1664 fix 머지 후 s1_persons=133 재 di
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+1. **`s1-batch.js` `setup()` 표본 인원 수 로그 1 줄 추가** (pr-mode) — 8 회차에서 seed 적재 수(133)와 `http_reqs` 7 로 **간접** 확인은 됐지만 `setup()` 이 실제로 취한 표본 수를 직접 찍는 로그가 없어 회차마다 간접 추론이 필요하다. `console.log` 1 줄(`personIds.length`)이면 이후 모든 회차가 직접 회수된다. R-112 대상은 스크립트라 spec 부재 — 워크플로 dry-run 으로 검증.
+2. **실 수집 왕복 축(`§5` item 5 잔여 ① 의 남은 내용)** — 133 건 `ServiceIdentity` 는 적재됐으나 부하 job 에 GitHub/Confluence 자격증명이 없어 50~100 repo · ~1000 page 왕복이 여전히 0 이다. 자격증명 주입은 CLAUDE.md §5 의 BLOCKED 사유(외부 자격증명)라 **오너 결정이 선행**돼야 한다 — 별도 planner slice 에서 humanQuestion 으로 올릴지 stub 수집기로 대체할지 판정.
