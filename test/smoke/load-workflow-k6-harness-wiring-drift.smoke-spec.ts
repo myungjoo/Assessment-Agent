@@ -1459,15 +1459,18 @@ describe("test/load/s1-batch.js S1 평가 배치 부하 골격 drift smoke (T-16
       expect(baselineWiringIntact(script)).toBe(true);
     });
 
-    it("setup 이 seed / auth tag 로 준비하고 teardown 이 seed person 을 전량 회수한다", () => {
+    it("setup 이 seed / auth tag 로 준비하고 teardown 이 person 을 회수하지 않는다", () => {
       const setup = s1Body("export function setup");
-      // signup + login + provider seed POST + 표본 person seed(반복문) = POST 4 회.
-      expect(setup.match(/http\.post\(/g)).toHaveLength(4);
-      // T-1632 이후 인증이 person seed 보다 앞선다(D5 provider 왕복이 Admin+ gate 라서).
+      // T-1661 이후 person 은 생성이 아니라 조회다 — signup + login + provider seed = POST 3 회.
+      expect(setup.match(/http\.post\(/g)).toHaveLength(3);
+      // T-1632 이후 인증이 person 조회보다 앞선다(D5 provider 왕복이 Admin+ gate 라서).
       expect(setup).toMatch(/AUTH_PARAMS[\s\S]*authCookie =[\s\S]*SEED_PARAMS/);
+      // 공유 dataset 보존 — teardown 에 person 회수 반복문도 그 전용 params 도 남지 않는다.
       const down = s1Body("export function teardown");
-      expect(down).toMatch(/personIds\.length[\s\S]*http\.del\(/);
-      expect(down).toContain("SEED_DELETE_PARAMS");
+      ["personIds", "SEED_DELETE_PARAMS"].forEach((t) =>
+        expect(down).not.toContain(t),
+      );
+      expect(down.match(/http\.del\(/g)).toHaveLength(1);
     });
 
     it("(T-1632) setup 이 D5 의 멱등 3 단 왕복으로 provider row 를 1 개로 수렴시킨다", () => {
@@ -3236,6 +3239,187 @@ describe("load-k6.yml 133 로그인 실 dataset seed 실행 step 배선 drift sm
       expect(
         extractKey(extractStepBlock(yml, TEARDOWN_STEP_NAME) as string[], "if"),
       ).toBe("always()");
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-1661 — s1-batch.js setup() 의 실 devset dataset 조회 교체 drift. 존재 이유 — T-1660 이 배선한
+// seed step 이 133 인원을 적재해도, 스크립트가 계속 합성 person 을 만들어 쓰면 그 적재는 값비싼
+// no-op 이고 부하 판정은 여전히 가짜 데이터 위에서 난다. 연결은 문자열 2 개(도메인 리터럴 · 조회
+// 표현)에만 의존하는데 부하 job 은 수동 dispatch 전용이라 어긋나도 상시 CI 는 green 이다(조회가
+// 조용히 0 건이 되어 빈 부하가 baseline 으로 박힌다). 새 helper 1(devsetDomainOf) 외 기존 재사용.
+//      🔥 실 k6 실행 0 · 실 HTTP 0 · 실 seed 실행 0 · DB 의존 0 · 새 dependency 0 — 파일 read 만.
+
+/** devset email 도메인 정본 파일과 그 선언 형태(k6 쪽 사본과 문자 그대로 같아야 한다). */
+const DEVSET_DESCRIPTORS_REL =
+  "test/helpers/realdata-devset-seed-descriptors.ts";
+const DEVSET_DOMAIN_DECL = /const DEVSET_EMAIL_DOMAIN = "([^"]+)";/;
+/** 실 평가 e2e seed 도메인 — devset 과 **달라야** 하는 대조군(email @unique 충돌 회피 근거). */
+const E2E_SEED_DOMAIN = "e2e.realdata.test";
+
+/**
+ * 소스에 선언된 `DEVSET_EMAIL_DOMAIN` 값만 뽑는다. 선언 부재(0-byte read 포함)면 `null`(추측 0)
+ * — 이 두 갈래가 "선언 있음 / 없음" 분기의 실체이며, null 이 곧 parity 단언을 깨뜨린다.
+ * @throws {TypeError} 입력이 non-string 일 때(extractStepBlock 과 동형 fail-fast 계약).
+ */
+function devsetDomainOf(source: string): string | null {
+  if (typeof source !== "string") {
+    throw new TypeError("devsetDomainOf: source 는 string 이어야 함");
+  }
+  const m = source.match(DEVSET_DOMAIN_DECL);
+  return m ? m[1] : null;
+}
+
+/** devset 기술자 원문(도메인 정본 대조용). */
+const descriptorsText = (): string =>
+  readFileSync(path.join(REPO_ROOT, DEVSET_DESCRIPTORS_REL), "utf8");
+
+describe("s1-batch.js 실 devset dataset 조회 교체 drift smoke (T-1661)", () => {
+  describe("Happy-path: 조회 1 회 · 도메인 parity · teardown 보존", () => {
+    it("① setup 이 devset 도메인으로 필터한 /api/persons 조회 1 회를 personIds 로 흘린다", () => {
+      const setup = s1Body("export function setup");
+      expect(
+        setup.match(/http\.get\(`\$\{BASE_URL\}\/api\/persons`/g),
+      ).toHaveLength(1);
+      // 조회 → 도메인 필터 → 표본만큼 slice → id 추출이 한 식으로 이어진다(중간 변수 0).
+      expect(setup).toMatch(
+        /const personIds = persons\s*\.json\(\)\s*\.filter\([^\n]*endsWith\(`@\$\{DEVSET_EMAIL_DOMAIN\}`\),?\s*\)\s*\.slice\(0, SAMPLE_PERSONS\)\s*\.map\(/,
+      );
+      // setup 반환 → 측정 iteration 소비 경로는 T-1631 그대로다.
+      expect(setup).toContain("personIds,");
+      expect(s1Body("export default function")).toContain("data.personIds");
+    });
+
+    it("② 도메인 리터럴이 realdata-devset-seed-descriptors.ts 정본과 parity 다", () => {
+      const canonical = devsetDomainOf(descriptorsText());
+      expect(canonical).toBe("load.devset.test");
+      expect(devsetDomainOf(s1Script())).toBe(canonical);
+      // 다음 사람이 정본을 찾을 수 있게 스크립트가 그 경로를 주석으로 지목한다.
+      expect(s1Script()).toContain(DEVSET_DESCRIPTORS_REL);
+      // 정본 자체는 e2e seed 도메인과 달라야 한다(한 DB 공존 시 email @unique 충돌 0).
+      expect(canonical).not.toBe(E2E_SEED_DOMAIN);
+    });
+
+    it("③ teardown 이 provider 회수 1 회만 남기고 머리 주석이 seed 선행 전제를 적는다", () => {
+      const down = s1Body("export function teardown");
+      expect(down.match(/http\.del\(/g)).toHaveLength(1);
+      expect(down).toMatch(
+        /http\.del\(`\$\{BASE_URL\}\/api\/llm\/providers\/\$\{data\.providerId\}`/,
+      );
+      ["personIds", "/api/persons", "for (", "SEED_DELETE_PARAMS"].forEach(
+        (t) => expect(down).not.toContain(t),
+      );
+      // 실 dataset 전제 — 워크플로 seed step 이 선행해야 한다는 사실이 스크립트에 적혀 있다.
+      expect(s1Script()).toContain(SEED_RUN_COMMAND);
+    });
+  });
+
+  describe("Error path: 정본 파일 부재 · 0-byte read · non-string", () => {
+    it("① 정본 파일이 실재하고, 없는 경로 read 와 없는 블록 추출은 조용히 PASS 하지 않는다", () => {
+      expect(existsSync(path.join(REPO_ROOT, DEVSET_DESCRIPTORS_REL))).toBe(
+        true,
+      );
+      expect(() =>
+        readFileSync(path.join(REPO_ROOT, `${DEVSET_DESCRIPTORS_REL}.absent`)),
+      ).toThrow();
+      // 대상 블록이 없으면 s1Body 는 빈 문자열을 만들지 않고 즉시 터진다(false-PASS 차단).
+      expect(() => s1Body("export function nonexistent")).toThrow();
+    });
+
+    it("② 0-byte / 선언 부재는 null, non-string 은 TypeError 로 드러난다", () => {
+      expect(devsetDomainOf("")).toBeNull();
+      expect(devsetDomainOf("const OTHER = 1;")).toBeNull();
+      [undefined, 42, null].forEach((bad) =>
+        expect(() => devsetDomainOf(bad as unknown as string)).toThrow(
+          TypeError,
+        ),
+      );
+      expect(extractTopLevelBlock("", "export function setup")).toBeNull();
+    });
+  });
+
+  describe("flow / 분기 cover: 표본 > 조회 결과 · 표본 < 조회 결과 · 표본 정규화", () => {
+    it("① 표본이 조회 결과보다 많을 때와 적을 때를 같은 식 하나가 처리한다(분기문 0)", () => {
+      const setup = s1Body("export function setup");
+      expect(setup).toContain(".slice(0, SAMPLE_PERSONS)");
+      ["if (", "} else", " ? ", "Math.min("].forEach((t) =>
+        expect(setup).not.toContain(t),
+      );
+      // 두 갈래의 실제 동치성 — 스크립트와 같은 식을 합성 배열에 적용(실 k6 실행 0).
+      const take = (n: number, rows: string[]): string[] => rows.slice(0, n);
+      expect(take(10, ["a", "b"])).toEqual(["a", "b"]);
+      expect(take(1, ["a", "b"])).toEqual(["a"]);
+      expect(take(2, [])).toEqual([]);
+    });
+
+    it("② SAMPLE_PERSONS 정규화 표현 · 기본값 10 · workflow 주입값 parity 가 회귀 0 이다", () => {
+      const script = s1Script();
+      expect(script).toMatch(
+        /const SAMPLE_PERSONS = Math\.max\(\s*1,\s*Math\.trunc\(Number\(__ENV\.K6_S1_PERSONS\)\) \|\| 10,\s*\);/,
+      );
+      const declared = extractEnvFallback(script, S1_PERSONS_ENV_KEY);
+      expect(declared).toBe("10");
+      const yml = loadYml();
+      [S1_RUN_STEP_NAME, S1_SUMMARY_STEP_NAME].forEach((name) =>
+        expect(
+          resolveInputExpr(
+            yml,
+            extractKey(
+              extractStepBlock(yml, name) as string[],
+              S1_PERSONS_ENV_KEY,
+            ) as string,
+          ),
+        ).toBe(declared),
+      );
+    });
+  });
+
+  describe("negative cases 충분 cover — 생성 잔존 · 삭제 유입 · 분기 · 도메인 · route", () => {
+    it("① setup·teardown 어디에도 person 생성 POST 가 남아 있지 않다", () => {
+      const script = s1Script();
+      expect(script).not.toMatch(
+        /http\.post\(\s*`\$\{BASE_URL\}\/api\/persons`/,
+      );
+      ["배치 부하 대상", "fullName:", 'created.json("id")'].forEach((t) =>
+        expect(script).not.toContain(t),
+      );
+    });
+
+    it("② person DELETE 가 스크립트 전체에 0 회다(공유 dataset 삭제 차단)", () => {
+      const script = s1Script();
+      expect(script).not.toContain("/api/persons/");
+      // 남은 DELETE 는 provider 열거 회수 1 + teardown 단일-row 회수 1 = 2 회뿐이다.
+      expect(script.match(/http\.del\(/g)).toHaveLength(2);
+      expect(script).not.toContain("SEED_DELETE_PARAMS");
+    });
+
+    it("③ 분기 0 규약이 회귀하지 않았다(|| 카운트 불변)", () => {
+      const script = s1Script();
+      ["if (", "} else", " ? ", " && ", " || ("].forEach((t) =>
+        expect(script).not.toContain(t),
+      );
+      expect(script.match(/\|\|/g)).toHaveLength(2);
+    });
+
+    it("④ 도메인이 e2e seed 도메인이나 임의 리터럴로 바뀌면 parity 단언이 깨진다", () => {
+      const script = s1Script();
+      const canonical = devsetDomainOf(descriptorsText()) as string;
+      // 합성 mutation 2 종 — e2e 도메인 치환 · 임의 리터럴 치환 모두 정본과 어긋난다.
+      [E2E_SEED_DOMAIN, "load.devset.example"].forEach((bad) => {
+        const drifted = script.replace(`"${canonical}"`, `"${bad}"`);
+        expect(drifted).not.toBe(script);
+        expect(devsetDomainOf(drifted)).toBe(bad);
+        expect(devsetDomainOf(drifted)).not.toBe(canonical);
+      });
+      // 대조군 — 원본은 mutate 되지 않는다.
+      expect(devsetDomainOf(s1Script())).toBe(canonical);
+    });
+
+    it("⑤ S1_ROUTES 밖의 임의 route 유입이 0 이다", () => {
+      expect(apiRoutesOf(s1Script()).sort()).toEqual(
+        [...S1_ROUTES, S1_BATCH_ROUTE].sort(),
+      );
     });
   });
 });

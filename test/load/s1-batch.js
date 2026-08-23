@@ -10,6 +10,9 @@
 //   D5 전제: 대상 route 는 orchestrator 위임 전에 LlmProviderConfigResolver 를 await 하고 그
 //            resolver 가 0-row 와 2+row 를 모두 throw(→ 503) 로 막는다. 그래서 setup() 이 실
 //            등록 경로(POST /api/llm/providers)로 provider row 를 정확히 1 개로 수렴시킨다.
+// 실 dataset 전제(T-1661): 평가 대상 person 은 이 스크립트가 만들지 않는다 — workflow 의
+//   `pnpm seed:devset-logins` step(load-k6.yml)이 선행해 적재한 실 devset 인원을 setup() 이
+//   조회해 표본 수만큼 취하고, 공유 dataset 이라 teardown() 은 그중 하나도 지우지 않는다.
 // 대상 route 가 Admin+ 라 이 run 의 첫 user 가 SuperAdmin 이어야 하고(src/user/user.controller.ts
 // 9~11 행), 그 전제는 workflow step 순서 smoke → S1 → S2 → S3 이 보장한다. 규약 승계(s2-read.js):
 // __ENV 기본값 · route tag 분리 · signup → login → cookie · setup/teardown 자기 정리 · 분기 0.
@@ -39,11 +42,14 @@ const BATCH_P95_MS = Math.round(
 const STUB_BASELINE_PERSONS = 133;
 const STUB_BASELINE_P95_MS = 900;
 
-// D3 tag 3 종 — seed(준비 write · 정리 DELETE) · auth(signup · login) 는 대상 route 와 다른
+// 실 devset seed 가 만드는 email 도메인 — 정본은 test/helpers/realdata-devset-seed-descriptors.ts
+// 의 DEVSET_EMAIL_DOMAIN 이다. 한쪽만 바뀌면 조회가 0 건이 되어 부하가 조용히 빈 run 이 된다.
+const DEVSET_EMAIL_DOMAIN = "load.devset.test";
+
+// D3 tag 3 종 — seed(준비 write · 조회 · 정리) · auth(signup · login) 는 대상 route 와 다른
 // 이름을 써 batch 지표를 오염시키지 않는다(S2·S3 오염 차단 규약 승계).
 const JSON_HEADERS = { "Content-Type": "application/json" };
 const SEED_PARAMS = { headers: JSON_HEADERS, tags: { route: "seed" } };
-const SEED_DELETE_PARAMS = { tags: { route: "seed" } };
 const AUTH_PARAMS = { headers: JSON_HEADERS, tags: { route: "auth" } };
 
 export const options = {
@@ -117,19 +123,15 @@ export function setup() {
     }),
     providerParams,
   );
-  // (c) 표본 인원만큼 평가 대상 person seed → id 수집.
-  const personIds = [];
-  for (let i = 0; i < SAMPLE_PERSONS; i += 1) {
-    const created = http.post(
-      `${BASE_URL}/api/persons`,
-      JSON.stringify({
-        fullName: `배치 부하 대상 ${stamp}-${i}`,
-        email: `load-s1-${stamp}-${i}@example.com`,
-      }),
-      SEED_PARAMS,
-    );
-    personIds.push(created.json("id"));
-  }
+  // (c) 평가 대상 person 을 만들지 않고 **조회** 한다(생성 0) — workflow 의 seed step 이 적재한
+  // 실 devset 인원 중 email 이 devset 도메인으로 끝나는 원소만 골라 표본 수만큼 취한다. 표본이
+  // 조회 결과보다 많든 적든 slice 한 식이 그대로 처리하므로 분기문 0 규약을 유지한다.
+  const persons = http.get(`${BASE_URL}/api/persons`, SEED_PARAMS);
+  const personIds = persons
+    .json()
+    .filter((row) => `${row.email}`.endsWith(`@${DEVSET_EMAIL_DOMAIN}`))
+    .slice(0, SAMPLE_PERSONS)
+    .map((row) => row.id);
   return {
     personIds,
     providerId: provider.json("id"),
@@ -161,14 +163,8 @@ export default function (data) {
 }
 
 export function teardown(data) {
-  // 로컬 반복 실행의 데이터 누적을 막으려 setup 이 만든 person 을 전량 회수한다(카운트 반복만).
-  for (let i = 0; i < data.personIds.length; i += 1) {
-    http.del(
-      `${BASE_URL}/api/persons/${data.personIds[i]}`,
-      null,
-      SEED_DELETE_PARAMS,
-    );
-  }
+  // person 회수 0 — setup 이 조회만 했고 그 인원은 workflow seed step 이 적재한 공유 dataset 이라
+  // 지우면 다음 run 이 빈 DB 위에서 돈다(T-1661). 여기서 되돌릴 것은 setup 이 만든 row 뿐이다.
   // D5 의 단일-row invariant 회수 — setup 이 만든 provider row 를 같은 DELETE 로 되돌린다.
   http.del(`${BASE_URL}/api/llm/providers/${data.providerId}`, null, {
     headers: { Cookie: data.authCookie },
