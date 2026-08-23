@@ -2,7 +2,7 @@
 id: T-1657
 title: 133 로그인 seed 의 실 PrismaClient 팩토리 (DATABASE_URL 검증) 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047, REQ-023, REQ-024]
 estimatedDiff: 240
@@ -14,6 +14,9 @@ dependsOn: [T-1656]
 touchesFiles:
   - test/helpers/realdata-devset-seed-client.ts
   - test/helpers/realdata-devset-seed-client.spec.ts
+completedAt: 2026-08-23T04:52:26Z
+prNumber: 1325
+mergeCommit: 1e44f562
 plannerNote: R-91 chain 38/N — seed 실행 경로 7 번째 slice: 실 PrismaClient 팩토리(URL 검증 분기)만, entrypoint 는 다음 slice.
 ---
 
@@ -37,19 +40,19 @@ plannerNote: R-91 chain 38/N — seed 실행 경로 7 번째 slice: 실 PrismaCl
 
 ## Acceptance Criteria
 
-- [ ] `test/helpers/realdata-devset-seed-client.ts` 신설. public symbol 은 정확히 1 개:
+- [x] `test/helpers/realdata-devset-seed-client.ts` 신설. public symbol 은 정확히 1 개:
   - `createDevsetSeedClient(databaseUrl: string | undefined): DevsetSeedCliClient` — 검증 통과 시 `PrismaPg` adapter 를 물린 실 `PrismaClient` 를 `DevsetSeedCliClient` 로 반환하는 팩토리.
-- [ ] **connection string 은 인자 주입** — 본 파일에서 `process.env` · `process.argv` · `console.*` 를 읽지 않는다 (entrypoint 몫). 새 dependency 0 (`@prisma/client` · `@prisma/adapter-pg` 는 기존 의존).
-- [ ] **호출 시점 실 접속 0** — 팩토리는 인스턴스 생성만 하고 `$connect()` · query · 마이그레이션을 호출하지 않는다 (Prisma 의 lazy connection 전제). seed 로직 재구현 0 — `runDevsetSeed` · upsert · 치환을 본 파일에서 부르지 않는다.
-- [ ] **검증 분기** — `databaseUrl` 이 `undefined` / 비-string / 공백만 있는 문자열이면 `TypeError` 를 throw 하며, 그 메시지는 (a) 원인과 조치 (`DATABASE_URL` 설정 필요) 를 담고 (b) **입력 문자열 자체를 절대 포함하지 않는다** (CLAUDE.md `§9` — connection string 은 자격증명이라 로그·에러에 echo 금지).
-- [ ] **타입 경계** — 반환값이 `DevsetSeedCliClient` 로 그대로 대입돼 `runDevsetSeedCli({ client, ... })` 에 넘어간다 (spec 에서 타입 수준 대입으로 확인). 구조적 불일치로 cast 가 불가피하면 **최소 범위 1 회** 로 제한하고 근거를 주석에 남긴다.
-- [ ] colocated spec `test/helpers/realdata-devset-seed-client.spec.ts` 신설 (실 DB 접속 0 — 더미 connection string 만 사용). R-112 4 종 전량 cover:
+- [x] **connection string 은 인자 주입** — 본 파일에서 `process.env` · `process.argv` · `console.*` 를 읽지 않는다 (entrypoint 몫). 새 dependency 0 (`@prisma/client` · `@prisma/adapter-pg` 는 기존 의존).
+- [x] **호출 시점 실 접속 0** — 팩토리는 인스턴스 생성만 하고 `$connect()` · query · 마이그레이션을 호출하지 않는다 (Prisma 의 lazy connection 전제). seed 로직 재구현 0 — `runDevsetSeed` · upsert · 치환을 본 파일에서 부르지 않는다.
+- [x] **검증 분기** — `databaseUrl` 이 `undefined` / 비-string / 공백만 있는 문자열이면 `TypeError` 를 throw 하며, 그 메시지는 (a) 원인과 조치 (`DATABASE_URL` 설정 필요) 를 담고 (b) **입력 문자열 자체를 절대 포함하지 않는다** (CLAUDE.md `§9` — connection string 은 자격증명이라 로그·에러에 echo 금지).
+- [x] **타입 경계** — 반환값이 `DevsetSeedCliClient` 로 그대로 대입돼 `runDevsetSeedCli({ client, ... })` 에 넘어간다 (spec 에서 타입 수준 대입으로 확인). 구조적 불일치로 cast 가 불가피하면 **최소 범위 1 회** 로 제한하고 근거를 주석에 남긴다.
+- [x] colocated spec `test/helpers/realdata-devset-seed-client.spec.ts` 신설 (실 DB 접속 0 — 더미 connection string 만 사용). R-112 4 종 전량 cover:
   - **happy-path** — 유효한 더미 URL 로 호출 시 (a) 객체 반환, (b) `person.upsert` · `serviceIdentity.upsert` · `$disconnect` 가 모두 함수, (c) throw 0. public symbol `createDevsetSeedClient` 에 happy-path 1+.
   - **error path** — `undefined` · 빈 문자열 · 공백만("   ") 각각에 대해 `TypeError` throw 를 단언 (각 1+ test).
   - **분기 cover** — 검증 통과 경로 vs 각 실패 경로, 그리고 공백 trim 후 판정 (앞뒤 공백이 붙은 유효 URL 은 통과) 각 1+ test.
   - **negative cases 충분 cover** — `null` · 숫자 · 객체 · 배열 등 비-string 입력, 두 번 호출 시 **서로 다른 인스턴스** 반환(싱글턴 캐싱 없음), 에러 메시지에 입력 URL 의 credential 부분 문자열(예: `postgres:secret`)이 포함되지 않음 — **각 1+ test**.
-- [ ] `pnpm lint && pnpm build && pnpm test` 전량 green.
-- [ ] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%).
+- [x] `pnpm lint && pnpm build && pnpm test` 전량 green.
+- [x] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%).
 
 ## Out of Scope
 
@@ -67,3 +70,12 @@ plannerNote: R-91 chain 38/N — seed 실행 경로 7 번째 slice: 실 PrismaCl
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 요약 (2026-08-23 DONE)
+
+PR #1325 → main `1e44f562` squash merge. `test/helpers/realdata-devset-seed-client.ts` 신설 (+231/-0, 2 파일) — public symbol 정확히 1 개 `createDevsetSeedClient(databaseUrl)`. trim 후 검증 통과 시 `PrismaPg` adapter 를 물린 `PrismaClient` 를 **매 호출 새 인스턴스** 로 반환하며, `process.env` · `process.argv` · `console.*` 접근 0 · 호출 시점 실 접속 0 · 새 dependency 0. `undefined` · 비-string · 공백만 입력은 `TypeError` 로 fail-fast 하고 에러 메시지에 입력 connection string 을 echo 하지 않는다 (`§9` 자격증명 보호). 실 `PrismaClient` 의 generic upsert 시그니처가 단형 `DevsetSeedCliClient` 계약과 겹치지 않아 cast 를 **최소 범위 1 회** 만 쓰고 근거를 주석에 박제했다.
+
+colocated spec 22 test (happy 4 · error 4 · 분기 3 · negative 11) 로 R-112 4 종 전량 cover, 실 DB 접속 0. 전체 452 suite / 12967 test green, `test:cov` line 99.95% · function 100% (임계 80/80 상회). reviewer round 1 APPROVE + PR comment 외부 post + CI green 으로 4-게이트 충족.
+
+잔여 (Out of Scope 그대로): ① 얇은 entrypoint `scripts/seed-devset-logins.ts` + `package.json` 스크립트, ② `load-k6.yml` seed step 배선 + `s1-batch.js` `setup()` 실 dataset 교체, ③ 부하계획 `§5` item 5 진척 doc-sync.
+
