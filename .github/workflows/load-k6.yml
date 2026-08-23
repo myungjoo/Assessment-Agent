@@ -50,6 +50,27 @@ jobs:
       - name: 저장소 checkout
         uses: actions/checkout@v4
 
+      - name: pnpm 설치
+        # T-1659 — seed 실행용 툴체인 3 종의 첫 step. 다음 slice 의 `pnpm seed:devset-logins`
+        # 가 runner 위에서 ts-node 와 postinstall 이 만드는 Prisma client 를 요구하는데 이 job
+        # 에는 Node 도 pnpm 도 없었다. pin 은 ci.yml 정본 복제다(새 값 창작 0).
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Node.js 설치
+        # seed 스크립트가 전제하는 Node 20 런타임. node-version·cache 도 ci.yml 정본 복제이며
+        # 두 workflow 의 pin 이 갈리는 drift 는 drift-guard smoke 가 못 박는다.
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: 의존성 설치
+        # seed 가 쓰는 ts-node / Prisma client(postinstall) 를 lockfile 그대로 설치한다.
+        # --frozen-lockfile 은 ci.yml 정본과 동일 — 부하 run 이 lockfile 을 우회하지 않는다.
+        run: pnpm install --frozen-lockfile
+
       - name: 부하 대상 이미지 빌드
         # Dockerfile 전체를 빌드해 부하 대상 산출물을 만든다. 레지스트리 push 는 없다.
         run: docker build -t assessment-agent:load .

@@ -2678,3 +2678,280 @@ describe("load-k6.yml S1 표본 인원 workflow_dispatch input 파라미터화 d
     });
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-1659 — seed 실행용 Node/pnpm 툴체인 3 step 배선 drift.
+// 존재 이유 — load-k6.yml 에는 Node·pnpm·node_modules 가 없어 다음 slice 의
+// `pnpm seed:devset-logins`(133 명 실 dataset seed) 가 그대로는 돌지 않는다. pin 은 ci.yml
+// 정본 복제라 두 workflow 가 갈리면 부하 run 만 다른 Node/pnpm 으로 돌고도 상시 CI 는
+// green 이다(수동 dispatch 전용이라 아무도 red 를 못 본다). 새 helper 1(ciYml).
+//      🔥 실 Actions 발화 0 · 실 install 0 · 실 k6 실행 0 · YAML 파서 0 · 새 dependency 0 ·
+//         process.env 읽기/쓰기 0 — 파일 read + 합성 문자열 주입만.
+
+/** 툴체인 step 이름 — ci.yml 정본과 문자 그대로 같아야 한다. */
+const PNPM_STEP_NAME = "pnpm 설치";
+const NODE_STEP_NAME = "Node.js 설치";
+const DEPS_STEP_NAME = "의존성 설치";
+/** 복제 대상 pin 정본(ci.yml 의 같은 이름 step). */
+const PNPM_ACTION = "pnpm/action-setup@v4";
+const NODE_ACTION = "actions/setup-node@v4";
+const INSTALL_COMMAND = "pnpm install --frozen-lockfile";
+const TOOLCHAIN_STEP_NAMES = [PNPM_STEP_NAME, NODE_STEP_NAME, DEPS_STEP_NAME];
+
+const ciYml = (): string => readFileSync(CI_YML_PATH, "utf8");
+
+describe("load-k6.yml seed 실행용 Node/pnpm 툴체인 step 배선 drift smoke (T-1659)", () => {
+  describe("Happy-path: 3 step 실재 · ci.yml parity · 순서", () => {
+    it("① 3 step 이 실재하고 uses/version/node-version/cache/run 값이 기대값과 같다", () => {
+      const yml = loadYml();
+      const pnpmBlock = extractStepBlock(yml, PNPM_STEP_NAME) as string[];
+      expect(pnpmBlock).not.toBeNull();
+      expect(extractKey(pnpmBlock, "uses")).toBe(PNPM_ACTION);
+      expect(extractKey(pnpmBlock, "version")).toBe("9.12.0");
+
+      const nodeBlock = extractStepBlock(yml, NODE_STEP_NAME) as string[];
+      expect(nodeBlock).not.toBeNull();
+      expect(extractKey(nodeBlock, "uses")).toBe(NODE_ACTION);
+      expect(extractKey(nodeBlock, "node-version")).toBe("20");
+      expect(extractKey(nodeBlock, "cache")).toBe("pnpm");
+
+      expect(extractStep(yml, DEPS_STEP_NAME)).toEqual({
+        found: true,
+        uses: null,
+        run: INSTALL_COMMAND,
+      });
+      // 세 step 모두 존재 이유 주석을 갖는다(왜 부하 job 에 툴체인이 필요한지 박제).
+      TOOLCHAIN_STEP_NAMES.forEach((name) =>
+        expect(
+          (extractStepBlock(yml, name) as string[]).some((l) =>
+            l.trim().startsWith("#"),
+          ),
+        ).toBe(true),
+      );
+    });
+
+    it("② ci.yml 같은 이름 step 과 4 자(pnpm version · node-version · cache · install) parity", () => {
+      const yml = loadYml();
+      const ci = ciYml();
+      const pick = (source: string, step: string, key: string): string | null =>
+        extractKey(extractStepBlock(source, step) as string[], key);
+      expect(pick(yml, PNPM_STEP_NAME, "version")).toBe(
+        pick(ci, PNPM_STEP_NAME, "version"),
+      );
+      expect(pick(yml, NODE_STEP_NAME, "node-version")).toBe(
+        pick(ci, NODE_STEP_NAME, "node-version"),
+      );
+      expect(pick(yml, NODE_STEP_NAME, "cache")).toBe(
+        pick(ci, NODE_STEP_NAME, "cache"),
+      );
+      expect(pick(yml, DEPS_STEP_NAME, "run")).toBe(
+        pick(ci, DEPS_STEP_NAME, "run"),
+      );
+      // action 참조(@major 핀 포함)도 같은 문자열이어야 한다.
+      expect(pick(yml, PNPM_STEP_NAME, "uses")).toBe(
+        pick(ci, PNPM_STEP_NAME, "uses"),
+      );
+      expect(pick(yml, NODE_STEP_NAME, "uses")).toBe(
+        pick(ci, NODE_STEP_NAME, "uses"),
+      );
+    });
+
+    it("③ checkout < pnpm < Node.js < 의존성 < k6 설치 순이고 3 step 전부가 첫 k6 run 보다 앞선다", () => {
+      const yml = loadYml();
+      const order = [
+        "저장소 checkout",
+        PNPM_STEP_NAME,
+        NODE_STEP_NAME,
+        DEPS_STEP_NAME,
+        INSTALL_STEP_NAME,
+      ].map((n) => stepIndexOf(yml, n));
+      expect(order).not.toContain(-1);
+      expect([...order].sort((a, b) => a - b)).toEqual(order);
+      const firstRun = yml.split("\n").findIndex((l) => l.includes("k6 run "));
+      expect(firstRun).toBeGreaterThan(-1);
+      TOOLCHAIN_STEP_NAMES.forEach((n) =>
+        expect(stepIndexOf(yml, n)).toBeLessThan(firstRun),
+      );
+      // 툴체인은 docker build 보다도 앞선다(빌드 전에 설치·캐시 복원이 끝나 있어야 한다).
+      expect(stepIndexOf(yml, DEPS_STEP_NAME)).toBeLessThan(
+        stepIndexOf(yml, BUILD_STEP_NAME),
+      );
+    });
+  });
+
+  describe("Error path: 미발견 정규형 · 부분 drift · non-string throw", () => {
+    it("① 세 step 이 없는 합성 YAML 은 throw 없이 미발견 정규형을 돌려준다", () => {
+      const stripped = [
+        "jobs:",
+        "  load:",
+        "    steps:",
+        "      - name: 저장소 checkout",
+        "        uses: actions/checkout@v4",
+        "",
+      ].join("\n");
+      TOOLCHAIN_STEP_NAMES.forEach((name) => {
+        expect(extractStepBlock(stripped, name)).toBeNull();
+        expect(extractStep(stripped, name)).toEqual({
+          found: false,
+          uses: null,
+          run: null,
+        });
+        expect(stepIndexOf(stripped, name)).toBe(-1);
+      });
+    });
+
+    it("② step 은 있으나 대상 key 만 없는 합성 입력도 null 이다(부분 drift 검출)", () => {
+      const partial = [
+        `      - name: ${NODE_STEP_NAME}`,
+        `        uses: ${NODE_ACTION}`,
+        "        with:",
+        "          cache: 'pnpm'",
+        "",
+      ].join("\n");
+      const block = extractStepBlock(partial, NODE_STEP_NAME) as string[];
+      expect(block).not.toBeNull();
+      expect(extractKey(block, "cache")).toBe("pnpm");
+      // node-version 만 빠진 형태 — 미발견은 추측 없이 null 이다.
+      expect(extractKey(block, "node-version")).toBeNull();
+      expect(extractStep(partial, NODE_STEP_NAME).run).toBeNull();
+    });
+
+    it("③ non-string 입력에 helper 계약대로 TypeError 가 난다", () => {
+      expect(() =>
+        extractStepBlock(null as unknown as string, PNPM_STEP_NAME),
+      ).toThrow(TypeError);
+      expect(() =>
+        extractStepBlock(loadYml(), 42 as unknown as string),
+      ).toThrow(TypeError);
+      expect(() =>
+        extractStep(undefined as unknown as string, NODE_STEP_NAME),
+      ).toThrow(TypeError);
+      expect(() => lineIndexOf(loadYml(), {} as unknown as string)).toThrow(
+        TypeError,
+      );
+    });
+  });
+
+  describe("분기 cover: 따옴표 정규화 · action step 갈래 vs 커맨드 step 갈래", () => {
+    it("① 따옴표가 있는 값과 없는 값을 unquote 가 같은 결과로 정규화한다", () => {
+      const quoted = [
+        "      - name: X",
+        "        with:",
+        "          node-version: '20'",
+        "",
+      ].join("\n");
+      const read = (src: string): string | null =>
+        extractKey(extractStepBlock(src, "X") as string[], "node-version");
+      expect(read(quoted)).toBe("20");
+      expect(read(quoted.replace("'20'", "20"))).toBe("20");
+      expect(read(quoted.replace("'20'", '"20"'))).toBe("20");
+      // 짝이 맞지 않는 따옴표는 벗기지 않는다(정규화가 값을 훼손하지 않음).
+      expect(unquote("'20")).toBe("'20");
+    });
+
+    it("② uses 만 있는 action step 갈래와 run 만 있는 커맨드 step 갈래", () => {
+      const yml = loadYml();
+      [PNPM_STEP_NAME, NODE_STEP_NAME].forEach((name) => {
+        const s = extractStep(yml, name);
+        expect(s.uses).not.toBeNull();
+        expect(s.run).toBeNull();
+      });
+      const deps = extractStep(yml, DEPS_STEP_NAME);
+      expect(deps.run).toBe(INSTALL_COMMAND);
+      expect(deps.uses).toBeNull();
+    });
+  });
+
+  describe("negative cases 충분 cover — pin drift · lockfile 우회 · 트리거 · 자격증명", () => {
+    it("① 합성 mutation 으로 pnpm version / node-version 을 바꾸면 ci.yml parity 가 깨진다", () => {
+      const ci = ciYml();
+      const pick = (source: string, step: string, key: string): string | null =>
+        extractKey(extractStepBlock(source, step) as string[], key);
+      const mutatedPnpm = loadYml().replace(
+        "version: 9.12.0",
+        "version: 8.15.0",
+      );
+      expect(pick(mutatedPnpm, PNPM_STEP_NAME, "version")).not.toBe(
+        pick(ci, PNPM_STEP_NAME, "version"),
+      );
+      const mutatedNode = loadYml().replace(
+        "node-version: '20'",
+        "node-version: '18'",
+      );
+      expect(pick(mutatedNode, NODE_STEP_NAME, "node-version")).not.toBe(
+        pick(ci, NODE_STEP_NAME, "node-version"),
+      );
+      // 원본은 mutate 되지 않는다(대조군).
+      expect(pick(loadYml(), PNPM_STEP_NAME, "version")).toBe("9.12.0");
+      expect(pick(loadYml(), NODE_STEP_NAME, "node-version")).toBe("20");
+    });
+
+    it("② install 커맨드가 lockfile 우회 flag 없이 --frozen-lockfile 만 쓴다", () => {
+      const run = extractStep(loadYml(), DEPS_STEP_NAME).run as string;
+      expect(run).toBe(INSTALL_COMMAND);
+      expect(run).toContain("--frozen-lockfile");
+      ["--no-frozen-lockfile", "--force", "--lockfile-only", "-P "].forEach(
+        (flag) => expect(run).not.toContain(flag),
+      );
+      // 합성 mutation: 우회 flag 가 붙으면 정본 문자열 동일성이 깨진다(대조군).
+      expect(`${INSTALL_COMMAND} --no-frozen-lockfile`).not.toBe(
+        INSTALL_COMMAND,
+      );
+    });
+
+    it("③ 툴체인 추가가 pull_request · push · schedule 트리거 유입을 동반하지 않는다(T-1620 계약)", () => {
+      const triggers = triggerSection(loadYml());
+      expect(triggers).toContain("workflow_dispatch:");
+      ["pull_request:", "push:", "schedule:"].forEach((t) =>
+        expect(triggers).not.toContain(t),
+      );
+    });
+
+    it("④ package.json 무변경 — k6 도 pnpm 도 dependency 로 편입되지 않았다(T-1620 계약)", () => {
+      const p = pkg();
+      ["k6", "pnpm"].forEach((name) => {
+        expect(Object.keys(p.dependencies)).not.toContain(name);
+        expect(Object.keys(p.devDependencies)).not.toContain(name);
+      });
+      expect(p.scripts["test:load"]).toBe(`k6 run ${LOAD_SCRIPT_REL}`);
+      // pnpm 은 action 이 packageManager 선언대로 깔면 되고 lockfile 에는 들어가지 않는다.
+      const declared = extractKey(
+        extractStepBlock(loadYml(), PNPM_STEP_NAME) as string[],
+        "version",
+      );
+      expect((p as unknown as Record<string, string>).packageManager).toBe(
+        `pnpm@${declared}`,
+      );
+    });
+
+    it("⑤ 새 step 이 secrets 참조나 자격증명 env 를 주입하지 않는다(CLAUDE.md §9)", () => {
+      const yml = loadYml();
+      TOOLCHAIN_STEP_NAMES.forEach((name) => {
+        const block = (extractStepBlock(yml, name) as string[]).join("\n");
+        expect(block).not.toContain("secrets.");
+        expect(block).not.toContain("env:");
+        expect(block).not.toMatch(/TOKEN|PASSWORD|APIKEY|SECRET/i);
+      });
+    });
+
+    it("⑥ 기존 step 순서 회귀 0 이고 정리 step 은 여전히 if: always() 다", () => {
+      const yml = loadYml();
+      const legacy = [
+        BUILD_STEP_NAME,
+        BOOT_STEP_NAME,
+        INSTALL_STEP_NAME,
+        RUN_STEP_NAME,
+        S1_RUN_STEP_NAME,
+        S1_SUMMARY_STEP_NAME,
+        S2_RUN_STEP_NAME,
+        S3_RUN_STEP_NAME,
+        TEARDOWN_STEP_NAME,
+      ].map((n) => stepIndexOf(yml, n));
+      expect(legacy).not.toContain(-1);
+      expect([...legacy].sort((a, b) => a - b)).toEqual(legacy);
+      expect(
+        extractKey(extractStepBlock(yml, TEARDOWN_STEP_NAME) as string[], "if"),
+      ).toBe("always()");
+    });
+  });
+});
