@@ -56,9 +56,21 @@ export interface PersonUpsertArgs {
 // where = compound-unique(`@@unique([personId, service])`) 정합. personId 는 런타임
 // 치환용 placeholder. create = 식별 필드 전부. update = isPrimary 만(externalId/service 는
 // unique key 의 일부라 net-0 보존 위해 update 제외).
+//
+// create.personId (T-1664): `prisma/schema.prisma` 의 `ServiceIdentity.person` 은 required
+// relation 이라 신규 row 를 만드는 create 경로에 personId 가 반드시 있어야 한다(없으면 실
+// Prisma client 가 ``Argument `person` is missing.`` 로 죽는다 — R-91 run 32652307813 결함).
+// 다만 **build 단계인 본 매퍼는 person.id 를 모르므로 미설정** 으로 남기고(optional),
+// `resolveRealDataPersonId`(T-0575) 가 where 치환과 같은 실 person.id 로 채운다. 그래서
+// `buildServiceIdentityUpsert` 의 런타임 산출 키 집합은 3 개 그대로다(무변경).
 export interface ServiceIdentityUpsertArgs {
   where: { personId_service: { personId: string; service: string } };
-  create: { service: string; externalId: string; isPrimary: boolean };
+  create: {
+    service: string;
+    externalId: string;
+    isPrimary: boolean;
+    personId?: string;
+  };
   update: { isPrimary: boolean };
 }
 

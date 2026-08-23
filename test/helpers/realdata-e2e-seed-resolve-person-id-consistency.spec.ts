@@ -9,6 +9,9 @@
 // placeholder·service·personUpsert·identity create/update·순서 → RangeError) · email
 // 매핑 누락/빈값(⑪ → TypeError) · flow/branch(TypeError↔RangeError·외층/내층 빈 배열
 // 경계·Map/Record arm) · 비변형.
+// T-1664 갱신: 컴포저가 identity 의 `create.personId` 도 where 와 동일 실값으로 채우므로
+// 가드의 독립 재유도도 같은 규칙을 미러링한다 — 자립 재유도 expected·drift fixture 를 새
+// 계약으로 갱신하고, `create.personId` drift/결손/placeholder 잔존 negative 3 종을 더한다.
 import {
   buildRealDataE2eSeed,
   type RealDataSeedDescriptor,
@@ -628,6 +631,46 @@ describe("assertRealDataResolvePersonIdConsistentWithInputs", () => {
       ).toThrow(RangeError);
     });
 
+    // ⑤-a (T-1664) — where 는 정상이고 create.personId 만 다른 값으로 drift 시킨 경우.
+    // 이 drift 를 잡지 못하면 Prisma 가 엉뚱한 Person 에 identity 를 붙이게 된다.
+    it("⑤ create.personId 만 drift(where 는 정상, create 는 다른 id) → RangeError", () => {
+      const { resolved, upsertArgsList, map } = makeDriftable();
+      resolved[0].identityUpsertsByEmail[0].create.personId = "other-person-id";
+      const run = () =>
+        assertRealDataResolvePersonIdConsistentWithInputs(
+          resolved,
+          upsertArgsList,
+          map,
+        );
+      expect(run).toThrow(RangeError);
+      expect(run).toThrow(/기대=.*실측=/s);
+    });
+
+    it("⑤ create.personId 결손(치환 누락으로 키 자체가 없음) → RangeError", () => {
+      const { resolved, upsertArgsList, map } = makeDriftable();
+      delete resolved[0].identityUpsertsByEmail[0].create.personId;
+      expect(() =>
+        assertRealDataResolvePersonIdConsistentWithInputs(
+          resolved,
+          upsertArgsList,
+          map,
+        ),
+      ).toThrow(RangeError);
+    });
+
+    it("⑤ create.personId 에 placeholder 잔존 → RangeError", () => {
+      const { resolved, upsertArgsList, map } = makeDriftable();
+      resolved[0].identityUpsertsByEmail[0].create.personId =
+        PERSON_ID_PLACEHOLDER;
+      expect(() =>
+        assertRealDataResolvePersonIdConsistentWithInputs(
+          resolved,
+          upsertArgsList,
+          map,
+        ),
+      ).toThrow(RangeError);
+    });
+
     it("⑤ identity update 슬롯 보존 위반(isPrimary drift) → RangeError", () => {
       const { resolved, upsertArgsList, map } = makeDriftable();
       resolved[0].identityUpsertsByEmail[0].update.isPrimary = false;
@@ -662,6 +705,8 @@ describe("assertRealDataResolvePersonIdConsistentWithInputs", () => {
           service: "github.com",
           externalId: "extra",
           isPrimary: false,
+          // T-1664 — create.personId 도 채워진 새 계약 shape 로 fixture 갱신.
+          personId: "real-id-7",
         },
         update: { isPrimary: false },
       });
@@ -767,7 +812,8 @@ describe("assertRealDataResolvePersonIdConsistentWithInputs", () => {
                   service: identity.where.personId_service.service,
                 },
               },
-              create: { ...identity.create },
+              // T-1664 — create 에도 where 와 동일한 실 person.id 가 배선된다.
+              create: { ...identity.create, personId },
               update: { ...identity.update },
             }),
           ),
