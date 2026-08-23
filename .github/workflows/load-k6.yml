@@ -111,6 +111,16 @@ jobs:
             docker logs aa-load; exit 1
           fi
 
+      - name: 133 로그인 실 dataset seed 적재
+        # T-1660 — 기동 polling 직후인 이유: deploy/docker-entrypoint.sh 의 `prisma migrate
+        # deploy` 가 스키마를 만들므로 boot 전에 부르면 테이블이 없어 실패한다. k6 실행보다
+        # 앞서야 하는 이유: 부하가 빈 DB 가 아니라 실 dataset 위에서 돌아야 측정치가 baseline
+        # 이 된다. DATABASE_URL 은 위 `docker run` 의 `-e DATABASE_URL=` 리터럴과 문자 그대로
+        # 같은 CI 전용 더미 자격증명이다(신규 자격증명 도입 0 · 외부 저장소 참조 0).
+        env:
+          DATABASE_URL: "postgresql://assessment_agent:ci_smoke@localhost:5432/assessment_agent?schema=public"
+        run: pnpm seed:devset-logins
+
       - name: k6 설치
         uses: grafana/setup-k6-action@v1
 

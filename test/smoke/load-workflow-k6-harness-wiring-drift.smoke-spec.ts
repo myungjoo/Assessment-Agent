@@ -2955,3 +2955,287 @@ describe("load-k6.yml seed 실행용 Node/pnpm 툴체인 step 배선 drift smoke
     });
   });
 });
+
+// T-1660 — 133 로그인 실 dataset seed 실행 step 배선 drift. 존재 이유 — T-1659 툴체인 위에서도
+// seed 를 실제로 부르는 주체가 없으면 부하 run 은 계속 빈 DB 위에서 돈다. 배선은 문자열 3 개
+// (step 위치 · `pnpm seed:devset-logins` · docker run 과 같은 DATABASE_URL)에만 의존하는데 이
+// workflow 는 수동 dispatch 전용이라 어긋나도 상시 CI 는 green 이다(빈 DB 측정치가 baseline 으로
+// 박히는 사고가 조용히 난다). 새 helper 1(envKeysOf) 외 기존 helper 재사용.
+//      🔥 실 Actions 발화 0 · 실 seed 실행 0 · 실 DB 연결 0 · YAML 파서 0 · 새 dependency 0.
+
+/** seed 배선 정본 — step 이름 · package.json 키 · 실행 커맨드 · 주입 env 키. */
+const SEED_STEP_NAME = "133 로그인 실 dataset seed 적재";
+const SEED_SCRIPT_KEY = "seed:devset-logins";
+const SEED_RUN_COMMAND = `pnpm ${SEED_SCRIPT_KEY}`;
+const SEED_SCRIPT_REL = "scripts/seed-devset-logins.ts";
+const DB_URL_ENV_KEY = "DATABASE_URL";
+
+/**
+ * step 블록의 `env:` 아래 선언된 키 이름만 뽑는다(더 깊은 들여쓰기가 이어지는 동안 · 주석 행
+ * 제외). `env` 부재면 빈 배열 — "선언 0" 이 곧 정답인 자리라 `null` 이 아니라 빈 배열이 정규형.
+ * @throws {TypeError} `block` 이 배열이 아닐 때(extractStepBlock 과 동형 계약 — false-PASS 방지).
+ */
+function envKeysOf(block: string[]): string[] {
+  if (!Array.isArray(block)) {
+    throw new TypeError("envKeysOf: block 은 string[] 이어야 함");
+  }
+  const head = block.findIndex((l) => l.trim() === "env:");
+  if (head < 0) {
+    return [];
+  }
+  const headIndent = indentOf(block[head]);
+  const keys: string[] = [];
+  for (let i = head + 1; i < block.length; i += 1) {
+    if (block[i].trim() !== "" && indentOf(block[i]) <= headIndent) {
+      break;
+    }
+    const m = block[i].trim().match(/^([A-Za-z_][A-Za-z0-9_]*):/);
+    if (m) {
+      keys.push(m[1]);
+    }
+  }
+  return keys;
+}
+
+/** 부하 대상 기동 step 본문(그 안의 `docker run ... -e KEY=VALUE` 리터럴 대조용). */
+const bootText = (source: string): string =>
+  (extractStepBlock(source, BOOT_STEP_NAME) as string[]).join("\n");
+/** seed step 이 주입하는 env 값(부재면 null). */
+const seedEnv = (source: string, key: string): string | null =>
+  extractKey(extractStepBlock(source, SEED_STEP_NAME) as string[], key);
+
+describe("load-k6.yml 133 로그인 실 dataset seed 실행 step 배선 drift smoke (T-1660)", () => {
+  describe("Happy-path: seed step 실재 · DATABASE_URL parity · 실행 순서", () => {
+    it("① seed step 이 실재하고 run 이 pnpm seed:devset-logins 이며 그 키가 package.json 에 있다", () => {
+      const yml = loadYml();
+      expect(extractStep(yml, SEED_STEP_NAME)).toEqual({
+        found: true,
+        uses: null,
+        run: SEED_RUN_COMMAND,
+      });
+      // workflow ↔ package.json parity — 키가 실재하고 겨냥한 스크립트 파일도 실재한다.
+      expect(pkg().scripts[SEED_SCRIPT_KEY]).toBe(`ts-node ${SEED_SCRIPT_REL}`);
+      expect(existsSync(path.join(REPO_ROOT, SEED_SCRIPT_REL))).toBe(true);
+      // 존재 이유 주석(boot 이후 · k6 이전 · 더미 자격증명)이 step 안에 남아 있다.
+      const comments = (
+        extractStepBlock(yml, SEED_STEP_NAME) as string[]
+      ).filter((l) => l.trim().startsWith("#"));
+      expect(comments.length).toBeGreaterThanOrEqual(2);
+      expect(comments.join(" ")).toContain("migrate");
+    });
+
+    it("② seed step 의 DATABASE_URL 이 docker run 의 -e DATABASE_URL= 값과 문자열 동일하다", () => {
+      const yml = loadYml();
+      const declared = dockerEnvValue(bootText(yml), DB_URL_ENV_KEY);
+      expect(declared).toContain("localhost:5432");
+      expect(seedEnv(yml, DB_URL_ENV_KEY)).toBe(declared);
+    });
+
+    it("③ 의존성 설치 < 빌드 < 기동 < seed < k6 설치 순이고 seed 가 세 k6 실행 step 전부보다 앞선다", () => {
+      const yml = loadYml();
+      const order = [
+        DEPS_STEP_NAME,
+        BUILD_STEP_NAME,
+        BOOT_STEP_NAME,
+        SEED_STEP_NAME,
+        INSTALL_STEP_NAME,
+      ].map((n) => stepIndexOf(yml, n));
+      expect(order).not.toContain(-1);
+      expect([...order].sort((a, b) => a - b)).toEqual(order);
+      const seedIdx = stepIndexOf(yml, SEED_STEP_NAME);
+      [
+        RUN_STEP_NAME,
+        S1_RUN_STEP_NAME,
+        S2_RUN_STEP_NAME,
+        S3_RUN_STEP_NAME,
+      ].forEach((n) => expect(seedIdx).toBeLessThan(stepIndexOf(yml, n)));
+    });
+  });
+
+  describe("Error path: 미발견 정규형 · 부분 drift · non-string throw", () => {
+    it("① seed step 이 없는 합성 YAML 은 throw 없이 미발견 정규형을 돌려준다", () => {
+      const stripped = [
+        "jobs:",
+        "  load:",
+        "    steps:",
+        `      - name: ${INSTALL_STEP_NAME}`,
+        "        uses: grafana/setup-k6-action@v1",
+        "",
+      ].join("\n");
+      expect(extractStepBlock(stripped, SEED_STEP_NAME)).toBeNull();
+      expect(extractStep(stripped, SEED_STEP_NAME)).toEqual({
+        found: false,
+        uses: null,
+        run: null,
+      });
+      expect(stepIndexOf(stripped, SEED_STEP_NAME)).toBe(-1);
+      expect(dockerEnvValue(stripped, DB_URL_ENV_KEY)).toBeNull();
+    });
+
+    it("② step 은 있으나 env 또는 run 한쪽만 없는 합성 입력도 null 이다(부분 drift 검출)", () => {
+      const header = `      - name: ${SEED_STEP_NAME}`;
+      const noEnv = [header, `        run: ${SEED_RUN_COMMAND}`, ""].join("\n");
+      const noEnvBlock = extractStepBlock(noEnv, SEED_STEP_NAME) as string[];
+      expect(extractKey(noEnvBlock, DB_URL_ENV_KEY)).toBeNull();
+      expect(envKeysOf(noEnvBlock)).toEqual([]);
+      expect(extractStep(noEnv, SEED_STEP_NAME).run).toBe(SEED_RUN_COMMAND);
+
+      const noRun = [
+        header,
+        "        env:",
+        `          ${DB_URL_ENV_KEY}: postgresql://u:p@localhost:5432/db`,
+        "",
+      ].join("\n");
+      const noRunBlock = extractStepBlock(noRun, SEED_STEP_NAME) as string[];
+      expect(envKeysOf(noRunBlock)).toEqual([DB_URL_ENV_KEY]);
+      expect(extractStep(noRun, SEED_STEP_NAME).run).toBeNull();
+    });
+
+    it("③ non-string / non-array 입력에 helper 계약대로 TypeError 가 난다", () => {
+      expect(() =>
+        extractStepBlock(null as unknown as string, SEED_STEP_NAME),
+      ).toThrow(TypeError);
+      expect(() => extractStep(loadYml(), 42 as unknown as string)).toThrow(
+        TypeError,
+      );
+      expect(() =>
+        dockerEnvValue(undefined as unknown as string, DB_URL_ENV_KEY),
+      ).toThrow(TypeError);
+      // 신설 helper 도 동형 계약 — 배열이 아니면 추측하지 않고 즉시 throw.
+      expect(() => envKeysOf("env:" as unknown as string[])).toThrow(TypeError);
+    });
+  });
+
+  describe("분기 cover: 따옴표 유무 정규화 · env 보유 step vs env 없는 step", () => {
+    it("① DATABASE_URL 값의 따옴표 유무 두 갈래를 unquote 가 같은 결과로 정규화한다", () => {
+      const raw = "postgresql://u:p@localhost:5432/db?schema=public";
+      const tpl = (v: string): string =>
+        [
+          `      - name: ${SEED_STEP_NAME}`,
+          "        env:",
+          `          ${DB_URL_ENV_KEY}: ${v}`,
+          "",
+        ].join("\n");
+      const read = (v: string): string | null =>
+        seedEnv(tpl(v), DB_URL_ENV_KEY);
+      expect(read(`"${raw}"`)).toBe(raw);
+      expect(read(`'${raw}'`)).toBe(raw);
+      expect(read(raw)).toBe(raw);
+      // 짝이 맞지 않는 따옴표는 벗기지 않는다(정규화가 값을 훼손하지 않음).
+      expect(unquote(`"${raw}`)).toBe(`"${raw}`);
+    });
+
+    it("② env 를 가진 step 갈래와 env 가 없는 step 갈래가 각각 정규형을 돌려준다", () => {
+      const yml = loadYml();
+      expect(
+        envKeysOf(extractStepBlock(yml, SEED_STEP_NAME) as string[]),
+      ).toEqual([DB_URL_ENV_KEY]);
+      expect(
+        envKeysOf(extractStepBlock(yml, RUN_STEP_NAME) as string[]),
+      ).toEqual(["K6_BASE_URL"]);
+      [INSTALL_STEP_NAME, BUILD_STEP_NAME, DEPS_STEP_NAME].forEach((n) =>
+        expect(envKeysOf(extractStepBlock(yml, n) as string[])).toEqual([]),
+      );
+    });
+  });
+
+  describe("negative cases 충분 cover — 순서 mutation · 실패 은닉 · 키 우회 · 선행 계약 회귀", () => {
+    it("① 합성 mutation 으로 seed 를 k6 뒤로 옮기거나 DATABASE_URL 한쪽만 바꾸면 단언이 깨진다", () => {
+      const yml = loadYml();
+      const seedBlock = (
+        extractStepBlock(yml, SEED_STEP_NAME) as string[]
+      ).join("\n");
+      // (a) seed 를 k6 실행 step 앞(= k6 설치 뒤)으로 옮긴 합성본 — 순서 단언이 깨진다.
+      const moved = yml
+        .replace(seedBlock, "")
+        .replace(
+          `      - name: ${RUN_STEP_NAME}`,
+          `${seedBlock}      - name: ${RUN_STEP_NAME}`,
+        );
+      expect(stepIndexOf(moved, SEED_STEP_NAME)).toBeGreaterThan(
+        stepIndexOf(moved, INSTALL_STEP_NAME),
+      );
+      // (b) seed 쪽 DATABASE_URL 만 바꾼 합성본 — docker run 리터럴과의 parity 가 깨진다.
+      const drifted = yml.replace(
+        `${DB_URL_ENV_KEY}: "${seedEnv(yml, DB_URL_ENV_KEY) as string}"`,
+        `${DB_URL_ENV_KEY}: "postgresql://other:other@localhost:5432/other"`,
+      );
+      expect(seedEnv(drifted, DB_URL_ENV_KEY)).not.toBe(
+        dockerEnvValue(bootText(drifted), DB_URL_ENV_KEY),
+      );
+      // 원본은 mutate 되지 않는다(대조군).
+      const fresh = loadYml();
+      expect(stepIndexOf(fresh, SEED_STEP_NAME)).toBeLessThan(
+        stepIndexOf(fresh, INSTALL_STEP_NAME),
+      );
+      expect(seedEnv(fresh, DB_URL_ENV_KEY)).toBe(
+        dockerEnvValue(bootText(fresh), DB_URL_ENV_KEY),
+      );
+    });
+
+    it("② seed 실패를 은닉하지 않고 package.json 키를 우회하지 않으며 신규 자격증명을 도입하지 않는다", () => {
+      const yml = loadYml();
+      const block = extractStepBlock(yml, SEED_STEP_NAME) as string[];
+      // 실패가 조용히 통과하면 빈 DB 위 측정치가 baseline 으로 박힌다.
+      ["if", "continue-on-error"].forEach((k) =>
+        expect(extractKey(block, k)).toBeNull(),
+      );
+      const run = extractStep(yml, SEED_STEP_NAME).run as string;
+      expect(run).toBe(SEED_RUN_COMMAND);
+      ["ts-node", "npx ", "node ", "&&", ";"].forEach((t) =>
+        expect(run).not.toContain(t),
+      );
+      // 값은 기존 CI 더미 재사용 — 새 자격증명 env 도 외부 저장소 참조도 없다(CLAUDE.md §9).
+      expect(envKeysOf(block)).toEqual([DB_URL_ENV_KEY]);
+      expect(block.join("\n")).not.toMatch(/\$\{\{\s*secrets\./);
+      envKeysOf(block).forEach((k) =>
+        expect(k).not.toMatch(/TOKEN|PASSWORD|APIKEY|SECRET/i),
+      );
+    });
+
+    it("③ 상시 트리거 유입 0 이고 package.json 은 seed 키 그대로 · k6 미편입이다(T-1620 계약)", () => {
+      const triggers = triggerSection(loadYml());
+      expect(triggers).toContain("workflow_dispatch:");
+      ["pull_request:", "push:", "schedule:"].forEach((t) =>
+        expect(triggers).not.toContain(t),
+      );
+      const p = pkg();
+      ["k6", "pnpm"].forEach((name) => {
+        expect(Object.keys(p.dependencies)).not.toContain(name);
+        expect(Object.keys(p.devDependencies)).not.toContain(name);
+      });
+      expect(p.scripts[SEED_SCRIPT_KEY]).toBe(`ts-node ${SEED_SCRIPT_REL}`);
+    });
+
+    it("④ T-1659 툴체인 pin 과 기존 step 순서 · 정리 step 계약이 그대로다", () => {
+      const yml = loadYml();
+      const seedIdx = stepIndexOf(yml, SEED_STEP_NAME);
+      TOOLCHAIN_STEP_NAMES.forEach((n) => {
+        const idx = stepIndexOf(yml, n);
+        expect(idx).toBeGreaterThan(-1);
+        expect(idx).toBeLessThan(seedIdx);
+      });
+      const pin = (step: string, key: string): string | null =>
+        extractKey(extractStepBlock(yml, step) as string[], key);
+      expect(pin(PNPM_STEP_NAME, "version")).toBe("9.12.0");
+      expect(pin(NODE_STEP_NAME, "node-version")).toBe("20");
+      expect(extractStep(yml, DEPS_STEP_NAME).run).toBe(INSTALL_COMMAND);
+      const legacy = [
+        BUILD_STEP_NAME,
+        BOOT_STEP_NAME,
+        INSTALL_STEP_NAME,
+        RUN_STEP_NAME,
+        S1_RUN_STEP_NAME,
+        S1_SUMMARY_STEP_NAME,
+        S2_RUN_STEP_NAME,
+        S3_RUN_STEP_NAME,
+        TEARDOWN_STEP_NAME,
+      ].map((n) => stepIndexOf(yml, n));
+      expect(legacy).not.toContain(-1);
+      expect([...legacy].sort((a, b) => a - b)).toEqual(legacy);
+      expect(
+        extractKey(extractStepBlock(yml, TEARDOWN_STEP_NAME) as string[], "if"),
+      ).toBe("always()");
+    });
+  });
+});
