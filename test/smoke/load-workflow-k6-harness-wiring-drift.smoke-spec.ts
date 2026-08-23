@@ -3423,3 +3423,242 @@ describe("s1-batch.js 실 devset dataset 조회 교체 drift smoke (T-1661)", ()
     });
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-1666 — s1-batch.js setup() 의 devset 표본 인원 수 로그 배선 drift. 존재 이유 — T-1665 의 8
+// 회차 실측은 k6 가 실제로 몇 명을 표본으로 취했는지를 seed 적재 건수 · service 구현 · p95 대역
+// 이라는 간접 증거 3 종으로만 추론해야 했다. 로그 1 줄이 그 추론을 없애는데, 그 줄이 ① 사라지거나
+// ② 위치가 밀려 return 뒤로 가거나 ③ 자격증명 · 경로 리터럴을 싣거나 ④ 분기 0 규약을 깨도 상시
+// CI 는 green 이다(부하 job 은 수동 dispatch 전용). 새 helper 1(consoleLogArgsOf) 외 기존 재사용.
+//      🔥 실 k6 실행 0 · 실 HTTP 0 · DB 의존 0 · 새 dependency 0 — 파일 read + 합성 문자열만.
+
+/** 표본 로그의 고정 prefix — 다음 사람이 `gh run view --log` 에서 값을 grep 하는 좌표다. */
+const S1_SAMPLE_LOG_PREFIX = "[s1-batch] devset 표본";
+/** 로그 인자에 실리면 안 되는 토큰 — 자격증명 · cookie · email 원문 계열(민감값 유출 차단). */
+const S1_LOG_FORBIDDEN_TOKENS = [
+  "authCookie",
+  "credentials",
+  "apiKey",
+  "password",
+  "Cookie",
+  "email",
+  "stamp",
+];
+
+/**
+ * 소스 안 `console.log(...)` 호출의 인자 원문 목록(주석 행 제외). 호출이 없으면 빈 배열이라
+ * 0-byte read 도 조용히 통과하지 않는다 — 분기 없음(필터 + 매칭만).
+ * @throws {TypeError} 입력이 non-string 일 때(extractTopLevelBlock 과 동형 fail-fast 계약).
+ */
+function consoleLogArgsOf(source: string): string[] {
+  if (typeof source !== "string") {
+    throw new TypeError("consoleLogArgsOf: source 는 string 이어야 함");
+  }
+  return (
+    source
+      .split("\n")
+      .filter((l) => !l.trim().startsWith("//"))
+      .join("\n")
+      .match(/console\.log\([\s\S]*?\);/g) || []
+  ).map((call) => call.slice("console.log(".length, -2).trim());
+}
+
+/** T-1661 이 고정한 personIds 단일 식 chain — 중간 변수로 쪼개지면 즉시 깨진다. */
+const S1_PERSON_IDS_CHAIN =
+  /const personIds = persons\s*\.json\(\)\s*\.filter\([^\n]*\)\s*\.slice\(0, SAMPLE_PERSONS\)\s*\.map\(/;
+
+describe("s1-batch.js 표본 인원 수 로그 배선 drift smoke (T-1666)", () => {
+  describe("Happy-path: 로그 1 회 · 두 수치 · 위치 · 주변 무변경", () => {
+    it("① setup() 의 console.log 가 정확히 1 회이고 두 수치와 고정 prefix 를 싣는다", () => {
+      const args = consoleLogArgsOf(s1Body("export function setup"));
+      expect(args).toHaveLength(1);
+      // 취한 표본 수와 요청 표본 수 — 이 둘이 있어야 표본 부족이 로그만으로 드러난다.
+      expect(args[0]).toContain("${personIds.length}");
+      expect(args[0]).toContain("${SAMPLE_PERSONS}");
+      expect(args[0]).toContain(S1_SAMPLE_LOG_PREFIX);
+      // 인자는 template literal 하나뿐 — 객체 dump 같은 추가 인자를 붙이지 않는다.
+      expect(args[0]).toMatch(/^`[^`]*`,?$/);
+    });
+
+    it("② 로그가 personIds 산출 이후 · return 이전에 놓이고 그 산출 chain 은 무변경이다", () => {
+      const setup = s1Body("export function setup");
+      expect(setup).toMatch(
+        /\.map\(\(row\) => row\.id\);[\s\S]*console\.log\([\s\S]*?\);[\s\S]*return \{/,
+      );
+      expect(setup).toMatch(S1_PERSON_IDS_CHAIN);
+      // 산출보다 앞선 자리에 하나 더 끼우는 변조는 호출 수 단언이 잡는다(원본 1 회).
+      const early = setup.replace(
+        "  const persons = http.get(",
+        "  console.log(`early`);\n  const persons = http.get(",
+      );
+      expect(early).not.toBe(setup);
+      expect(consoleLogArgsOf(early)).toHaveLength(2);
+    });
+
+    it("③ setup 의 http 왕복 · return 키 집합 · teardown/default/머리 주석이 무변경이다", () => {
+      const setup = s1Body("export function setup");
+      // 로그는 왕복을 늘리지 않는다 — POST 3(signup · login · provider) · GET 2 · DELETE 1.
+      expect(setup.match(/http\.post\(/g)).toHaveLength(3);
+      expect(setup.match(/http\.get\(/g)).toHaveLength(2);
+      expect(setup.match(/http\.del\(/g)).toHaveLength(1);
+      [
+        "personIds,",
+        'providerId: provider.json("id")',
+        "authCookie,",
+        "periodStart:",
+      ].forEach((k) => expect(setup).toContain(k));
+      // 로그는 setup 안에만 — 측정 iteration · teardown · 머리 주석 리터럴은 그대로다.
+      expect(consoleLogArgsOf(s1Body("export default function"))).toEqual([]);
+      expect(consoleLogArgsOf(s1Body("export function teardown"))).toEqual([]);
+      expect(s1Script()).toContain("// 범위 밖(후속 slice):");
+    });
+  });
+
+  describe("Error path: 정본 부재 · 없는 블록 · 0-byte · non-string", () => {
+    it("① 정본 파일이 실재하고, 없는 경로 read 와 없는 블록 추출은 조용히 PASS 하지 않는다", () => {
+      expect(existsSync(path.join(REPO_ROOT, S1_SCRIPT_REL))).toBe(true);
+      expect(() =>
+        readFileSync(path.join(REPO_ROOT, `${S1_SCRIPT_REL}.absent`)),
+      ).toThrow();
+      expect(() => s1Body("export function nonexistent")).toThrow();
+    });
+
+    it("② 빈 입력은 null · 빈 배열이고 non-string 은 TypeError 로 드러난다", () => {
+      expect(extractTopLevelBlock("", "export function setup")).toBeNull();
+      expect(consoleLogArgsOf("")).toEqual([]);
+      // 주석 안의 호출 흉내는 세지 않는다(거짓 1 회 차단).
+      expect(consoleLogArgsOf("// console.log(`x`);")).toEqual([]);
+      [undefined, 42, null].forEach((bad) =>
+        expect(() => consoleLogArgsOf(bad as unknown as string)).toThrow(
+          TypeError,
+        ),
+      );
+    });
+  });
+
+  describe("flow / 분기 cover: 표본 > 조회 · 표본 < 조회 · 조회 0 · 정규화", () => {
+    it("① 세 갈래의 로그 수치를 스크립트와 같은 식 하나가 만든다(실 k6 실행 0)", () => {
+      const setup = s1Body("export function setup");
+      expect(setup).toContain(".slice(0, SAMPLE_PERSONS)");
+      const domain = devsetDomainOf(s1Script()) as string;
+      // 스크립트의 filter → slice → map 을 합성 배열에 그대로 적용해 personIds.length 동치 검증.
+      const logged = (
+        sample: number,
+        rows: { id: string; email: string }[],
+      ): number =>
+        rows
+          .filter((row) => `${row.email}`.endsWith(`@${domain}`))
+          .slice(0, sample)
+          .map((row) => row.id).length;
+      const rows = [
+        { id: "a", email: `a@${domain}` },
+        { id: "b", email: `b@${domain}` },
+        { id: "c", email: "c@other.invalid" },
+      ];
+      expect(logged(10, rows)).toBe(2); // 표본 > 조회 결과 — 있는 만큼만 찍힌다.
+      expect(logged(1, rows)).toBe(1); // 표본 < 조회 결과 — 앞에서부터 자른다.
+      expect(logged(10, [])).toBe(0); // 조회 0 — 로그가 0 을 찍어 표본 부족이 드러난다.
+    });
+
+    it("② SAMPLE_PERSONS 정규화 식 · 기본값 10 · workflow 주입 parity 가 회귀 0 이다", () => {
+      const script = s1Script();
+      expect(script).toMatch(
+        /const SAMPLE_PERSONS = Math\.max\(\s*1,\s*Math\.trunc\(Number\(__ENV\.K6_S1_PERSONS\)\) \|\| 10,\s*\);/,
+      );
+      const declared = extractEnvFallback(script, S1_PERSONS_ENV_KEY);
+      expect(declared).toBe("10");
+      const yml = loadYml();
+      [S1_RUN_STEP_NAME, S1_SUMMARY_STEP_NAME].forEach((name) =>
+        expect(
+          resolveInputExpr(
+            yml,
+            extractKey(
+              extractStepBlock(yml, name) as string[],
+              S1_PERSONS_ENV_KEY,
+            ) as string,
+          ),
+        ).toBe(declared),
+      );
+    });
+  });
+
+  describe("negative cases 충분 cover — 중복 · 유출 · 경로 · 분기 · chain 분해", () => {
+    it("① console.log 가 2 회로 늘거나 setup 밖으로 새면 단언이 깨진다(합성 mutation)", () => {
+      const script = s1Script();
+      expect(consoleLogArgsOf(script)).toHaveLength(1);
+      const doubled = script.replace(
+        "  console.log(",
+        "  console.log(`dup`);\n  console.log(",
+      );
+      expect(doubled).not.toBe(script);
+      expect(consoleLogArgsOf(doubled)).toHaveLength(2);
+      // teardown 으로 샌 변조도 같은 helper 가 잡는다(원본 teardown 은 0 회).
+      const leaked = script.replace(
+        "export function teardown(data) {",
+        "export function teardown(data) {\n  console.log(`leak`);",
+      );
+      expect(
+        consoleLogArgsOf(
+          (
+            extractTopLevelBlock(leaked, "export function teardown") as string[]
+          ).join("\n"),
+        ),
+      ).toHaveLength(1);
+      expect(consoleLogArgsOf(s1Body("export function teardown"))).toEqual([]);
+    });
+
+    it("② 로그 인자에 자격증명 · cookie · email 토큰 유입이 0 이다(합성 mutation 대조)", () => {
+      const arg = consoleLogArgsOf(s1Body("export function setup"))[0];
+      S1_LOG_FORBIDDEN_TOKENS.forEach((t) => expect(arg).not.toContain(t));
+      // 대조군 — 민감값을 실은 변조는 같은 단언에서 즉시 걸린다(단언이 tautology 가 아님).
+      const drifted = arg.replace("`,", " cookie=${authCookie}`,");
+      expect(drifted).not.toBe(arg);
+      expect(drifted).toContain("authCookie");
+    });
+
+    it("③ 로그 문자열에 /api/ 경로 리터럴 유입이 0 이다(route 집합 불변)", () => {
+      const script = s1Script();
+      expect(apiRoutesOf(script).sort()).toEqual(
+        [...S1_ROUTES, S1_BATCH_ROUTE].sort(),
+      );
+      expect(
+        consoleLogArgsOf(s1Body("export function setup"))[0],
+      ).not.toContain("/api/");
+      // 대조군 — 로그에 경로를 실으면 route 집합이 커져 T-1661 negative ⑤ 가 red 가 된다.
+      const drifted = script.replace(
+        S1_SAMPLE_LOG_PREFIX,
+        `${S1_SAMPLE_LOG_PREFIX} /api/persons-sample`,
+      );
+      expect(apiRoutesOf(drifted).length).toBe(apiRoutesOf(script).length + 1);
+    });
+
+    it("④ 분기 0 규약이 회귀하지 않았다(분기 토큰 0 · || 매치 2)", () => {
+      const script = s1Script();
+      ["if (", "} else", " ? ", " && ", " || (", "Math.min("].forEach((t) =>
+        expect(script).not.toContain(t),
+      );
+      // __ENV fallback 2 종만 남는다 — 로그가 `||` 를 늘리지 않았다.
+      expect(script.match(/\|\|/g)).toHaveLength(2);
+      // 대조군 — 로그를 조건부로 감싸는 변조는 분기 토큰 단언을 깨뜨린다.
+      const drifted = script.replace(
+        "  console.log(",
+        "  if (personIds.length === 0) console.log(",
+      );
+      expect(drifted).not.toBe(script);
+      expect(drifted).toContain("if (");
+    });
+
+    it("⑤ personIds 단일 식 chain 이 중간 변수로 쪼개지면 단언이 깨진다(대조군)", () => {
+      const setup = s1Body("export function setup");
+      expect(setup).toMatch(S1_PERSON_IDS_CHAIN);
+      const split = setup.replace(
+        "    .slice(0, SAMPLE_PERSONS)",
+        ";\n  const sampled = filtered.slice(0, SAMPLE_PERSONS)",
+      );
+      expect(split).not.toBe(setup);
+      expect(split).not.toMatch(S1_PERSON_IDS_CHAIN);
+      // 원본은 mutate 되지 않는다 — 대조군이 성립한다.
+      expect(s1Body("export function setup")).toMatch(S1_PERSON_IDS_CHAIN);
+    });
+  });
+});

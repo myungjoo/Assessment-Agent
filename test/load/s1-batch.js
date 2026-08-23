@@ -132,6 +132,13 @@ export function setup() {
     .filter((row) => `${row.email}`.endsWith(`@${DEVSET_EMAIL_DOMAIN}`))
     .slice(0, SAMPLE_PERSONS)
     .map((row) => row.id);
+  // (T-1666) 취한 표본 수와 요청 표본 수를 로그 1 줄로 남긴다 — 9 회차부터의 실측이 seed 적재
+  // 건수 · 서비스 구현 · p95 대역 같은 간접 증거로 표본을 추론하지 않고 run log 에서 직접
+  // 회수한다. 표본 부족(seed 미적재 · 도메인 불일치)도 같은 줄에서 드러난다. 수치 2 개만 싣고
+  // 자격증명 · cookie · email 원문은 출력하지 않으며, 조건 없이 매 run 1 회라 분기 0 규약 유지.
+  console.log(
+    `[s1-batch] devset 표본 취득 ${personIds.length}명 / 요청 ${SAMPLE_PERSONS}명`,
+  );
   return {
     personIds,
     providerId: provider.json("id"),
