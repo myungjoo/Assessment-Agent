@@ -2,13 +2,15 @@
 id: T-1655
 title: 133 로그인 seed 두 leg 를 묶는 top-level 진입점 (client 주입형) 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1323
 coversReq: [REQ-047, REQ-023, REQ-024]
 estimatedDiff: 265
 estimatedFiles: 2
 created: 2026-08-22
 createdAt: 2026-08-22T23:40:00Z
+completedAt: 2026-08-23T01:00:55Z
 independentStream: load-r91
 dependsOn: [T-1653, T-1654]
 touchesFiles:
