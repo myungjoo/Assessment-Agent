@@ -2,7 +2,7 @@
 id: T-1664
 title: devset seed 결함 fix — ServiceIdentity upsert create 에 person 관계(personId) 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047]
 estimatedDiff: 160
@@ -74,3 +74,11 @@ plannerNote: "P5 R-91 chain 46/N — T-1663 실 run 이 잡은 `Argument person 
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 기록
+
+- Status: DONE (2026-08-23T18:56Z, PR [#1330](https://github.com/myungjoo/Assessment-Agent/pull/1330) squash merge `61f616a1`, round 1)
+- 결과: `ServiceIdentityUpsertArgs.create` 에 optional `personId` 추가 (build 산출 키 3 개 무변경) + `resolveRealDataPersonId` 가 `create: { ...identity.create, personId }` 로 `where` 와 **같은 실값** 을 배선. consistency 컴포저 미러도 같은 commit 에서 갱신 — 미갱신 시 self-guard 가 `RangeError` 로 전 seed 경로를 죽인다.
+- test: 기존 2 spec 에 T-1664 케이스 14 종 추가 (happy 3 값 동일 · error throw 계약 불변 · 분기 Map/Record/identity 0/빈 입력 · negative 5 종 · devset 133 identity 전량 regression). 전역 unit 453 suite / 12994 test green, `test:cov` threshold(line·function 80%) 통과.
+- diff +280/-20, 5 파일 (cap 이내). reviewer APPROVE round 1 — MINOR(주석 줄바꿈) 는 같은 PR `632c74d6` 에서 closure (§3 Nit-in-PR).
+- 잔여: 재 dispatch 실측(`§3.1` 8 회차) · doc-sync · `flattenPlan` placeholder 가드는 Out of Scope 대로 후속 slice.
