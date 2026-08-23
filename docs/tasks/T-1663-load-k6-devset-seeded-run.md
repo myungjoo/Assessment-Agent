@@ -2,7 +2,7 @@
 id: T-1663
 title: seed 배선 후 첫 실 dataset run — load-k6 를 s1_persons=133 으로 1 회 dispatch 해 seed step·소비 경로 실측
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 estimatedDiff: 120
@@ -33,17 +33,19 @@ plannerNote: "P5 R-91 chain 45/N — T-1651~T-1661 이 닫은 seed 실행 경로
 
 ## Acceptance Criteria
 
-- [ ] `gh workflow run load-k6.yml --ref main -f s1_persons=133` 으로 **정확히 1 회** dispatch 하고 run id 를 확보한다 (`gh run list --workflow=load-k6.yml --limit 3`). 재 dispatch · 재시도 금지 — 실패해도 그 사실 자체를 실측 결과로 기록한다.
-- [ ] run conclusion 을 확인한다 (`gh run view <id>` 또는 `gh run watch <id>`). **45 분** 초과 미종료면 대기를 중단하고 그 시점의 진행 중 step 이름과 함께 기록한다.
-- [ ] `gh run view <id> --log` 에서 **`133 로그인 실 dataset seed 적재` step 의 conclusion 과 출력**을 회수한다. 적재 인원 수 · 실패 로그 유무를 인용하고, step 이 fail 이면 그 에러 메시지 원문 (secret · `DATABASE_URL` 값 제외) 을 기록한다.
-- [ ] S1 실행 로그에서 **`setup()` 이 적재분을 조회해 썼는지** 확인한다 — `GET /api/persons` 경로로 얻은 표본 인원 수가 `133` 인지, 부족하면 몇 명이었는지. `POST /api/persons` 로 합성 인원이 생성된 흔적이 있으면 T-1661 배선 결함으로 기록한다.
-- [ ] k6 `THRESHOLDS` 블록에서 `http_req_duration{route:batch}` 임계가 **2 개** (`p(95)<3600000` 판정 임계 + `p(95)<900` stub baseline 게이트) 로 나타나는지와 각 `✓`/`✗` 를 그대로 인용한다. `http_req_failed` · `iteration_duration` 수치도 함께 회수한다.
-- [ ] [docs/ops/load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) `§3.1` 에 **`#### 7 회차 (T-1663, run <id>, 실 dataset seed 첫 run)`** 소절을 6 회차와 같은 형식 (수치 · 환경 메타 · 의미/한계) 으로 추가하고, `§3.1` 헤더의 "6 회분" 을 "7 회분" 으로 갱신한다. 실 scale 표본이 5 개가 되면 평균 · 범위 · 표본표준편차를 **직접 계산해** 적고, 900ms 재확정 필요 여부를 한 문장으로 판정한다 (초과 시에도 본 slice 에서 임계 숫자를 바꾸지 않고 Follow-ups 로 넘긴다).
-- [ ] `§5` item 5 의 잔여 ① 문단을 실측 결과로 갱신한다 — seed step 이 성공했으면 "배선 · 실행 모두 확인, 잔여는 수집 왕복 (`ServiceIdentity` · 외부 API) 축" 으로 좁히고, 실패했으면 결함 내용과 함께 **미해소 유지** 로 적는다. 어느 쪽이든 근거 run id 를 명시한다.
-- [ ] [docs/PLAN.md](../PLAN.md) `141 행` 꼬리에 7 회차 결과 1 ~ 3 문장을 덧붙인다. **`140 행` checkbox 는 `[ ]` 유지** — LLM stub (ADR-0057 `D1`) · 수집 왕복 0 · 단일 iteration 조건이 그대로이므로 그 근거를 함께 적는다.
-- [ ] 인용한 run id · SHA · 수치는 전부 `gh run view` 실 출력과 1:1 대조한다 (허구 수치 0). 회수 불가한 항목은 추정치를 쓰지 말고 "회수 실패" 로 명시한다.
-- [ ] `pnpm test` green (doc-only 변경이지만 `realdata-devset-logins-doc-consistency` drift guard 가 정본 문서를 파싱하므로 회귀 0 확인).
-- [ ] 본 task 는 `commitMode: direct` doc-only 이라 R-112 4 항목 (happy / error / 분기 / negative unit test) 은 적용 대상이 아니다 — production code 변경 0, 신규 public symbol 0.
+- [x] `gh workflow run load-k6.yml --ref main -f s1_persons=133` 으로 **정확히 1 회** dispatch 하고 run id 를 확보한다 (`gh run list --workflow=load-k6.yml --limit 3`). 재 dispatch · 재시도 금지 — 실패해도 그 사실 자체를 실측 결과로 기록한다.
+- [x] run conclusion 을 확인한다 (`gh run view <id>` 또는 `gh run watch <id>`). **45 분** 초과 미종료면 대기를 중단하고 그 시점의 진행 중 step 이름과 함께 기록한다.
+- [x] `gh run view <id> --log` 에서 **`133 로그인 실 dataset seed 적재` step 의 conclusion 과 출력**을 회수한다. 적재 인원 수 · 실패 로그 유무를 인용하고, step 이 fail 이면 그 에러 메시지 원문 (secret · `DATABASE_URL` 값 제외) 을 기록한다.
+- [x] S1 실행 로그에서 **`setup()` 이 적재분을 조회해 썼는지** 확인한다 — `GET /api/persons` 경로로 얻은 표본 인원 수가 `133` 인지, 부족하면 몇 명이었는지. `POST /api/persons` 로 합성 인원이 생성된 흔적이 있으면 T-1661 배선 결함으로 기록한다.
+- [x] k6 `THRESHOLDS` 블록에서 `http_req_duration{route:batch}` 임계가 **2 개** (`p(95)<3600000` 판정 임계 + `p(95)<900` stub baseline 게이트) 로 나타나는지와 각 `✓`/`✗` 를 그대로 인용한다. `http_req_failed` · `iteration_duration` 수치도 함께 회수한다.
+- [x] [docs/ops/load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) `§3.1` 에 **`#### 7 회차 (T-1663, run <id>, 실 dataset seed 첫 run)`** 소절을 6 회차와 같은 형식 (수치 · 환경 메타 · 의미/한계) 으로 추가하고, `§3.1` 헤더의 "6 회분" 을 "7 회분" 으로 갱신한다. 실 scale 표본이 5 개가 되면 평균 · 범위 · 표본표준편차를 **직접 계산해** 적고, 900ms 재확정 필요 여부를 한 문장으로 판정한다 (초과 시에도 본 slice 에서 임계 숫자를 바꾸지 않고 Follow-ups 로 넘긴다).
+- [x] `§5` item 5 의 잔여 ① 문단을 실측 결과로 갱신한다 — seed step 이 성공했으면 "배선 · 실행 모두 확인, 잔여는 수집 왕복 (`ServiceIdentity` · 외부 API) 축" 으로 좁히고, 실패했으면 결함 내용과 함께 **미해소 유지** 로 적는다. 어느 쪽이든 근거 run id 를 명시한다.
+- [x] [docs/PLAN.md](../PLAN.md) `141 행` 꼬리에 7 회차 결과 1 ~ 3 문장을 덧붙인다. **`140 행` checkbox 는 `[ ]` 유지** — LLM stub (ADR-0057 `D1`) · 수집 왕복 0 · 단일 iteration 조건이 그대로이므로 그 근거를 함께 적는다.
+- [x] 인용한 run id · SHA · 수치는 전부 `gh run view` 실 출력과 1:1 대조한다 (허구 수치 0). 회수 불가한 항목은 추정치를 쓰지 말고 "회수 실패" 로 명시한다.
+- [x] `pnpm test` green (doc-only 변경이지만 `realdata-devset-logins-doc-consistency` drift guard 가 정본 문서를 파싱하므로 회귀 0 확인).
+> **실행 결과(2026-08-23, run `32652307813`)** — dispatch 1 회 · conclusion `failure`. seed step 이 ``Argument `person` is missing.`` 로 죽어 k6 5 step 이 skipped 되었으므로 ③ 적재 인원 수 · ④ `setup()` 소비 경로 · ⑤ THRESHOLDS/수치 3 항목은 AC 9 항 규정대로 **"회수 실패"로 명시 기록**했고(허구 수치 0), 나머지 항목은 그대로 충족했다. 결함 수정은 Out of Scope 라 Follow-ups 로 넘겼다.
+
+- [x] 본 task 는 `commitMode: direct` doc-only 이라 R-112 4 항목 (happy / error / 분기 / negative unit test) 은 적용 대상이 아니다 — production code 변경 0, 신규 public symbol 0.
 
 ## Out of Scope
 
@@ -61,4 +63,16 @@ plannerNote: "P5 R-91 chain 45/N — T-1651~T-1661 이 닫은 seed 실행 경로
 
 ## Follow-ups
 
-(비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가)
+- **[결함 · 최우선] devset seed 의 ServiceIdentity leg 가 런타임에서 죽는다** — run `32652307813`
+  의 `133 로그인 실 dataset seed 적재` step 이 ``Argument `person` is missing.`` 로 exit 1.
+  [`realdata-e2e-seed-upsert.ts`](../../test/helpers/realdata-e2e-seed-upsert.ts) 의
+  `ServiceIdentityUpsertArgs.create` 가 `service` · `externalId` · `isPrimary` 만 담고 Person
+  관계(`person: { connect: { id } }` 또는 그에 준하는 배선)를 비워둔 채, 런타임 치환은
+  `where.personId_service.personId` 에만 적용되는 것이 원인. **별도 pr-mode slice** 로 수정
+  (해당 shape 은 실 e2e seed 경로와 공유되므로 회귀 영향 범위 확인 필요).
+- **[test 공백] helper chain 7 종의 colocated spec 이 mock client shape 단언에 그쳐** Prisma
+  checked client 의 필수 관계 인자 계약을 재현하지 못했다 — 위 결함이 배선 11 slice 를
+  통과한 이유. 수정 slice 에 regression 관점의 계약 test 를 함께 요구한다.
+- **[재측정] 위 수정 머지 후 `-f s1_persons=133` 재 dispatch 1 회** — 본 slice 가 회수 실패로
+  남긴 3 축(적재 인원 수 · `setup()` 조회 소비 경로 · S1 THRESHOLDS 2 개와 수치)을 그때
+  실측해 `§3.1` 8 회차로 박제한다.

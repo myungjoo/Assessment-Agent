@@ -125,7 +125,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
   되기 때문이다. S2 · S3 의 "baseline 후 fix" 는 해당 축 실측이 0 회라 그대로 남는다
   (`§5` item 5).
 
-### 3.1 baseline 실측 기록 (S1, 6 회분)
+### 3.1 baseline 실측 기록 (S1, 7 회분)
 
 #### 1 회차 (T-1637, run 32459501970)
 
@@ -344,6 +344,60 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
   가 없어 GitHub/Confluence **수집 왕복이 0**(50~100 repo · ~1000 page 축 미검증), ③ 단일
   iteration 이라 p95 가 곧 단일 표본값. 그래서 PLAN `140 행` checkbox 는 `[ ]` 유지다.
 
+#### 7 회차 (T-1663, run 32652307813, 실 dataset seed 배선 후 첫 run — seed step **fail**)
+
+- **측정 일시 / run**: 2026-08-23T16:38:45Z dispatch(`workflow_dispatch`, ref `main`, head sha
+  `0046e366`), run id **32652307813**, job 16:38:49Z~16:40:23Z(약 1분 34초). **conclusion
+  `failure`** — `133 로그인 실 dataset seed 적재` step(16:40:18Z~16:40:21Z)이 fail 하고 그 뒤
+  `k6 설치` · `k6 부하 스크립트 실행`(smoke) · `k6 S1 평가 배치 부하 시나리오 실행` · S2 · S3
+  **5 step 이 전부 skipped** 로 떨어졌다. `if: always()` 인 "S1 실측 요약 기록" 과 "부하 대상
+  정리" 만 그 뒤에서 success. dispatch 는 `-f s1_persons=133` 으로 **정확히 1 회**만 했고
+  재시도·재 dispatch 는 없다(Out of Scope 준수).
+- **seed step 결함(본 회차 핵심)** — 실패 지점은 **ServiceIdentity leg 의 첫 upsert**다. 로그
+  원문(자격증명 제외): `devset seed 실패:` / ``Invalid `checked.serviceIdentity.upsert()`
+  invocation in .../test/helpers/realdata-devset-seed-identity-upsert-runner.ts:121:50`` /
+  ``Argument `person` is missing.`` / ` ELIFECYCLE  Command failed with exit code 1.`.
+  Prisma 가 되돌려준 진단 블록은 `create: { service: "github.com", externalId: "...",
+  isPrimary: true }` 에 `person: { create | connectOrCreate | connect }` 가 **없다**고 짚는다.
+  즉 [`realdata-e2e-seed-upsert.ts`](../../test/helpers/realdata-e2e-seed-upsert.ts) 의
+  `ServiceIdentityUpsertArgs.create` shape(T-0574/T-0716 유래, T-1652 가 devset chain 으로
+  승계)이 `where.personId_service.personId` 만 런타임 치환하고 **`create` 쪽 Person 관계를
+  비워둔 것**이 원인이다 — checked client 는 관계 필수 인자를 요구하므로 거부한다. 앞선 helper
+  7 종의 colocated spec 은 mock client 에 대한 **shape 단언**이라 이 런타임 계약을 재현하지
+  못했고, 그래서 배선 11 slice 를 통과하고도 첫 실 run 에서 드러났다. **본 slice 는 고치지
+  않는다**(Out of Scope) — 수정은 Follow-ups 의 별도 pr-mode slice.
+- **적재 인원 수**: Person leg 는 identity leg 보다 **먼저 완주**했다
+  ([`realdata-devset-seed-run.ts`](../../test/helpers/realdata-devset-seed-run.ts) 가 ② Person
+  → ④ identity 순차 실행, 두 leg 모두 `$transaction` 없이 개별 upsert). 실패 메시지의
+  `where.personId_service.personId` 가 placeholder 가 아닌 실 cuid(`cmt619key0000...`)로
+  치환돼 있는 것이 Person leg 결과가 회수됐다는 증거다. 다만 CLI 는 **성공 요약만 마지막에
+  출력**하므로 `133` 이라는 **적재 인원 수 자체는 로그로 회수 실패** — "몇 명이 적재됐다" 는
+  수치는 본 run 에서 확정할 수 없다(추정치를 적지 않는다).
+- **`setup()` 소비 경로(T-1661) 검증**: **회수 실패 — 미검증**. S1 step 이 skipped 라
+  `GET /api/persons` 조회도 `POST /api/persons` 합성 생성도 로그에 **흔적이 0** 이다. 따라서
+  본 run 은 T-1661 배선의 결함 여부를 **긍정도 부정도 하지 못한다**(합성 생성 흔적이 없다는
+  사실은 스크립트가 아예 실행되지 않은 데서 오는 것이지 정상 동작의 증거가 아니다).
+- **k6 수치**: **전부 회수 실패**. `http_req_duration{route:batch}` 의 임계 2 개
+  (`p(95)<3600000` · `p(95)<900`)를 담은 `█ THRESHOLDS` 블록은 **출력 자체가 없고**(S1 step
+  미실행), `http_req_failed` · `iteration_duration` · `http_reqs` 도 마찬가지다.
+  `--summary-export` 산출물도 없어 "S1 실측 요약 기록" step 이 `요약 파일 없음 — k6 가 요약을
+  남기기 전에 종료했다 (설치/부팅 실패 등).` 를 찍었다. 따라서 **실 scale 표본 수는 4 개
+  (3~6 회차) 그대로**이며 5 개가 되지 않았다 — 평균 **748.81ms** · 범위 **81.04ms** ·
+  표본표준편차 **35.46ms** · 평균+3σ **855.19ms** 는 6 회차 값이 무변경으로 유지된다. **900ms
+  재확정 필요 여부: 불요** — 본 회차가 새 표본을 보태지 못해 판정 근거가 6 회차와 동일하고,
+  `§3` 표 임계 숫자도 무변경이다.
+- **환경 메타(로그로 회수됨)**: `if: always()` 덕에 seed 실패에도 메타 7 항목이 전부 회수됐다 —
+  커널 `Linux 6.17.0-1022-azure`, 아키텍처 `x86_64`, vCPU **4**, 메모리 **15Gi**, DB image
+  `postgres:16-alpine`, 부하 대상 image `assessment-agent:load`, 표본 인원
+  `K6_S1_PERSONS=133`. **7 항목이 3~6 회차와 전부 동일**하므로 조건은 일치하며, `s1_persons`
+  input 주입도 **다섯 번째로 성공**(default `10` 낙하 없음)이다.
+- **의미 / 한계**: 본 회차의 소득은 성능 수치가 아니라 **배선의 런타임 반증**이다 — "helper
+  chain · entrypoint · workflow step · k6 소비 경로 4 축이 닫혔다" 는 배선 완료가 **실행
+  성공을 뜻하지 않는다**는 것을 첫 실 run 이 즉시 보였다(T-1647 이 게이트 활성 축에서 결함 0
+  을 확인한 것과 대비되는 결과). 미검증 축은 3~6 회차 그대로 남고(① LLM stub, ② 수집 왕복 0,
+  ③ 단일 iteration) 여기에 ④ **seed 실행 자체가 아직 성공 0 회** 가 더해진다. 그래서 PLAN
+  `140 행` checkbox 는 `[ ]` 유지다.
+
 ---
 
 ## 4. 접근 방식·도구 후보
@@ -433,9 +487,20 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    step). (d) **k6 소비 경로**: T-1661 `499df531` 이
    [`s1-batch.js`](../../test/load/s1-batch.js) `setup()` 을 `POST /api/persons` 합성 생성 대신
    `GET /api/persons` + `@load.devset.test` 접미사 필터로 바꾸고, `teardown()` 이 공유 dataset 을
-   보존하게 했다. 그럼에도 **① 자체는 미해소 유지**다 — 실 dataset 을 태운 run 이 여전히
-   **0 회**라, 잔여 내용이 *배선* 에서 **실행·실측** 으로 좁혀졌을 뿐이다(잔여 개수는 **1 개**
-   그대로이며 ② · ③ 표기도 무변경).
+   보존하게 했다. 그럼에도 **① 자체는 미해소 유지**다 — 그 배선을 태운 **첫 실 run 이
+   T-1663 의 run `32652307813`**(2026-08-23T16:38:45Z dispatch, head sha `0046e366`,
+   `-f s1_persons=133`, 1 회 한정)로 실행됐고 **conclusion `failure`** 였다. 실패 지점은
+   `133 로그인 실 dataset seed 적재` step 의 **ServiceIdentity leg 첫 upsert** —
+   ``Argument `person` is missing.`` 로,
+   [`realdata-e2e-seed-upsert.ts`](../../test/helpers/realdata-e2e-seed-upsert.ts) 의
+   `ServiceIdentityUpsertArgs.create` 가 `where.personId_service.personId` 만 런타임 치환하고
+   `create` 쪽 Person 관계를 비워둔 것이 원인이다(devset chain 은 T-1652 가 그 shape 을 승계).
+   그 step 이 exit 1 이라 k6 5 step(smoke · S1 · S2 · S3 + 설치)이 전부 skipped 로 떨어져
+   `setup()` 소비 경로(T-1661) 검증도 **회수 실패**다. 수치·로그 인용은 위 `§3.1` 7 회차.
+   따라서 잔여 내용은 *배선* → **실행·실측** 으로 좁혀진 뒤 다시 **"seed 실행 성공 0 회 —
+   식별된 결함 1 건(identity create 의 Person 관계 결손) 수정 대기"** 로 구체화됐다(잔여
+   개수는 **1 개** 그대로이며 ② · ③ 표기도 무변경). 수정은 본 계획 문서가 아니라 별도
+   pr-mode slice 의 몫이다(T-1663 은 측정·기록 전용이라 코드 변경 0).
    ② **반복 run 기반 임계 fix** 는
    **해소 — 임계 확정 완료(T-1644)**. 실 scale 축(표본 133)의 같은 조건 표본이 T-1643 run
    `32540981922` 로 **3 개**가 됐고(3·4·5 회차 760.91ms → 730.81ms → 711.23ms), 그 batch p95
