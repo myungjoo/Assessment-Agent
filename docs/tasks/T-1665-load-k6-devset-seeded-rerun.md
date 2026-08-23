@@ -2,13 +2,14 @@
 id: T-1665
 title: seed fix 머지 후 재 dispatch 실측 — load-k6 를 s1_persons=133 으로 1 회 재실행해 8 회차 박제
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 estimatedDiff: 130
 estimatedFiles: 2
 created: 2026-08-23
 createdAt: 2026-08-23T19:40:00Z
+completedAt: 2026-08-23T20:58:00Z
 dependsOn: [T-1664]
 touchesFiles:
   - docs/ops/load-resilience-test-plan.md
