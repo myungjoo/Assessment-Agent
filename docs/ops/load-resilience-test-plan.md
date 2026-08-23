@@ -419,9 +419,24 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    T-1649(main `87cdb828`, PR #1318)가 정본 markdown 표 ↔ fixture **drift guard**
    ([`realdata-devset-logins-doc-consistency.ts`](../../test/helpers/realdata-devset-logins-doc-consistency.ts),
    colocated spec 이 `pnpm test` 에서 CI 게이트)를 신설해 한쪽만 갱신되는 drift 를 차단했다.
-   따라서 **잔여는 seed 실행 경로** 로 좁혀졌다 — 그 133 로그인을 소비해 `Person` + 각자
-   github `ServiceIdentity` 를 적재하고 실 수집 왕복을 태우는 경로(workflow step 또는 k6
-   `setup()`). seed 실행은 여전히 **0 회**라 **① 자체는 미해소**다. ② **반복 run 기반 임계 fix** 는
+   따라서 **잔여는 seed 실행 경로** 로 좁혀졌었고, 그 **배선 축은 T-1651~T-1661 로 닫혔다** —
+   (a) **helper chain 7 종**(`test/helpers/realdata-devset-seed-*.ts` + colocated spec):
+   T-1651 `4e0697c6`(descriptor 순수 빌더) · T-1652 `bcce5516`(upsert-args 조립) ·
+   T-1653 `26a9e8f9`(`Person` leg runner) · T-1654 `53ebe0aa`(`ServiceIdentity` leg runner) ·
+   T-1655 `7bc054a7`(두 leg top-level 진입점) · T-1656 `1a7ace68`(CLI 본체) ·
+   T-1657 `1e44f562`(실 `PrismaClient` 팩토리). (b) **실행 진입점**: T-1658 `609c937b` 가
+   [`scripts/seed-devset-logins.ts`](../../scripts/seed-devset-logins.ts) 와
+   [package.json](../../package.json) `27 행` `"seed:devset-logins": "ts-node scripts/seed-devset-logins.ts"`
+   를 신설. (c) **workflow 배선**: T-1659 `f9da3e7f`(pnpm `9.12.0` · Node `20` ·
+   `--frozen-lockfile` 툴체인 3 step) + T-1660 `73100c77`
+   ([load-k6.yml](../../.github/workflows/load-k6.yml) `114 행` `133 로그인 실 dataset seed 적재`
+   step). (d) **k6 소비 경로**: T-1661 `499df531` 이
+   [`s1-batch.js`](../../test/load/s1-batch.js) `setup()` 을 `POST /api/persons` 합성 생성 대신
+   `GET /api/persons` + `@load.devset.test` 접미사 필터로 바꾸고, `teardown()` 이 공유 dataset 을
+   보존하게 했다. 그럼에도 **① 자체는 미해소 유지**다 — 실 dataset 을 태운 run 이 여전히
+   **0 회**라, 잔여 내용이 *배선* 에서 **실행·실측** 으로 좁혀졌을 뿐이다(잔여 개수는 **1 개**
+   그대로이며 ② · ③ 표기도 무변경).
+   ② **반복 run 기반 임계 fix** 는
    **해소 — 임계 확정 완료(T-1644)**. 실 scale 축(표본 133)의 같은 조건 표본이 T-1643 run
    `32540981922` 로 **3 개**가 됐고(3·4·5 회차 760.91ms → 730.81ms → 711.23ms), 그 batch p95
    기술통계는 평균 **734.32ms** · 범위 **49.68ms** · 표본표준편차 **25.02ms** · 변동계수

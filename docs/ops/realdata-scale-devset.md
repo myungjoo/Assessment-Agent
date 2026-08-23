@@ -171,6 +171,31 @@ seed 방식: 각 개발자 = Person + github.com `ServiceIdentity`(login) → `a
   한쪽만 고치면 위 guard 가 `RangeError` 로 `pnpm test` 를 실패시킨다(부하 테스트가 조용히 옛
   로그인 집합을 쓰는 것을 막는 장치다).
 
+## seed 실행 경로
+
+- **적재 흐름**: 위 `§A` / `§B` 표의 133 로그인은 기계 판독 fixture
+  [`test/load/realdata-devset-logins.json`](../../test/load/realdata-devset-logins.json) 을 거쳐
+  `test/helpers/realdata-devset-seed-*.ts` helper chain 7 종(descriptor 빌더 T-1651 `4e0697c6` →
+  upsert-args 조립 T-1652 `bcce5516` → `Person` leg runner T-1653 `26a9e8f9` ·
+  `ServiceIdentity` leg runner T-1654 `53ebe0aa` → top-level 진입점 T-1655 `7bc054a7` →
+  CLI 본체 T-1656 `1a7ace68` → 실 `PrismaClient` 팩토리 T-1657 `1e44f562`)로 `Person` +
+  각자 github `ServiceIdentity` 로 DB 에 적재된다.
+- **실행 명령**: 얇은 entrypoint [`scripts/seed-devset-logins.ts`](../../scripts/seed-devset-logins.ts)
+  (T-1658, main `609c937b`)를 [package.json](../../package.json) `27 행`
+  `"seed:devset-logins": "ts-node scripts/seed-devset-logins.ts"` 가 감싸므로 실행은
+  `pnpm seed:devset-logins` 한 줄이다(`DATABASE_URL` 필요).
+- **workflow step**: [`.github/workflows/load-k6.yml`](../../.github/workflows/load-k6.yml) `114 행`
+  `133 로그인 실 dataset seed 적재` step (T-1660, main `73100c77`) 이 부하 대상 기동 polling 직후 ·
+  k6 실행 직전에 그 명령을 부른다. 앞선 pnpm `9.12.0` · Node `20` · `--frozen-lockfile` 툴체인
+  3 step 은 T-1659 (main `f9da3e7f`) 가 깔았다.
+- **k6 겨냥 방식**: [`test/load/s1-batch.js`](../../test/load/s1-batch.js) `setup()` (T-1661,
+  main `499df531`) 은 person 을 새로 만들지 않고 `GET /api/persons` 결과에서 email 이
+  `@load.devset.test` 로 끝나는 원소만 필터해 표본 수만큼 취한다. 도메인 정본은
+  `test/helpers/realdata-devset-seed-descriptors.ts` 의 `DEVSET_EMAIL_DOMAIN` 이고,
+  공유 dataset 이라 `teardown()` 은 그중 하나도 지우지 않는다.
+- **실측 상태**: 위 배선 4 축은 main 에 있으나 **실 dataset 을 태운 run 은 아직 0 회**다
+  ([load-resilience-test-plan.md](load-resilience-test-plan.md) `§5` item 5 잔여 ① 참조).
+
 ## 재생성(refresh) 명령
 
 ```bash
