@@ -2,7 +2,7 @@
 id: T-1660
 title: load-k6.yml 에 133 로그인 실 dataset seed 실행 step 을 배선한다
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047]
 estimatedDiff: 250
@@ -67,3 +67,10 @@ plannerNote: "R-91 chain 42/N — T-1659 툴체인 위에 실 seed 실행 step 1
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 기록
+
+- **Status: DONE** — 2026-08-23T10:54:34Z (PR **#1328** squash merge → main `73100c77`, branch 삭제).
+- 결과: [`load-k6.yml`](../../.github/workflows/load-k6.yml) `113~122 행` 에 seed 실행 step `133 로그인 실 dataset seed 적재` 1 개를 기동 polling 직후 · k6 설치 직전에 배선했다. `env.DATABASE_URL` 은 같은 파일 `docker run` 의 `-e DATABASE_URL=` 리터럴과 문자 그대로 동일하고, `run` 은 `pnpm seed:devset-logins` 한 줄이다 (`ts-node` 직접 호출 우회 0 · 새 action / dependency / `package.json` 키 0 · 기존 step 본문 · 순서 · env 변경 0). 존재 이유 주석은 boot 이후 조건 (`docker-entrypoint.sh` 의 `prisma migrate deploy`) · k6 선행 조건 · CI 더미 자격증명 3 항목을 담았다.
+- 검증: drift-guard smoke 에 T-1660 describe 12 케이스 (happy 3 · error 3 · 분기 2 · negative 4) 추가, 신설 helper 는 `envKeysOf` 1 개뿐. 대상 spec 190 케이스 green (기존 178 회귀 0), 전체 453 suite / 12980 test pass, lint · build · `test:cov` 통과. `src/` 무변경이라 전역 coverage 수치 변동 0. 최종 diff **+294/-0 · 2 파일** (cap 300 LOC / 2 파일 이내). reviewer round 1 `APPROVE` (BLOCKER · MAJOR · MINOR 0) 를 PR 코멘트로 외화 — §3.3 4-게이트 충족.
+- 남은 일 (본 slice Out of Scope 그대로): ① [`test/load/s1-batch.js`](../../test/load/s1-batch.js) `setup()` 을 적재된 133 인원 실 dataset 으로 교체, ② 실 workflow dispatch 후 [load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) `§3.1` 실측 기록, ③ 같은 문서 `§5` item 5 진척 doc-sync (direct-mode).
