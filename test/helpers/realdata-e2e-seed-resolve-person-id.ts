@@ -19,7 +19,8 @@
 //   - 순수 함수 — 입력 외 상태 의존 0, 호출마다 새 객체 트리 반환(입력 mutate 0).
 //
 // 🔥 raw 활동 데이터 없음 (R-59):
-//   - 본 매퍼는 T-0574 args 의 personId 만 치환할 뿐 새 필드를 추가하지 않는다.
+//   - 본 매퍼는 T-0574 args 의 personId 슬롯만 실값으로 채울 뿐 raw 활동 데이터를
+//     추가하지 않는다(T-1664 의 create.personId 도 where 와 동일한 person.id 스칼라).
 //     commit/PR/issue 본문 등 raw 외부 활동 데이터는 입력에도 출력에도 없다.
 //
 // compound-unique 정합 (prisma/schema.prisma `@@unique([personId, service])`):
@@ -65,13 +66,15 @@ function isReadonlyMap(
 // resolveRealDataPersonId — placeholder personId 를 실 person.id 로 치환하는 **순수
 // 함수**. 각 `RealDataUpsertArgs` 의 `personUpsert.where.email` 로 map 에서 person.id
 // 를 찾아 그 Person 의 모든 `identityUpsertsByEmail[*].where.personId_service.personId`
-// 를 실값으로 교체한 **새 객체 트리** 를 반환한다(입력 mutate 0).
+// 와 `identityUpsertsByEmail[*].create.personId`(T-1664, required relation 충족) 를 같은
+// 실값으로 채운 **새 객체 트리** 를 반환한다(입력 mutate 0).
 //
 // 명세 § 택1 동작 (치환 누락의 조용한 통과 차단):
 //   - map 에 email 키가 없으면 명시적 throw(메시지에 누락 email 포함).
 //   - map 값이 빈 문자열/공백뿐이면 명시적 throw(메시지에 email 포함) — placeholder
 //     를 빈 id 로 바꿔 compound-unique 정합을 깨는 일을 차단.
-//   - personUpsert / personUpsert.where 는 그대로 보존(치환은 identity where 만).
+//   - personUpsert / personUpsert.where 는 그대로 보존(치환은 identity 의 where 와
+//     create.personId 만 — T-1664).
 //
 // 빈 입력 배열 → 빈 배열 반환(throw 0). identity 0 개 Person → identity 0 개로 통과.
 export function resolveRealDataPersonId(
@@ -100,7 +103,11 @@ export function resolveRealDataPersonId(
         create: { ...args.personUpsert.create },
         update: { ...args.personUpsert.update },
       },
-      // identity where 의 placeholder personId 만 실 person.id 로 치환.
+      // identity where 의 placeholder personId 를 실 person.id 로 치환하고, 같은 실값을
+      // create 에도 배선한다(T-1664). `ServiceIdentity.person` 은 required relation 이라
+      // 신규 row 를 만드는 create 경로에 personId 가 없으면 실 Prisma client 가
+      // ``Argument `person` is missing.`` 로 죽는다(R-91 run 32652307813 결함). where 와
+      // create 는 **같은 personId 값** 을 공유해야 compound-unique 정합이 유지된다.
       identityUpsertsByEmail: args.identityUpsertsByEmail.map(
         (identity): ServiceIdentityUpsertArgs => ({
           where: {
@@ -109,7 +116,7 @@ export function resolveRealDataPersonId(
               service: identity.where.personId_service.service,
             },
           },
-          create: { ...identity.create },
+          create: { ...identity.create, personId },
           update: { ...identity.update },
         }),
       ),
