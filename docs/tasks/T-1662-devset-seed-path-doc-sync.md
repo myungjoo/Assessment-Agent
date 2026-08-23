@@ -2,7 +2,7 @@
 id: T-1662
 title: 133 로그인 seed 실행 경로 배선 완료를 정본 문서 3 곳에 doc-sync
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 estimatedDiff: 85
@@ -39,13 +39,13 @@ plannerNote: "R-91 chain 44/N — T-1651~T-1661 seed 실행 경로 11 slice 머�
 
 ## Acceptance Criteria
 
-- [ ] `docs/ops/load-resilience-test-plan.md` `§5` item 5 잔여 ① 에 **배선 축 해소** 서술이 들어간다 — (a) helper chain 7 종 (T-1651~T-1657), (b) 실행 진입점 + `pnpm seed:devset-logins` (T-1658), (c) workflow 툴체인 + seed step (T-1659/T-1660), (d) k6 소비 경로 (T-1661) 네 축을 각각 task ID + main SHA 와 함께 적는다.
-- [ ] 같은 문단에서 **① 은 여전히 미해소** 임을 명시한다 — 이유는 "실 dataset 을 태운 run 이 0 회" 이고, 잔여 내용이 *배선* 에서 **실행·실측** 으로 좁혀졌을 뿐임을 적는다. `§5` item 5 의 잔여 **개수는 1 개 그대로** 이며 ② · ③ 의 해소 표기는 무변경.
-- [ ] `docs/ops/realdata-scale-devset.md` 에 seed 실행 경로 소절 (예: `## seed 실행 경로`) 을 `## 기계 판독 사본 · drift guard` 절 뒤에 추가한다 — 133 로그인 fixture 가 어떤 helper/entrypoint 를 거쳐 DB 에 적재되는지 (`pnpm seed:devset-logins`), workflow 의 어느 step 이 그걸 부르는지, k6 가 어떤 email 접미사 (`@load.devset.test`) 로 적재분을 겨냥하는지 3~8 줄로 적는다.
-- [ ] `docs/PLAN.md` `141 행` 꼬리에 같은 사실을 1~3 문장으로 잇는다 — 배선 4 축 완료 + 실행 0 회 + `140 행` checkbox `[ ]` 유지 근거 (LLM stub · 수집 왕복 0 · 단일 iteration). **checkbox 문자는 변경 금지**.
-- [ ] 세 문서에 적은 task ID · main SHA · 파일 경로 · `pnpm` 스크립트 이름이 실제 main 과 **문자 그대로** 일치한다 — `git log origin/main --oneline | grep T-16NN` 와 `grep -n "seed:devset-logins" package.json` 으로 각 1 회 대조 (허구 SHA · 오타 경로 0).
-- [ ] `pnpm test` 전량 green — 특히 [`realdata-devset-logins-doc-consistency.spec.ts`](../../test/helpers/realdata-devset-logins-doc-consistency.spec.ts) 가 `realdata-scale-devset.md` 의 `## A.` / `## B.` 표를 파싱하므로, 본 편집이 그 표의 길이 · 원소 · 순서를 건드리지 않았음이 `RangeError` 부재로 확인돼야 한다.
-- [ ] 최종 diff **≤ 300 LOC · 3 파일**, `commitMode: direct` (doc 전용 — `src/` · `test/` · workflow · `package.json` 변경 0).
+- [x] `docs/ops/load-resilience-test-plan.md` `§5` item 5 잔여 ① 에 **배선 축 해소** 서술이 들어간다 — (a) helper chain 7 종 (T-1651~T-1657), (b) 실행 진입점 + `pnpm seed:devset-logins` (T-1658), (c) workflow 툴체인 + seed step (T-1659/T-1660), (d) k6 소비 경로 (T-1661) 네 축을 각각 task ID + main SHA 와 함께 적는다.
+- [x] 같은 문단에서 **① 은 여전히 미해소** 임을 명시한다 — 이유는 "실 dataset 을 태운 run 이 0 회" 이고, 잔여 내용이 *배선* 에서 **실행·실측** 으로 좁혀졌을 뿐임을 적는다. `§5` item 5 의 잔여 **개수는 1 개 그대로** 이며 ② · ③ 의 해소 표기는 무변경.
+- [x] `docs/ops/realdata-scale-devset.md` 에 seed 실행 경로 소절 (예: `## seed 실행 경로`) 을 `## 기계 판독 사본 · drift guard` 절 뒤에 추가한다 — 133 로그인 fixture 가 어떤 helper/entrypoint 를 거쳐 DB 에 적재되는지 (`pnpm seed:devset-logins`), workflow 의 어느 step 이 그걸 부르는지, k6 가 어떤 email 접미사 (`@load.devset.test`) 로 적재분을 겨냥하는지 3~8 줄로 적는다.
+- [x] `docs/PLAN.md` `141 행` 꼬리에 같은 사실을 1~3 문장으로 잇는다 — 배선 4 축 완료 + 실행 0 회 + `140 행` checkbox `[ ]` 유지 근거 (LLM stub · 수집 왕복 0 · 단일 iteration). **checkbox 문자는 변경 금지**.
+- [x] 세 문서에 적은 task ID · main SHA · 파일 경로 · `pnpm` 스크립트 이름이 실제 main 과 **문자 그대로** 일치한다 — `git log origin/main --oneline | grep T-16NN` 와 `grep -n "seed:devset-logins" package.json` 으로 각 1 회 대조 (허구 SHA · 오타 경로 0).
+- [x] `pnpm test` 전량 green — 특히 [`realdata-devset-logins-doc-consistency.spec.ts`](../../test/helpers/realdata-devset-logins-doc-consistency.spec.ts) 가 `realdata-scale-devset.md` 의 `## A.` / `## B.` 표를 파싱하므로, 본 편집이 그 표의 길이 · 원소 · 순서를 건드리지 않았음이 `RangeError` 부재로 확인돼야 한다.
+- [x] 최종 diff **≤ 300 LOC · 3 파일**, `commitMode: direct` (doc 전용 — `src/` · `test/` · workflow · `package.json` 변경 0).
 
 ## Out of Scope
 
@@ -63,3 +63,10 @@ plannerNote: "R-91 chain 44/N — T-1651~T-1661 seed 실행 경로 11 slice 머�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 append)
+
+## 완료 기록
+
+- Status: DONE (2026-08-23T14:52Z, direct commit `b1bf87d5`)
+- 결과: 배선 4 축 (helper chain T-1651~T-1657 / entrypoint T-1658 / workflow T-1659·T-1660 / k6 소비 T-1661) 을 정본 3 곳에 반영. 11 개 SHA · 경로 · `pnpm seed:devset-logins` 이름을 main 과 1:1 대조 (허구 SHA 0).
+- 잔여 ① 은 **미해소 유지** — 실 dataset run 0 회. `## A.`/`## B.` 표 · `PLAN.md` `140 행` checkbox 무변경.
+- diff +44/-4, 3 파일. `pnpm test` 453 suite / 12980 test green (drift guard `RangeError` 부재로 표 무변경 확인).
