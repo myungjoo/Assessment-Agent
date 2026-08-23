@@ -2,7 +2,7 @@
 id: T-1661
 title: s1-batch.js setup() 의 person 확보를 실 devset dataset 조회로 교체한다
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047]
 estimatedDiff: 275
@@ -65,3 +65,10 @@ plannerNote: "R-91 chain 43/N — 워크플로가 적재한 133 인원을 k6 가
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 기록
+
+- **Status: DONE** — 2026-08-23T12:52:47Z (PR **#1329** squash merge → main `499df531`, branch 삭제).
+- 결과: [`s1-batch.js`](../../test/load/s1-batch.js) `setup()` (c) 단계를 person 생성 반복문에서 **`GET /api/persons` 1 회 조회 + devset 도메인 접미사 필터 · 표본 수만큼 취하기** 로 교체했다 (`filter` / `slice` / `map` 단일 식 — 분기 0 규약 유지). 도메인 리터럴은 상수로 선언하고 정본 (`test/helpers/realdata-devset-seed-descriptors.ts`) 을 주석에 적었다. `teardown()` 은 provider row 회수 1 회만 남기고 person 삭제를 제거해 **공유 dataset 을 보존** 하며, 쓰이지 않게 된 `SEED_DELETE_PARAMS` 도 함께 지웠다. 머리 주석에 워크플로 `pnpm seed:devset-logins` step 선행 전제 3 줄을 추가했고 `// 범위 밖(후속 slice):` 문단 리터럴 · `options` · `default()` 는 무변경이다.
+- 검증: drift-guard smoke 에 T-1661 describe 12 케이스 (happy 3 · error 2 · 분기 2 · negative 5) 를 T-1660 describe 뒤에 append 하고, 본 변경으로 깨지는 기존 T-1631 케이스는 삭제 없이 새 계약 (`http.post` 3 회 · teardown person 회수 부재) 으로 갱신했다. 대상 spec 202 케이스 green (기존 190 회귀 0), 전체 12980 test pass, lint · build · `test:cov` 통과 (line 99.95% / function 100% — `src/` 무변경이라 수치 불변). 최종 diff **+209/-29 · 2 파일** (cap 300 LOC / 2 파일 이내). reviewer round 1 `APPROVE` 를 PR 코멘트로 외화 — §3.3 4-게이트 충족.
+- 남은 일 (본 slice Out of Scope 그대로): ① [`s2-read.js`](../../test/load/s2-read.js) · [`s3-concurrent.js`](../../test/load/s3-concurrent.js) 의 dataset 교체, ② 실 workflow dispatch 후 [load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) `§3.1` 실측 기록, ③ 같은 문서 `§5` item 5 진척 doc-sync (direct-mode).
