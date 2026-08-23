@@ -23,8 +23,8 @@
 //   `identityUpsertsByEmail[*].create.personId`(T-1664) 를 그 args 의
 //   `personUpsert.where.email` 로 map 에서 조회한 **동일한** 실 person.id 로 채운 트리.
 //   `personUpsert`(where/create/update)·identity 의 `service`/`create` 나머지 키/`update`
-//   는 입력 그대로 보존. 외층 순회는 upsertArgsList 순서, 내층은 identityUpsertsByEmail 순서
-//   보존(순서 drift 도 deep-equal 로 잡힘). `resolveRealDataPersonId` 재호출 0(재호출은
+//   는 입력 그대로 보존. 외층 순회는 upsertArgsList 순서, 내층은
+//   identityUpsertsByEmail 순서 보존(순서 drift 도 deep-equal 로 잡힘). `resolveRealDataPersonId` 재호출 0(재호출은
 //   양방향 drift 상쇄가 일어나 본 가드의 독립 재유도가 그 gap 을 닫는다).
 //
 // map union 조회 규칙(컴포저 미러링): `ReadonlyMap` 은 `.get`, `Record` 는
@@ -106,8 +106,8 @@ function lookupExpectedPersonId(
 // 미러링): 모든 identity 의 `where.personId_service.personId` **와 `create.personId`**
 // (T-1664 — required relation `ServiceIdentity.person` 충족용, where 와 동일 실값) 를
 // 실값으로 채우고, service/create 의 나머지 키/update·personUpsert 는 입력 그대로
-// 보존(깊은 복사). identityUpsertsByEmail
-// 순회는 입력 순서 보존(순서 drift 도 deep-equal 로 잡힘).
+// 보존(깊은 복사). identityUpsertsByEmail 순회는 입력 순서 보존(순서 drift 도
+// deep-equal 로 잡힘).
 function composeExpectedResolvedArgs(
   args: RealDataUpsertArgs,
   personId: string,
@@ -241,8 +241,8 @@ function assertEmailToPersonIdSupported(
  * `identityUpsertsByEmail[*].where.personId_service.personId` 와 `create.personId`
  * (T-1664) 를 그 args 의 `personUpsert.where.email` 로 map 에서 조회한 동일 실 person.id
  * 로 채운 트리. personUpsert·identity 의 service/create 나머지 키/update 는 입력 그대로
- * 보존. 외층 순회는 upsertArgsList 순서,
- * 내층은 identityUpsertsByEmail 순서 보존. `resolveRealDataPersonId` 재호출 0.
+ * 보존. 외층 순회는 upsertArgsList 순서, 내층은 identityUpsertsByEmail 순서 보존.
+ * `resolveRealDataPersonId` 재호출 0.
  *
  * map union 조회 규칙: `ReadonlyMap` 은 `.get`, `Record` 는 own-property 만 인정(컴포저
  * 미러링). email 키 미존재·빈/공백 값 → TypeError(재유도 치환 불가).
