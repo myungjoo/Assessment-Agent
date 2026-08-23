@@ -2,7 +2,7 @@
 id: T-1656
 title: 133 로그인 seed 의 CLI 본체 (client 주입형 exit-code 반환) 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047, REQ-023, REQ-024]
 estimatedDiff: 280
@@ -70,3 +70,12 @@ plannerNote: R-91 chain 37/N — seed 실행 경로 6 번째 slice: runDevsetSee
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+---
+
+## 완료 기록
+
+- 완료 시각: 2026-08-23T02:55:50Z (squash merge)
+- PR: #1324 → merge commit `1a7ace68` (2 파일 +300/-0, feature branch 삭제)
+- 결과: `test/helpers/realdata-devset-seed-cli.ts` 신설 — public symbol 정확히 3 개 (`DevsetSeedCliClient` · `DevsetSeedCliDeps` · `runDevsetSeedCli`). `runDevsetSeed` 를 정확히 1 회 호출하는 얇은 본체로 seed 로직 재구현 0, `process` 직접 접근 0, `@prisma/client` 값 import 0, 새 dependency 0. 성공 경로는 count 요약 로그 + `0` 반환, 실패 경로는 `logError` + `1` 반환이며 `$disconnect` 는 양쪽 경로 정확히 1 회 호출되고 그 실패가 exit code 를 바꾸지 않는다.
+- Test: colocated spec 20 케이스로 R-112 4 종 (happy · error · 분기 · negative) 전량 cover. 신규 모듈 line/branch/function 100%, 전체 line 99.95 · function 100. lint / build / test (451 suites, 12945 케이스) 전량 green.
