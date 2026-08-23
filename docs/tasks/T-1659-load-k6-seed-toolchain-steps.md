@@ -2,13 +2,15 @@
 id: T-1659
 title: load-k6.yml 에 seed 실행용 Node/pnpm 툴체인 step 3 종을 ci.yml 핀과 동일하게 배선한다
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047]
 estimatedDiff: 245
 estimatedFiles: 2
 created: 2026-08-23
 createdAt: 2026-08-23T07:30:00Z
+completedAt: 2026-08-23T08:52:13Z
+prNumber: 1327
 independentStream: load-r91
 dependsOn: [T-1658]
 touchesFiles:
@@ -68,3 +70,7 @@ plannerNote: "R-91 chain 41/N — seed step 배선의 선행 툴체인 slice: ci
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-23T08:52:13Z DONE)
+
+PR #1327 round 1 APPROVE → squash merge (main `f9da3e7f`). `load-k6.yml` checkout 직후·docker build 직전에 `ci.yml` `186~198 행` 정본과 동일한 3 step (pnpm `9.12.0` · Node `20` · `pnpm install --frozen-lockfile`) 을 이름·값 그대로 복제하고, `load-workflow-k6-harness-wiring-drift.smoke-spec.ts` 에 T-1659 describe 14 케이스를 추가해 두 workflow 의 pin drift 를 못 박았다. 2 파일 +298/-0, 새 action · 새 dependency 0, 기존 step 본문 · 순서 · env 변경 0. `pnpm test` 12980 pass · lint · build green, `src/` 무변경이라 전역 coverage 수치 불변. 실 seed 실행 step (`DATABASE_URL` 주입 + `pnpm seed:devset-logins`) 은 Out of Scope 대로 다음 slice 로 남는다.
