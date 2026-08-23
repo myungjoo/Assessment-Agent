@@ -24,6 +24,7 @@
     "test:load:s1": "k6 run test/load/s1-batch.js",
     "test:load:s2": "k6 run test/load/s2-read.js",
     "test:load:s3": "k6 run test/load/s3-concurrent.js",
+    "seed:devset-logins": "ts-node scripts/seed-devset-logins.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
