@@ -2,7 +2,7 @@
 id: T-1658
 title: 133 로그인 seed 의 얇은 실행 entrypoint + pnpm 스크립트 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047, REQ-023, REQ-024]
 estimatedDiff: 160
@@ -15,6 +15,9 @@ touchesFiles:
   - scripts/seed-devset-logins.ts
   - scripts/seed-devset-logins.spec.ts
   - package.json
+completedAt: 2026-08-23T06:54:16Z
+prNumber: 1326
+mergeCommit: 609c937b
 plannerNote: R-91 chain 39/N — seed 실행 경로 8 번째 slice: 분기 0 entrypoint + pnpm 스크립트만, 워크플로 배선은 다음 slice.
 ---
 
@@ -38,20 +41,20 @@ plannerNote: R-91 chain 39/N — seed 실행 경로 8 번째 slice: 분기 0 ent
 
 ## Acceptance Criteria
 
-- [ ] `scripts/seed-devset-logins.ts` 신설. 실행 시 `process.env.DATABASE_URL` 로 `createDevsetSeedClient` 를 호출해 얻은 client 를 `runDevsetSeedCli` 에 넘기고, 반환된 exit code 를 그대로 `process.exit` 에 전달한다.
-- [ ] **분기 0** — 파일 안에 `if` · 삼항 연산자 · `&&` / `||` / `??` 단축 평가 · `switch` · 반복문이 없다. 유일한 예외는 `require.main === module` 가드 1 개 (`encrypt-token.ts` 와 동형) 와 최상위 실패 흡수용 `.catch` 콜백 1 개이며, 그 콜백 안에서도 분기 0 이어야 한다 (예: `String(error)` 로 무조건 문자열화 후 stderr 출력 + exit code `1`).
-- [ ] **로직 재구현 0** — seed 절차 · upsert · `DATABASE_URL` 검증 · 요약 로깅 · `$disconnect` 를 본 파일에서 다시 구현하지 않는다. `createDevsetSeedClient` 1 회 + `runDevsetSeedCli` 1 회 호출만 한다. 새 dependency 0 (`ts-node` · `@prisma/client` 는 기존 의존).
-- [ ] **import 만으로 side effect 0** — `require.main === module` 가드 덕에 test 에서 import 해도 seed 실행 · `process.exit` · DB 접속이 일어나지 않는다.
-- [ ] **`§9` 자격증명 보호** — 파일에 hard-coded connection string · 토큰 · 비밀값 리터럴이 없고, 로그·에러 출력에 `DATABASE_URL` 값을 그대로 찍지 않는다.
-- [ ] `package.json` 의 `scripts` 에 실행 키 1 개 추가 (예: `"seed:devset-logins": "ts-node scripts/seed-devset-logins.ts"`). 기존 키는 **하나도 수정·삭제하지 않는다** — 특히 `test:load` · `test:load:s1` · `test:load:s2` · `test:load:s3` 4 종 불변 (위 drift smoke 단언).
-- [ ] colocated spec `scripts/seed-devset-logins.spec.ts` 신설 (실 DB 접속 0 · 실 seed 실행 0). R-112 4 종 전량 cover:
+- [x] `scripts/seed-devset-logins.ts` 신설. 실행 시 `process.env.DATABASE_URL` 로 `createDevsetSeedClient` 를 호출해 얻은 client 를 `runDevsetSeedCli` 에 넘기고, 반환된 exit code 를 그대로 `process.exit` 에 전달한다.
+- [x] **분기 0** — 파일 안에 `if` · 삼항 연산자 · `&&` / `||` / `??` 단축 평가 · `switch` · 반복문이 없다. 유일한 예외는 `require.main === module` 가드 1 개 (`encrypt-token.ts` 와 동형) 와 최상위 실패 흡수용 `.catch` 콜백 1 개이며, 그 콜백 안에서도 분기 0 이어야 한다 (예: `String(error)` 로 무조건 문자열화 후 stderr 출력 + exit code `1`).
+- [x] **로직 재구현 0** — seed 절차 · upsert · `DATABASE_URL` 검증 · 요약 로깅 · `$disconnect` 를 본 파일에서 다시 구현하지 않는다. `createDevsetSeedClient` 1 회 + `runDevsetSeedCli` 1 회 호출만 한다. 새 dependency 0 (`ts-node` · `@prisma/client` 는 기존 의존).
+- [x] **import 만으로 side effect 0** — `require.main === module` 가드 덕에 test 에서 import 해도 seed 실행 · `process.exit` · DB 접속이 일어나지 않는다.
+- [x] **`§9` 자격증명 보호** — 파일에 hard-coded connection string · 토큰 · 비밀값 리터럴이 없고, 로그·에러 출력에 `DATABASE_URL` 값을 그대로 찍지 않는다.
+- [x] `package.json` 의 `scripts` 에 실행 키 1 개 추가 (예: `"seed:devset-logins": "ts-node scripts/seed-devset-logins.ts"`). 기존 키는 **하나도 수정·삭제하지 않는다** — 특히 `test:load` · `test:load:s1` · `test:load:s2` · `test:load:s3` 4 종 불변 (위 drift smoke 단언).
+- [x] colocated spec `scripts/seed-devset-logins.spec.ts` 신설 (실 DB 접속 0 · 실 seed 실행 0). R-112 4 종 전량 cover:
   - **happy-path** — (a) entrypoint 를 dynamic `import()` 해도 throw · `process.exit` 없이 resolve 하고, (b) 위임 대상 `createDevsetSeedClient` · `runDevsetSeedCli` 가 각각 함수로 존재하며, (c) `package.json` 의 새 스크립트 키 값이 실존하는 entrypoint 파일 경로를 가리킨다 — 각 1+ test.
   - **error path** — entrypoint 소스를 정적으로 읽어 (a) 최상위 실패 흡수 경로 (`.catch` 또는 동등) 가 존재하고 exit code `1` 로 귀결하며, (b) 그 경로가 `DATABASE_URL` 값을 출력 문자열에 삽입하지 않음을 단언 — 각 1+ test.
   - **분기 cover** — 정적 소스 단언으로 (a) `require.main === module` 가드 1 개 존재, (b) 그 외 조건 분기 토큰 (`if (` · `? :` · `switch` · `for (` · `while (`) 0 — 각 1+ test. (entrypoint 는 설계상 분기 0 이므로 실행 분기 test 대신 본 정적 단언으로 대체한다.)
   - **negative cases 충분 cover** — (a) seed 로직 재구현 금지 (`upsert` · `resolveDevsetSeedUpsertArgs` · `runDevsetSeed` 직접 호출 문자열 0), (b) `@prisma/client` 값 import 0, (c) hard-coded connection string / `postgres://` 리터럴 0, (d) `package.json` 의 `test:load*` 키집합이 정확히 기존 4 종, (e) 신규 스크립트 키가 기존 키를 덮어쓰지 않음 (키 중복 0), (f) entrypoint 가 `process.env` 를 `DATABASE_URL` 외 다른 이름으로 읽지 않음 — **각 1+ test**.
-- [ ] `pnpm lint && pnpm build && pnpm test` 전량 green.
-- [ ] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%).
-- [ ] `pnpm test:smoke` green — 특히 `load-workflow-k6-harness-wiring-drift.smoke-spec.ts` 와 `ci-workflow-verification-chain-contract-scripts-parity-drift.smoke-spec.ts` 가 `package.json` 변경으로 깨지지 않음을 확인.
+- [x] `pnpm lint && pnpm build && pnpm test` 전량 green.
+- [x] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%).
+- [x] `pnpm test:smoke` green — 특히 `load-workflow-k6-harness-wiring-drift.smoke-spec.ts` 와 `ci-workflow-verification-chain-contract-scripts-parity-drift.smoke-spec.ts` 가 `package.json` 변경으로 깨지지 않음을 확인.
 
 ## Out of Scope
 
