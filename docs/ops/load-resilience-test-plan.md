@@ -142,9 +142,13 @@ dataset **133** 으로 바뀌는 사실은 임계를 건드릴 사유가 아니�
 1. **(pr) 교체 집행** — `s2-read.js` + drift smoke spec 2 파일을 **같은 commit** 으로. ④ (a)~(g)
    전부가 이 commit 안에 들어와야 spec 이 red 로 남지 않는다. LOC 추정 스크립트 `+15/-20` · spec
    `+90/-10` ≈ **135 LOC / 2 파일**로 cap(300 LOC / 5 파일) 안이다. 동작 변경이라 `commitMode: pr`.
+   → **집행 완료 — T-1672 가 PR #1333 → main `27953b24` 로 머지**(실제 2 파일
+   `+267/-33`; 추정 135 LOC 대비 spec 단언 신설분만큼 커졌으나 cap 안, ④ (a)~(g) 전부 동봉).
 2. **(direct) 문서 반영** — 본 계획 문서(`§5` item 5 잔여 서술 갱신)와 [PLAN.md](../PLAN.md)
    `141 행` 에 교체 **사실**만 박제한다. 실측 수치는 이 단계에 없다. `docs/` 만 바꾸므로
    `commitMode: direct`(§3.1 rule 1), 1 과 섞으면 rule 3 위반이다.
+   → **본 task T-1673 로 닫혔다** — `§5` item 5 문단과 `PLAN.md` `141 행` 꼬리에 집행
+   사실만 박제했고 실측 수치 · 임계 · 코드 변경은 0 이다(실 dispatch 는 세 번째 task 소관).
 
 순서는 **1 → 2** 로 고정한다(문서가 아직 없는 코드를 서술하지 않도록). S2 첫 실측 dispatch 와 그
 `§3.1` 회차 기록은 위 둘과 또 다른 **세 번째 task** 이며, 실 run 1 회를 쓰므로 본 설계의 범위 밖이다.
@@ -788,11 +792,22 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    **잔여 ① 은 미해소 유지**다 — 확정된 것은 표본 수와 seed 재현성일 뿐이고 `http_reqs` **7** ·
    iteration **825.88ms** 가 보이듯 **실 수집 왕복은 여전히 0**, LLM 도 stub 이다(잔여 개수는
    **1 개** 그대로이며 ② · ③ 표기도 무변경).
-   **함께 좁혀진 것은 S2 축의 *설계* 다** — T-1671 이 위
+   **함께 좁혀진 것은 S2 축이다 — *설계* 에서 *집행 완료* 로.** T-1671 이 위
    `#### S2 dataset 교체 설계 (사전 박제)` 소절에 S2 의 dataset 교체(person leg 조회 전환 ·
    공유 dataset 보존 계약 · `K6_SEED_PERSONS` 의미 재정의 · drift-guard 단언 대체 목록 · 임계
-   무변경 · 2 task split) 를 코드 착수 이전에 박제했다. 다만 그 소절은 설계일 뿐 집행 · 실측이
-   0 이라 본 잔여 항목의 해소 표기는 하지 않는다(잔여 개수 **1 개** 그대로).
+   무변경 · 2 task split) 를 코드 착수 이전에 박제했고, 그 split 의 **1 번(pr 교체 집행)을
+   T-1672 가 PR #1333 → main `27953b24`(2 파일 `+267/-33`) 로 끝냈다**: ① `setup()` 의
+   person leg 가 `POST /api/persons` 반복 생성에서 `GET /api/persons` **1 회** + email 이
+   `@load.devset.test` 로 끝나는 원소 `filter` → `slice(0, SEED_PERSONS)` → `map` 의
+   **단일 식**으로 전환됐고(group / part leg 는 합성 seed 유지), ② `teardown()` 의 person
+   DELETE 루프가 제거돼 seed step 이 적재한 **공유 dataset 이 보존**되며(group / part DELETE
+   루프는 유지), ③ `K6_SEED_PERSONS` 는 숫자 `30` · 정규화 표현 · workflow ↔ 스크립트
+   ↔ drift-guard 3 자 parity 가 **모두 무변경**이고 의미만 "표본 상한" 으로 바뀌었으며,
+   ④ drift-guard 단언 (a)~(g) 가 **같은 commit 에서** 갱신돼 spec 이 red 로 남는 구간이 없다.
+   그럼에도 **본 잔여 항목의 해소 표기는 하지 않는다** — **S2 축 실측은 여전히 0 회**(설계
+   ⑥ 의 세 번째 task 소관)라 이 교체는 잔여 ①(실 수집 왕복) 의 해소 근거가 아니다(잔여
+   개수 **1 개** 그대로이며 ② · ③ 표기도 무변경). 이 문단 갱신과 아래 설계 ⑥ 의
+   집행 pointer append 가 곧 split 의 **2 번(direct 문서 반영, T-1673)** 이다.
    ② **반복 run 기반 임계 fix** 는
    **해소 — 임계 확정 완료(T-1644)**. 실 scale 축(표본 133)의 같은 조건 표본이 T-1643 run
    `32540981922` 로 **3 개**가 됐고(3·4·5 회차 760.91ms → 730.81ms → 711.23ms), 그 batch p95
