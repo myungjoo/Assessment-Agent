@@ -3894,3 +3894,244 @@ describe("s2-read.js 실 devset dataset 조회 교체 drift smoke (T-1672)", () 
     });
   });
 });
+
+// T-1678 — S2 · S3 실행 step 의 `if: ${{ !cancelled() }}` 게이트 drift.
+// 존재 이유 — T-1674 S2 1 회차(run 32746598803) 는 S1 leg 가 관찰용 임계 위반으로 exit 하자
+// `if:` 없는 S2 · S3 step 이 통째로 skipped 로 떨어져 **S2 수치를 한 개도 남기지 못했다**.
+// 배선이 다시 ① `if:` 유실 ② `always()` 로 바꿔치기(취소 시까지 부하 발생기 가동)
+// ③ `continue-on-error` 동반(실패 은닉) ④ S1 게이트 우회 flag 유입 어느 쪽으로 drift 해도
+// 부하 job 은 수동 발화 전용이라 상시 CI 는 green 이다 — 그 사각을 본 describe 가 닫는다.
+//      🔥 실 GitHub Actions 발화 0 · 실 k6 실행 0 · 실 docker 실행 0 · YAML 파서 0 ·
+//         새 helper 0 · 새 dependency 0 · DB 의존 0 — 파일 read + 합성 문자열 주입만.
+
+/** S2 · S3 실행 step 이 가져야 하는 유일한 `if` 값(문자 단위 정본). */
+const NOT_CANCELLED_IF = "${{ !cancelled() }}";
+/** 대조군 — 요약 기록 · 정리 step 만이 가질 수 있는 `if` 값. */
+const ALWAYS_IF = "always()";
+/** `if: always()` 를 선언한 step 행만 세는 패턴(주석 안의 같은 문자열은 `#` 때문에 불일치). */
+const ALWAYS_IF_LINE = /^\s*if:\s*always\(\)\s*$/gm;
+
+describe("load-k6.yml S2 · S3 step 의 not-cancelled 게이트 배선 drift smoke (T-1678)", () => {
+  describe("Happy-path: if 값 · step 순서 · package.json script parity", () => {
+    it("(a) S2 · S3 실행 step 이 정확히 not-cancelled 표현식을 if 로 가진다", () => {
+      const yml = loadYml();
+      [S2_RUN_STEP_NAME, S3_RUN_STEP_NAME].forEach((name) => {
+        const block = extractStepBlock(yml, name);
+        expect(block).not.toBeNull();
+        expect(extractKey(block as string[], "if")).toBe(NOT_CANCELLED_IF);
+      });
+    });
+
+    it("(b) 두 step 이 여전히 S1 실행 step 뒤 · 정리 step 앞 순서다", () => {
+      const yml = loadYml();
+      const order = [
+        stepIndexOf(yml, S1_RUN_STEP_NAME),
+        stepIndexOf(yml, S2_RUN_STEP_NAME),
+        stepIndexOf(yml, S3_RUN_STEP_NAME),
+        stepIndexOf(yml, TEARDOWN_STEP_NAME),
+      ];
+      order.forEach((i) => expect(i).toBeGreaterThan(-1));
+      expect(order).toEqual([...order].sort((a, b) => a - b));
+    });
+
+    it("(c) 두 step 의 run 이 package.json test:load:s2 · test:load:s3 와 문자 parity 다", () => {
+      const yml = loadYml();
+      const scripts = pkg().scripts;
+      const s2Run = extractStep(yml, S2_RUN_STEP_NAME).run;
+      const s3Run = extractStep(yml, S3_RUN_STEP_NAME).run;
+      expect(s2Run).toBe(scripts["test:load:s2"]);
+      expect(s3Run).toBe(scripts["test:load:s3"]);
+      expect(scriptPathOf(s2Run)).toBe(S2_SCRIPT_REL);
+      expect(scriptPathOf(s3Run)).toBe(S3_SCRIPT_REL);
+    });
+
+    it("(d) if 추가가 name · env 주입을 건드리지 않았다(문자 단위 무변경)", () => {
+      const yml = loadYml();
+      const s2 = extractStepBlock(yml, S2_RUN_STEP_NAME) as string[];
+      expect(extractKey(s2, "K6_BASE_URL")).toBe(EXPECTED_BASE_URL);
+      expect(extractKey(s2, "K6_SEED_PERSONS")).toBe("30");
+      const s3 = extractStepBlock(yml, S3_RUN_STEP_NAME) as string[];
+      expect(extractKey(s3, "K6_BASE_URL")).toBe(EXPECTED_BASE_URL);
+      expect(extractKey(s3, "K6_SEED_PERSONS")).toBeNull();
+    });
+  });
+
+  describe("Error path: 대상 부재 · non-string 입력", () => {
+    /** 대상 step 이 하나도 없는 합성 workflow(실 파일 무관 — 추측 0 계약 확인용). */
+    const NO_TARGET_YML = [
+      "jobs:",
+      "  load:",
+      "    steps:",
+      "      - name: 저장소 checkout",
+      "        uses: actions/checkout@v4",
+      "",
+    ].join("\n");
+
+    it("(e) 대상 부재 시 null · found:false · -1 을 돌려주고 throw 하지 않는다", () => {
+      [S2_RUN_STEP_NAME, S3_RUN_STEP_NAME].forEach((name) => {
+        expect(() => extractStepBlock(NO_TARGET_YML, name)).not.toThrow();
+        expect(extractStepBlock(NO_TARGET_YML, name)).toBeNull();
+        expect(extractStep(NO_TARGET_YML, name)).toEqual({
+          found: false,
+          uses: null,
+          run: null,
+        });
+        expect(stepIndexOf(NO_TARGET_YML, name)).toBe(-1);
+      });
+    });
+
+    it("(f) non-string 입력에는 TypeError 를 던진다(0-byte fallback false-PASS 차단)", () => {
+      [S2_RUN_STEP_NAME, S3_RUN_STEP_NAME].forEach((name) => {
+        expect(() =>
+          extractStepBlock(undefined as unknown as string, name),
+        ).toThrow(TypeError);
+        expect(() => extractStep(null as unknown as string, name)).toThrow(
+          TypeError,
+        );
+        expect(() => stepIndexOf(42 as unknown as string, name)).toThrow(
+          TypeError,
+        );
+      });
+      expect(() => extractStepBlock(loadYml(), 7 as unknown as string)).toThrow(
+        TypeError,
+      );
+    });
+  });
+
+  describe("Flow: if 키 유무 · 따옴표 유무 · 블록 종료 지점 분기", () => {
+    /** 합성 step 1 개 — `if` 값(null 이면 키 자체 생략)과 뒤따르는 꼬리를 갈아끼운다. */
+    const synth = (
+      name: string,
+      ifValue: string | null,
+      tail: string,
+    ): string =>
+      [
+        "    steps:",
+        `      - name: ${name}`,
+        ...(ifValue === null ? [] : [`        if: ${ifValue}`]),
+        "        env:",
+        `          K6_BASE_URL: ${EXPECTED_BASE_URL}`,
+        "        run: k6 run test/load/x.js",
+        tail,
+      ].join("\n");
+    const NEXT_HEADER_TAIL = `      - name: ${TEARDOWN_STEP_NAME}\n        if: always()`;
+
+    it("(g) if 키가 있는 갈래와 없는 갈래를 구분해 읽는다", () => {
+      const withIf = synth(
+        S2_RUN_STEP_NAME,
+        NOT_CANCELLED_IF,
+        NEXT_HEADER_TAIL,
+      );
+      const withoutIf = synth(S2_RUN_STEP_NAME, null, NEXT_HEADER_TAIL);
+      expect(
+        extractKey(
+          extractStepBlock(withIf, S2_RUN_STEP_NAME) as string[],
+          "if",
+        ),
+      ).toBe(NOT_CANCELLED_IF);
+      expect(
+        extractKey(
+          extractStepBlock(withoutIf, S2_RUN_STEP_NAME) as string[],
+          "if",
+        ),
+      ).toBeNull();
+    });
+
+    it("(h) 값에 따옴표가 있는 갈래도 unquote 정규화로 같은 결과가 된다", () => {
+      [
+        NOT_CANCELLED_IF,
+        `"${NOT_CANCELLED_IF}"`,
+        `'${NOT_CANCELLED_IF}'`,
+      ].forEach((raw) => {
+        const src = synth(S3_RUN_STEP_NAME, raw, NEXT_HEADER_TAIL);
+        expect(
+          extractKey(extractStepBlock(src, S3_RUN_STEP_NAME) as string[], "if"),
+        ).toBe(NOT_CANCELLED_IF);
+      });
+    });
+
+    it("(i) 블록이 다음 헤더에서 끊기는 갈래 / EOF 에서 끊기는 갈래가 같은 내용을 준다", () => {
+      const cut = extractStepBlock(
+        synth(S2_RUN_STEP_NAME, NOT_CANCELLED_IF, NEXT_HEADER_TAIL),
+        S2_RUN_STEP_NAME,
+      ) as string[];
+      const eof = extractStepBlock(
+        synth(S2_RUN_STEP_NAME, NOT_CANCELLED_IF, ""),
+        S2_RUN_STEP_NAME,
+      ) as string[];
+      // 다음 헤더 갈래는 정리 step 을 삼키지 않는다.
+      expect(cut.join("\n")).not.toContain(TEARDOWN_STEP_NAME);
+      expect(cut).toHaveLength(5);
+      // EOF 갈래는 꼬리 빈 행만 더 물 뿐 실질 내용이 같다.
+      expect(eof.map((l) => l.trim()).filter((l) => l !== "")).toEqual(
+        cut.map((l) => l.trim()),
+      );
+    });
+  });
+
+  describe("Negative: 게이트 우회 · 실패 은닉 · always() 오용 · mutation · CI 유입", () => {
+    it("(1) S1 실행 step 은 여전히 if · continue-on-error 가 둘 다 null 이다", () => {
+      const block = extractStepBlock(loadYml(), S1_RUN_STEP_NAME) as string[];
+      ["if", "continue-on-error"].forEach((k) =>
+        expect(extractKey(block, k)).toBeNull(),
+      );
+    });
+
+    it("(2) S2 · S3 step 에 continue-on-error 가 없다(실패 은닉 차단)", () => {
+      const yml = loadYml();
+      [S2_RUN_STEP_NAME, S3_RUN_STEP_NAME].forEach((name) =>
+        expect(
+          extractKey(
+            extractStepBlock(yml, name) as string[],
+            "continue-on-error",
+          ),
+        ).toBeNull(),
+      );
+    });
+
+    it("(3) S2 · S3 의 if 가 always() 가 아니고 always() step 은 요약 기록 · 정리 둘뿐이다", () => {
+      const yml = loadYml();
+      [S2_RUN_STEP_NAME, S3_RUN_STEP_NAME].forEach((name) =>
+        expect(
+          extractKey(extractStepBlock(yml, name) as string[], "if"),
+        ).not.toBe(ALWAYS_IF),
+      );
+      expect(yml.match(ALWAYS_IF_LINE)).toHaveLength(2);
+      [S1_SUMMARY_STEP_NAME, TEARDOWN_STEP_NAME].forEach((name) =>
+        expect(extractKey(extractStepBlock(yml, name) as string[], "if")).toBe(
+          ALWAYS_IF,
+        ),
+      );
+    });
+
+    it("(4) if 를 제거/변조한 합성본에서 본 단언이 실제로 검출된다(검출력 유실 0)", () => {
+      const yml = loadYml();
+      const removed = yml.split(`        if: ${NOT_CANCELLED_IF}\n`).join("");
+      [S2_RUN_STEP_NAME, S3_RUN_STEP_NAME].forEach((name) =>
+        expect(
+          extractKey(extractStepBlock(removed, name) as string[], "if"),
+        ).toBeNull(),
+      );
+      // always() 로 바꿔치기한 변조본은 (3) 의 개수 단언이 잡는다(2 → 4).
+      const toAlways = yml.split(NOT_CANCELLED_IF).join(ALWAYS_IF);
+      expect(
+        extractKey(
+          extractStepBlock(toAlways, S2_RUN_STEP_NAME) as string[],
+          "if",
+        ),
+      ).toBe(ALWAYS_IF);
+      expect(toAlways.match(ALWAYS_IF_LINE)).toHaveLength(4);
+    });
+
+    it("(5) ci.yml 에 S2 · S3 스크립트 경로와 test:load 키가 유입되지 않았다", () => {
+      const ci = ciYml();
+      [
+        S2_SCRIPT_REL,
+        S3_SCRIPT_REL,
+        "test:load:s2",
+        "test:load:s3",
+        "k6",
+      ].forEach((t) => expect(ci).not.toContain(t));
+    });
+  });
+});
