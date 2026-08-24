@@ -193,6 +193,11 @@ jobs:
       # package.json 의 `test:load:s2` 와 동일한 스크립트 경로 (drift-guard smoke 가 parity 대조).
       # smoke 배선 확인 직후 S2(조회 API 응답 지연, REQ-048) 시나리오를 같은 인스턴스에 인가한다.
       - name: k6 S2 조회 부하 시나리오 실행
+        # T-1678 — 앞 leg(S1) 가 관찰용 임계 위반으로 exit 해도 S2 수치는 남아야 baseline 을
+        # 잡을 수 있다 (T-1674 S2 1 회차가 S1 red → S2·S3 동반 skip 으로 0 수치를 실증).
+        # `always()` 가 아닌 이유 — job 취소 시까지 부하 발생기를 돌리지 않기 위함이다.
+        # 취소 시에도 실행돼야 하는 것은 요약 기록 step 과 정리 step 둘뿐이다.
+        if: ${{ !cancelled() }}
         env:
           K6_BASE_URL: http://localhost:3000
           # T-1623 — s2-read.js 의 setup() 이 만들 조회 대상 인원 수. 빈 DB 조회는 측정 의미가
@@ -204,6 +209,8 @@ jobs:
       # S2 뒤에 S3(동시성 단계 상승 read + write 혼합) 를 같은 인스턴스에 인가한다. write 가
       # iteration 안에서 자기 정리하므로 별도 seed 주입은 없다.
       - name: k6 S3 동시 요청 내성 시나리오 실행
+        # T-1678 — 사유는 바로 위 S2 step 주석과 같다 (앞 leg 실패에도 수치 확보 · 취소 시 미실행).
+        if: ${{ !cancelled() }}
         env:
           K6_BASE_URL: http://localhost:3000
         run: k6 run test/load/s3-concurrent.js
