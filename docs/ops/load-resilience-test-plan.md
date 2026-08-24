@@ -262,7 +262,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
     pass/fail 판정 임계는 `FULL_RUN_BUDGET_MS`(1h 예산) 그대로다(위 "REQ-047 판정 임계가 아니다"
     서술과 모순 0).
 
-### 3.1 baseline 실측 기록 (S1 11 회분 · S2 1 회분)
+### 3.1 baseline 실측 기록 (S1 11 회분 · S2 2 회분 · S3 1 회분)
 
 #### 1 회차 (T-1637, run 32459501970)
 
@@ -823,6 +823,129 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
   취소된 경우에만 skip — `always()` 를 쓰지 않아 "취소 시 부하 발생기 미실행" 불변식과 "정리
   step 만 `always()`" 관행을 보존). 따라서 다음 S2 dispatch 는 **S1 게이트 처리를 기다릴 필요가
   없다**. 원 문장은 소급 치환 금지 관행(`§ 12.76` AC 3)에 따라 삭제하지 않고 이력으로 남긴다.
+  그 배선 후 첫 dispatch 는 **T-1680** 이 집행했고(run **32780975839**), 회수된 S2 수치는 아래
+  `#### S2 2 회차` 에 있다.
+
+#### S2 2 회차 (T-1680, run 32780975839, T-1678 not-cancelled 게이트 배선 후 첫 dispatch)
+
+- **측정 일시 / run**: 2026-08-24T21:43:03Z dispatch(`workflow_dispatch`, ref `main`,
+  `-f s1_persons=133`, head sha `013f3f10`), run id **32780975839**, job
+  21:43:10Z~21:45:46Z(약 2 분 36 초). **conclusion `success`** — step **21 개 중 success 21 ·
+  failure 0 · skipped 0** 이다. S2 는 step 14 `k6 S2 조회 부하 시나리오 실행`
+  (21:44:56Z~21:45:17Z, 약 21 초) 이고 **step 이 `skipped` 가 아니라 실제로 실행돼 수치를
+  남겼다** — S2 축 실측이 **0 회 → 1 회분 확보**로 바뀌었으며, S2 1 회차가 같은 step 을
+  `skipped` 로 날린 것과 대비된다(다만 본 run 의 S1 leg 는 green 이라 배선의 결정적 효과가
+  시험된 것은 아니다 — 아래 **의미 / 한계** (b)). k6 **exit code 0** 이다(step conclusion
+  `success` + `bash -e` 셸 — 비영 exit 면 step 이 fail 한다). dispatch 는 **정확히 1 회**만
+  했고 rerun · 재 dispatch · 재시도는 **0** 이다(7 회차 · S2 1 회차 선례 승계).
+- **S2 표본 로그 원문**: step 14 의 21:44:56Z k6 console 줄을 그대로 인용한다 —
+  `time="2026-08-24T21:44:56Z" level=info msg="[s2-read] devset 표본 취득 30명 / 필터 통과 133건 / 상한 30명" source=console`.
+  세 수의 관계 판정 — **필터 통과 `M` = 133** 이 seed step 이 적재한 devset **133** 과 정확히
+  일치해 표본 부족(seed 미적재 · 도메인 불일치)은 **0** 이고, **취득 `N` = 30 = 상한 30** 이라
+  `N` 은 **상한에 잘렸다**(`M` 133 > 상한 30). 즉 상한은 조회 **결과를 자르는 위치**에서만
+  작동했고 조회 자체는 전량을 받았다. 줄에 자격증명 · cookie · email 원문은 없다.
+- **seed step 결과(T-1664 fix 재현성 5 회차 — 압축)**: `133 로그인 실 dataset seed 적재`
+  step 9(21:44:51Z~21:44:54Z, 약 3 초) **success**, 로그 원문은
+  `devset seed 완료 — person 133 건 / serviceIdentity 133 건 적재` 로 8~11 회차 · S2 1 회차와
+  건수 · 문구가 완전히 동일하므로 T-1664(PR #1330 → main `61f616a1`) fix 는 **연속 5 회
+  성공**이다. 상세 서식은 위 `#### S2 1 회차` 의 seed 항목을 pointer 로 대신한다(중복 전재 0).
+- **k6 THRESHOLDS 원문**: 요구된 **6 종이 전부 등장**하고 **6 종 모두 `✓`**(`✗` **0**)다 —
+  전역 `http_req_duration` `✓ 'p(95)<3000' p(95)=7.42ms` · `{route:groups}`
+  `✓ 'p(95)<3000' p(95)=7.03ms` · `{route:me}` `✓ 'p(95)<3000' p(95)=7.58ms` ·
+  `{route:parts}` `✓ 'p(95)<3000' p(95)=6.48ms` · `{route:persons}`
+  `✓ 'p(95)<3000' p(95)=8.04ms` · `http_req_failed` `✓ 'rate<0.01' rate=0.00%`. 개수 판정은
+  **6/6** 이고 `thresholds ... have been crossed` error 는 **0 회**다(run log 전체에
+  `level=error` 가 **0 줄**).
+- **수치**: route 별 p95 는 `persons` **8.04ms** · `groups` **7.03ms** · `parts` **6.48ms** ·
+  `me` **7.58ms** 다. 전역 `http_req_duration` 원문은
+  `avg=4.88ms  min=1.23ms  med=4.77ms  max=66.02ms p(90)=6.7ms   p(95)=7.42ms` 라 **p50(med)
+  4.77ms · p95 7.42ms** 이고 **p99 는 미확보** — k6 기본 요약이 p(90) · p(95) 만 출력하고 본
+  run 은 별도 percentile 설정을 하지 않았다(다른 회차 값 전용 · 재계산 0). `http_req_failed`
+  **0.00%**(`0 out of 20271`), `http_reqs` **20271**(1005.173328/s), `iteration_duration`
+  `avg=19.73ms min=11.86ms med=19.41ms max=87.82ms p(90)=23.09ms p(95)=24.83ms`, `iterations`
+  **5066**(251.206555/s), `vus` **5**(min=5 max=5) 로 `20s × 5 VU` 프로파일 그대로다.
+- **공유 dataset 보존 계약 검증(설계 ②)**: S2 teardown 뒤 step 15
+  `k6 S3 동시 요청 내성 시나리오 실행` 이 21:45:17Z 에 시작해 **정상 종료**했고 그 leg 의
+  `http_req_failed` 은 **0.00%**(`0 out of 22752`) 다. S3 의 read leg 는 `GET /api/persons`
+  목록이라 DB 가 비었다면 응답이 빈 배열로 붕괴하는데, S3 `data_received` 는 **221 MB**
+  (8.8 MB/s) 로 S2 의 **143 MB**(7.1 MB/s) 보다 크다 — 빈 목록 위에서 나올 수 있는 규모가
+  아니다. 따라서 **보존 계약이 깨진 징후는 0** 이다. 다만 이는 정황이며 **행 수를 직접 찍는
+  로그가 없어** 133 행 잔존의 직접 카운트는 **미확보**다(직접 검증은 S3 leg 에 표본 로그를
+  심는 별도 slice 소관 — Follow-ups).
+- **설계 ③ 실증 판정 — 실증됐다**: 같은 로그 한 줄이 `필터 통과 133건` 과 `상한 30명` 을
+  **분리해** 찍었고 `취득 30명` 이 그 사이에 놓였다. 즉 `GET /api/persons` 는 **133 행 전량**을
+  응답했고 상한 `30` 은 그 결과에서 `setup()` 이 메모리에 남길 id 배열 길이를 자른 것뿐이다.
+  더구나 [`s2-read.js`](../../test/load/s2-read.js) `135~147 행` 의 iteration 은 목록 GET
+  4 종만 때리고 `personIds` 를 **한 번도 쓰지 않으므로**, 부하를 만드는 것이 응답 **행 수**라는
+  설계 ③ (b) 전제는 이번 run 으로 확정됐다. **상한 상향(30 → 133) 은 본 slice 에서 결정하지
+  않는다** — 판단 근거만 남기면, 상향해도 iteration 이 쓰지 않는 배열 길이만 커져 부하 · 지연
+  지표는 바뀌지 않을 공산이 크다(설계 ③ 의 "첫 실측 이후 별도 판단" 승계). 실제 변경 여부는
+  Follow-ups 의 별도 task 소관이다.
+- **환경 메타(로그로 회수됨)**: 커널 `Linux 6.17.0-1022-azure`, 아키텍처 `x86_64`, vCPU **4**,
+  메모리 **15Gi**, DB image `postgres:16-alpine`, 부하 대상 image `assessment-agent:load`,
+  표본 인원 `K6_S1_PERSONS=133`. **7 항목이 3~11 회차 · S2 1 회차와 전부 동일**하므로 같은
+  조건이 유지됐고, `s1_persons` input 주입도 **열 번째로 성공**(default `10` 낙하 없음)이다.
+- **`§3` 표 S2 축 무변경 판정**: 회수된 표본이 **1 회**뿐이라 재확정 근거가 되지 못한다 —
+  S1 축이 T-1668 의 **규칙 사전 박제** → T-1669 의 **기계 적용** 2 단계를 거친 선례를 S2 도
+  그대로 따를 일이다. 그래서 p95 `< 3s` · p50 / throughput `baseline 후 fix` · error rate
+  `< 1%` 를 한 글자도 고치지 않았다(측정 p95 **7.42ms** 가 임계 `3s` 대비 크게 여유롭다는
+  사실도 표본 1 개로는 하향 근거가 못 된다).
+- **의미 / 한계**: (a) LLM stub(ADR-0057 `D1`) · 실 수집 왕복 **0** 조건은 S2 축에도 그대로
+  걸리므로 얻은 것은 *stub 조건의* 조회 지연이다 — 목록 4 route 를 되풀이 조회한 값이지 수집 ·
+  평가 왕복이 섞인 값이 아니다. (b) **S1 leg 결과와의 독립성**: 본 run 의 S1 leg 는
+  `✓ 'p(95)<1100' p(95)=824.08ms` 로 **green** 이라, 게이트 배선이 없었어도 S2 는 돌았을 것이다.
+  즉 본 회차가 확정한 것은 "배선이 있는 상태에서 S2 수치가 처음 남았다" 이고, **"S1 red 여도
+  S2 가 돈다" 의 실 run 실증은 아직 아니다** — 그 실증은 S1 이 red 인 다음 run 에서 자연히
+  얻어진다(추정으로 앞당기지 않는다). (c) 같은 run 의 S1 leg 수치(12 회차)는 **본 slice Out of
+  Scope** 이며 run **32780975839** 로그에서 **재 dispatch 0** 으로 회수 가능하다(T-1674 →
+  T-1675 선례).
+
+#### S3 1 회차 (T-1680, run 32780975839, S3 축 첫 실측)
+
+- **측정 일시 / run · step 구간 · k6 exit code**: 위 `#### S2 2 회차` 와 **같은 run**
+  (**32780975839**, 2026-08-24T21:43:03Z dispatch, head sha `013f3f10`, conclusion `success`) 의
+  step 15 `k6 S3 동시 요청 내성 시나리오 실행` 이며 구간은 21:45:17Z~21:45:42Z(약 25 초) 다.
+  step conclusion 이 **`success`** 라 k6 **exit code 0** 이고, **S3 step 이 `skipped` 없이
+  실행돼 수치를 남긴 첫 회차**다(S3 축 실측 0 회 → 1 회). 별도 dispatch · rerun 은 **0** —
+  S2 2 회차와 한 run 을 나눠 쓴다.
+- **k6 THRESHOLDS 원문**: 요구된 **4 종이 전부 등장**하고 **4 종 모두 `✓`**(`✗` **0**)다 —
+  전역 `http_req_duration` `✓ 'p(95)<3000' p(95)=20.91ms` · `{route:read}`
+  `✓ 'p(95)<3000' p(95)=20.76ms` · `{route:write}` `✓ 'p(95)<3000' p(95)=20.98ms` ·
+  `http_req_failed` `✓ 'rate<0.01' rate=0.00%`. 개수 판정은 **4/4** 다.
+- **수치**: 전역 `http_req_duration` 원문은
+  `avg=8.62ms  min=987.19µs med=6.82ms  max=69.29ms p(90)=18.16ms p(95)=20.91ms` 라 **p50(med)
+  6.82ms · p95 20.91ms** 이고 **p99 는 미확보**(k6 기본 요약 미출력 — 다른 회차 값 전용 0).
+  route 별 p95 는 `read` **20.76ms**
+  (`avg=8.99ms min=1.67ms med=7.27ms max=41.96ms p(90)=18.27ms`) · `write` **20.98ms**
+  (`avg=8.43ms min=987.19µs med=6.64ms max=69.29ms p(90)=18.07ms`) 다. `http_req_failed`
+  **0.00%**(`0 out of 22752`), `http_reqs` **22752**(910.045598/s), `iteration_duration`
+  `avg=26.08ms min=3.97ms med=21.48ms max=92.24ms p(90)=53.08ms p(95)=60.51ms`, `iterations`
+  **7584**(303.348533/s), `vus` **1**(min=1 max=19) · `vus_max` **20**(min=20 max=20) 이다.
+  VU 단계별로 관찰 가능한 값은 1 초 단위 progress 줄뿐이며 원문 예는
+  `running (05.0s), 02/20 VUs, 1170 complete and 0 interrupted iterations` ·
+  `running (10.0s), 04/20 VUs, 2771 complete and 0 interrupted iterations` ·
+  `running (20.0s), 19/20 VUs, 5953 complete and 0 interrupted iterations` ·
+  `running (25.0s), 01/20 VUs, 7582 complete and 0 interrupted iterations` 다 —
+  **interrupted iteration 은 전 구간 0** 이다.
+- **latency cliff 판정 — 요약 지표로는 단계 분해 불가**: ramping 3 단(`10s→5 VU` ·
+  `10s→20 VU` · `5s→0`)의 **단계별** p95 는 k6 종료 요약이 run 전체 **1 개 값**으로만 내므로
+  (구간별 percentile export step 없음) 저하 곡선을 단계로 분해할 수 없다. 로그가 허용하는
+  사실만 적으면 — ① 임계 **4 종 전부 `✓`**, ② `http_req_failed` **0.00%**(0/22752),
+  ③ interrupted iteration **0**, ④ progress 줄의 누적 완료 iteration 이 VU 상승 구간에서도
+  끊기지 않는다(`01.0s` **191** → `10.0s` **2771** → `20.0s` **5953** → `25.0s` **7582**).
+  그럼에도 **cliff 가 있다 · 없다 어느 쪽으로도 단정하지 않는다** — 단정하려면 단계별 지표
+  분리 export 가 필요하고 그것은 별도 slice 소관이다(Follow-ups). 추정 · 재계산은 하지 않았다.
+- **write leg 자기정리 확인**: 워크플로 주석의 전제("write 가 iteration 안에서 자기 정리하므로
+  별도 seed 주입은 없다") 는 로그와 **어긋나지 않는다** — iteration 은 `POST /api/persons` →
+  `GET /api/persons` → `DELETE /api/persons/{id}` 3 요청이고 `http_reqs` **22752** 가
+  `iterations` **7584** 의 정확히 **3 배**라 세 요청이 매 iteration 그대로 돌았으며, 생성 id
+  회수가 어긋났다면 DELETE 가 4xx 로 떨어졌을 텐데 `http_req_failed` 은 **0.00%**(0/22752) 로
+  오류 폭증 징후가 **0** 이다. 다만 잔여 row 수를 직접 세는 로그는 없으므로 "잔여 0" 을
+  단정하지는 않는다.
+- **`§3` 표 S3 축 무변경 판정**: 표본이 **1 회**뿐이라 error rate `< 1% (baseline 후 fix)` ·
+  p95 저하 곡선 `latency cliff 부재` 는 **fix 하지 않는다**(무변경). 특히 후자는 위 판정대로
+  단계 분해 자체가 불가해 fix 근거가 서지 않는다. S2 축과 마찬가지로 규칙 사전 박제 → 기계
+  적용 2 단계를 따를 일이다.
 
 ---
 
@@ -989,6 +1112,18 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    뿐, **실 수집 왕복은 여전히 0**(50~100 repo · ~1000 page) · LLM 은 stub(ADR-0057 `D1`) ·
    **S2 축 실측도 여전히 0 회**다(게이트 배선 뒤의 실 dispatch 는 T-1678 승계 Follow-up ① 로
    별도 slice 소관).
+   **그 게이트 배선 뒤 첫 dispatch 가 S2 · S3 축 실측을 처음 회수했다** — T-1680 의 run
+   **32780975839**(2026-08-24T21:43:03Z dispatch, head sha `013f3f10`, `-f s1_persons=133`,
+   **1 회 한정** · 재 dispatch 0)는 conclusion **`success`**(step 21 개 전부 success · skipped
+   0)로 끝났고, S2 step 과 S3 step 이 `skipped` 없이 실행돼 **S2 임계 6 종 전부 `✓`**(전역 p95
+   **7.42ms** · `http_req_failed` **0.00%** `0 out of 20271`) · **S3 임계 4 종 전부 `✓`**(전역
+   p95 **20.91ms** · `http_req_failed` **0.00%** `0 out of 22752`) 를 남겼다(수치 · 인용은 위
+   `§3.1` 의 `S2 2 회차` · `S3 1 회차`). 함께 확정된 것은 설계 ③ 전제 — `필터 통과 133건` 과
+   `상한 30명` 이 로그에서 분리돼, 부하를 만드는 것은 `GET /api/persons` 응답 **행 수**이고
+   상한 `30` 은 `setup()` 배열 길이일 뿐임이 드러났다(상한 상향은 여전히 별도 판단). 그럼에도
+   **잔여 ① 은 미해소 유지**이고 잔여 개수도 **1 개** 그대로이며 ② · ③ 표기도 무변경이다 —
+   `§3` 표의 S2 · S3 임계는 표본 **1 회**로 재확정하지 않아 `< 3s` · `baseline 후 fix` ·
+   `< 1%` 가 그대로이고, 실 수집 왕복은 두 축에서도 **0**(LLM stub · 자격증명 0)이다.
    ② **반복 run 기반 임계 fix** 는
    **해소 — 임계 확정 완료(T-1644)**. 실 scale 축(표본 133)의 같은 조건 표본이 T-1643 run
    `32540981922` 로 **3 개**가 됐고(3·4·5 회차 760.91ms → 730.81ms → 711.23ms), 그 batch p95
