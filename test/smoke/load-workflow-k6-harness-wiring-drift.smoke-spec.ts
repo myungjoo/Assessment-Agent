@@ -652,6 +652,13 @@ describe("load-k6.yml ↔ test/load/s2-read.js ↔ package.json test:load:s2 S2 
 //      🔥 실 GitHub Actions 발화 0 · 실 k6 실행 0 · 실 docker 실행 0 · 실 HTTP 0 · YAML 파서 0 ·
 //         새 dependency 0 · DB 의존 0 · process.env 읽기/쓰기 0 — 파일 read + 합성 문자열 주입만.
 const SEED_ENV_KEY = "K6_SEED_PERSONS";
+/**
+ * T-1672 가 s2-read.js 에 고정한 personIds 단일 식 chain — 조회 → devset 도메인 필터 →
+ * `slice(0, SEED_PERSONS)` → id 추출이 한 식으로 이어진다. 중간 변수 · 조건 분기 · `Math.min`
+ * 으로 쪼개지면 즉시 깨진다(T-1620 규약 승계, s1-batch.js 의 T-1661 chain 동형).
+ */
+const S2_PERSON_IDS_CHAIN =
+  /const personIds = persons\s*\.json\(\)\s*\.filter\([^\n]*endsWith\(`@\$\{DEVSET_EMAIL_DOMAIN\}`\),?\s*\)\s*\.slice\(0, SEED_PERSONS\)\s*\.map\(/;
 
 /**
  * 부하 스크립트의 `__ENV.<envKey>` 선언에서 fallback 기본값 리터럴을 뽑는다(S1 · S2 공유 helper).
@@ -701,13 +708,22 @@ const s2Body = (header: string): string =>
 
 describe("test/load/s2-read.js ↔ load-k6.yml S2 seed/teardown 배선 drift smoke (T-1623)", () => {
   describe("Happy-path: setup/teardown 선언 · seed POST · 정리 DELETE · env parity", () => {
-    it("setup() 이 3 종 POST 를 seed tag 로 때리고 규모를 __ENV 로 읽으며 id 를 return 한다", () => {
+    it("setup() 이 seed POST 4 회 + devset 조회 1 회로 규모를 __ENV 로 읽으며 id 를 return 한다", () => {
       const script = s2Script();
       expect(script).toContain("export function setup()");
       const setup = s2Body("export function setup");
+      // S2_ROUTES 3 종 문자열은 그대로 남는다 — T-1672 이후 `/api/persons` 는 생성 POST 가
+      // 아니라 devset **조회** GET 으로 등장한다(표현 무변경, 의미만 이동 — 설계 ④ (b)).
       S2_ROUTES.forEach(([, route]) => expect(setup).toContain(route));
-      // 조회 대상 3 종 + T-1624 의 인증 부트스트랩 2 종(signup · login) = POST 5 회.
-      expect(setup.match(/http\.post\(/g)).toHaveLength(5);
+      // group · part seed 2 종 + T-1624 인증 부트스트랩 2 종 = POST 4 회(person 생성은 사라짐).
+      expect(setup.match(/http\.post\(/g)).toHaveLength(4);
+      // 대체물 — devset 도메인으로 필터한 `/api/persons` 조회가 정확히 1 회다.
+      expect(
+        setup.match(/http\.get\(`\$\{BASE_URL\}\/api\/persons`/g),
+      ).toHaveLength(1);
+      expect(setup).toContain("endsWith(`@${DEVSET_EMAIL_DOMAIN}`)");
+      // 조회 → 도메인 필터 → 표본 상한만큼 slice → id 추출이 한 식으로 이어진다(중간 변수 0).
+      expect(setup).toMatch(S2_PERSON_IDS_CHAIN);
       // 반환값이 teardown 으로 전달되도록 setup 이 실제로 id 를 return 한다.
       expect(setup).toContain("return {");
       ["personIds", "groupIds", "partIds"].forEach((k) =>
@@ -717,16 +733,24 @@ describe("test/load/s2-read.js ↔ load-k6.yml S2 seed/teardown 배선 drift smo
       expect(script).toContain(`__ENV.${SEED_ENV_KEY}`);
     });
 
-    it("teardown(data) 가 3 종 DELETE 로 setup 산출 id 를 모두 지운다", () => {
+    it("teardown(data) 가 2 종 DELETE 로 자기가 만든 row 만 지우고 devset person 은 보존한다", () => {
       const script = s2Script();
       expect(script).toMatch(/export function teardown\(\w+\)/);
       const body = s2Body("export function teardown");
-      S2_ROUTES.forEach(([, route]) => expect(body).toContain(`${route}/`));
-      expect(body.match(/http\.del\(/g)).toHaveLength(3);
+      // 회수 대상은 이 스크립트가 만든 group · part 2 종뿐이다(설계 ④ (c)).
+      expect(body).toContain("/api/groups/");
+      expect(body).toContain("/api/parts/");
+      expect(body.match(/http\.del\(/g)).toHaveLength(2);
       expect(script).toContain('tags: { route: "teardown" }');
+      // negative — person 은 seed step 이 적재한 공유 row 라 지우면 뒤따르는 step · 다음 run 이
+      // 빈 DB 위에서 돈다. teardown 에 personIds · person DELETE 루프가 잔존 0 이어야 한다.
+      ["personIds", "/api/persons"].forEach((t) =>
+        expect(body).not.toContain(t),
+      );
+      expect(body.match(/for \(let i = 0;/g)).toHaveLength(2);
     });
 
-    it("workflow S2 step 의 K6_SEED_PERSONS 가 스크립트 __ENV 기본값과 parity 다", () => {
+    it("workflow S2 step 의 K6_SEED_PERSONS(= 표본 상한) 가 스크립트 __ENV 기본값과 parity 다", () => {
       const block = extractStepBlock(loadYml(), S2_RUN_STEP_NAME) as string[];
       const injected = extractKey(block, SEED_ENV_KEY) as string;
       expect(Number(injected)).toBeGreaterThan(0);
@@ -808,8 +832,9 @@ describe("test/load/s2-read.js ↔ load-k6.yml S2 seed/teardown 배선 drift smo
       ["if (", "} else", " ? ", " && "].forEach((token) =>
         expect(script).not.toContain(token),
       );
-      // 카운트 기반 for 반복문은 허용 — seed 1 + 정리 3 블록에서 쓰인다.
-      expect(script.match(/for \(let i = 0;/g)).toHaveLength(4);
+      // 카운트 기반 for 반복문은 허용 — T-1672 이후 정리 2 블록(group · part)에서만 쓰인다
+      // (person seed 생성 루프와 person 정리 루프가 조회 교체 · 보존 계약으로 함께 사라졌다).
+      expect(script.match(/for \(let i = 0;/g)).toHaveLength(2);
     });
 
     it("(2) seed / teardown tag 가 읽기 route tag 3 종과 겹치지 않는다", () => {
@@ -2003,6 +2028,9 @@ describe("test/load S1·S2 표본 인원 __ENV 파싱 방어 drift smoke (T-1634
     });
 
     it("s2-read.js 의 SEED_PERSONS 가 정규화 표현이고 기본값 30 이 workflow 주입값과 parity 다", () => {
+      // T-1672 로 이 값의 *의미*는 "생성할 person 수" → "조회 결과에서 취할 표본 상한" 으로
+      // 바뀌었다. 그럼에도 정규화 표현 · 기본값 30 · workflow 주입 parity 는 무변경이므로
+      // 단언 표현도 그대로 둔다(설계 ③ · ④ (d) — 숫자 상향은 S2 첫 실측 이후 별도 판단).
       const script = s2Script();
       expect(script).toMatch(normalizedPersonsExpr(SEED_ENV_KEY, "30"));
       const declared = extractEnvFallback(script, SEED_ENV_KEY) as string;
@@ -3659,6 +3687,200 @@ describe("s1-batch.js 표본 인원 수 로그 배선 drift smoke (T-1666)", () 
       expect(split).not.toMatch(S1_PERSON_IDS_CHAIN);
       // 원본은 mutate 되지 않는다 — 대조군이 성립한다.
       expect(s1Body("export function setup")).toMatch(S1_PERSON_IDS_CHAIN);
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-1672 — s2-read.js 의 person leg 실 devset 조회 교체 drift. 존재 이유 — T-1660 이 배선한 seed
+// step 이 실 dataset 을 적재해도 S2 가 계속 합성 person 30 을 쓰면 "조회 3 초 이내"(REQ-048)
+// 판정은 가짜 규모 위에서 난다. 교체 후의 연결은 문자열 2 개(도메인 리터럴 · 조회 표현)와 보존
+// 계약(teardown 의 person DELETE 부재)뿐인데 부하 job 은 수동 dispatch 전용이라, 조회가 조용히
+// 0 건이 되거나 공유 dataset 이 지워져도 상시 CI 는 green 이다. 새 helper 0 — 기존 재사용.
+//      🔥 실 k6 실행 0 · 실 HTTP 0 · 실 seed 실행 0 · DB 의존 0 · 새 dependency 0 — 파일 read 만.
+
+/** S2 표본 로그의 고정 prefix — `gh run view --log` 에서 값을 grep 하는 좌표다. */
+const S2_SAMPLE_LOG_PREFIX = "[s2-read] devset 표본";
+/** 로그 인자에 실리면 안 되는 토큰 — 자격증명 · cookie · email 원문 계열(민감값 유출 차단). */
+const S2_LOG_FORBIDDEN = ["authCookie", "credentials", "password", "row.email"];
+/** T-1672 가 무변경으로 고정한 SEED_PERSONS 정규화 선언(설계 ③). */
+const S2_NORMALIZED_DECL =
+  /const SEED_PERSONS = Math\.max\(\s*1,\s*Math\.trunc\(Number\(__ENV\.K6_SEED_PERSONS\)\) \|\| 30,\s*\);/;
+
+describe("s2-read.js 실 devset dataset 조회 교체 drift smoke (T-1672)", () => {
+  describe("Happy-path: 조회 1 회 · 도메인 parity · 표본 로그", () => {
+    it("① setup 이 devset 필터 조회 1 회를 단일 식으로 personIds 에 흘린다", () => {
+      const setup = s2Body("export function setup");
+      expect(
+        setup.match(/http\.get\(`\$\{BASE_URL\}\/api\/persons`/g),
+      ).toHaveLength(1);
+      expect(setup).toMatch(S2_PERSON_IDS_CHAIN);
+      expect(setup).toContain("personIds,");
+      // 조회는 seed tag 라 route tag 별 p95 4 종을 오염시키지 않는다.
+      expect(setup).toContain("/api/persons`, SEED_PARAMS)");
+    });
+
+    it("② 도메인 리터럴이 realdata-devset-seed-descriptors.ts 정본 · s1 사본과 parity 다", () => {
+      const canonical = devsetDomainOf(descriptorsText());
+      expect(canonical).toBe("load.devset.test");
+      [s2Script(), s1Script()].forEach((s) =>
+        expect(devsetDomainOf(s)).toBe(canonical),
+      );
+      // 정본 경로를 주석으로 지목하고(env 키 아님), e2e seed 도메인과는 달라야 한다.
+      expect(s2Script()).toContain(DEVSET_DESCRIPTORS_REL);
+      expect(canonical).not.toBe(E2E_SEED_DOMAIN);
+    });
+
+    it("③ 표본 로그 1 줄이 필터 통과 총 건수와 취한 표본 수를 함께 찍는다", () => {
+      const setup = s2Body("export function setup");
+      const args = consoleLogArgsOf(setup);
+      expect(args).toHaveLength(1); // 총 건수가 seed 완전성 신호(부족 ↔ 적재 실패 구분).
+      ["${devsetTotal}", "${personIds.length}", "${SEED_PERSONS}"].forEach(
+        (t) => expect(args[0]).toContain(t),
+      );
+      expect(args[0]).toContain(S2_SAMPLE_LOG_PREFIX);
+      expect(args[0]).toMatch(/^`[^`]*`,?$/);
+      // 로그는 personIds 산출 이후 · return 이전에 놓인다.
+      expect(setup).toMatch(
+        /\.map\(\(row\) => row\.id\);[\s\S]*console\.log\([\s\S]*?\);[\s\S]*return \{/,
+      );
+    });
+  });
+
+  describe("Error path: 도메인 어긋남 · 정규화 회귀 · 정본 부재 · non-string", () => {
+    it("① 도메인이 e2e 도메인이나 임의 리터럴로 바뀌면 parity 가 깨진다(조용한 빈 run 차단)", () => {
+      const script = s2Script();
+      const canonical = devsetDomainOf(descriptorsText()) as string;
+      // 합성 mutation 2 종 — 어느 쪽도 조회가 0 건이 되는 갈래를 대표한다.
+      [E2E_SEED_DOMAIN, "load.devset.example"].forEach((bad) => {
+        const drifted = script.replace(`"${canonical}"`, `"${bad}"`);
+        expect(drifted).not.toBe(script);
+        expect(devsetDomainOf(drifted)).toBe(bad);
+      });
+      expect(devsetDomainOf(s2Script())).toBe(canonical); // 원본은 mutate 0.
+    });
+
+    it("② SEED_PERSONS 정규화 표현이 잔존한다(NaN 표본으로 0 행 p95 통과 착시 차단)", () => {
+      const script = s2Script();
+      expect(script).toMatch(S2_NORMALIZED_DECL);
+      expect(extractEnvFallback(script, SEED_ENV_KEY)).toBe("30");
+      // 옛 취약 표현 회귀는 즉시 드러난다(합성 대조군).
+      const drifted = script.replace(
+        S2_NORMALIZED_DECL,
+        "const SEED_PERSONS = Number(__ENV.K6_SEED_PERSONS || 30);",
+      );
+      expect(drifted).not.toBe(script);
+      expect(drifted).not.toMatch(S2_NORMALIZED_DECL);
+    });
+
+    it("③ 정본 부재 · 없는 블록 · 0-byte · non-string 이 조용히 PASS 하지 않는다", () => {
+      expect(existsSync(path.join(REPO_ROOT, DEVSET_DESCRIPTORS_REL))).toBe(
+        true,
+      );
+      expect(() => s2Body("export function nonexistent")).toThrow();
+      expect(devsetDomainOf("")).toBeNull();
+      [undefined, 42, null].forEach((bad) =>
+        expect(() => devsetDomainOf(bad as unknown as string)).toThrow(
+          TypeError,
+        ),
+      );
+    });
+  });
+
+  describe("flow / 분기 cover: 표본 상한 > 조회 결과 · < 조회 결과 · 조회 0", () => {
+    it("① 세 갈래를 같은 식 하나가 처리한다(스크립트 쪽 분기문 0, 실 k6 실행 0)", () => {
+      const setup = s2Body("export function setup");
+      expect(setup).toContain(".slice(0, SEED_PERSONS)");
+      ["if (", "} else", " ? ", "Math.min("].forEach((t) =>
+        expect(setup).not.toContain(t),
+      );
+      // 스크립트와 같은 filter → slice 식을 합성 배열에 적용해 세 갈래의 동치성을 확인한다.
+      const domain = devsetDomainOf(s2Script()) as string;
+      const rows = [`a@${domain}`, `b@${domain}`, "c@other.invalid"];
+      const take = (cap: number, src: string[]): string[] =>
+        src.filter((e) => e.endsWith(`@${domain}`)).slice(0, cap);
+      expect(take(30, rows)).toEqual([`a@${domain}`, `b@${domain}`]); // 상한 초과.
+      expect(take(1, rows)).toHaveLength(1); // 상한 미만 — 앞에서부터 자른다.
+      expect(take(30, [])).toEqual([]); // 조회 0 — 로그가 0 을 찍어 드러난다.
+      // 파싱 helper 쪽 분기(블록 종료 · 대상 부재)는 기존 블록이 이미 cover 한다 — 재확인만.
+      expect(extractTopLevelBlock("", "export function setup")).toBeNull();
+      expect(consoleLogArgsOf("// console.log(`x`);")).toEqual([]);
+    });
+  });
+
+  describe("negative cases 충분 cover — 보존 계약 · 합성 seed · chain · env · 로그 · 임계", () => {
+    it("① teardown 에 person DELETE 반복문이 잔존 0 이다(공유 dataset 보존 계약)", () => {
+      const down = s2Body("export function teardown");
+      ["personIds", "/api/persons"].forEach((t) =>
+        expect(down).not.toContain(t),
+      );
+      expect(down.match(/http\.del\(/g)).toHaveLength(2);
+      // 대조군 — person 정리 루프를 되살린 변조는 같은 단언에서 즉시 걸린다.
+      const drifted = down.replace(
+        "  for (let i = 0; i < data.groupIds.length; i += 1) {",
+        "  for (let i = 0; i < data.personIds.length; i += 1) {\n    http.del(`${BASE_URL}/api/persons/${data.personIds[i]}`, null, TEARDOWN_PARAMS);\n  }\n  for (let i = 0; i < data.groupIds.length; i += 1) {",
+      );
+      expect(drifted).toContain("/api/persons");
+      expect(drifted.match(/http\.del\(/g)).toHaveLength(3);
+    });
+
+    it("② setup 에 POST /api/persons 합성 seed 가 잔존 0 이다(생성 회귀 차단)", () => {
+      const script = s2Script();
+      expect(script).not.toMatch(
+        /http\.post\(\s*`\$\{BASE_URL\}\/api\/persons`/,
+      );
+      ["부하 대상 ${stamp}", "fullName:", 'created.json("id")'].forEach((t) =>
+        expect(script).not.toContain(t),
+      );
+      // 남은 POST 는 group · part · signup · login 4 회뿐이다(잔존 생성 0).
+      const setup = s2Body("export function setup");
+      expect(setup.match(/http\.post\(/g)).toHaveLength(4);
+    });
+
+    it("③ personIds 단일 식이 중간 변수 · Math.min · 분기로 쪼개지면 단언이 깨진다", () => {
+      const setup = s2Body("export function setup");
+      expect(setup).toMatch(S2_PERSON_IDS_CHAIN);
+      const split = setup.replace(
+        "    .slice(0, SEED_PERSONS)",
+        ";\n  const sampled = filtered.slice(0, SEED_PERSONS)",
+      );
+      expect(split).not.toMatch(S2_PERSON_IDS_CHAIN);
+      // 분기 0 규약 — `||` 는 __ENV fallback 2 종뿐이다(BASE_URL · SEED_PERSONS).
+      expect(s2Script().match(/\|\|/g)).toHaveLength(2);
+    });
+
+    it("④ 새 __ENV 키 추가가 0 이다(도메인은 env 가 아니라 상수 리터럴)", () => {
+      const script = s2Script();
+      expect(script.match(/__ENV\./g)).toHaveLength(2);
+      ["K6_BASE_URL", SEED_ENV_KEY].forEach((k) =>
+        expect(script).toContain(`__ENV.${k}`),
+      );
+      const block = extractStepBlock(loadYml(), S2_RUN_STEP_NAME) as string[];
+      expect(extractKey(block, SEED_ENV_KEY)).toBe("30");
+    });
+
+    it("⑤ 로그에 email 원문 · 자격증명 · /api/ 경로 유입이 0 이다", () => {
+      const arg = consoleLogArgsOf(s2Body("export function setup"))[0];
+      S2_LOG_FORBIDDEN.forEach((t) => expect(arg).not.toContain(t));
+      expect(arg).not.toContain("/api/");
+      // 대조군 — 민감값을 실은 변조는 같은 단언에서 걸린다(tautology 아님).
+      expect(arg.replace("`,", " cookie=${authCookie}`,")).toContain(
+        "authCookie",
+      );
+      // route 집합 불변 — 로그가 경로 리터럴을 새로 들이지 않았다.
+      const routes = S2_ROUTES.map(([, r]) => r);
+      expect(apiRoutesOf(s2Script()).sort()).toEqual(
+        [...routes, SIGNUP_ROUTE, LOGIN_ROUTE, AUTH_ROUTE].sort(),
+      );
+    });
+
+    it("⑥ 임계 키 6 종 · 3000ms 숫자 · vus/duration 프로파일이 무변경이다", () => {
+      const script = s2Script();
+      expect(thresholdKeys(script)).toEqual(EXPECTED_THRESHOLD_KEYS);
+      expect(script.match(/\["p\(95\)<3000"\]/g)).toHaveLength(5);
+      ['http_req_failed: ["rate<0.01"]', "vus: 5", 'duration: "20s"'].forEach(
+        (t) => expect(script).toContain(t),
+      );
     });
   });
 });
