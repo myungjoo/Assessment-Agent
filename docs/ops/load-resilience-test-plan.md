@@ -64,6 +64,95 @@ correctness)은 unit / e2e 가 이미 cover 하므로 본 문서 범위 밖이�
 - **대상 endpoint**: 조회·시각화 read API(요약·평가 결과 조회 경로). 실제 대상 목록은
   harness 구현 시 [docs/architecture](../architecture) 의 API 뷰에서 확정.
 
+#### S2 dataset 교체 설계 (사전 박제)
+
+T-1661 이 S1 에서 끝낸 "합성 seed → 실 devset 조회" 전환을 S2 에도 적용하기 전에, 교체 범위와
+보존 계약을 **코드 착수 이전에** 여기서 고정한다(T-1668 규칙 박제 → T-1669 기계 적용이 검증한
+순서 승계). 본 소절은 설계 박제일 뿐이라 이 회차의 코드 · 워크플로 · spec · 임계 상수 변경은
+**0** 이고 실 run 도 **0** 이다. 집행 대상 원문은 [`s2-read.js`](../../test/load/s2-read.js),
+선례는 [`s1-batch.js`](../../test/load/s1-batch.js) 의 `setup()` / `teardown()` 이다.
+
+**① 교체 범위 — person leg 만 조회로 전환한다.** `setup()` 의 `POST /api/persons` ×
+`SEED_PERSONS` 반복 생성을 S1 과 동형인 **조회 1 회**로 바꾼다: `GET /api/persons` → email 이
+`@load.devset.test`(도메인 정본은
+[`realdata-devset-seed-descriptors.ts`](../../test/helpers/realdata-devset-seed-descriptors.ts),
+k6 쪽은 그 사본 상수)로 끝나는 원소만 `filter` → `slice(0, SEED_PERSONS)` → `map` 으로 id 추출,
+전 과정을 **단일 식**으로 잇는다(중간 변수 0 · 조건 분기 0 · `Math.min` 0 — T-1620 승계 규약).
+`group` / `part` leg 는 **합성 seed 를 그대로 유지**한다 — devset seed 경로는 `Person` 과
+`ServiceIdentity` 두 leg 만 적재해 `Group` · `Part` row 가 0 이므로, 이 둘까지 조회로 바꾸면
+`default()` 의 `groups` / `parts` 타격이 빈 배열 위에서 돌아 p95 가 아무것도 입증하지 못한다.
+인증 부트스트랩(signup → login) 2 왕복과 `me` 타격, route tag 4 종은 무변경이다.
+
+**② 공유 dataset 보존 계약 — `teardown()` 의 person DELETE 루프를 제거한다.** 조회로 소비한
+person 은 workflow 의 `133 로그인 실 dataset seed 적재` step(`114 행`)이 적재한 **공유 dataset**
+이라, 지우면 같은 job 의 뒤따르는 S3 step 과 다음 run 이 빈 DB 위에서 돈다(T-1661 이 S1 에서
+이미 확정한 계약). `group` / `part` DELETE 루프는 **그대로 유지**하고(그 둘은 여전히 이 스크립트가
+만든 row 다), "user row 는 삭제 endpoint 자체가 없어 남긴다" 예외 주석도 유지한다. 이 제거로
+`personIds` 의 유일한 소비처가 사라지므로, T-1666 이 S1 에 배선한 **표본 로그 1 줄**을 같은
+형태로 둔다 — devset 필터를 통과한 **총 건수**와 실제로 취한 **표본 수**를 함께 찍어(`슬라이스
+이전 건수`가 곧 seed 완전성 신호), 표본 상한이 총 건수보다 작아도 적재 실패와 구분된다. 로그에는
+수치만 싣고 email 원문 · 자격증명 · 경로는 싣지 않는다(T-1666 규약 승계).
+
+**③ `K6_SEED_PERSONS` 의미 재정의 — 숫자는 무변경(`30`).** 의미는 "생성할 person 수" 에서
+"**조회 결과에서 취할 표본 상한**" 으로 바뀐다. 그럼에도 **parity 는 유지**한다 — workflow S2 step
+(`195~201 행`)의 주입값 ↔ 스크립트 `__ENV` 기본값 ↔ drift-guard 단언의 3 자 대조는 불변이며,
+정규화 표현(`Math.max(1, Math.trunc(Number(...)) || 30)`)도 그대로 둔다. **값 자체는 이번 교체에서
+바꾸지 않는다(`30` 유지)** — 근거는 세 가지다. (a) 한 회차에 바꾸는 변수는 dataset 성격 하나로
+제한한다(규모 축까지 동시에 움직이면 첫 실측의 원인 귀속이 불가능해진다). (b) 부하 지표를 만드는
+것은 `default()` 의 `GET /api/persons` 응답 **행 수(devset 전량)** 이고 표본 상한은 `setup()` 이
+메모리에 남기는 id 배열 길이일 뿐이라, 상한 값은 측정 의미에도 HTTP 왕복 수에도 영향이 없다.
+(c) 적재 완전성 진단은 ② 의 로그가 총 건수를 함께 찍어 대신한다. 상한 상향(예: devset 정본 규모
+`133`)은 **S2 첫 실측 이후 별도 판단**이며, 코드 task 안에서의 즉석 변경은 금지한다.
+
+**④ drift-guard 단언 대체 목록.** 아래는 [`load-workflow-k6-harness-wiring-drift.smoke-spec.ts`](../../test/smoke/load-workflow-k6-harness-wiring-drift.smoke-spec.ts)
+에서 교체와 **같은 commit 에** 갱신돼야 하는 단언이다(행 좌표는 설계 시점 기준 pointer).
+
+- (a) T-1623 블록 `710 행` — `setup` 안 `http.post(` 개수 `5` 단언 → **`4`**(group · part ·
+  signup · login). 대체물: `GET /api/persons` **1 회** 단언 + devset 도메인 필터 문자열 단언 +
+  `filter → slice(0, SEED_PERSONS) → map` 단일 식 정규식 단언(T-1661 의 `3280 행` 동형).
+- (b) 같은 블록 `708 행` — `S2_ROUTES` 3 종 route 문자열이 `setup` 에 있다는 단언은 `/api/persons`
+  가 GET 로 남으므로 **표현 무변경**. 대체는 "생성" 을 전제하던 주석 1 줄뿐이다.
+- (c) 같은 블록 `719~726 행` — teardown 단언 2 종이 바뀐다. `http.del(` 개수 `3` → **`2`**,
+  `S2_ROUTES` 전 3 종의 `${route}/` 포함 단언 → **`groups` · `parts` 2 종으로 축소**. 대체물:
+  T-1661 이 S1 에 둔 것과 동형의 **negative** 단언 신설 — teardown 본문에 `personIds` 와 person
+  DELETE 반복문이 **잔존 0** 임을 못 박아 보존 계약이 되돌려지는 drift 를 막는다.
+- (d) 같은 블록 `729~736 행` parity 단언과 T-1634 블록 `2005~2011 행` 의 정규화 표현 · 기본값 `30`
+  parity 단언 — ③ 이 숫자를 무변경으로 확정했으므로 **표현 그대로 유지**. 다만 그 단언이 지키는
+  값의 *의미*("생성 인원" → "표본 상한")가 바뀌므로 주석 문구만 갱신한다.
+- (e) 리터럴 `"30"` 직접 대조 단언 3 곳(`764 행` · `771 행` · `1032 행`)과 `2088 행` 의 옛 취약
+  표현(`Number(__ENV.K6_SEED_PERSONS || 30)`) 금지 단언 — 숫자 무변경이라 **전부 무변경**.
+- (f) `1034 행` 의 `__ENV.` 개수 `2` 단언 — **새 `__ENV` 키를 만들지 않는다**는 계약이다. devset
+  도메인은 env 가 아니라 **상수 리터럴**로 두고 정본 파일 경로를 주석으로 지목한다(T-1661 동형).
+- (g) **신설 블록 1 개** — T-1661 의 s1 판 블록(`3278 행` 부근)과 동형의 s2 판: 도메인 리터럴 ↔
+  정본 parity, 단일 식 유지, teardown 보존 negative, 표본이 조회 결과보다 많은 갈래 / 적은 갈래를
+  같은 식 하나가 처리함(분기 0). R-112 의 happy / error / branch / negative 4 종을 이 블록이 채운다.
+
+**⑤ 임계 취급 — 숫자 변경 0.** `§3` 표의 S2 축 p95 **3000ms** 는 **무변경**이고 p50 · throughput 의
+`baseline 후 fix` 표기도 그대로다 — S2 축은 실측이 아직 **0 회** 라 확정 근거가 없다(같은 표의
+"S2 · S3 의 `baseline 후 fix` 표기는 무변경" 항목 승계). 측정 의미가 합성 person **30** 에서 실
+dataset **133** 으로 바뀌는 사실은 임계를 건드릴 사유가 아니라 **해석의 전제**이므로, `§3.1` 의
+**S2 첫 실측 회차 기록에서** 규모 · 표본 로그와 함께 다룬다. 본 교체 자체는 스크립트의 임계 배열
+(전역 + route 별 4 종)에 한 글자도 손대지 않는다.
+
+**⑥ 집행 경로 split — 2 task, 순서 고정.** 예상 파일은 `s2-read.js` **1** + drift smoke spec **1**
+= **2 개**이고, [`load-k6.yml`](../../.github/workflows/load-k6.yml) 은 **불요**다(③ 이 숫자를 무변경
+으로 고정했고 (f) 가 새 env 를 금지했으며, S2 step(`195 행`)이 seed step(`114 행`)보다 뒤라 순서
+전제도 이미 충족). 그럼에도 한 task 로 묶지 않는 이유는 §3.1 판정이 갈리기 때문이다.
+
+1. **(pr) 교체 집행** — `s2-read.js` + drift smoke spec 2 파일을 **같은 commit** 으로. ④ (a)~(g)
+   전부가 이 commit 안에 들어와야 spec 이 red 로 남지 않는다. LOC 추정 스크립트 `+15/-20` · spec
+   `+90/-10` ≈ **135 LOC / 2 파일**로 cap(300 LOC / 5 파일) 안이다. 동작 변경이라 `commitMode: pr`.
+2. **(direct) 문서 반영** — 본 계획 문서(`§5` item 5 잔여 서술 갱신)와 [PLAN.md](../PLAN.md)
+   `141 행` 에 교체 **사실**만 박제한다. 실측 수치는 이 단계에 없다. `docs/` 만 바꾸므로
+   `commitMode: direct`(§3.1 rule 1), 1 과 섞으면 rule 3 위반이다.
+
+순서는 **1 → 2** 로 고정한다(문서가 아직 없는 코드를 서술하지 않도록). S2 첫 실측 dispatch 와 그
+`§3.1` 회차 기록은 위 둘과 또 다른 **세 번째 task** 이며, 실 run 1 회를 쓰므로 본 설계의 범위 밖이다.
+
+**S3 는 본 설계의 범위 밖이다** — [`s3-concurrent.js`](../../test/load/s3-concurrent.js) 는
+iteration 안에서 생성한 row 를 스스로 정리하는 read + write 혼합이라 dataset 전제가 S2 와 다르고,
+공유 dataset 보존 계약도 다른 형태로 물어야 한다. 별도 slice 로 남긴다.
+
 ### S3. 동시 요청 내성 (Resilience)
 
 - **부하**: concurrent read + write(평가 작성 진행 중 조회) 혼합 부하를 동시성 수준을
@@ -699,6 +788,11 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    **잔여 ① 은 미해소 유지**다 — 확정된 것은 표본 수와 seed 재현성일 뿐이고 `http_reqs` **7** ·
    iteration **825.88ms** 가 보이듯 **실 수집 왕복은 여전히 0**, LLM 도 stub 이다(잔여 개수는
    **1 개** 그대로이며 ② · ③ 표기도 무변경).
+   **함께 좁혀진 것은 S2 축의 *설계* 다** — T-1671 이 위
+   `#### S2 dataset 교체 설계 (사전 박제)` 소절에 S2 의 dataset 교체(person leg 조회 전환 ·
+   공유 dataset 보존 계약 · `K6_SEED_PERSONS` 의미 재정의 · drift-guard 단언 대체 목록 · 임계
+   무변경 · 2 task split) 를 코드 착수 이전에 박제했다. 다만 그 소절은 설계일 뿐 집행 · 실측이
+   0 이라 본 잔여 항목의 해소 표기는 하지 않는다(잔여 개수 **1 개** 그대로).
    ② **반복 run 기반 임계 fix** 는
    **해소 — 임계 확정 완료(T-1644)**. 실 scale 축(표본 133)의 같은 조건 표본이 T-1643 run
    `32540981922` 로 **3 개**가 됐고(3·4·5 회차 760.91ms → 730.81ms → 711.23ms), 그 batch p95
