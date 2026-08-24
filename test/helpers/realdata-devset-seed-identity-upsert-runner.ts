@@ -51,9 +51,41 @@ function checkClient(client: unknown): DevsetSeedIdentityClient {
   return client as DevsetSeedIdentityClient;
 }
 
+// checkCreatePersonId — identity 원소의 `create` 슬롯 가드(T-1670). `ServiceIdentity.person`
+// 은 required relation 이라 create 경로에 실 personId 가 없으면 실 Prisma client 가
+// ``Argument `person` is missing.`` 로 죽는다(R-91 run 32652307813 결함). 그 결함은 지금까지
+// seed step 의 실 호출 시점에서야 드러났으므로, 같은 결함 클래스를 첫 upsert 이전으로 당긴다.
+// 구조 결손(`create` 비-객체) `TypeError` / 값 정합 위반(결손·빈·공백·비-문자열 · placeholder
+// 잔존 · where 축과 불일치) `RangeError` — 기존 에러 정책과 동형.
+function checkCreatePersonId(
+  element: Record<string, unknown>,
+  at: string,
+  personId: string,
+  service: string,
+): void {
+  const create = obj(element.create, `${at}.create`);
+  const value = create.personId;
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new RangeError(
+      `${PREFIX}: create.personId 결손 — ${at} (${service}, ${String(value)}). T-1664 resolve 배선이 빠졌다`,
+    );
+  }
+  if (value === PERSON_ID_PLACEHOLDER) {
+    throw new RangeError(
+      `${PREFIX}: create.personId placeholder 미치환 — ${at} (${service}). T-1664 치환을 건너뛰었다`,
+    );
+  }
+  if (value !== personId) {
+    throw new RangeError(
+      `${PREFIX}: create.personId 불일치 — ${at} (${service}): where "${personId}" vs create "${value}". T-1664 계약상 같은 person.id 여야 한다`,
+    );
+  }
+}
+
 // flattenPlan — 입력 전체를 검증하며 실행 계획으로 평탄화(검증이 첫 upsert 이전에 완결 →
 // 결손 입력의 부분 적재 0). 구조 결손 `TypeError` / 빈·공백 personId·service · placeholder
-// 잔존 · compound 키 중복(map 이 덮어써 적재 건수가 주는 결손) `RangeError`.
+// 잔존 · create.personId 결손·불일치(T-1670) · compound 키 중복(map 이 덮어써 적재 건수가
+// 주는 결손) `RangeError`.
 function flattenPlan(list: unknown): Planned[] {
   if (!Array.isArray(list)) {
     throw new TypeError(
@@ -71,7 +103,8 @@ function flattenPlan(list: unknown): Planned[] {
     }
     ids.forEach((identity, i) => {
       const at = `${idsAt}[${i}]`;
-      const where = obj(obj(identity, at).where, `${at}.where`);
+      const element = obj(identity, at);
+      const where = obj(element.where, `${at}.where`);
       const pair = obj(where.personId_service, `${at}.where.personId_service`);
       const personId = text(pair.personId, `${at} 의 personId`);
       const service = text(pair.service, `${at} 의 service`);
@@ -80,6 +113,7 @@ function flattenPlan(list: unknown): Planned[] {
           `${PREFIX}: personId placeholder 미치환 — ${at} (${service}). T-0575 치환을 건너뛰었다`,
         );
       }
+      checkCreatePersonId(element, at, personId, service);
       const key = `${personId}::${service}`;
       const first = seen.get(key);
       if (first !== undefined) {
