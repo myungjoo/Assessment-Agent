@@ -2,13 +2,14 @@
 id: T-1670
 title: devset seed identity runner flattenPlan 에 create.personId 결손·불일치 fail-fast 가드 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047]
 estimatedDiff: 150
 estimatedFiles: 2
 created: 2026-08-24
 createdAt: 2026-08-24T06:10:00Z
+completedAt: 2026-08-24T07:49:38Z
 dependsOn: [T-1664]
 touchesFiles:
   - test/helpers/realdata-devset-seed-identity-upsert-runner.ts
@@ -32,17 +33,17 @@ PLAN.md `144 행` 오너 지시("R-91 k6 최우선·즉시 착수") chain 의 �
 
 ## Acceptance Criteria
 
-- [ ] `flattenPlan` 이 각 identity 원소의 `create` 슬롯을 첫 upsert **이전에** 검증한다 — `create` 가 객체 아님/null 이면 `TypeError`(기존 `obj()` 헬퍼 재사용, 메시지에 `upsertArgsList[i].identityUpsertsByEmail[j].create` 좌표 포함).
-- [ ] `create.personId` 가 결손(`undefined`)·빈 문자열·공백·비-문자열이면 `RangeError` 를 던지고, 메시지에 "T-1664" 와 해당 좌표·service 가 들어가 원인(resolve 배선 누락)을 즉시 지목한다.
-- [ ] `create.personId` 가 존재하지만 같은 원소의 `where.personId_service.personId` 와 **다르면** `RangeError` 를 던진다(두 값이 같은 실 person.id 여야 한다는 T-1664 계약).
-- [ ] `create.personId` 가 `PERSON_ID_PLACEHOLDER` 그대로면 `RangeError`(where 축의 기존 placeholder 가드와 동형 메시지 체계).
-- [ ] 검증은 **어떤 upsert 호출보다 먼저** 완결된다 — 결손 원소가 배열 뒤쪽에 있어도 `client.serviceIdentity.upsert` 호출 횟수 0 (부분 적재 0).
-- [ ] happy-path unit test 1+ — `create.personId` 가 `where` 와 같은 실값인 정상 입력에서 기존 동작(순차 upsert · 반환 Map · args 무변형)이 **무변경** 임을 검증.
-- [ ] error path unit test 1+ — 위 4 종 throw(`create` 비-객체 / `personId` 결손 / 불일치 / placeholder 잔존) 각각 1+ case, 에러 타입(`TypeError` vs `RangeError`)과 메시지 정규식까지 단언.
-- [ ] 분기 cover — 새로 추가한 각 조건 분기마다 통과 case 와 throw case 를 짝으로 둔다.
-- [ ] negative cases 충분 cover — 빈 문자열 `""` · 공백만 `"   "` · 숫자/`null` 등 type mismatch · placeholder 잔존 · where 와의 대소문자 다른 값(불일치) · 결손 원소가 2 번째 이후일 때 선행 원소도 upsert 되지 않음(비정상 시퀀스) 각 1+ test.
-- [ ] 기존 spec 의 identity args fixture 빌더를 `create.personId` 포함으로 갱신해 기존 case 전량이 그대로 통과한다(기존 단언 의미 변경 0 — 특히 `Object.keys(calls[0])` 키 순서 단언 유지).
-- [ ] `pnpm lint && pnpm build && pnpm test` green, `pnpm test:cov` 통과(line ≥ 80% / function ≥ 80%).
+- [x] `flattenPlan` 이 각 identity 원소의 `create` 슬롯을 첫 upsert **이전에** 검증한다 — `create` 가 객체 아님/null 이면 `TypeError`(기존 `obj()` 헬퍼 재사용, 메시지에 `upsertArgsList[i].identityUpsertsByEmail[j].create` 좌표 포함).
+- [x] `create.personId` 가 결손(`undefined`)·빈 문자열·공백·비-문자열이면 `RangeError` 를 던지고, 메시지에 "T-1664" 와 해당 좌표·service 가 들어가 원인(resolve 배선 누락)을 즉시 지목한다.
+- [x] `create.personId` 가 존재하지만 같은 원소의 `where.personId_service.personId` 와 **다르면** `RangeError` 를 던진다(두 값이 같은 실 person.id 여야 한다는 T-1664 계약).
+- [x] `create.personId` 가 `PERSON_ID_PLACEHOLDER` 그대로면 `RangeError`(where 축의 기존 placeholder 가드와 동형 메시지 체계).
+- [x] 검증은 **어떤 upsert 호출보다 먼저** 완결된다 — 결손 원소가 배열 뒤쪽에 있어도 `client.serviceIdentity.upsert` 호출 횟수 0 (부분 적재 0).
+- [x] happy-path unit test 1+ — `create.personId` 가 `where` 와 같은 실값인 정상 입력에서 기존 동작(순차 upsert · 반환 Map · args 무변형)이 **무변경** 임을 검증.
+- [x] error path unit test 1+ — 위 4 종 throw(`create` 비-객체 / `personId` 결손 / 불일치 / placeholder 잔존) 각각 1+ case, 에러 타입(`TypeError` vs `RangeError`)과 메시지 정규식까지 단언.
+- [x] 분기 cover — 새로 추가한 각 조건 분기마다 통과 case 와 throw case 를 짝으로 둔다.
+- [x] negative cases 충분 cover — 빈 문자열 `""` · 공백만 `"   "` · 숫자/`null` 등 type mismatch · placeholder 잔존 · where 와의 대소문자 다른 값(불일치) · 결손 원소가 2 번째 이후일 때 선행 원소도 upsert 되지 않음(비정상 시퀀스) 각 1+ test.
+- [x] 기존 spec 의 identity args fixture 빌더를 `create.personId` 포함으로 갱신해 기존 case 전량이 그대로 통과한다(기존 단언 의미 변경 0 — 특히 `Object.keys(calls[0])` 키 순서 단언 유지).
+- [x] `pnpm lint && pnpm build && pnpm test` green, `pnpm test:cov` 통과(line ≥ 80% / function ≥ 80%).
 
 ## Out of Scope
 
@@ -60,3 +61,11 @@ PLAN.md `144 행` 오너 지시("R-91 k6 최우선·즉시 착수") chain 의 �
 ## Follow-ups
 
 (작성 시점 없음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-24T07:49Z DONE)
+
+- **PR #1332 merged → main `743b5495`** (squash, branch `claude/T-1670-...` 삭제). 2 파일 `+160/-4` — cap(300 LOC / 5 파일) 안.
+- `flattenPlan` 이 원소마다 새 `checkCreatePersonId(element, at, personId, service)` 를 **첫 upsert 이전에** 호출한다(`runner.ts` 54~116 행). 던지는 것: `create` 비-객체/null → `TypeError`(기존 `obj()` 헬퍼 재사용, 좌표 `upsertArgsList[i].identityUpsertsByEmail[j].create` 포함), `create.personId` 결손·빈 문자열·공백·비-문자열 → `RangeError`(메시지에 `T-1664`·좌표·service), `where.personId_service.personId` 와 불일치 → `RangeError`, `PERSON_ID_PLACEHOLDER` 잔존 → `RangeError`(where 축 기존 가드와 동형 체계).
+- spec 에 `describe("... create.personId 가드(T-1670)")` 신설 — happy 1 + `it.each` 3 블록(비-객체 / 결손·빈·공백·type mismatch / 불일치·placeholder) + 부분 적재 0 case 1 로 **14 case**. 기존 fixture 빌더에 `create.personId` 를 더해도 `Object.keys(calls[0])` 키 순서 단언 포함 기존 단언 의미 변경 0.
+- 검증: 전체 **453 suite / 13,009 test green**, `pnpm test:cov` threshold(line·function 80%) 통과, `pnpm lint` · `pnpm build` exit 0. 정식 검증은 PR CI(run `32702839998` — "기본 검사" · "배포 산출물 검증" 2 job 모두 pass) + merge 후 main run `32703287430`.
+- 4-게이트: reviewer `VERDICT: APPROVE` PR comment 외부 존재 · integrator 자체 점검 통과 · CI green · round 1 종결(ANOTHER_ROUND 0).
