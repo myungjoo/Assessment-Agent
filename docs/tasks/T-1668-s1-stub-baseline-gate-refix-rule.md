@@ -2,7 +2,7 @@
 id: T-1668
 title: p(95)<900 stub baseline 게이트의 재확정 트리거·상향 폭 산정 규칙을 사전 박제
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 estimatedDiff: 95
@@ -62,3 +62,11 @@ plannerNote: "P5 R-91 chain 50/N — T-1667 Follow-up 1 을 닫는 규칙 사전
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-24T02:50Z DONE)
+
+- main direct commit `cd4d81dd` — 2 파일 `+34/-1`(`docs/ops/load-resilience-test-plan.md` · `docs/PLAN.md`).
+- `§3` 각주 아래 **"S1 관찰용 p95 게이트 재확정 규칙 (사전 박제)"** 소절 신설 — ① 재확정 트리거 ② 상향 폭 산정식(T-1644 평균+3σ · 100ms 올림 재적용) ③ 표본 취급(outlier 제거 금지 · 하향 금지 · 실 scale 133 회차만) ④ 집행 경로(코드 `pr` + doc `direct` 2 task split) 4 항목 + 성격 구분 불변 1 문장(REQ-047 판정 임계는 `FULL_RUN_BUDGET_MS` 그대로).
+- `§5` item 5 꼬리 pointer 1 문장 · `docs/PLAN.md` `141 행` 꼬리 append(`140 행` checkbox 무변경).
+- **임계 숫자 변경 0** — 현 표본 6 개 평균+3σ 886.00ms 로 트리거 ①-(b) 미충족. `900ms` 표기 · `s1-batch.js` `STUB_BASELINE_P95_MS` · smoke spec `S1_STUB_BASELINE_P95_MS` 모두 무변경.
+- 검증: `pnpm test` 453 suite / 12994 test green, `load-workflow-k6-harness-wiring-drift.smoke-spec.ts` 214 test pass(local postgres 부재로 globalSetup 우회 — 정식 검증은 main CI).
