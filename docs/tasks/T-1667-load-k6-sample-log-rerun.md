@@ -2,13 +2,14 @@
 id: T-1667
 title: 표본 로그 배선 후 재 dispatch 실측 — load-k6 를 s1_persons=133 으로 1 회 실행해 9 회차 박제
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 estimatedDiff: 130
 estimatedFiles: 2
 created: 2026-08-24
 createdAt: 2026-08-24T00:05:00Z
+completedAt: 2026-08-24T00:52:00Z
 dependsOn: [T-1666]
 touchesFiles:
   - docs/ops/load-resilience-test-plan.md
@@ -62,4 +63,5 @@ plannerNote: "P5 R-91 chain 49/N — T-1666 표본 로그 배선을 실 run 으�
 
 ## Follow-ups
 
-(작업 중 발견한 후속 항목을 여기에 append)
+1. **`p(95)<900` stub baseline 게이트 재검토** (direct, doc-only) — 실 scale 표본 6 개(3~9 회차)의 평균 762.93ms · 표본표준편차 41.02ms 로 평균 + 3σ = **886.00ms** 다. 8 회차 시점 여유 56.55ms 가 본 회차에서 **14.01ms** 로 줄었다. 아직 임계 안이라 본 slice 는 재확정하지 않았으나, 다음 회차가 초과하면 게이트가 실 신호 없이 red 가 된다 — 임계 상향 여부 · 상향 폭 근거를 별도 slice 에서 판정한다(`§3` 임계 표 숫자 변경은 본 slice Out of Scope 였다).
+2. **실 수집 왕복 축(`§5` item 5 잔여 ① 의 남은 내용)** — T-1665 Follow-up 2 승계. 133 건 `ServiceIdentity` 는 적재되고 표본 취득도 이제 직접 확인(133/133)되지만, 부하 job 에 GitHub/Confluence 자격증명이 없어 실 수집 왕복은 여전히 0 이다. 자격증명 주입은 CLAUDE.md §5 BLOCKED 사유(외부 자격증명)라 **오너 결정 선행** — humanQuestion 으로 올릴지 stub 수집기로 대체할지 별도 planner slice 에서 판정.
