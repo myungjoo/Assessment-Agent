@@ -2,7 +2,7 @@
 id: T-1671
 title: S2 조회 부하의 devset dataset 교체 설계를 집행 이전에 사전 박제
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 80
@@ -33,19 +33,19 @@ PLAN.md `144 행` 오너 지시("R-91 k6 최우선·즉시 착수") chain 의 �
 
 ## Acceptance Criteria
 
-- [ ] `docs/ops/load-resilience-test-plan.md` 의 `### S2. 조회 API 응답 지연 (REQ-048)` 절 바로 아래에 소절 **"S2 dataset 교체 설계 (사전 박제)"** 를 신설하고, 아래 6 축을 각각 식별 가능한 항목으로 적는다.
-  - [ ] **① 교체 범위** — person leg 만 devset 조회로 전환(`GET /api/persons` + devset email 도메인 필터 + 표본 상한 slice, T-1661 의 S1 선례와 동형). `group` / `part` leg 는 **합성 seed 유지** 이유를 한 줄로 명시(devset seed 는 `Person` · `ServiceIdentity` 두 leg 만 적재하므로 Group / Part row 가 0 이라 목록 조회가 빈 배열이 된다).
-  - [ ] **② 공유 dataset 보존 계약** — `teardown()` 의 person DELETE 루프를 제거한다(지우면 뒤따르는 S3 step 과 다음 run 이 빈 DB 위에서 돈다 — T-1661 이 S1 에서 이미 확정한 계약). group / part DELETE 루프와 "user row 는 남긴다" 예외는 그대로 유지.
-  - [ ] **③ `K6_SEED_PERSONS` 의미 재정의** — "생성할 person 수" 에서 "**조회 결과에서 취할 표본 상한**" 으로 바뀐다는 점, 그럼에도 workflow 주입값 ↔ 스크립트 `__ENV` 기본값 **parity 는 유지**(drift-guard 3 자 대조 불변)한다는 점, 그리고 그 값을 이번 교체에서 **바꾸는지 여부와 근거**를 한 줄로 확정한다(숫자를 바꾼다면 그 숫자를 여기서 못 박고, 안 바꾼다면 "무변경" 을 명시 — 코드 task 의 즉석 판단 금지).
-  - [ ] **④ drift-guard 단언 대체 목록** — 교체와 **같은 commit 에서** 갱신돼야 하는 smoke 단언을 사전 열거한다(최소: T-1623 블록의 seed `http.post` 3 종 단언 · `http.del` 3 회 개수 단언 · `K6_SEED_PERSONS` parity 단언, T-1634 블록의 기본값 parity 단언). 각 항목에 "무엇으로 대체되는가"(예: POST 개수 단언 → devset 조회 + 필터 문자열 단언)를 한 줄씩 붙인다.
-  - [ ] **⑤ 임계 취급** — `§3` 표의 S2 축 p95 **3000ms 는 무변경**(S2 실측 0 회이므로 "baseline 후 fix" 상태 유지)이고, 측정 의미가 합성 30 → 실 dataset 133 으로 바뀌는 사실은 **S2 첫 실측 회차 기록에서** 다룬다는 것을 명시. 본 교체 자체는 임계 숫자 변경 0.
-  - [ ] **⑥ 집행 경로 split** — 예상 파일 수(`s2-read.js` + drift smoke spec + 필요 시 `load-k6.yml`)를 세고, cap(300 LOC / 5 파일) 안에서 **몇 개 task 로 나눌지**와 그 순서를 못 박는다. 코드·워크플로·spec 은 `pr`, 문서 반영은 `direct` 로 분리한다는 §3.1 판정도 함께 명시.
-- [ ] `s3-concurrent.js` 는 본 설계의 범위 밖임을 소절 안에 한 줄로 명시한다(S3 는 iteration 안에서 자기 정리하는 write 혼합이라 dataset 전제가 다르다 — 별도 slice).
-- [ ] `docs/PLAN.md` `141 행` 꼬리에 본 설계 박제 사실을 1~2 문장으로 append 한다. `140 행` 의 checkbox 상태(`[ ]`)는 **변경하지 않는다**(실측·집행이 아니므로).
-- [ ] `docs/ops/load-resilience-test-plan.md` `§5` item 5 의 잔여 서술에 본 소절을 가리키는 pointer 를 1 문장 추가한다(잔여 항목 자체의 해소 표기는 하지 않는다 — 설계만 박제됐고 집행은 미완).
-- [ ] **코드 · 워크플로 · spec · 임계 상수 변경 0** — `git diff --name-only` 결과가 `docs/` 2 파일뿐임을 확인한다.
-- [ ] `pnpm test` 가 기존과 동일하게 green(453 suite 규모) — 문서만 바꿨으므로 drift-guard smoke 를 포함한 어떤 spec 도 영향받지 않아야 한다.
-- [ ] 분기 없는 doc-only 변경이라 R-112 의 unit test 4 항목(happy / error / branch / negative)은 **해당 없음 — 이 항목 생략**(production code 변경 0, `commitMode: direct`).
+- [x] `docs/ops/load-resilience-test-plan.md` 의 `### S2. 조회 API 응답 지연 (REQ-048)` 절 바로 아래에 소절 **"S2 dataset 교체 설계 (사전 박제)"** 를 신설하고, 아래 6 축을 각각 식별 가능한 항목으로 적는다.
+  - [x] **① 교체 범위** — person leg 만 devset 조회로 전환(`GET /api/persons` + devset email 도메인 필터 + 표본 상한 slice, T-1661 의 S1 선례와 동형). `group` / `part` leg 는 **합성 seed 유지** 이유를 한 줄로 명시(devset seed 는 `Person` · `ServiceIdentity` 두 leg 만 적재하므로 Group / Part row 가 0 이라 목록 조회가 빈 배열이 된다).
+  - [x] **② 공유 dataset 보존 계약** — `teardown()` 의 person DELETE 루프를 제거한다(지우면 뒤따르는 S3 step 과 다음 run 이 빈 DB 위에서 돈다 — T-1661 이 S1 에서 이미 확정한 계약). group / part DELETE 루프와 "user row 는 남긴다" 예외는 그대로 유지.
+  - [x] **③ `K6_SEED_PERSONS` 의미 재정의** — "생성할 person 수" 에서 "**조회 결과에서 취할 표본 상한**" 으로 바뀐다는 점, 그럼에도 workflow 주입값 ↔ 스크립트 `__ENV` 기본값 **parity 는 유지**(drift-guard 3 자 대조 불변)한다는 점, 그리고 그 값을 이번 교체에서 **바꾸는지 여부와 근거**를 한 줄로 확정한다(숫자를 바꾼다면 그 숫자를 여기서 못 박고, 안 바꾼다면 "무변경" 을 명시 — 코드 task 의 즉석 판단 금지).
+  - [x] **④ drift-guard 단언 대체 목록** — 교체와 **같은 commit 에서** 갱신돼야 하는 smoke 단언을 사전 열거한다(최소: T-1623 블록의 seed `http.post` 3 종 단언 · `http.del` 3 회 개수 단언 · `K6_SEED_PERSONS` parity 단언, T-1634 블록의 기본값 parity 단언). 각 항목에 "무엇으로 대체되는가"(예: POST 개수 단언 → devset 조회 + 필터 문자열 단언)를 한 줄씩 붙인다.
+  - [x] **⑤ 임계 취급** — `§3` 표의 S2 축 p95 **3000ms 는 무변경**(S2 실측 0 회이므로 "baseline 후 fix" 상태 유지)이고, 측정 의미가 합성 30 → 실 dataset 133 으로 바뀌는 사실은 **S2 첫 실측 회차 기록에서** 다룬다는 것을 명시. 본 교체 자체는 임계 숫자 변경 0.
+  - [x] **⑥ 집행 경로 split** — 예상 파일 수(`s2-read.js` + drift smoke spec + 필요 시 `load-k6.yml`)를 세고, cap(300 LOC / 5 파일) 안에서 **몇 개 task 로 나눌지**와 그 순서를 못 박는다. 코드·워크플로·spec 은 `pr`, 문서 반영은 `direct` 로 분리한다는 §3.1 판정도 함께 명시.
+- [x] `s3-concurrent.js` 는 본 설계의 범위 밖임을 소절 안에 한 줄로 명시한다(S3 는 iteration 안에서 자기 정리하는 write 혼합이라 dataset 전제가 다르다 — 별도 slice).
+- [x] `docs/PLAN.md` `141 행` 꼬리에 본 설계 박제 사실을 1~2 문장으로 append 한다. `140 행` 의 checkbox 상태(`[ ]`)는 **변경하지 않는다**(실측·집행이 아니므로).
+- [x] `docs/ops/load-resilience-test-plan.md` `§5` item 5 의 잔여 서술에 본 소절을 가리키는 pointer 를 1 문장 추가한다(잔여 항목 자체의 해소 표기는 하지 않는다 — 설계만 박제됐고 집행은 미완).
+- [x] **코드 · 워크플로 · spec · 임계 상수 변경 0** — `git diff --name-only` 결과가 `docs/` 2 파일뿐임을 확인한다.
+- [x] `pnpm test` 가 기존과 동일하게 green(453 suite 규모) — 문서만 바꿨으므로 drift-guard smoke 를 포함한 어떤 spec 도 영향받지 않아야 한다.
+- [x] 분기 없는 doc-only 변경이라 R-112 의 unit test 4 항목(happy / error / branch / negative)은 **해당 없음 — 이 항목 생략**(production code 변경 0, `commitMode: direct`).
 
 ## Out of Scope
 
@@ -58,6 +58,13 @@ PLAN.md `144 행` 오너 지시("R-91 k6 최우선·즉시 착수") chain 의 �
 ## Suggested Sub-agents
 
 `implementer → tester` (doc-only 라 architect 불요. tester 는 `pnpm test` green + 변경 파일 2 개 확인만).
+
+## 결과 (2026-08-24T09:45Z DONE)
+
+- direct commit `f70f12c5` → `main` push. 변경 2 파일 `+95/-1`(cap 300 LOC / 5 파일 안).
+- `docs/ops/load-resilience-test-plan.md` `S2` 절 아래 **"S2 dataset 교체 설계 (사전 박제)"** 소절 신설 — 6 축(① person leg 만 devset 조회 전환 / group · part 는 합성 seed 유지 ② `teardown()` person DELETE 제거로 공유 dataset 보존 ③ `K6_SEED_PERSONS` 를 표본 상한으로 재정의하되 숫자 `30` 무변경 + parity 유지 ④ drift-guard 단언 대체 목록 `(a)~(g)` ⑤ `§3` 표 S2 p95 3000ms 무변경 ⑥ `pr`(`s2-read.js` + drift spec 2 파일) → `direct`(문서) 2 task split) + S3 범위 밖 1 줄.
+- `docs/PLAN.md` `141 행` 꼬리 append(`140 행` checkbox `[ ]` 불변), `§5` item 5 잔여 서술에 pointer(해소 표기 없음).
+- 코드 · 워크플로 · spec · 임계 상수 변경 **0**, 실 dispatch **0**. `pnpm test` 453 suite / 13,009 test green · `pnpm lint` 무경고.
 
 ## Follow-ups
 
