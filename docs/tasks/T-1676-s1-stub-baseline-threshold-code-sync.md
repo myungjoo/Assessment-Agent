@@ -2,7 +2,7 @@
 id: T-1676
 title: S1 stub baseline 임계 900ms → 1100ms 코드 동기 (규칙 ④ split 앞단, 스크립트 + drift guard 동시)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047]
 estimatedDiff: 40
@@ -13,6 +13,9 @@ touchesFiles:
   - test/load/s1-batch.js
   - test/smoke/load-workflow-k6-harness-wiring-drift.smoke-spec.ts
 created: 2026-08-24
+completedAt: 2026-08-24T17:52:41Z
+prNumber: 1334
+mergeSha: ebe6d8f835b9bc0bc973edc8cebeaf05ddd998db
 plannerNote: P5 R-91 chain 57/N — T-1675 Follow-up ① (규칙 ④ split 앞단 코드 pr, 상수 + drift guard 대조군 동시 갱신)
 ---
 
