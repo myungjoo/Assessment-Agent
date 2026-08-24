@@ -2,7 +2,8 @@
 id: T-1674
 title: S2 조회 부하 첫 실측 dispatch + §3.1 회차 기록
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-24T15:56:00Z
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 100
@@ -70,4 +71,14 @@ plannerNote: P5 R-91 chain 55/N — T-1671 설계 ⑥ 이 예고한 세 번째 t
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- **S1 11 회차 소절 회수 (재 dispatch 0)** — 본 slice 가 쏜 run `32746598803` 로그에 S1 leg 수치가
+  그대로 남아 있다(batch p95 `967.52ms` · `http_reqs` 7 · iteration `969.32ms`). 같은 run id 를
+  읽어 `§3.1` 에 11 회차 소절만 박제하는 별도 `direct` slice — **새 dispatch 0**.
+- **T-1668 재확정 규칙 ①-(a) 첫 트리거 처리** — 관찰용 게이트 `p(95)<900` 이 실 run 에서 처음
+  `✗`(p95 `967.52ms`) 로 crossed 됐다. T-1668 이 사전 박제한 재확정 규칙의 트리거 조건이 처음
+  충족된 것이므로, 그 규칙을 기계적으로 적용하는 slice 가 필요하다(T-1669 선례 = 규칙 박제 →
+  기계 적용 2 단계).
+- **다음 S2 dispatch 는 위 항목 이후로 배치** — `.github/workflows/load-k6.yml` `195 행` 의 S2
+  step 에 `if: always()` 가 없어 S1 게이트가 red 인 동안 S2 · S3 step 은 계속 skip 된다. 즉 S1
+  게이트를 먼저 정리하지 않으면 S2 실측을 몇 번 더 쏴도 수치는 0 이다. (workflow 의 `if` 조건
+  자체를 바꿀지 여부는 임계 판단과 얽히므로 별도 판단 대상 — 본 slice 는 사실만 남긴다.)
