@@ -2,7 +2,7 @@
 id: T-1681
 title: 같은 run 로그로 S1 12 회차 회수 (재 dispatch 0) + §3.1 · PLAN 개수 표기 동기
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 110
@@ -13,6 +13,8 @@ touchesFiles:
   - docs/ops/load-resilience-test-plan.md
   - docs/PLAN.md
 created: 2026-08-25
+completedAt: 2026-08-24T22:52:00Z
+resultCommit: 6c3a9db3
 plannerNote: P5 R-91 chain 61/N — T-1680 Follow-up ① (run 32780975839 로그 재독으로 S1 12 회차 박제, 새 dispatch 0)
 ---
 
@@ -57,6 +59,12 @@ plannerNote: P5 R-91 chain 61/N — T-1680 Follow-up ① (run 32780975839 로그
 
 `implementer` → (doc-only 라 tester 는 lint 확인만)
 
+## Result
+
+**DONE** — main direct commit `6c3a9db3` (`docs/ops/load-resilience-test-plan.md` · `docs/PLAN.md` 2 파일 `+85/-2`). `gh run view 32780975839 --log` **1 회 재독**만으로 집행 — 새 `workflow_dispatch` · rerun · 재시도 **0**. `§3.1` 에 `#### 12 회차` 소절을 `11 회차` 직후에 신설: step 12 `k6 S1 평가 배치 부하 시나리오 실행` 21:44:55Z~21:44:56Z success, k6 exit 0, THRESHOLDS 3 종 전부 `✓`(`p(95)<3600000` · `p(95)<1100` · `rate<0.01`), batch p95 **824.08ms**, `http_reqs` 7, `http_req_failed` **0.00%**, `iteration_duration` 825.71ms, `level=error` 0 줄. `p99` 는 k6 기본 요약 미출력이라 **미확보** 표기(추정 0). T-1668 재확정 규칙 기계 재계수 — 실 scale 표본 133 수치 회수 회차 **9 개**(3·4·5·6·8·9·10·11·12), 평균 **790.35ms** · 표본표준편차 **77.14ms** · 평균+3σ **1021.77ms** ≤ 현행 `1100ms` → 트리거 ①-(a)·①-(b) 모두 **미발화** → `§3` 임계 표 · `STUB_BASELINE_P95_MS` · drift-guard spec 문자 단위 **0 변경**. `§3.1` 헤더 `(S1 12 회분 · S2 2 회분 · S3 1 회분)`, `S2 2 회차` 꼬리 (c) 에 회수 완료 pointer, `§5` item 5 · `PLAN.md` `141 행` 재계수(총 12 회 / 실 scale dispatch 10 회 / 수치 회수 9 회, `140 행` checkbox `[ ]` 유지). doc-only 라 R-110 면제, 확인용 `pnpm lint` 무경고. 큐잉 run `32785829495` **success**, content run `32786356112` 는 종료 전 conclusion 확인(R-114).
+
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 append)
+- ① `K6_SEED_PERSONS` 30 → 133 상향 판단 (T-1680 Follow-up ② 승계) — seed step 이 실 scale 표본을 133 으로 맞출지, 30 유지가 의도인지 결정 후 문서/워크플로 동기.
+- ② S3 leg 표본 / 행 수 로그 배선 (T-1680 Follow-up ③ 승계) — 현 S3 leg 는 전역 p95 와 THRESHOLDS 판정만 남기고 표본 수를 로그에 안 남긴다.
+- ③ 단계별 percentile export step (T-1680 Follow-up ④ 승계) — 현 k6 기본 요약으로는 latency cliff 의 단계 분해도 `p99` 회수도 불가.
