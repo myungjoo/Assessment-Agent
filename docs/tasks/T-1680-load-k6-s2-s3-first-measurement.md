@@ -2,7 +2,8 @@
 id: T-1680
 title: not-cancelled 게이트 배선 후 첫 dispatch 로 S2 · S3 실측 회수 + §3.1 회차 기록
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-24T22:10:00Z
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 180
@@ -80,3 +81,12 @@ plannerNote: P5 R-91 chain 60/N — T-1678 Follow-up ① (dispatch 정확히 1 �
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 append)
+
+1. **S1 12 회차 소절 회수 (재 dispatch 0)** — 같은 run `32780975839` 로그의 S1 leg 수치를 `§3.1` 에 12 회차로 박제. 새 dispatch 0 (T-1674 → T-1675 선례). `direct`, 1~2 파일.
+2. **`K6_SEED_PERSONS` 30 → 133 상향 판단** — 설계 ③ 실증은 끝났으나 iteration 이 `personIds` 를 쓰지 않아 상향해도 부하가 불변일 전망. 판단 + (필요 시) 워크플로 배선.
+3. **S3 leg 표본 / 행 수 로그 배선** — 공유 dataset 보존을 로그의 직접 카운트로 검증할 수 있게 `s3-concurrent.js` 에 관측 줄 추가 (`pr`).
+4. **단계별 percentile export step** — 현재 k6 기본 요약만으로는 ramping 단계 분해(latency cliff 판정) 와 p99 회수가 불가하다. summary export step 도입 (`pr`).
+
+## 결과 요약 (driver bookkeeping, 2026-08-24)
+
+`load-k6.yml` 을 **정확히 1 회** dispatch(run `32780975839`, head `013f3f10`, conclusion **success**, 21 step 전부 success · **skipped 0**)해 S2 · S3 수치를 처음으로 회수했다. T-1678 의 `if: ${{ !cancelled() }}` 배선이 실 run 에서 처음 실증된 셈이다(S1 leg 판정과 무관하게 두 leg 실행). `§3.1` 에 **S2 2 회차**(전역 p95 `7.42ms` · THRESHOLDS **6/6 ✓** · `http_req_failed` `0.00%`) 와 **S3 1 회차**(전역 p95 `20.91ms` · THRESHOLDS **4/4 ✓**) 소절을 신설하고 헤더를 `(S1 11 회분 · S2 2 회분 · S3 1 회분)` 로 갱신, `S2 1 회차` 꼬리 pointer 1 줄 · `§5` item 5 · `PLAN.md` `141 행` 꼬리에 append 했다. `p99` 는 k6 기본 요약이 출력하지 않아 **미확보** 로 표기(추정 · 전용 0). 임계 숫자 · 코드 · 워크플로 · spec 은 문자 단위 **0 변경**(drift-guard smoke 통과로 재확인, `pnpm test` 453 suite / 13,009 test green). doc-only 2 파일 `+137/-2`, main `0a28d728`, content CI run `32782652095` **success**.
