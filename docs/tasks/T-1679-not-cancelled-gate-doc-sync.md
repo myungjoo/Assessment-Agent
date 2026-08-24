@@ -2,7 +2,7 @@
 id: T-1679
 title: T-1678 not-cancelled 게이트 배선을 부하계획 문서와 PLAN 141 행에 동기
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047, REQ-048]
 estimatedDiff: 55
@@ -13,6 +13,8 @@ touchesFiles:
   - docs/ops/load-resilience-test-plan.md
   - docs/PLAN.md
 created: 2026-08-25
+completedAt: 2026-08-24T20:47:00Z
+commit: 04a53ecd
 plannerNote: P5 R-91 chain — T-1678 승계 Follow-up ②(817 행 무효화) + PLAN 141 행 T-1676~T-1678 drift 동기, doc-only direct
 ---
 
@@ -54,6 +56,17 @@ R-112 4 항목은 본 task 에 적용되지 않는다 — `commitMode: direct` �
 ## Suggested Sub-agents
 
 `implementer` 단독 (doc-only). tester 불요 — 확인용 `pnpm lint` 는 implementer 가 직접 실행.
+
+## 완료 요약 (2026-08-24T20:47Z, direct commit `04a53ecd`)
+
+T-1678(PR #1335 → main `8af5b06d`)이 `.github/workflows/load-k6.yml` S2 · S3 step 에 `if: ${{ !cancelled() }}` 를 배선한 사실을 문서 축에 반영해 drift 2 건을 닫았다. 2 파일 `+23/-1`:
+
+- `docs/ops/load-resilience-test-plan.md` — `§3.1` `S2 1 회차` 소절 (d) 의 "S1 step 이 fail 하는 한 S2 step 은 계속 skip" 규범 서술에 **무효화 표기**(이력 보존 + 현행 사실 pointer) 부여, `§5` item 5 의 T-1675 문단 뒤에 T-1676(임계 코드 동기) · T-1677(임계 문서 동기) · T-1678(게이트 배선) 집행 문단 append.
+- `docs/PLAN.md` — `141 행` 꼬리에 3 slice 집행 사실 append. `140 행` checkbox 는 LLM stub · 실 수집 왕복 0 · 단일 iteration 조건이 그대로라 `[ ]` 유지.
+
+`§3` 임계 숫자 · `§3.1` 회차 기록 · S2 dataset 교체 설계 · `§4` 는 문자 단위 무변경이고, 코드 · 워크플로 · spec · `package.json` 변경 0 이라 coverage 영향 0. doc-only 라 R-110 tester 의무 면제 — 확인용 `pnpm lint` 1 회 무경고.
+
+**T-1678 승계 Follow-up 3 건 중 ② 를 본 slice 가 닫았고, ① S2 · S3 실 dispatch 후 `§3.1` 회차 기록 · ③ 컨테이너 기동 실패 게이트(`steps.<id>.outcome`) 도입 검토 2 건은 후속 slice 로 남는다.**
 
 ## Follow-ups
 
