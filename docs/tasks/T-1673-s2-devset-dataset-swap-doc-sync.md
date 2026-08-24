@@ -2,7 +2,8 @@
 id: T-1673
 title: S2 person leg devset 조회 교체의 집행 사실을 부하계획 문서와 PLAN 에 반영
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-24T14:46:00Z
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 75
