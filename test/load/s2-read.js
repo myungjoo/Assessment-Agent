@@ -21,19 +21,30 @@
 // cookie 를 얻고 default 가 그 cookie 로 GET /api/auth/me 를 한 번 더 때린다. 인증 route 는
 // me 1 종에 국한한다 — user 목록 조회는 Admin+ 라 첫-user SuperAdmin 승격 semantic 에
 // 기대야 하고, 로컬 반복 실행에서 403 이 http_req_failed 임계를 오염시킨다.
+//
+// T-1672 — dataset 교체: person leg 는 합성 seed 대신 workflow 의 실 devset seed step 이 적재한
+// 인원을 setup() 이 조회 1 회로 표본 추출하고, teardown 은 그 인원을 지우지 않는다(공유 dataset).
+// group / part leg 는 devset seed 가 적재하지 않는 row 라 합성 seed 를 유지한다. 임계 · 프로파일 ·
+// route tag 4 종 · __ENV 키 2 종 무변경 — 계획 §2 S2 "dataset 교체 설계" ①~⑤ 그대로.
 import http from "k6/http";
 
 // 대상 base URL. workflow 의 K6_BASE_URL 주입값과 동일한 기본값을 들고 있다 (smoke.js 와 동형).
 const BASE_URL = __ENV.K6_BASE_URL || "http://localhost:3000";
 
-// seed 인원 수. workflow 의 K6_SEED_PERSONS 주입값을 읽고 미지정 시 30 (BASE_URL 과 동형의
-// __ENV 기본값 규약). 조회 목록이 비지 않을 정도의 합성 소규모 fixture — 133명 실 seed 는 S1 소관.
-// 인원 오입력(비수치 · 빈 문자열 · 단위 접미사 · 0 이하)은 기본값 · 양의 정수로 정규화한다 — seed
-// 인원이 NaN 이 되어 0 행 위에서 p95 를 통과하는 착시 차단. 임계 · 프로파일은 무변경(분기 0 표현).
+// 표본 상한. workflow 의 K6_SEED_PERSONS 주입값을 읽고 미지정 시 30 (BASE_URL 과 동형의 __ENV
+// 기본값 규약). T-1672 로 의미가 "생성할 person 수" → "**조회 결과에서 취할 표본 상한**" 으로
+// 바뀌었다 — 숫자 · 정규화 표현 · workflow parity 는 무변경이고 상한 상향은 S2 첫 실측 이후
+// 별도 판단이다(설계 ③). 오입력(비수치 · 빈 문자열 · 단위 접미사 · 0 이하)은 기본값 · 양의
+// 정수로 정규화한다 — 표본이 NaN 이 되어 0 행 위에서 p95 를 통과하는 착시 차단(임계 무변경).
 const SEED_PERSONS = Math.max(
   1,
   Math.trunc(Number(__ENV.K6_SEED_PERSONS)) || 30,
 );
+
+// 실 devset seed 가 만드는 email 도메인 — 정본은 test/helpers/realdata-devset-seed-descriptors.ts
+// 의 DEVSET_EMAIL_DOMAIN 이고 한쪽만 바뀌면 조회가 0 건이 되어 부하가 조용히 빈 run 이 된다.
+// 새 __ENV 키를 만들지 않고 사본 상수로 둔다(s1-batch.js 동형 — 설계 ④ (f)).
+const DEVSET_EMAIL_DOMAIN = "load.devset.test";
 
 // seed / 정리 요청 파라미터. route tag 는 조회 3 종(persons / groups / parts) 과 겹치지 않는
 // 별도 이름이라, route tag 별 p95 임계 3 종이 조회 지연만 측정한다 (지표 오염 차단).
@@ -63,21 +74,27 @@ export const options = {
 };
 
 export function setup() {
-  // run 마다 유일한 접미사 — Person.email / Part.name 의 @unique 충돌(409)이 전역
+  // run 마다 유일한 접미사 — Part.name / 계정 email 의 @unique 충돌(409)이 전역
   // http_req_failed 임계를 오염시키지 않도록 한다 (로컬 반복 실행 포함).
   const stamp = Date.now();
-  const personIds = [];
-  for (let i = 0; i < SEED_PERSONS; i += 1) {
-    const created = http.post(
-      `${BASE_URL}/api/persons`,
-      JSON.stringify({
-        fullName: `부하 대상 ${stamp}-${i}`,
-        email: `load-${stamp}-${i}@example.com`,
-      }),
-      SEED_PARAMS,
-    );
-    personIds.push(created.json("id"));
-  }
+  // (T-1672) 대상 person 을 만들지 않고 **조회** 한다(생성 0) — seed step 이 적재한 인원 중
+  // email 이 devset 도메인으로 끝나는 원소만 골라 표본 상한만큼 취한다. 상한이 조회 결과보다
+  // 많든 적든 slice 한 식이 그대로 처리하므로 분기문 0 규약을 지킨다.
+  const persons = http.get(`${BASE_URL}/api/persons`, SEED_PARAMS);
+  const personIds = persons
+    .json()
+    .filter((row) => `${row.email}`.endsWith(`@${DEVSET_EMAIL_DOMAIN}`))
+    .slice(0, SEED_PERSONS)
+    .map((row) => row.id);
+  // (T-1666 동형) 필터 통과 총 건수와 취한 표본 수를 로그 1 줄로 남긴다 — 슬라이스 이전 건수가
+  // 곧 seed 완전성 신호라 상한에 잘린 경우와 적재 실패(0 건)가 구분된다. 수치만 싣고 email 원문 ·
+  // 자격증명 · 경로는 출력하지 않으며, 조건 없이 매 run 1 회(분기 0).
+  const devsetTotal = persons
+    .json()
+    .filter((row) => `${row.email}`.endsWith(`@${DEVSET_EMAIL_DOMAIN}`)).length;
+  console.log(
+    `[s2-read] devset 표본 취득 ${personIds.length}명 / 필터 통과 ${devsetTotal}건 / 상한 ${SEED_PERSONS}명`,
+  );
   const group = http.post(
     `${BASE_URL}/api/groups`,
     JSON.stringify({ name: `부하 그룹 ${stamp}` }),
@@ -132,14 +149,9 @@ export default function (data) {
 export function teardown(data) {
   // CI 의 DB 는 run 마다 폐기되지만, 로컬 반복 실행에서 데이터가 누적되지 않도록 setup 이
   // 만든 조회 대상 row 를 지운다. 카운트 기반 반복문만 쓰고 조건 분기는 두지 않는다.
+  // person 회수 0 (T-1672) — 그 인원은 seed step 이 적재한 **공유 dataset** 이라 지우면 뒤따르는
+  // S3 step 과 다음 run 이 빈 DB 위에서 돈다. 되돌릴 것은 이 스크립트가 만든 group / part 뿐이다.
   // 예외는 setup 의 계정 row 하나 — 삭제 endpoint 자체가 없어 남긴다 (setup 주석 참조).
-  for (let i = 0; i < data.personIds.length; i += 1) {
-    http.del(
-      `${BASE_URL}/api/persons/${data.personIds[i]}`,
-      null,
-      TEARDOWN_PARAMS,
-    );
-  }
   for (let i = 0; i < data.groupIds.length; i += 1) {
     http.del(
       `${BASE_URL}/api/groups/${data.groupIds[i]}`,
