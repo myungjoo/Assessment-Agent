@@ -4135,3 +4135,245 @@ describe("load-k6.yml S2 · S3 step 의 not-cancelled 게이트 배선 drift smo
     });
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-1682 — s3-concurrent.js 의 persons 행 수 로그 배선 drift. 존재 이유 — `#### S2 2 회차` 는
+// 공유 dataset 보존을 `data_received` 정황으로만, `#### S3 1 회차` 는 자기 정리를 `http_reqs` 배수
+// 로만 추정해야 했다. setup / teardown 의 로그 2 줄이 그 추정을 없애는데, 그 줄이 ① 사라지거나
+// ② iteration 본문으로 새어 로그가 폭증하거나 ③ 민감값 · 경로 리터럴을 싣거나 ④ 분기 0 규약을
+// 깨거나 ⑤ 준비/정리 tag 가 판정 tag 로 합쳐져 p95 를 오염시켜도 상시 CI 는 green 이다(부하 job
+// 은 수동 dispatch 전용). 새 helper 1(routeTagsOf) 외 기존 재사용.
+//      🔥 실 k6 실행 0 · 실 HTTP 0 · DB 의존 0 · 새 dependency 0 — 파일 read + 합성 문자열만.
+
+/** 행 수 로그의 고정 prefix — 다음 사람이 `gh run view --log` 에서 값을 grep 하는 좌표다. */
+const S3_ROW_LOG_PREFIX = "[s3-concurrent] persons 행 수";
+/** 준비/정리 표본 왕복 전용 tag — 판정 tag 2 종(read / write)과 겹치면 안 된다. */
+const S3_PROBE_TAGS = ["seed", "teardown"];
+/** 로그 인자에 실리면 안 되는 토큰 — 자격증명 · cookie · email 원문 계열(민감값 유출 차단). */
+const S3_LOG_FORBIDDEN_TOKENS = [
+  "password",
+  "cookie",
+  "Cookie",
+  "authCookie",
+  "apiKey",
+  "credentials",
+  "email",
+  "stamp",
+];
+/** 행 수 산출 식 — 조회 1 회 → `.json()` → `.length` 단일 chain(중간 변수로 쪼개지면 깨진다). */
+const S3_ROW_COUNT_CHAIN =
+  /http\s*\.get\(`\$\{BASE_URL\}\/api\/persons`,\s*(?:SEED|TEARDOWN)_PARAMS\)\s*\.json\(\)\s*\.length;/;
+
+/**
+ * 스크립트가 선언한 route tag 리터럴 목록(중복 제거 · 선언 순서 보존). `tags: { route: "x" }`
+ * 형태만 센다 — 임계 키의 `{route:x}` 표기는 세지 않는다(집계 tag 와 임계 키의 혼동 차단).
+ * @throws {TypeError} 입력이 non-string 일 때(extractTopLevelBlock 과 동형 fail-fast 계약).
+ */
+function routeTagsOf(script: string): string[] {
+  if (typeof script !== "string") {
+    throw new TypeError("routeTagsOf: script 는 string 이어야 함");
+  }
+  return Array.from(
+    new Set(
+      (script.match(/route: "[a-zA-Z]+"/g) || []).map((m) =>
+        m.slice('route: "'.length, -1),
+      ),
+    ),
+  );
+}
+
+describe("s3-concurrent.js persons 행 수 로그 배선 drift smoke (T-1682)", () => {
+  describe("Happy-path: setup/teardown 각 1 왕복 · 두 수치 · 별도 tag · 주변 무변경", () => {
+    it("① setup·teardown 이 실재하고 각각 GET 1 회 + console.log 1 회로 고정 prefix 를 싣는다", () => {
+      expect(existsSync(path.join(REPO_ROOT, S3_SCRIPT_REL))).toBe(true);
+      const setup = s3Body("export function setup");
+      const teardown = s3Body("export function teardown");
+      [setup, teardown].forEach((block) => {
+        // 왕복은 정확히 1 회 — 표본 조회가 부하 iteration 수를 흉내내지 않는다.
+        // (prettier 가 chain 을 `http\n.get(` 으로 접으므로 공백 허용 매칭으로 센다.)
+        expect(block.match(/http\s*\.get\(/g)).toHaveLength(1);
+        expect(block).toMatch(S3_ROW_COUNT_CHAIN);
+        const args = consoleLogArgsOf(block);
+        expect(args).toHaveLength(1);
+        expect(args[0]).toContain(S3_ROW_LOG_PREFIX);
+        // 인자는 template literal 하나뿐 — 객체 dump 같은 추가 인자를 붙이지 않는다.
+        expect(args[0]).toMatch(/^`[^`]*`,?$/);
+        // 표본 왕복은 읽기 전용 — POST / DELETE 를 늘리지 않는다.
+        expect(block).not.toContain("http.post(");
+        expect(block).not.toContain("http.del(");
+      });
+    });
+
+    it("② teardown 로그가 종료 · 시작 두 수치를 담고 시작값은 setup 반환값으로 넘어온다", () => {
+      const setupBlock = s3Body("export function setup");
+      const setupArg = consoleLogArgsOf(setupBlock)[0];
+      const teardownArg = consoleLogArgsOf(
+        s3Body("export function teardown"),
+      )[0];
+      expect(setupArg).toContain("${startRows}");
+      // 한 줄에 두 수치가 있어야 잔여 판정(종료 − 시작)이 로그만으로 성립한다.
+      expect(teardownArg).toContain("${endRows}");
+      expect(teardownArg).toContain("${data.startRows}");
+      // 시작값 전달 경로 — setup 이 return 하고 teardown 이 파라미터로 받는다.
+      expect(setupBlock).toContain("return { startRows };");
+      expect(s3Script()).toContain("export function teardown(data) {");
+    });
+
+    it("③ 준비/정리 tag 가 판정 tag 2 종과 겹치지 않고 default 본문 · 규약 주석이 무변경이다", () => {
+      const script = s3Script();
+      expect(routeTagsOf(script).sort()).toEqual(
+        ["read", "write", ...S3_PROBE_TAGS].sort(),
+      );
+      S3_PROBE_TAGS.forEach((t) => expect(["read", "write"]).not.toContain(t));
+      // 측정 iteration 본문은 그대로 — 표본 상수도 로그도 새어들지 않았다.
+      const body = s3Body("export default function");
+      ["http.post(", "http.get(", "http.del(", 'created.json("id")'].forEach(
+        (t) => expect(body).toContain(t),
+      );
+      ["SEED_PARAMS", "TEARDOWN_PARAMS", "console.log("].forEach((t) =>
+        expect(body).not.toContain(t),
+      );
+      // 규약 ②·⑤ 문장과 새 항등식 주석이 함께 남는다.
+      expect(script).toContain(
+        "② 한 iteration 이 만든 row 는 같은 iteration 이 지운다",
+      );
+      expect(script).toContain("⑤ 조건 분기 로직 0.");
+      expect(script).toContain("3 × iterations + 2");
+      // stages 총 지속시간 상한도 그대로(표본 왕복은 duration 선언을 늘리지 않는다).
+      expect(
+        stageSeconds(script).reduce((a, b) => a + b, 0),
+      ).toBeLessThanOrEqual(S3_MAX_SEC);
+    });
+  });
+
+  describe("Error path: 정본 부재 · 없는 블록 · 0-byte · non-string", () => {
+    it("① 정본 경로 오탈자 read 와 없는 블록 추출이 조용히 PASS 하지 않는다", () => {
+      expect(() =>
+        readFileSync(path.join(REPO_ROOT, `${S3_SCRIPT_REL}.absent`)),
+      ).toThrow();
+      expect(() => s3Body("export function nonexistent")).toThrow();
+    });
+
+    it("② 빈 입력은 null · 빈 배열이고 non-string 은 TypeError 로 드러난다", () => {
+      expect(extractTopLevelBlock("", "export function setup")).toBeNull();
+      expect(consoleLogArgsOf("")).toEqual([]);
+      expect(routeTagsOf("")).toEqual([]);
+      [undefined, 42, null, {}].forEach((bad) => {
+        expect(() => routeTagsOf(bad as unknown as string)).toThrow(TypeError);
+        expect(() => consoleLogArgsOf(bad as unknown as string)).toThrow(
+          TypeError,
+        );
+      });
+    });
+  });
+
+  describe("flow / 분기 cover: 133 행 · 1 행 · 빈 배열(0 건)", () => {
+    it("① 스크립트와 같은 식 하나가 세 갈래의 로그 수치를 만든다(실 k6 실행 0)", () => {
+      // 스크립트의 산출 식은 `.json().length` 단일 chain — 같은 식을 합성 배열에 적용해 동치 검증.
+      expect(s3Body("export function setup")).toMatch(S3_ROW_COUNT_CHAIN);
+      const logged = (rows: { id: string }[]): number => rows.length;
+      const many = Array.from({ length: 133 }, (_, i) => ({ id: `p${i}` }));
+      expect(logged(many)).toBe(133); // 공유 dataset 보존 — S2 teardown 이 지우지 않았다.
+      expect(logged([{ id: "solo" }])).toBe(1); // 잔여 1 행도 그대로 드러난다.
+      expect(logged([])).toBe(0); // 빈 DB 위 false-PASS 가 0 으로 로그에 드러난다.
+    });
+  });
+
+  describe("negative cases 충분 cover — 중복 · 유출 · 경로 · 분기 · 임계 · tag 합침", () => {
+    it("(1) console.log 총 2 회이고 iteration 본문으로 새면 단언이 깨진다(합성 mutation)", () => {
+      const script = s3Script();
+      expect(consoleLogArgsOf(script)).toHaveLength(2);
+      // iteration 마다 찍혀 로그가 폭증하는 회귀 — 합성본에서 default 본문 로그가 1 회로 잡힌다.
+      const leaked = script.replace(
+        "export default function () {",
+        "export default function () {\n  console.log(`leak`);",
+      );
+      expect(leaked).not.toBe(script);
+      expect(
+        consoleLogArgsOf(
+          (
+            extractTopLevelBlock(leaked, "export default function") as string[]
+          ).join("\n"),
+        ),
+      ).toHaveLength(1);
+      expect(consoleLogArgsOf(s3Body("export default function"))).toEqual([]);
+    });
+
+    it("(2) 로그 인자에 자격증명 · cookie · email 원문 토큰 유입이 0 이다(대조군 동반)", () => {
+      const args = consoleLogArgsOf(s3Script());
+      args.forEach((arg) => {
+        S3_LOG_FORBIDDEN_TOKENS.forEach((t) => expect(arg).not.toContain(t));
+        // email 원문은 `@도메인` 형태로 새므로 그 패턴 자체를 금지한다.
+        expect(arg).not.toMatch(/@[A-Za-z]/);
+      });
+      // 대조군 — 민감값을 실은 변조는 같은 단언에서 즉시 걸린다(단언이 tautology 가 아님).
+      const drifted = `${args[0].slice(0, -1)} credentials.email\``;
+      expect(drifted).toContain("credentials");
+      expect(drifted).toContain("email");
+    });
+
+    it("(3) 로그 문자열에 /api/ 경로 리터럴 유입이 0 이다(route 집합 불변 · 대조군 동반)", () => {
+      const script = s3Script();
+      expect(apiRoutesOf(script)).toEqual(["/api/persons"]);
+      consoleLogArgsOf(script).forEach((arg) =>
+        expect(arg).not.toContain("/api/"),
+      );
+      // 대조군 — 로그에 경로를 실으면 route 집합이 커져 본 단언이 red 가 된다.
+      const drifted = script.replace(
+        S3_ROW_LOG_PREFIX,
+        `${S3_ROW_LOG_PREFIX} /api/persons-rows`,
+      );
+      expect(apiRoutesOf(drifted).length).toBe(apiRoutesOf(script).length + 1);
+    });
+
+    it("(4) 분기 0 규약(T-1625 negative (4))이 로그 배선 후에도 회귀 0 이다(대조군 동반)", () => {
+      const script = s3Script();
+      const banned = ["/api/users", "Authorization", "if (", "} else", " ? "];
+      [...GUARDED_PREFIXES, ...banned, " && "].forEach((t) =>
+        expect(script).not.toContain(t),
+      );
+      // __ENV fallback 1 종만 남는다 — 로그가 `||` 를 늘리지 않았다.
+      expect(script.match(/\|\|/g)).toHaveLength(1);
+      // 대조군 — 로그를 조건부로 감싸는 변조는 분기 토큰 단언을 깨뜨린다.
+      const drifted = script.replace(
+        "  console.log(`[s3-concurrent]",
+        "  if (startRows === 0) console.log(`[s3-concurrent]",
+      );
+      expect(drifted).not.toBe(script);
+      expect(drifted).toContain("if (");
+    });
+
+    it("(5) 임계가 여전히 4 종 · 선언 순서 · 값 그대로다(새 tag 용 임계 추가 0)", () => {
+      const script = s3Script();
+      expect(thresholdKeys(script)).toEqual(S3_THRESHOLD_KEYS);
+      expect(script.match(/p\(95\)<3000/g)).toHaveLength(3);
+      expect(script.match(/rate<0\.01/g)).toHaveLength(1);
+      // 준비/정리 tag 용 임계를 몰래 끼운 합성본은 키 개수 단언이 잡는다(4 → 5).
+      const added = script.replace(
+        '    "http_req_duration{route:write}": ["p(95)<3000"],',
+        '    "http_req_duration{route:write}": ["p(95)<3000"],\n    "http_req_duration{route:seed}": ["p(95)<3000"],',
+      );
+      expect(added).not.toBe(script);
+      expect(thresholdKeys(added)).toHaveLength(S3_THRESHOLD_KEYS.length + 1);
+    });
+
+    it("(6) 준비/정리 tag 가 판정 tag 로 합쳐지는 합성 mutation 에서 단언이 실제로 깨진다", () => {
+      const script = s3Script();
+      const merged = script
+        .split('route: "seed"')
+        .join('route: "read"')
+        .split('route: "teardown"')
+        .join('route: "write"');
+      expect(merged).not.toBe(script);
+      // 합쳐진 합성본에는 준비/정리 tag 가 남지 않아 p95 오염 차단이 무너진 것이 드러난다.
+      S3_PROBE_TAGS.forEach((t) =>
+        expect(routeTagsOf(merged)).not.toContain(t),
+      );
+      expect(routeTagsOf(merged).sort()).toEqual(["read", "write"]);
+      // 원본은 mutate 되지 않는다 — 대조군이 성립한다.
+      expect(routeTagsOf(s3Script()).sort()).toEqual(
+        ["read", "write", ...S3_PROBE_TAGS].sort(),
+      );
+    });
+  });
+});
