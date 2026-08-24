@@ -207,7 +207,9 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
   **0.00%**(0/26 · 0/26 · 0/272 · 0/272 · 0/272) 로 임계를 여유 있게 만족해
   `(baseline 후 fix)` 태그를 해제했다.
 - **S2 · S3 의 `baseline 후 fix` 표기는 무변경**: 두 축은 baseline 실측이 아직 **0 회** 라
-  확정 근거가 없어 본 slice 범위 밖이다(S1 축만 확정).
+  확정 근거가 없어 본 slice 범위 밖이다(S1 축만 확정). S2 축은 T-1674 가 dispatch 를 **1 회**
+  소진했으나 같은 job 의 S1 step 이 먼저 fail 해 S2 step 이 `skipped` 됐으므로 **회수된 수치는
+  여전히 0 개**이며(경위는 아래 `§3.1` 의 `S2 1 회차`), 표기는 그대로 둔다.
 - **각주 — 임계 fix 시점**: 위 표의 "baseline 후 fix" 표기 중 **S1 축은 본 회차(T-1644)로
   fix 완료**다 — 근거는 **실측 5 회분**(run `32459501970` · `32503914467` · `32524618230` ·
   `32533779832` · `32540981922`) 중 표본 133 인 뒤 3 회이며, 그 batch p95 기술통계는 평균
@@ -246,7 +248,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
     pass/fail 판정 임계는 `FULL_RUN_BUDGET_MS`(1h 예산) 그대로다(위 "REQ-047 판정 임계가 아니다"
     서술과 모순 0).
 
-### 3.1 baseline 실측 기록 (S1, 10 회분)
+### 3.1 baseline 실측 기록 (S1 10 회분 · S2 1 회분)
 
 #### 1 회차 (T-1637, run 32459501970)
 
@@ -673,6 +675,66 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
   0** 이며, ① LLM 은 `LOAD_TEST_STUB=1` stub(ADR-0057 `D1`), ③ 단일 iteration 이라 p95 가 곧
   단일 표본값이라는 조건도 3~9 회차 그대로다. 그래서 PLAN `140 행` checkbox 는 `[ ]` 유지다.
 
+#### S2 1 회차 (T-1674, run 32746598803, S2 축 첫 dispatch — S1 leg 게이트 crossed 로 S2 step **skipped**)
+
+- **측정 일시 / run**: 2026-08-24T15:43:34Z dispatch(`workflow_dispatch`, ref `main`, head sha
+  `7788552a`), run id **32746598803**, job 15:43:40Z~15:45:22Z(약 1분 42초). **conclusion
+  `failure`** — step **21 개 중 success 17 · failure 1 · skipped 3** 이다. fail 한 것은 step 12
+  `k6 S1 평가 배치 부하 시나리오 실행`(15:45:18Z~15:45:19Z, k6 exit code **99**)이고, 그 여파로
+  step 14 **`k6 S2 조회 부하 시나리오 실행` 자체가 `skipped`** 됐다 —
+  [`load-k6.yml`](../../.github/workflows/load-k6.yml) `195 행` 의 S2 step 에는 `if: always()` 가
+  없어 앞 step 의 실패가 곧 skip 이다(`always()` 는 `153 행` S1 요약 step 과 `211 행` 정리
+  step 에만 있다). dispatch 는 `-f s1_persons=133` 으로 **정확히 1 회**만 했고 재 dispatch ·
+  재시도는 **0** 이다(7 회차 선례 — fail 이어도 다시 쏘지 않고 원인만 박제).
+- **S2 표본 로그 원문**: **미확보**. `[s2-read] devset 표본 취득 N명 / 필터 통과 M건 / 상한 30명`
+  줄은 run log 전체에서 **0 회** 등장한다 — S2 step 이 실행되지 않았기 때문이지 T-1672 가
+  [`s2-read.js`](../../test/load/s2-read.js) `89~97 행` 에 심은 로그 배선의 결함 때문이 아니다.
+  따라서 `N` · `M` · 상한 `30` 의 관계 판정과 설계 ③(상한 의미 재정의)의 실 run 실증은 **본
+  회차로는 불가**하고 다음 dispatch 로 이월된다. 다만 같은 job 의 S1 leg 가 같은 devset 을 조회해
+  `time="2026-08-24T15:45:18Z" level=info msg="[s1-batch] devset 표본 취득 133명 / 요청 133명"
+  source=console` 을 남겼으므로, **DB 에 devset 133 명이 조회 가능한 상태로 있었다**는 사실까지는
+  확인된다(S2 가 돌았다면 `M` 이 133 이었을 개연성의 간접 근거일 뿐, 실측을 대체하지 않는다).
+- **seed step 결과(T-1664 fix 재현성 4 회차)**: `133 로그인 실 dataset seed 적재`
+  step(15:45:14Z~15:45:17Z, 약 3 초) **success**. 로그 원문(자격증명 제외):
+  `devset seed 완료 — person 133 건 / serviceIdentity 133 건 적재`. 건수 · 문구가 8~10 회차와
+  **완전히 동일**하므로 T-1664(PR #1330 → main `61f616a1`) fix 는 **연속 4 회 성공**이고,
+  7 회차를 죽인 ``Argument `person` is missing.`` 은 재현되지 않았다. 즉 본 회차의 실패는 seed
+  축이 아니라 **S1 임계 축**에서 났다.
+- **k6 THRESHOLDS 원문**: S2 임계는 로그에 **0 종** 등장한다(요구된 6 종 중 하나도 없다) — step
+  이 skip 이라 k6 가 기동조차 하지 않았다. 6 종(전역 `http_req_duration p(95)<3000` ·
+  `http_req_failed rate<0.01` · route 별 `persons` · `groups` · `parts` · `me` 각 `p(95)<3000`)이
+  [`s2-read.js`](../../test/load/s2-read.js) `62~72 행` 에 그대로 있다는 것은 코드로 확인되나,
+  각각의 `✓` / `✗` 판정은 실 run 이 없어 **전부 미확보**다. 개수가 6 이 아니라 0 인 이유가
+  스크립트 결함이 아니라 step skip 이라는 사실을 그대로 적는다.
+- **수치**: route 별 p95(`persons` · `groups` · `parts` · `me`) · 전역 p50 / p95 / p99 ·
+  `http_req_failed` · `http_reqs` · `iteration_duration` 이 **전부 미확보**다. 추정 · 재계산 ·
+  다른 회차 값 전용으로 칸을 채우지 않는다(추정치 0 규약).
+- **공유 dataset 보존 계약의 실 run 검증**: 뒤따르는 `k6 S3 동시 요청 내성 시나리오 실행`
+  step(step 15) 도 같은 이유로 **`skipped`** 라, 설계 ②(teardown 의 person DELETE 제거)가 후속
+  step 을 빈 DB 위에 놓지 않는지는 **검증되지 않았다**. 다만 S2 teardown 이 아예 돌지 않아
+  dataset 을 **깎을 기회도 없었으므로**, 보존 계약이 깨진 **증거도 0** 이다 — 무증거이지 반증이
+  아니며, 이 검증도 다음 dispatch 로 이월된다.
+- **환경 메타(로그로 회수됨)**: 커널 `Linux 6.17.0-1022-azure`, 아키텍처 `x86_64`, vCPU **4**,
+  메모리 **15Gi**, DB image `postgres:16-alpine`, 부하 대상 image `assessment-agent:load`,
+  표본 인원 `K6_S1_PERSONS=133`. **7 항목이 3~10 회차와 전부 동일**하므로 같은 job · 같은
+  인스턴스 · 같은 DB 조건이 유지됐고, `s1_persons` input 주입도 **아홉 번째로 성공**(default
+  `10` 낙하 없음)이다.
+- **`§3` 표 S2 축 무변경 판정**: 회수된 표본이 **0 개**라 재확정 근거 자체가 없다. p95 `< 3s` ·
+  p50 / throughput `baseline 후 fix` · error rate `< 1%` 는 한 글자도 고치지 않았다. 설령 본
+  회차가 성공했더라도 **표본 1 회로는 재확정 근거가 되지 않는다** — S1 축이 T-1668 의 규칙 사전
+  박제 → T-1669 의 기계 적용이라는 2 단계를 거친 선례를 S2 도 그대로 따를 일이다.
+- **의미 / 한계**: (a) 본 회차가 실증하려던 설계 ③ (b) 전제 — 부하를 만드는 것은
+  `GET /api/persons` 응답 **행 수(devset 전량)** 이고 표본 상한 `30` 은 `setup()` 이 메모리에
+  남기는 id 배열 길이일 뿐이라는 것 — 는 **여전히 미실증**이라, 상한 상향(30 → 133) 판단의
+  근거도 아직 없다(설계 ③ 의 "첫 실측 이후 별도 판단" 조건 미충족). (b) LLM stub(ADR-0057 `D1`)
+  · 실 수집 왕복 **0** 조건은 S2 축에도 그대로 걸리므로, 다음 dispatch 가 성공해도 얻는 것은
+  *stub 조건의* 조회 지연이다. (c) **본 회차의 최대 소득은 S1 축 쪽에 있다** — S1 leg 의
+  `p(95)<900` 이 실 run 에서 처음 `✗`(p95 **967.52ms**)로 crossed 돼, 10 회차가 적용한 T-1668
+  재확정 규칙 **①-(a) 트리거가 처음 충족**됐다. 다만 S1 leg 수치 회수 · 11 회차 소절 · 규칙
+  재적용은 본 slice 의 **Out of Scope** 라 여기서는 run id **32746598803** 만 남긴다(재 dispatch
+  **0** 으로 같은 로그에서 회수 가능). (d) 두 축은 엮여 있다 — **S1 step 이 fail 하는 한 S2 step
+  은 계속 skip** 되므로, 다음 S2 dispatch 는 S1 게이트 처리(재확정 또는 fix) 뒤여야 의미가 있다.
+
 ---
 
 ## 4. 접근 방식·도구 후보
@@ -808,6 +870,15 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    ⑥ 의 세 번째 task 소관)라 이 교체는 잔여 ①(실 수집 왕복) 의 해소 근거가 아니다(잔여
    개수 **1 개** 그대로이며 ② · ③ 표기도 무변경). 이 문단 갱신과 아래 설계 ⑥ 의
    집행 pointer append 가 곧 split 의 **2 번(direct 문서 반영, T-1673)** 이다.
+   **그 세 번째 task(T-1674)가 dispatch 1 회를 소진했으나 S2 수치는 여전히 0 개다.**
+   run **32746598803**(2026-08-24T15:43:34Z dispatch, head sha `7788552a`, `-f s1_persons=133`,
+   **1 회 한정** · 재 dispatch 0)은 conclusion **`failure`** 로 끝났다 — S1 leg 의 stub 조건
+   관찰용 게이트 `p(95)<900` 이 실 run 에서 처음 `✗`(p95 **967.52ms**)로 crossed 돼 k6 가 exit
+   **99** 를 냈고, S2 step 에 `if: always()` 가 없어 `k6 S2 조회 부하 시나리오 실행` 과 S3 step 이
+   **`skipped`** 됐다(경위 · 원문 인용은 위 `§3.1` 의 `S2 1 회차`). 따라서 **잔여 ① 은 미해소
+   유지**이고 잔여 개수도 **1 개** 그대로이며 ② · ③ 표기도 무변경이다 — 확인된 것은 seed step 의
+   **연속 4 회 성공**과 devset 133 명이 조회 가능한 상태였다는 사실뿐이고, 실 수집 왕복은 S2
+   축에서도 **0** 이다.
    ② **반복 run 기반 임계 fix** 는
    **해소 — 임계 확정 완료(T-1644)**. 실 scale 축(표본 133)의 같은 조건 표본이 T-1643 run
    `32540981922` 로 **3 개**가 됐고(3·4·5 회차 760.91ms → 730.81ms → 711.23ms), 그 batch p95
