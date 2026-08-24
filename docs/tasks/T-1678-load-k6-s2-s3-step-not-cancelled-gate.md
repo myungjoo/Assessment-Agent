@@ -2,7 +2,7 @@
 id: T-1678
 title: load-k6.yml S2 · S3 step 을 앞 leg 실패에도 실행되게 배선 (`if: ${{ !cancelled() }}` + drift guard)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 150
@@ -63,4 +63,13 @@ S2 축 첫 dispatch([T-1674](T-1674-load-k6-s2-first-measurement.md), run `32746
 
 ## Follow-ups
 
-- (작성 시 비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 append)
+- **S2 · S3 실 dispatch 회차 기록** — 본 배선이 머지됐으므로 `gh workflow run load-k6.yml` 을 다시 쏘면 S1 leg 가 red 여도 S2 · S3 수치가 남는다. 그 run 로그를 [load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) `§3.1` 에 회차 소절로 기록하는 slice (T-1674 ① 선례 — 새 dispatch 1 회 + 로그 재독해).
+- **문서 반영 `direct` slice** — 같은 문서 `817 행` 의 "S1 step 이 fail 하는 한 S2 step 은 계속 skip" 서술이 본 배선으로 무효화됐다. 해당 서술 + `§5` 진척 pointer 를 `direct` doc-only 로 동기.
+- **컨테이너 기동 step 실패 게이트(`steps.<id>.outcome`)** — Out of Scope 로 남긴 정교한 조건식. 현재는 기동 실패 시 S2 · S3 가 실행돼 즉시 실패하는 낭비(~1 분대)를 허용한다. 필요해지면 step `id` 신설과 함께 별도 slice.
+
+## 완료 결과 (2026-08-25)
+
+- **DONE (pr, PR #1335 → main `8af5b06d`)** — `.github/workflows/load-k6.yml` S2 · S3 실행 step 에 `if: ${{ !cancelled() }}` + 사유 주석만 추가(`+7`). name · env · run · step 순서와 S1 실행/요약 · seed · 정리 step · 트리거 · `workflow_dispatch` inputs 는 문자 단위 무변경, 임계 숫자 0 변경.
+- drift-guard smoke([load-workflow-k6-harness-wiring-drift.smoke-spec.ts](../../test/smoke/load-workflow-k6-harness-wiring-drift.smoke-spec.ts))에 `T-1678` describe 12 test 추가(`+241`, 새 helper 0 — 기존 `extractStepBlock` / `extractKey` 재사용). negative 5 종(게이트 우회 · 실패 은닉 · `always()` 오용 · mutation · CI 유입) 각 1+ cover.
+- lint 무경고 · build 성공 · unit 453 suite / 13,009 test pass · 대상 smoke 241 pass · `test:cov` 임계 통과(`src/` 변경 0 이라 전역 수치 불변).
+- reviewer APPROVE round 1/7, 4-게이트 PASS(reviewer comment 외부 존재 · PR CI green · integrator 자체 점검), squash 머지 + branch delete.
