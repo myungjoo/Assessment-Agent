@@ -2,6 +2,8 @@
 // R-112 cover: happy(평탄화 순차 · args 동일 참조 · 키 map · T-1652+T-0575 통합) / error
 // (client 결손 4 · 결과 결손 6 · rejection fail-fast) / 분기(빈 배열 · identity 0 · 2+ ·
 // 혼재) / negative(비-배열 · 구조 결손 · 빈 값 · placeholder 잔존 · 키 중복 · Map 무공유).
+// T-1670 추가 cover: create.personId 가드(구조 결손 · 값 결손 · placeholder 잔존 · where 축
+// 불일치 · 뒤쪽 원소 결손 시 선행 원소도 미적재).
 // 지역 mock client(T-1653 선례 — `prisma-mock` 은 `upsert` 미제공).
 import {
   upsertDevsetSeedServiceIdentities as upsertIdentities,
@@ -27,11 +29,16 @@ function mock(impl: Impl = (a) => ({ id: `id::${key(a)}` })) {
   };
   return { client: { serviceIdentity: { upsert } }, calls };
 }
-// 최소 fixture — 본 runner 는 where.personId_service 만 읽는다.
+// 최소 fixture — where.personId_service 와 create.personId(T-1664 배선 결과) 를 담는다.
 const ident = (personId: string, service: string) =>
   ({
     where: { personId_service: { personId, service } },
-    create: { service, externalId: `ext-${service}`, isPrimary: true },
+    create: {
+      service,
+      externalId: `ext-${service}`,
+      isPrimary: true,
+      personId,
+    },
     update: { isPrimary: true },
   }) as ServiceIdentityUpsertArgs;
 const person = (personId: string, ...services: string[]) =>
@@ -45,6 +52,14 @@ const run = (client: unknown, list: unknown) =>
 const withId = (i: unknown) => [{ identityUpsertsByEmail: [i] }];
 const cmp = (personId: unknown, service: unknown) =>
   withId({ where: { personId_service: { personId, service } } });
+// create 축 조합기(T-1670) — where 는 정상 실값("p"/"gh") 고정, create 슬롯만 바꾼다.
+const withCreate = (create: unknown) =>
+  withId({
+    where: { personId_service: { personId: "p", service: "gh" } },
+    create,
+  });
+const cr = (personId: unknown) =>
+  withCreate({ service: "gh", externalId: "e-gh", isPrimary: true, personId });
 describe("upsertDevsetSeedServiceIdentities — happy path", () => {
   it("평탄화 순서대로 호출하고 args 를 그대로 넘겨 키 map 을 맺는다", async () => {
     const { client, calls } = mock((_a, i) => ({ id: `i-${i}` }));
@@ -170,5 +185,112 @@ describe("upsertDevsetSeedServiceIdentities — negative cases", () => {
     expect(second).not.toBe(first);
     expect(second.get("p::gh")).toBe("id::p::gh");
     expect(second.has("ghost::x")).toBe(false);
+  });
+});
+describe("upsertDevsetSeedServiceIdentities — create.personId 가드(T-1670)", () => {
+  it("create.personId 가 where 와 같은 실값이면 기존 동작이 무변경이다", async () => {
+    const { client, calls } = mock();
+    const list = [person("p1", "github", "jira")];
+    const flat = list.flatMap((a) => a.identityUpsertsByEmail);
+    const map = await upsertIdentities(client, list);
+    expect(calls).toEqual(flat);
+    expect(calls[0]).toBe(flat[0]); // args 무변형 — 동일 참조
+    expect(Object.keys(calls[0])).toEqual(["where", "create", "update"]);
+    expect(calls.map((a) => a.create.personId)).toEqual(["p1", "p1"]);
+    expect([...map]).toEqual([
+      ["p1::github", "id::p1::github"],
+      ["p1::jira", "id::p1::jira"],
+    ]);
+  });
+  it.each([
+    [
+      "결손",
+      withCreate(undefined),
+      TypeError,
+      /\[0\]\.create 가 객체 아님 \(undefined\)/,
+    ],
+    ["null", withCreate(null), TypeError, /\.create 가 객체 아님 \(null\)/],
+    ["문자열", withCreate("nope"), TypeError, /\.create 가 객체 아님 \(nope\)/],
+  ])(
+    "create 가 %s 이면 TypeError + client 호출 0",
+    async (_l, list, ctor, re) => {
+      const { client, calls } = mock();
+      await expect(run(client, list)).rejects.toThrow(ctor as never);
+      await expect(run(client, list)).rejects.toThrow(re);
+      expect(calls).toHaveLength(0); // 첫 upsert 이전 차단 — 부분 적재 0
+    },
+  );
+  it.each([
+    [
+      "결손(undefined)",
+      cr(undefined),
+      /create\.personId 결손 — upsertArgsList\[0\]\.identityUpsertsByEmail\[0\] \(gh, undefined\)\. T-1664/,
+    ],
+    ["빈 문자열", cr(""), /create\.personId 결손 — .+ \(gh, \)/],
+    ["공백뿐", cr("   "), /create\.personId 결손 — .+ \(gh, {4}\)/],
+    ["숫자", cr(7), /create\.personId 결손 — .+ \(gh, 7\)/],
+    ["null", cr(null), /create\.personId 결손 — .+ \(gh, null\)/],
+    [
+      "placeholder 잔존",
+      cr(PERSON_ID_PLACEHOLDER),
+      /create\.personId placeholder 미치환 — .+ \(gh\)\. T-1664/,
+    ],
+    [
+      "where 와 대소문자만 다름",
+      cr("P"),
+      /create\.personId 불일치 — .+ \(gh\): where "p" vs create "P"\. T-1664/,
+    ],
+    [
+      "where 와 전혀 다른 실값",
+      cr("other"),
+      /create\.personId 불일치 — .+ where "p" vs create "other"/,
+    ],
+  ])(
+    "create.personId 가 %s 이면 RangeError + client 호출 0",
+    async (_l, list, re) => {
+      const { client, calls } = mock();
+      await expect(run(client, list)).rejects.toThrow(RangeError);
+      await expect(run(client, list)).rejects.toThrow(re);
+      expect(calls).toHaveLength(0);
+    },
+  );
+  it.each([
+    ["placeholder 를 접두로 포함하는 실값", `${PERSON_ID_PLACEHOLDER}-1`],
+    ["구분자 섞인 실값", "p::1"],
+  ])(
+    "create.personId 가 %s 이면 통과한다(정확 일치만 차단)",
+    async (_l, pid) => {
+      const { client, calls } = mock(() => ({ id: "ok" }));
+      const map = await run(client, [
+        {
+          identityUpsertsByEmail: [
+            {
+              where: { personId_service: { personId: pid, service: "gh" } },
+              create: {
+                service: "gh",
+                externalId: "e-gh",
+                isPrimary: true,
+                personId: pid,
+              },
+              update: { isPrimary: true },
+            },
+          ],
+        },
+      ]);
+      expect(calls).toHaveLength(1);
+      expect([...map]).toEqual([[`${pid}::gh`, "ok"]]);
+    },
+  );
+  it("결손 원소가 뒤쪽이어도 선행 원소를 upsert 하지 않는다(부분 적재 0)", async () => {
+    const { client, calls } = mock();
+    const late = ident("p2", "jira") as unknown as {
+      create: { personId?: string };
+    };
+    delete late.create.personId;
+    const list = [person("p1", "github"), { identityUpsertsByEmail: [late] }];
+    await expect(run(client, list)).rejects.toThrow(
+      /create\.personId 결손 — upsertArgsList\[1\]\.identityUpsertsByEmail\[0\] \(jira/,
+    );
+    expect(calls).toHaveLength(0);
   });
 });
