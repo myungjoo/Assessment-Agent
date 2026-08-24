@@ -2,7 +2,7 @@
 id: T-1669
 title: S1 부하 10 회차 실측 + T-1668 재확정 규칙 첫 기계 적용
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 estimatedDiff: 70
@@ -68,3 +68,12 @@ plannerNote: P5 R-91 chain 50/N — T-1668 이 사전 박제한 재확정 규칙
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-24T05:50Z DONE)
+
+- main direct commit `0a6f0a08` — 2 파일 `+57/-2`(`docs/ops/load-resilience-test-plan.md` · `docs/PLAN.md`).
+- **dispatch 는 정확히 1 회** — run **32690756666**(`workflow_dispatch`, ref `main`, head sha `cd411817`, 04:38:21Z, job 약 2분 22초, conclusion **success**, step 21 개 전부 success · skipped 0). 직전 fire(`cron@AKIHA-cd4118171082`)가 이 dispatch 를 수행한 뒤 로그 회수·박제 전에 죽어 claim 이 60분 TTL 초과 orphan 으로 남았고, 본 fire 가 회수·재 claim 해 **재 dispatch 0 으로 로그만 회수**해 마무리했다(AC "재 dispatch·재시도 0" 준수).
+- `§3.1` 에 `#### 10 회차` 소절 신설 — 측정 일시/run · 표본 로그 원문(`devset 표본 취득 133명 / 요청 133명` → `N == M == 133` 일치, T-1666 배선 **연속 2 회** 회수) · seed step 결과(T-1664 fix **연속 3 회** 성공) · THRESHOLDS 원문(`p(95)<3600000` · `p(95)<900` 2 개 모두 `✓`) · 수치(batch p95 **743.96ms** · `http_req_failed` 0% · `http_reqs` **7** 유지 · `iteration_duration` 745.12ms) · 환경 메타 7 항목 3~9 회차와 전부 동일. `§3.1` 헤더 `(S1, 9 회분)` → `(S1, 10 회분)`.
+- **T-1668 재확정 규칙 첫 기계 적용 — 임계 무변경**: 실 scale(133) 회차 전량 7 개(760.91 · 730.81 · 711.23 · 792.27 · 757.65 · 824.71 · 743.96) 를 outlier 제거 0 · 표본 10 회차 혼합 0 으로 대입 → 평균 **760.22ms** · 표본표준편차 **38.13ms** · **평균+3σ = 874.60ms** · 100ms 올림 후 **900ms**(현 임계와 동일). 트리거 ①-(a) 미충족(실 run `p(95)<900` 이 `✓`) · ①-(b) 미충족(874.60 < 900) → 규칙 ④ 의 2 task split **불요**, 하향도 하지 않음(규칙 ③). 평균+3σ 여유는 9 회차 14.01ms → **25.40ms** 로 넓어졌다(σ 41.02 → 38.13).
+- **코드 · 워크플로 · spec · 임계 상수 변경 0** — `s1-batch.js` `STUB_BASELINE_P95_MS` · smoke spec `S1_STUB_BASELINE_P95_MS` · `load-k6.yml` 모두 무변경. `docs/PLAN.md` `141 행` 꼬리만 append 하고 `140 행` checkbox 는 `[ ]` 유지(LLM stub · 실 수집 왕복 0 · 단일 iteration 조건 그대로).
+- 검증: `pnpm test` 452/453 suite pass(12949 test, fail 0 — `summary-batch` 1 건은 worker SIGTERM 환경 이슈로 단독 재실행 45 pass), 대상 2 spec(`load-workflow-k6-harness-wiring-drift` · `realdata-devset-logins-doc-consistency`) 통과, `pnpm lint` · `pnpm build` exit 0. 정식 검증은 main CI run `32695026265`.
