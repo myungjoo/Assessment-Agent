@@ -2,7 +2,9 @@
 id: T-1672
 title: S2 조회 부하의 person leg 를 실 devset 조회로 교체하고 drift-guard 단언을 같은 commit 에서 갱신
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 1333
+completedAt: 2026-08-24T14:14:41Z
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 180
