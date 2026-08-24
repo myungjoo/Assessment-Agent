@@ -2,7 +2,7 @@
 id: T-1675
 title: 같은 run 로그에서 S1 11 회차 회수 + T-1668 재확정 규칙 ①-(a) 첫 트리거 기계 산정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 estimatedDiff: 110
@@ -13,6 +13,7 @@ touchesFiles:
   - docs/ops/load-resilience-test-plan.md
   - docs/PLAN.md
 created: 2026-08-25
+completedAt: 2026-08-24T16:55:00Z
 plannerNote: P5 R-91 chain 56/N — T-1674 Follow-up 1+2 (재 dispatch 0 으로 S1 11 회차 회수 + 규칙 ② 산정, 임계·코드 변경 0)
 ---
 
@@ -73,4 +74,19 @@ plannerNote: P5 R-91 chain 56/N — T-1674 Follow-up 1+2 (재 dispatch 0 으로 
 
 ## Follow-ups
 
-(생성 시 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- **코드 `pr` slice (규칙 ④ split 앞단)** — `test/load/s1-batch.js` 의 `STUB_BASELINE_P95_MS` `900` → `1100` 갱신 +
+  `test/smoke/load-workflow-k6-harness-wiring-drift.smoke-spec.ts` 의 `S1_STUB_BASELINE_P95_MS` · mutation 대조군을
+  **같은 commit** 에서 동기(drift guard 가 두 값을 대조하므로 분리 불가).
+- **문서 `direct` slice (규칙 ④ split 뒷단)** — `§3` 임계 표 · 각주 · T-1668 규칙 소절(`222~249 행`) · `§5` item 5 의
+  수치를 `1100ms` 로 갱신. 규칙 ② 말미의 "본 규칙 소절에도 함께 박제" 는 이 slice 에서 발효한다.
+- **S2 재 dispatch 는 위 두 slice 이후로** — `.github/workflows/load-k6.yml` `195 행` S2 step 에 `if: always()` 가
+  없어 S1 게이트가 red 인 동안 S2 · S3 는 계속 skip 된다(T-1674 Follow-up ③ 승계).
+
+## Result (DONE)
+
+- 완료 2026-08-24T16:55Z, direct commit `02f7076c` (2 파일 `+77/-4`), main CI run `32753306037`.
+- **새 dispatch 0** — 기존 run `32746598803` 로그 재독만으로 S1 11 회차 회수. `§3.1` 에 `#### 11 회차` 소절 신설,
+  헤더 `(S1 11 회분 · S2 1 회분)`, `S2 1 회차` (c) pointer 1 줄, `§5` item 5 · `PLAN.md` `141 행` append.
+- **규칙 ①-(a) 첫 트리거 기계 산정**: 실 scale 8 회차 표본 전량 · outlier 제거 0 · 평균 + 3σ = `1030.18ms`
+  → 100ms 올림 **`1100ms`**. 본 slice 는 대입 결과만 박제하고 **임계 숫자 · 코드 · spec · 워크플로는 0 변경** —
+  실제 갱신은 규칙 ④ 가 못 박은 2 task split(위 Follow-ups)에서 집행한다.
