@@ -2,7 +2,7 @@
 id: T-1677
 title: S1 stub baseline 임계 900ms → 1100ms 문서 동기 (규칙 ④ split 뒷단, 부하계획 §3 · 규칙 소절 · §5)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 estimatedDiff: 45
@@ -12,6 +12,8 @@ dependsOn: [T-1676]
 touchesFiles:
   - docs/ops/load-resilience-test-plan.md
 created: 2026-08-25
+completedAt: 2026-08-24T18:52:00Z
+resultCommit: 24b2d3f5
 plannerNote: P5 R-91 chain 58/N — T-1676 Follow-up ① (규칙 ④ split 뒷단 문서 direct, 코드는 이미 main ebe6d8f8 에 1100 박제)
 ---
 
@@ -64,3 +66,11 @@ plannerNote: P5 R-91 chain 58/N — T-1676 Follow-up ① (규칙 ④ split 뒷�
 ## Follow-ups
 
 - (승계) `.github/workflows/load-k6.yml` `195 행` 근처 S2 step 에 `if: always()` 부재 → S1 게이트 red 시 S2 · S3 가 `skipped` 되어 dispatch 1 회가 통째로 소진된다. T-1674 Follow-up ③ → T-1676 Follow-up ② 승계, `pr` slice 필요.
+
+## 결과 (2026-08-24T18:52:00Z, direct)
+
+main direct commit `24b2d3f5` (1 파일 `+32/-17`). 부하계획의 **규범 서술** 만 `900ms` → `1100ms` 로 동기했다 — `§3` 임계 표 row(`177 행` 부근) · 도출식 각주(산정 4 종 재적용: 실 scale 표본 8 개 · 평균 786.13ms · 표본표준편차 81.35ms · 평균+3σ 1030.18ms → 100ms 올림 1100ms) · 성격 구분 각주(`STUB_BASELINE_P95_MS = 1100` · `p(95)<1100`) · 임계 fix 시점 각주 · T-1668 규칙 소절 ①-(a)/④ 집행 완료 pointer · `§5` item 5 + 그 꼬리 pointer. T-1644 의 원 도출(3 표본 · 809.38ms → 900ms)은 **이력으로 분리 보존**했다.
+
+`§3.1` 회차 기록(구 `251~807 행`)은 **한 글자도 변경 0** — diff hunk 가 `177 / 188 / 218 / 244 / 862 / 1715` 로 해당 범위를 전혀 건드리지 않는다(규칙 ③ · §12 소급 치환 금지 준수). 잔존 `900` 43 줄은 전부 이력 분류(`§3.1` 회차 기록 30 · T-1644/T-1645/T-1647/11 회차 이력 서술 13)이고 **규범 서술에는 0 개**. `1100` 은 17 곳.
+
+코드는 무변경 — T-1676(PR #1334 → main `ebe6d8f8`)이 `test/load/s1-batch.js` 상수와 drift guard smoke 를 이미 `1100` 으로 박제해뒀고, 본 slice 는 그 값과 문서를 대조만 했다. doc-only 라 R-110 면제(§3.2), 확인용 `pnpm lint` 무경고. main CI run `32764422612` conclusion=**success**(job 2 종 모두 green, R-114 종료 전 검증 완료).
