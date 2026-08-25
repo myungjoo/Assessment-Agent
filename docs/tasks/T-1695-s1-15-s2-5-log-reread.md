@@ -2,7 +2,7 @@
 id: T-1695
 title: 같은 run 재독으로 S1 15 회차 · S2 5 회차 실측 회수 + T-1668 규칙 기계 재계수
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047, REQ-048]
 independentStream: load-k6-baseline-record
