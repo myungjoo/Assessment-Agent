@@ -4215,7 +4215,9 @@ describe("s3-concurrent.js persons 행 수 로그 배선 drift smoke (T-1682)", 
       expect(teardownArg).toContain("${endRows}");
       expect(teardownArg).toContain("${data.startRows}");
       // 시작값 전달 경로 — setup 이 return 하고 teardown 이 파라미터로 받는다.
-      expect(setupBlock).toContain("return { startRows };");
+      expect(setupBlock).toContain(
+        "return { startRows, startedAt: Date.now() };",
+      );
       expect(s3Script()).toContain("export function teardown(data) {");
     });
 
@@ -4285,8 +4287,8 @@ describe("s3-concurrent.js persons 행 수 로그 배선 drift smoke (T-1682)", 
       expect(consoleLogArgsOf(script)).toHaveLength(2);
       // iteration 마다 찍혀 로그가 폭증하는 회귀 — 합성본에서 default 본문 로그가 1 회로 잡힌다.
       const leaked = script.replace(
-        "export default function () {",
-        "export default function () {\n  console.log(`leak`);",
+        "export default function (data) {",
+        "export default function (data) {\n  console.log(`leak`);",
       );
       expect(leaked).not.toBe(script);
       expect(
@@ -4558,6 +4560,229 @@ describe("부하 스크립트 3 종 summaryTrendStats p(99) 배선 drift smoke (
         expect(triggers).not.toContain(t),
       );
       expect(triggers).toContain("workflow_dispatch:");
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-1689 — s3-concurrent.js 단계 식별 tag key 배선 drift. 존재 이유 — 계획 §3 설계 조항 ③ 이
+// 굳힌 "판정 tag 를 늘리지 않고 새 tag key 1 개만 추가" 가 ① key 자체가 사라지거나 ② 단계 값이
+// stages 3 단과 어긋나거나 ③ 단계 값이 route 축에 섞여 판정 sub-metric 표본이 쪼개지거나
+// ④ 관찰 전용이어야 할 축이 임계로 굳거나 ⑤ 값 산출에 조건 분기가 스며들어도(머리 주석 규약 ⑤)
+// 상시 CI 는 green 이다(부하 job 은 workflow_dispatch 전용). 새 helper 2 개 + 기존 재사용.
+//      🔥 실 k6 실행 0 · 실 HTTP 0 · DB 의존 0 · 새 dependency 0 — 파일 read + 합성 문자열만.
+
+/** 단계 식별 전용 tag key 정본 — route 축과 직교한 새 key 하나(조항 ③). */
+const S3_STAGE_TAG_KEY = "stage";
+/** options.stages 3 단과 1:1 대응하는 단계 값 3 종(선언 순서 그대로). */
+const S3_STAGE_TAG_VALUES = ["1", "2", "3"];
+/** route 값 집합 정본 — 여기에 단계 값이 섞이면 판정 표본이 단계 수만큼 쪼개진다. */
+const S3_ROUTE_TAG_VALUES = ["read", "write", "seed", "teardown"];
+
+/**
+ * (T-1689) 스크립트가 선언한 `STAGE_TAG_VALUES` 원소 목록(선언 순서 보존).
+ * 선언이 없으면 `null`(미발견 정규형 — 추측 0 · throw 0), non-string 입력은 `TypeError`.
+ * 따옴표 종류(`"` / `'`)와 한 줄 / 여러 줄 배치가 달라도 같은 정규형을 낸다.
+ */
+function stageTagValuesOf(script: string): string[] | null {
+  if (typeof script !== "string") {
+    throw new TypeError("stageTagValuesOf: script 는 string 이어야 함");
+  }
+  const matched = script.match(/STAGE_TAG_VALUES\s*=\s*\[([^\]]*)\]/);
+  if (matched === null) {
+    return null;
+  }
+  return (matched[1].match(/"[^"]*"|'[^']*'/g) || []).map((raw) =>
+    raw.slice(1, -1),
+  );
+}
+
+/** (T-1689) `STAGE_TAG_KEY` 선언 값 — 부재면 `null`(추측 0), non-string 은 `TypeError`. */
+function stageTagKeyOf(script: string): string | null {
+  if (typeof script !== "string") {
+    throw new TypeError("stageTagKeyOf: script 는 string 이어야 함");
+  }
+  const matched = script.match(/STAGE_TAG_KEY\s*=\s*("[^"]*"|'[^']*')/);
+  return matched === null ? null : matched[1].slice(1, -1);
+}
+
+describe("s3-concurrent.js 단계 식별 tag key 배선 drift smoke (T-1689)", () => {
+  describe("Happy-path: key 1 개 · 값 3 종 · route 축 불변 · 판정면 0 변경", () => {
+    it("① stage tag key 가 실재하고 ② 값이 1·2·3 3 종이며 tags 객체에 실제로 배선된다", () => {
+      const script = s3Script();
+      expect(stageTagKeyOf(script)).toBe(S3_STAGE_TAG_KEY);
+      expect(stageTagValuesOf(script)).toEqual(S3_STAGE_TAG_VALUES);
+      // 선언만 있고 배선이 없으면 축이 생기지 않는다 — 요청 params 병합 경로까지 확인한다.
+      expect(script).toContain("[STAGE_TAG_KEY]:");
+      ["WRITE_PARAMS", "READ_PARAMS", "DELETE_PARAMS"].forEach((params) =>
+        expect(script).toContain(`withStage(${params}, data.startedAt)`),
+      );
+    });
+
+    it("③ route tag 값 집합이 기존 4 종 그대로이고 단계 값이 섞이지 않았다", () => {
+      const script = s3Script();
+      expect(routeTagsOf(script).sort()).toEqual(
+        [...S3_ROUTE_TAG_VALUES].sort(),
+      );
+      routeTagsOf(script).forEach((value) =>
+        S3_STAGE_TAG_VALUES.forEach((stage) =>
+          expect(value).not.toContain(stage),
+        ),
+      );
+      // 준비/정리 왕복은 단계 축 밖이다 — stages 가 도는 구간이 아니기 때문.
+      expect(s3Body("export function setup")).not.toContain("withStage(");
+      expect(s3Body("export function teardown")).not.toContain("withStage(");
+    });
+
+    it("④ 판정면이 문자 단위 0 변경이다(임계 4 종 순서 · 숫자 · p(99) 열 그대로)", () => {
+      const script = s3Script();
+      expect(thresholdKeys(script)).toEqual(S3_THRESHOLD_KEYS);
+      expect(script.match(/p\(95\)<3000/g)).toHaveLength(3);
+      expect(script.match(/rate<0\.01/g)).toHaveLength(1);
+      expect(trendStatsIntact(script)).toBe(true);
+      // 새 tag 용 임계는 0 — 단계 축은 관찰 전용이다(조항 ②).
+      thresholdKeys(script).forEach((key) =>
+        expect(key).not.toContain(`{${S3_STAGE_TAG_KEY}:`),
+      );
+      expect(
+        stageSeconds(script).reduce((a, b) => a + b, 0),
+      ).toBeLessThanOrEqual(S3_MAX_SEC);
+    });
+
+    it("단계 값 3 종이 stages 3 단 · 단 폭과 1:1 대응하고 기존 로그 2 줄은 회귀 0 이다", () => {
+      const script = s3Script();
+      expect(stageTargets(script)).toHaveLength(S3_STAGE_TAG_VALUES.length);
+      // 경계 상수는 첫 단 duration(초)과 같은 폭이어야 축과 stages 가 갈리지 않는다.
+      const stepMs = Number(
+        (script.match(/STAGE_STEP_MS = (\d+)/) as RegExpMatchArray)[1],
+      );
+      expect(stepMs).toBe(stageSeconds(script)[0] * 1000);
+      // T-1682 로그 2 줄과 startRows 소비 경로는 그대로다.
+      expect(consoleLogArgsOf(script)).toHaveLength(2);
+      expect(script).toContain("return { startRows, startedAt: Date.now() };");
+      expect(s3Body("export function teardown")).toContain("data.startRows");
+    });
+  });
+
+  describe("Error path: 0-byte · 선언 부재 · non-string(0-byte false-PASS 방지)", () => {
+    it("빈 본문 · tag 선언 없는 합성 본문은 추측 없이 null 이고 non-string 은 TypeError 다", () => {
+      [stageTagValuesOf, stageTagKeyOf].forEach((fn) => {
+        expect(fn("")).toBeNull();
+        expect(fn("export const options = { vus: 1 };")).toBeNull();
+        [undefined, 42, null, {}, []].forEach((bad) =>
+          expect(() => fn(bad as unknown as string)).toThrow(TypeError),
+        );
+      });
+      // 정본 경로 오탈자도 조용히 PASS 하지 않는다.
+      expect(() =>
+        readFileSync(path.join(REPO_ROOT, `${S3_SCRIPT_REL}.absent`)),
+      ).toThrow();
+    });
+  });
+
+  describe("flow / 분기 cover: 표기 변형 · clamp 산술 3 구간 + 초과분", () => {
+    it("따옴표 종류 · 한 줄/여러 줄 배치가 달라도 같은 정규형을 낸다", () => {
+      expect(stageTagValuesOf(`STAGE_TAG_VALUES = ['1', '2', '3']`)).toEqual(
+        S3_STAGE_TAG_VALUES,
+      );
+      expect(
+        stageTagValuesOf(
+          'const STAGE_TAG_VALUES = [\n  "1",\n  "2",\n  "3",\n];',
+        ),
+      ).toEqual(S3_STAGE_TAG_VALUES);
+      expect(stageTagValuesOf(`STAGE_TAG_VALUES=["1",'2',"3"]`)).toEqual(
+        S3_STAGE_TAG_VALUES,
+      );
+      expect(stageTagKeyOf(`const STAGE_TAG_KEY = 'stage';`)).toBe(
+        S3_STAGE_TAG_KEY,
+      );
+    });
+
+    it("clamp 산술 1 식이 3 구간과 초과분을 마지막 단으로 접는다(실 k6 실행 0)", () => {
+      // 스크립트와 같은 식을 합성 경과시간에 적용해 동치 검증한다.
+      const stageOf = (elapsedMs: number): string =>
+        S3_STAGE_TAG_VALUES[
+          Math.min(
+            S3_STAGE_TAG_VALUES.length - 1,
+            Math.floor(elapsedMs / 10000),
+          )
+        ];
+      expect([0, 9999].map(stageOf)).toEqual(["1", "1"]);
+      expect([10000, 19999].map(stageOf)).toEqual(["2", "2"]);
+      expect([20000, 24999].map(stageOf)).toEqual(["3", "3"]);
+      // ramp-down 뒤 잔여 iteration 도 4 번째 값을 만들지 않는다(clamp 분기).
+      expect(stageOf(600000)).toBe("3");
+    });
+  });
+
+  describe("negative cases 충분 cover — 축 소실 · 값 결손 · 축 오염 · 임계화 · 분기", () => {
+    it("(1) stage tag 선언을 제거한 합성 본문을 guard 가 검출한다", () => {
+      const script = s3Script();
+      const dropped = script
+        .split("STAGE_TAG_KEY")
+        .join("//")
+        .split("STAGE_TAG_VALUES")
+        .join("//");
+      expect(dropped).not.toBe(script);
+      expect(stageTagKeyOf(dropped)).toBeNull();
+      expect(stageTagValuesOf(dropped)).toBeNull();
+      // 원본은 mutate 되지 않는다 — 대조군이 성립한다.
+      expect(stageTagKeyOf(s3Script())).toBe(S3_STAGE_TAG_KEY);
+    });
+
+    it("(2) 단계 값 하나(3)를 지운 합성 본문을 guard 가 검출한다", () => {
+      const script = s3Script();
+      const removed = script.replace(`, "${S3_STAGE_TAG_VALUES[2]}"]`, "]");
+      expect(removed).not.toBe(script);
+      expect(stageTagValuesOf(removed)).toEqual(["1", "2"]);
+      expect(stageTagValuesOf(removed)).not.toEqual(S3_STAGE_TAG_VALUES);
+      expect(stageTagValuesOf(s3Script())).toEqual(S3_STAGE_TAG_VALUES);
+    });
+
+    it("(3) route 값에 단계 문자열을 섞은 합성 본문(판정 표본 오염)을 검출한다", () => {
+      const script = s3Script();
+      const polluted = script
+        .split('route: "read"')
+        .join(`route: "read${S3_STAGE_TAG_VALUES[1]}"`);
+      expect(polluted).not.toBe(script);
+      expect(routeTagsOf(polluted)).not.toContain("read");
+      expect(routeTagsOf(polluted).sort()).not.toEqual(
+        [...S3_ROUTE_TAG_VALUES].sort(),
+      );
+      expect(routeTagsOf(s3Script()).sort()).toEqual(
+        [...S3_ROUTE_TAG_VALUES].sort(),
+      );
+    });
+
+    it("(4) stage 를 임계 키로 굳힌 합성 본문(관찰 전용 위반)을 검출한다", () => {
+      const script = s3Script();
+      const drifted = script.replace(
+        '    "http_req_duration{route:write}": ["p(95)<3000"],',
+        '    "http_req_duration{route:write}": ["p(95)<3000"],\n    "http_req_duration{stage:2}": ["p(95)<3000"],',
+      );
+      expect(drifted).not.toBe(script);
+      expect(thresholdKeys(drifted)).toHaveLength(S3_THRESHOLD_KEYS.length + 1);
+      expect(
+        thresholdKeys(drifted).some((k) => k.includes(`{${S3_STAGE_TAG_KEY}:`)),
+      ).toBe(true);
+      expect(thresholdKeys(s3Script())).toEqual(S3_THRESHOLD_KEYS);
+    });
+
+    it("(5) 조건 분기가 새로 들어간 합성 본문을 검출한다(머리 주석 규약 ⑤ 위반)", () => {
+      const script = s3Script();
+      const banned = ["if (", "} else", " ? ", " && ", "switch ("];
+      [...GUARDED_PREFIXES, ...banned].forEach((t) =>
+        expect(script).not.toContain(t),
+      );
+      // __ENV fallback 1 종만 남는다 — 단계 축이 `||` 를 늘리지 않았다.
+      expect(script.match(/\|\|/g)).toHaveLength(1);
+      const branched = script.replace(
+        "const stageTagOf =",
+        "const stageAlt = (e) => (e > 10 ? STAGE_TAG_VALUES[0] : STAGE_TAG_VALUES[1]);\nconst stageTagOf =",
+      );
+      expect(branched).not.toBe(script);
+      expect(branched).toContain(" ? ");
+      expect(s3Script()).not.toContain(" ? ");
     });
   });
 });
