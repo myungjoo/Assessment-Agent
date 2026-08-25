@@ -2,7 +2,7 @@
 id: T-1700
 title: 재확정 임계 1200 의 실 run 첫 적용 — dispatch 1 회 + S1 16 회차 기록
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 independentStream: load-k6-s1-baseline
@@ -14,6 +14,7 @@ estimatedDiff: 150
 estimatedFiles: 2
 created: 2026-08-26
 createdAt: 2026-08-26T00:00:00Z
+completedAt: 2026-08-25T17:59:00Z
 plannerNote: PLAN 141 행 R-91 chain 다음 칸 — T-1696/T-1697 이 올린 관찰용 게이트 1200 이 실 run 에서 0 회 적용, dispatch 1 회로 S1 leg 만 회수
 ---
 
@@ -102,3 +103,20 @@ S2 · S3 leg 는 **본 slice 범위 밖**이며 다음 slice 가 **같은 run �
 `pnpm lint` 확인은 implementer 가 수행.
 
 ## Follow-ups
+
+
+## Result (2026-08-25T17:59Z, DONE)
+
+- **집행 commit**: `234c4f97` (direct → main), 2 파일 `+118/-2`.
+- **dispatch 정확히 1 회**: `load-k6.yml` run **32879776505** (`workflow_dispatch`, `s1_persons=133`),
+  conclusion `success`. rerun · 재 dispatch **0**.
+- **THRESHOLDS 원문**: `✓ 'p(95)<1200' p(95)=824.89ms` — 재확정 게이트가 실 run 로그에
+  `p(95)<1200` 문자열로 **처음 등장** 했고 첫 판정이 `✓`. (`✓ 'p(95)<3600000'` ·
+  `✓ 'rate<0.01' rate=0.00%` 동반.)
+- **`#### 16 회차` 신설**: `docs/ops/load-resilience-test-plan.md` `1313 행` — `#### S2 1 회차` 직전
+  add-only. `§3.1` 헤더(`473 행`) 회분 표기 `S1 16 회분 · S2 5 회분 · S3 4 회분` 으로 갱신.
+- **임계 재조정 0**: T-1668 규칙 ①-(a)/①-(b) 기계 재계수 결과는 기록만 (트리거 미발화).
+  `test/` · `src/` · `.github/workflows/` · `package.json` diff **0 파일**, 기박제 수치 소급 치환 0.
+- `pnpm lint` 무경고. direct doc-only 라 R-110 tester 의무 면제.
+- **이월**: 같은 run 의 **S2 6 회차 · S3 5 회차** leg 는 미회수 — 다음 slice 가 **같은 로그를 재독** 해
+  회수한다 (dispatch 2 회 금지).
