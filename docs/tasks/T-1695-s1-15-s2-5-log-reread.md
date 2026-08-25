@@ -144,3 +144,39 @@ R-110 tester 의무 면제 — 확인용 `pnpm lint` 1 회만).
 - (planner 사전 메모) ② 단계별 Trend 표본이 **2 개** 모였으므로(T-1692 3 회차 · T-1694 4 회차)
   `§3` 표의 `latency cliff 부재` 판정 근거 서술과 설계 조항 ⑥ 꼬리 "표시 수단(후보 A · B)" 결정이
   입력을 갖는다 — 위 ① 이 트리거로 선점되면 그 뒤 칸이다.
+- (T-1695 실행 결과 추가) ③ **T-1668 트리거 ①-(a) · ①-(b) 가 둘 다 발화했다** — 실 scale 표본
+  **12 개** 평균 **824.73ms** · 표본표준편차 **124.70ms** · 평균+3σ **1198.83ms** → 100ms 올림
+  **1200ms**. 따라서 위 ① 의 2 slice split 이 **다음 칸으로 확정**됐다: **(i) 코드 `pr`** 이
+  [`s1-batch.js`](../../test/load/s1-batch.js) `STUB_BASELINE_P95_MS` 와 drift-guard spec 의
+  `S1_STUB_BASELINE_P95_MS` · mutation 대조군을 **같은 commit** 에서 `1100 → 1200` 으로 동기하고,
+  **(ii) 문서 `direct`** 가 `§3` 임계 표 · 도출식 각주 · 규칙 소절 · `§5` item 5 를 맞춘다. 본
+  slice 는 발화 사실과 산출값만 박제했고 임계는 **문자 단위 0 변경**이다.
+- (T-1695 실행 결과 추가) ④ 위 ② (`latency cliff` 판정 · 조항 ⑥ 표시 수단 결정) 는 ③ 뒤 칸으로
+  밀린다 — 규칙 ④ 집행이 임계 정합성 축이라 우선한다.
+
+## 결과 요약 (완료: 2026-08-25T13:10:00Z)
+
+- `gh run view 32843613484 --log` **재독만** 수행 — 새 `gh workflow run` · rerun · 재시도 **0**.
+  run conclusion 이 `failure` 인 것도 재실행 사유로 삼지 않았다.
+- [load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) `§3.1` 에
+  `#### 15 회차`(S1 leg step 12, 11:43:06Z~11:43:07Z, step conclusion `failure`, k6 exit **99**) 와
+  `#### S2 5 회차`(S2 leg step 14, 11:43:07Z~11:43:27Z, `success`, exit **0**) 신설.
+- S1: THRESHOLDS 3 종 중 `✓ 'p(95)<3600000' p(95)=1.15s` · **`✗ 'p(95)<1100' p(95)=1.15s`** ·
+  `✓ 'rate<0.01' rate=0.00%`(`0 out of 7`), `http_reqs` **7**, `level=error` **1 줄**(crossed).
+  **정밀도 한계** — 콘솔은 `1.15s` 요약 단위뿐이라 ms 원값은 step 13 summary JSON 의
+  `"http_req_duration{route:batch}"` `"p(95)": 1154.508883` 에서만 확보(추정 **0**).
+- S2: THRESHOLDS **6/6 `✓`**(전역 p95 **6ms** · route 별 5.42~6.28ms · `http_req_failed`
+  **0.00%** `0 out of 24963`), `http_reqs` **24963** · `iterations` **6239**. S1 이 red 인데도
+  step 14 가 돌아 **"S1 red 여도 S2 가 돈다" 실 run 첫 실증** 확보.
+- `p(99)` 두 축 모두 **연속 2 회** 출력(S1 전역 **1.09s** / JSON `1092.3536449599994`, S2 전역
+  **7.45ms**). 이전 회차 "미확보" 표기 **소급 치환 0**(`§12`).
+- T-1668 기계 재계수: 표본 **12 개**(outlier 제거 **0** — `1154.51` 포함) 평균 **824.73ms** ·
+  표본표준편차 **124.70ms** · 평균+3σ **1198.83ms** → 올림 **1200ms**. 트리거 **①-(a) · ①-(b)
+  둘 다 발화** — 그럼에도 `§3` 표 · `STUB_BASELINE_P95_MS` · drift-guard spec 은 **문자 단위
+  0 변경**이고 숫자 집행은 규칙 ④ 2 task split 으로 이월했다.
+- `377 행` 헤더 `S1 15 회분 · S2 5 회분 · S3 4 회분`, `#### S3 4 회차` 꼬리에 해소 pointer 1 줄
+  append(기존 문장 · 수치 삭제 **0**), `§5` item 5 꼬리 집행 문단 1 개 append,
+  [PLAN.md](../PLAN.md) `141 행` 머리 회분 재계수(실 scale **13 회 dispatch · 12 회 회수**) +
+  꼬리 1 문장 append(`140 행` checkbox `[ ]` 유지).
+- `src/` · `test/` · `.github/workflows/` · `package.json` 변경 **0**, `pnpm lint` 1 회 무경고
+  (doc-only · production 0 LOC — R-110 tester 면제).
