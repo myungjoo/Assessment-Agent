@@ -197,7 +197,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 | S2 조회 지연 | p95 latency | < 3s | REQ-048 (README line 92) |
 | S2 조회 지연 | p50 latency / throughput | baseline 후 fix (관찰용) | 관찰 |
 | S2 조회 지연 | error rate | < 1% | 내성 |
-| S3 동시성 내성 | error rate (동시성 단계별) | < 1% (baseline 후 fix) | graceful degradation |
+| S3 동시성 내성 | error rate (동시성 단계별) | < 1% | graceful degradation |
 | S3 동시성 내성 | p95 저하 곡선 | latency cliff 부재 | 내성 |
 
 - **집계**: latency 는 percentile(p50/p95/p99), throughput 는 req/s 또는 배치/h, error
@@ -237,6 +237,14 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
 - **S1 error rate `< 1%` 확정 근거**: baseline 5 회 run 의 `http_req_failed` 이 모두
   **0.00%**(0/26 · 0/26 · 0/272 · 0/272 · 0/272) 로 임계를 여유 있게 만족해
   `(baseline 후 fix)` 태그를 해제했다.
+- **S3 error rate `< 1%` 확정 근거**: S3 표본 **5 개**(`§3.1` `S3 1~5 회차`) 전량의
+  `http_req_failed` 이 **`✓ 'rate<0.01' rate=0.00%`**(0/22752 · 0/14867 · 0/24323 · 0/25205 ·
+  0/23510) 로 임계를 여유 있게 만족하고, 해제 요건 (ㄱ) error rate 칸 표본 **5 개** 와 (ㄴ) 환경
+  메타 7 항목 · ramping `stages` · 공유 dataset **133 건** 동일이 모두 충족돼(근거는 아래
+  `#### S2 · S3 baseline 후 fix 표기 해제 판단 (사전 박제, T-1704)` 소절 ④), 그 판정
+  **ⓐ true + ⓑ 판정용 → `해제 채택`** 대로 `(baseline 후 fix)` 태그를 해제했다(T-1705). 표의
+  숫자 `< 1%` 와 [`s3-concurrent.js`](../../test/load/s3-concurrent.js) 의 임계 `rate<0.01` 은
+  **이미 같은 값**이라 코드 변경은 **0** 이다.
 - **S2 · S3 의 `baseline 후 fix` 표기는 무변경**: 두 축은 baseline 실측이 아직 **0 회** 라
   확정 근거가 없어 본 slice 범위 밖이다(S1 축만 확정). S2 축은 T-1674 가 dispatch 를 **1 회**
   소진했으나 같은 job 의 S1 step 이 먼저 fail 해 S2 step 이 `skipped` 됐으므로 **회수된 수치는
@@ -245,6 +253,8 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
   [CLAUDE.md](../../CLAUDE.md) `§12` 소급 치환 금지로 문자 단위 그대로 둔다): 현행 회수는 S2
   **6 회분** · S3 **5 회분**(`### 3.1` 헤더)이고, 두 칸의 태그 해제 여부에 대한 현행 판정은 아래
   `#### S2 · S3 baseline 후 fix 표기 해제 판단 (사전 박제, T-1704)` 소절이다.
+  **그중 S3 칸은 T-1705 가 해제를 집행**했으므로(근거는 위 `S3 error rate < 1% 확정 근거` bullet)
+  본 bullet 제목의 "S2 · S3" 중 태그가 남은 칸은 이제 **S2 `p50 latency / throughput` 1 개**뿐이다.
 - **각주 — 임계 fix 시점**: 위 표의 "baseline 후 fix" 표기 중 **S1 축은 본 회차(T-1644)로
   fix 완료**다 — 근거는 **실측 5 회분**(run `32459501970` · `32503914467` · `32524618230` ·
   `32533779832` · `32540981922`) 중 표본 133 인 뒤 3 회이며, 그 batch p95 기술통계는 평균
@@ -3680,3 +3690,16 @@ S2 실측 **3 회차**(위 `#### S2 1 회차` · `#### S2 2 회차` · `#### S2 
     소급 치환 금지로 문자 단위 무변경) 현행이 S2 **6 회분** · S3 **5 회분** 임을 pointer 로
     남겼다. 본 slice 역시 새 dispatch · rerun · 실측 **0** · 코드 **0 LOC** 이라 회분 표기
     (S1 **16 회** · S2 **6 회** · S3 **5 회**)와 `140 행` checkbox `[ ]` 는 무변경이다.
+
+    **그 결론 중 `해제 채택` 이 나온 S3 칸의 집행은 T-1705 가 닫았다** — `§3` 임계 표 `200 행`
+    S3 행의 pass 임계 셀에서 `(baseline 후 fix)` 문자열만 떼어 **`< 1%` 확정**으로 만들고, 위
+    `S1 error rate < 1% 확정 근거` bullet 직후에 같은 서식의 **S3 확정 근거 bullet 1 개**를
+    add-only 로 신설해 표본 **5 개** 전량의 `http_req_failed` **`✓ 'rate<0.01' rate=0.00%`**
+    (0/22752 · 0/14867 · 0/24323 · 0/25205 · 0/23510) 와 요건 (ㄱ) · (ㄴ) 충족을 인용했다. 표의
+    숫자 `< 1%` 와 [`s3-concurrent.js`](../../test/load/s3-concurrent.js) 의 `rate<0.01` 이 이미
+    같은 값이라 **코드 변경은 0 파일 · 0 LOC** 이고, 표에 태그가 남은 칸은 이제 **S2
+    `p50 latency / throughput` 1 개**(T-1704 결론 `해제 불요` — 재개 트리거는 그 소절 ④)뿐이다.
+    본 slice 도 새 dispatch · rerun · 실측 **0** 이라 회분 표기(S1 **16 회** · S2 **6 회** ·
+    S3 **5 회**) 와 `140 행` checkbox `[ ]` 는 무변경이며, T-1701 이 이월한 세 항목(① S3 cliff
+    규칙 3 표본 대입 — T-1702 · ② S2 단계 분해 확대 판단 — T-1703 · ③ `§3` 임계 표 재조정 —
+    T-1704 판단 + 본 집행)은 이로써 **전부 닫혔다**.
