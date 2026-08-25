@@ -2,7 +2,7 @@
 id: T-1690
 title: 단계별 값 회수 경로 재확정 — 설계 조항 ⑥ 사전 박제 (tag 만으로는 요약 값이 생기지 않는 caveat)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047, REQ-048]
 independentStream: load-resilience-plan
@@ -13,6 +13,7 @@ touchesFiles:
 estimatedDiff: 115
 estimatedFiles: 2
 created: 2026-08-25T07:30:00Z
+completedAt: 2026-08-25T07:47:00Z
 plannerNote: P5 성능 검증(PLAN 141 행) — T-1689 Follow-up ①, 조항 ④ 코드 배선 전에 단계별 값 생성 수단 caveat 를 설계로 먼저 굳힘
 ---
 
@@ -94,3 +95,21 @@ production code 0 LOC).
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 발견 시 append)
+
+## Result (2026-08-25T07:47Z)
+
+**DONE (direct, main `52f9fb6e`) — 2 파일 `+37/-1`.** [load-resilience-test-plan.md](../ops/load-resilience-test-plan.md)
+`§3` 의 `#### 단계별 percentile export 설계` 소절 조항 ⑤ 뒤(`349~375 행`)에 **조항 ⑥** 27 줄을
+신설했다 — (가) k6 종료 요약과 `handleSummary()` 요약 객체가 request tag 를 **자동 분해하지 않는**
+caveat 정의, (나) 경로 α(`thresholds` 에 관찰 전용 selector 선언) **불채택**(조항 ② 의 "임계 문자 단위
+0 변경" 과 정면 충돌 + 판정면 오염 risk), (다) 경로 β(k6 런타임 내장 `k6/metrics` 의 `Trend`
+custom metric 직접 record) **채택**(새 외부 dependency 0 — 조항 ① 유지), (라) 조항 ②·④ 재확인
+(threshold 미부착 → 판정면 변화 0, 회수는 run log 1 경로), (마) 집행 split. 후보 A·B 는 **표시**
+수단이고 β 는 **생성** 수단이라 층위가 달라 폐기가 아님을 명시했다. 부수로 `§5` item 5 꼬리에 본 slice
+문단 1 개, [PLAN.md](../PLAN.md) `141 행` 에 1 문장을 append 했다.
+
+**불변 확인**: `§3` 임계 표 · `§3.1` 회차 수치 · `§2` · `§4` 는 **문자 단위 0 변경**(부하계획은 삭제 0 의
+순수 삽입, PLAN 은 기존 `141 행` 이 새 행의 접두사인 tail append — 181 행 불변). 새 `workflow_dispatch` ·
+rerun · 측정 수치 산정 · 코드 · spec · 워크플로 변경이 **전부 0** 이고, 실측 회차도 S1 **13 회** ·
+S2 **3 회** · S3 **2 회** 그대로다. LLM stub · 실 수집 왕복 0 조건이 유지되므로 `140 행` checkbox 는
+계속 `[ ]`. doc-only direct 라 R-110 tester 면제 — `pnpm lint` 무경고만 확인했다.
