@@ -2,13 +2,14 @@
 id: T-1684
 title: 행 수 로그 배선 후 첫 dispatch 로 S3 2 회차 실측 회수 + §3.1 회차 기록
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 130
 estimatedFiles: 2
 created: 2026-08-25
 createdAt: 2026-08-25T01:05:00Z
+completedAt: 2026-08-25T01:52:00Z
 independentStream: load-k6-s3-baseline
 dependsOn: [T-1682, T-1683]
 touchesFiles:
@@ -35,21 +36,21 @@ plannerNote: PLAN 141 행 R-91 chain 64/N — T-1682 배선의 첫 실측(dispat
 
 ## Acceptance Criteria
 
-- [ ] `gh workflow run load-k6.yml --ref main -f s1_persons=133` 을 **정확히 1 회** 실행한다. rerun · 재 dispatch · 재시도는 **0** — run 이 fail 로 끝나도 그 사실 자체를 기록하고 종료한다.
-- [ ] run 종료 후 `gh run view <run-id> --log` 로 S3 step 로그를 회수하고, 다음을 **원문에서 그대로** 옮겨 적는다 (추정 · 재계산 금지, 다른 회차 값 전용 금지):
+- [x] `gh workflow run load-k6.yml --ref main -f s1_persons=133` 을 **정확히 1 회** 실행한다. rerun · 재 dispatch · 재시도는 **0** — run 이 fail 로 끝나도 그 사실 자체를 기록하고 종료한다.
+- [x] run 종료 후 `gh run view <run-id> --log` 로 S3 step 로그를 회수하고, 다음을 **원문에서 그대로** 옮겨 적는다 (추정 · 재계산 금지, 다른 회차 값 전용 금지):
   - step 구간 · conclusion · k6 exit code, THRESHOLDS 4 종 원문과 `✓`/`✗` 개수
   - 전역 · `{route:read}` · `{route:write}` 의 `http_req_duration` 원문 줄, `http_req_failed`, `http_reqs`, `iterations`, `iteration_duration`, `vus` / `vus_max`
   - **`[s3-concurrent] persons 행 수 시작 …행` · `… 종료 …행 / 시작 …행` 2 줄** — 없으면 "미출력" 으로 명시.
-- [ ] [load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) `§3.1` 의 `#### S3 1 회차` 소절 **뒤에** `#### S3 2 회차 (T-1684, run <run-id>, T-1682 행 수 로그 배선 후 첫 회차)` 를 신설한다. `#### S3 1 회차` 서식(측정 일시 / THRESHOLDS 원문 / 수치 / 판정)을 그대로 승계하고, 다음 2 항목을 추가로 담는다:
+- [x] [load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) `§3.1` 의 `#### S3 1 회차` 소절 **뒤에** `#### S3 2 회차 (T-1684, run <run-id>, T-1682 행 수 로그 배선 후 첫 회차)` 를 신설한다. `#### S3 1 회차` 서식(측정 일시 / THRESHOLDS 원문 / 수치 / 판정)을 그대로 승계하고, 다음 2 항목을 추가로 담는다:
   - **행 수 잔여 판정** — 종료 행 수 − 시작 행 수 를 직접 적고, 그 차이로 iteration 자기 정리(규약 ②) 잔여를 판정한다. `http_reqs` 배수식은 이제 `3 × iterations + 2` 임을 확인만 하고 잔여 근거로 쓰지 않는다.
   - **`p99` 미확보 표기** — k6 기본 요약 미출력. 다른 회차 값으로 대체 금지.
-- [ ] `§3.1` 헤더(`276 행`)의 개수 표기를 `(S1 12 회분 · S2 2 회분 · S3 2 회분)` 으로 갱신한다. **S1 · S2 회분 수는 본 slice 에서 올리지 않는다** (같은 run 의 S1 · S2 수치 회수는 다음 slice 소관).
-- [ ] `#### S3 1 회차` 꼬리(자기정리 bullet 의 `[항등식 주의 (T-1682) …]` 대괄호)에 **회수 완료 pointer 1 줄**을 추가한다 — 배선 후 실측이 `S3 2 회차` 에 있다는 사실만. 기존 문장 · 수치는 **삭제 0** (이력 보존).
-- [ ] `§5` item 5 꼬리에 본 slice 집행 문단 1 개를 append 한다 (dispatch 1 회 · run id · S3 회분 1→2 · S1 · S2 회수는 다음 slice).
-- [ ] [PLAN.md](../PLAN.md) `141 행` 꼬리에 1 문장 append. `140 행` checkbox 는 실 수집 축 미검증이라 `[ ]` 유지.
-- [ ] `§3` 임계 표는 **문자 단위 0 변경** — S3 축 표본이 2 회뿐이라 `error rate < 1%` · `latency cliff 부재` 를 fix 하지 않는다 (규칙 사전 박제 → 기계 적용 2 단계 승계). 변경했다면 위반.
-- [ ] `git diff --stat` 이 **2 파일**(`docs/ops/load-resilience-test-plan.md`, `docs/PLAN.md`) 이고 `src/` · `test/` · `.github/workflows/` · `package.json` 변경 **0** 임을 확인한다.
-- [ ] 확인용으로 `pnpm lint` 를 1 회 돌려 무경고를 확인한다 (doc-only 라 R-110 tester 의무 면제 — production 0 LOC).
+- [x] `§3.1` 헤더(`276 행`)의 개수 표기를 `(S1 12 회분 · S2 2 회분 · S3 2 회분)` 으로 갱신한다. **S1 · S2 회분 수는 본 slice 에서 올리지 않는다** (같은 run 의 S1 · S2 수치 회수는 다음 slice 소관).
+- [x] `#### S3 1 회차` 꼬리(자기정리 bullet 의 `[항등식 주의 (T-1682) …]` 대괄호)에 **회수 완료 pointer 1 줄**을 추가한다 — 배선 후 실측이 `S3 2 회차` 에 있다는 사실만. 기존 문장 · 수치는 **삭제 0** (이력 보존).
+- [x] `§5` item 5 꼬리에 본 slice 집행 문단 1 개를 append 한다 (dispatch 1 회 · run id · S3 회분 1→2 · S1 · S2 회수는 다음 slice).
+- [x] [PLAN.md](../PLAN.md) `141 행` 꼬리에 1 문장 append. `140 행` checkbox 는 실 수집 축 미검증이라 `[ ]` 유지.
+- [x] `§3` 임계 표는 **문자 단위 0 변경** — S3 축 표본이 2 회뿐이라 `error rate < 1%` · `latency cliff 부재` 를 fix 하지 않는다 (규칙 사전 박제 → 기계 적용 2 단계 승계). 변경했다면 위반.
+- [x] `git diff --stat` 이 **2 파일**(`docs/ops/load-resilience-test-plan.md`, `docs/PLAN.md`) 이고 `src/` · `test/` · `.github/workflows/` · `package.json` 변경 **0** 임을 확인한다.
+- [x] 확인용으로 `pnpm lint` 를 1 회 돌려 무경고를 확인한다 (doc-only 라 R-110 tester 의무 면제 — production 0 LOC).
 
 ## Out of Scope
 
@@ -66,3 +67,11 @@ plannerNote: PLAN 141 행 R-91 chain 64/N — T-1682 배선의 첫 실측(dispat
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 append)
+
+## 결과 요약 (driver bookkeeping, 2026-08-25T01:52Z)
+
+- `load-k6.yml` **dispatch 정확히 1 회** — run `32798553930`(head sha `3193d68d`, `-f s1_persons=133`), conclusion **success**, rerun · 재 dispatch **0**.
+- S3 leg step 15 `01:44:14Z~01:44:40Z` exit 0 — THRESHOLDS **4/4 `✓`**, 전역 p95 **51.53ms** · read **16.44ms** · write **75.52ms** · `http_req_failed` **0.00%**(`0 out of 14867`).
+- 행 수 로그 2 줄 회수 성공(T-1682 배선의 첫 실측) — 시작 **133 행** / 종료 **133 행** → 잔여 차이 **0 행** 을 정황이 아닌 **직접 카운트**로 판정. `http_reqs` 항등식 `3 × 4955 + 2 = 14867` 확인만.
+- `p99` 는 k6 기본 요약 미출력이라 **미확보** 표기.
+- direct commit `c7e0f86f` (main), 2 파일 `+70/-2`. `§3` 임계 표 · `src/` · `test/` · `.github/workflows/` · `package.json` 변경 **0**. `pnpm lint` 무경고(doc-only 라 R-110 tester 의무 면제).
