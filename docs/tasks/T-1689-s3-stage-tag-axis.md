@@ -2,7 +2,7 @@
 id: T-1689
 title: S3 스크립트에 단계 식별 tag key 1 개를 배선 (설계 조항 ③ · 문제 (b) 앞단)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047, REQ-048]
 independentStream: load-resilience-plan
@@ -61,3 +61,9 @@ plannerNote: P5 성능 검증(PLAN 141 행) — T-1688 Follow-up ② 의 앞단,
 (생성 시점 비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 append)
 
 - (planner 사전 메모) ① 조항 ④ 출력 slice 설계 시 **k6 caveat 확인 필요** — tag 를 달아도 종료 요약에 sub-metric 열이 자동으로 생기지는 않는다(요약에 나타나는 sub-metric 은 `thresholds` 선언으로 만들어진다). 조항 ② 가 새 임계를 금지하므로 출력 경로는 `handleSummary()`(후보 B)로 좁혀질 가능성이 크다 — 그 slice 에서 실제 동작을 먼저 확인한 뒤 배선할 것.
+
+## 완료 기록
+
+- 완료 시각: 2026-08-25T07:05Z
+- PR: #1338, reviewer APPROVE round 1/7, squash merge `44d77a2c`
+- 결과: `test/load/s3-concurrent.js` 에 `STAGE_TAG_KEY`/`STAGE_VALUES`/`STAGE_STEP_MS` 3 상수 + `stageTagOf`·`withStage` 헬퍼 2 개로 iteration 3 요청에 `stage` 축(값 `1`·`2`·`3`)을 부여했다. 조항 ② 대로 `thresholds` 4 종 · 임계 숫자 · `route` 값 집합 · `stages` · `summaryTrendStats` 는 문자 단위 0 변경(관찰 전용). drift-guard smoke 에 describe 1 개 · it 12 개 append (happy 4 · error 1 · 분기 2 · negative 5). 2 파일 `+260/-8`(≤300 LOC · ≤5 파일), unit 13,009 test green, CI 전 step success.
