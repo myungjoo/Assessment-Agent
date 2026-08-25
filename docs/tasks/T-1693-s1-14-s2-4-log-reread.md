@@ -2,7 +2,7 @@
 id: T-1693
 title: 같은 run 재독으로 S1 14 회차 · S2 4 회차 실측 회수 + §3.1 회차 기록
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047, REQ-048]
 independentStream: load-k6-baseline-record
@@ -120,3 +120,17 @@ R-110 tester 의무 면제 — 확인용 `pnpm lint` 1 회만).
   → 문서 `direct`(임계 표 · 각주 · 규칙 소절 · `§5`) 2 slice 가 다음 칸이다.
 - (planner 사전 메모) ② 단계별 Trend 표본이 2 회 이상 누적되면 `§3` 표의 `latency cliff 부재` 판정
   근거 서술과 설계 조항 ⑥ 꼬리의 "표시 수단(후보 A · B)" 판단이 비로소 입력을 갖는다.
+
+## 완료 기록
+
+- 완료: 2026-08-25T10:52Z (cron fire `cron@aa-local-5b1851f0-15422`)
+- 내용 commit: `d6bfe1a1` (direct → main), 2 파일 `+189/-2`
+- 결과 요약: 기존 run `32833365988` 의 로그를 **재독만** 해(새 `workflow_dispatch` ·
+  rerun · 재시도 **0**) S1 leg · S2 leg 수치를 회수하고 부하계획 `§3.1` 에
+  `#### 14 회차` · `#### S2 4 회차` 를 신설했다. S1 batch `p95 770.66ms` (임계 3 종 통과) ·
+  S2 전역 `p95 6.94ms` (임계 6 종 통과) 를 원문 인용으로 박제했고, T-1688 이 넣은
+  `p(99)` 열이 S1 · S2 두 축에서 처음 확보됐다. T-1668 재확정 규칙을 기계 재계수
+  (표본 11 · 평균 `794.75ms` · σ `72.40ms` · 평균+3σ `1011.94ms`) 한 결과 트리거
+  **미발화** — 임계값 변경 **0**. `377 행` 헤더는 `(S1 14 회분 · S2 4 회분 · S3 3 회분)`
+  로 갱신, `§3` 임계 표 · `STUB_BASELINE_P95_MS` · drift-guard spec 은 문자 단위
+  **0 변경**, 코드 · 워크플로 · `package.json` 변경 **0**.
