@@ -4786,3 +4786,271 @@ describe("s3-concurrent.js 단계 식별 tag key 배선 drift smoke (T-1689)", (
     });
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-1691 — s3-concurrent.js 단계별 custom Trend 배선(계획 §3 설계 조항 ⑥ 경로 β) drift.
+// 존재 이유 — k6 종료 요약은 request tag 를 sub-metric 으로 자동 분해하지 않아(조항 ⑥ (가))
+// T-1689 의 stage tag 만으로는 단계별 값이 만들어지지 않는다. 값을 만드는 유일한 배선이 내장
+// `k6/metrics` 의 Trend record 라 ① import 소실 ② 단계 Trend 결손 ③ 3 왕복 중 record 누락
+// ④ custom Trend 의 임계화(판정면 오염) ⑤ 조건 분기 유입 어느 것도 실 run 전에는 드러나지
+// 않는다(부하 job 은 workflow_dispatch 전용). 새 helper 3 개 + 기존 재사용.
+//      🔥 실 k6 실행 0 · 실 HTTP 0 · DB 의존 0 · 새 dependency 0 — 파일 read + 합성 문자열만.
+
+/** k6 런타임 내장 metrics 모듈 — npm 설치 대상이 아니라 새 외부 dependency 0(조항 ⑥ (다)). */
+const K6_METRICS_MODULE = "k6/metrics";
+/** 단계별 Trend 지표 이름 정본 — 단계 값 3 종과 1:1 대응하는 고정 접두형. */
+const S3_STAGE_TREND_NAMES = S3_STAGE_TAG_VALUES.map(
+  (value) => `s3_stage_duration_${value}`,
+);
+
+/**
+ * `k6/metrics` 에서 가져온 import 심볼 목록(선언 순서 보존). 한 줄 / 여러 줄 배치와 따옴표
+ * 종류(`"` / `'`)가 달라도 같은 정규형을 낸다. 해당 import 가 없으면 `null`(추측 0).
+ * @throws {TypeError} `script` 가 non-string 일 때(0-byte fallback false-PASS 방지).
+ */
+function k6MetricsImportsOf(script: string): string[] | null {
+  if (typeof script !== "string") {
+    throw new TypeError("k6MetricsImportsOf: script 는 string 이어야 함");
+  }
+  const matched = script.match(
+    /import\s*\{([^}]*)\}\s*from\s*["']k6\/metrics["']/,
+  );
+  if (matched === null) {
+    return null;
+  }
+  return matched[1]
+    .split(",")
+    .map((symbol) => symbol.trim())
+    .filter((symbol) => symbol !== "");
+}
+
+/**
+ * `new Trend("<name>")` 로 선언된 custom 지표 이름 목록(선언 순서 보존 · 따옴표 종류 무관 ·
+ * 개별 `const` 와 객체 리터럴 배치 모두 같은 정규형). 선언이 없으면 `[]`(추측 0).
+ * @throws {TypeError} `script` 가 non-string 일 때.
+ */
+function trendMetricNamesOf(script: string): string[] {
+  if (typeof script !== "string") {
+    throw new TypeError("trendMetricNamesOf: script 는 string 이어야 함");
+  }
+  return (script.match(/new\s+Trend\(\s*("[^"]*"|'[^']*')/g) || []).map(
+    (declaration) =>
+      (declaration.match(/("[^"]*"|'[^']*')/) as RegExpMatchArray)[1].slice(
+        1,
+        -1,
+      ),
+  );
+}
+
+/**
+ * `.add(<인자>)` 호출의 인자 목록(중첩 괄호 없는 단순 인자만 · 등장 순서 보존). 부재면 `[]`.
+ * @throws {TypeError} `source` 가 non-string 일 때.
+ */
+function trendAddArgsOf(source: string): string[] {
+  if (typeof source !== "string") {
+    throw new TypeError("trendAddArgsOf: source 는 string 이어야 함");
+  }
+  return (source.match(/\.add\(([^)]*)\)/g) || []).map((call) =>
+    call.slice(".add(".length, -1).trim(),
+  );
+}
+
+describe("s3-concurrent.js 단계별 custom Trend 배선 drift smoke (T-1691)", () => {
+  describe("Happy-path: 내장 import · Trend 3 종 1:1 · 3 왕복 record · 판정면 0 변경", () => {
+    it("① k6/metrics 의 Trend 를 내장 모듈에서 import 하고 새 dependency 는 0 이다", () => {
+      const script = s3Script();
+      expect(k6MetricsImportsOf(script)).toEqual(["Trend"]);
+      expect(script).toContain(`from "${K6_METRICS_MODULE}"`);
+      // 회수 수단은 k6 내장 기능 한정(조항 ①) — package.json 에는 k6 항목이 유입되지 않는다.
+      const p = pkg();
+      const deps = Object.keys({ ...p.dependencies, ...p.devDependencies });
+      ["k6", "@types/k6", "k6-metrics"].forEach((name) =>
+        expect(deps).not.toContain(name),
+      );
+    });
+
+    it("② Trend 인스턴스 3 개가 단계 값 3 종과 1:1 대응하고 lookup 표 키가 그 값에서 나온다", () => {
+      const script = s3Script();
+      expect(trendMetricNamesOf(script)).toEqual(S3_STAGE_TREND_NAMES);
+      expect(trendMetricNamesOf(script)).toHaveLength(
+        (stageTagValuesOf(script) as string[]).length,
+      );
+      // 키를 STAGE_TAG_VALUES 원소로 만들어야 tag 값과 Trend 행이 같은 정본을 공유한다.
+      S3_STAGE_TAG_VALUES.forEach((_, i) =>
+        expect(script).toContain(`[STAGE_TAG_VALUES[${i}]]: new Trend(`),
+      );
+      // 단계 → Trend 선택은 조회 1 회다 — 분기 토큰이 새로 들어가지 않았다(규약 ⑤).
+      ["if (", "} else", " ? ", " && ", "switch ("].forEach((token) =>
+        expect(script).not.toContain(token),
+      );
+    });
+
+    it("③ export default 의 write · read · delete 3 왕복이 모두 add 로 record 된다", () => {
+      const body = s3Body("export default function");
+      expect(trendAddArgsOf(body)).toEqual([
+        "created.timings.duration",
+        "listed.timings.duration",
+        "removed.timings.duration",
+      ]);
+      // 단계 결정은 요청에 실제로 붙은 tag 재사용 — 요청 뒤 stageTagOf 재호출은 0 이다.
+      ["writeParams", "readParams", "deleteParams"].forEach((params) =>
+        expect(body).toContain(
+          `STAGE_TRENDS[${params}.tags[STAGE_TAG_KEY]].add(`,
+        ),
+      );
+      expect(body).not.toContain("stageTagOf(");
+      ["WRITE_PARAMS", "READ_PARAMS", "DELETE_PARAMS"].forEach((params) =>
+        expect(body).toContain(`withStage(${params}, data.startedAt)`),
+      );
+    });
+
+    it("④ 판정면 0 변경 · custom Trend 임계 0 · 준비/정리 왕복 record 0 이다", () => {
+      const script = s3Script();
+      expect(thresholdKeys(script)).toEqual(S3_THRESHOLD_KEYS);
+      expect(script.match(/p\(95\)<3000/g)).toHaveLength(3);
+      expect(script.match(/rate<0\.01/g)).toHaveLength(1);
+      expect(trendStatsIntact(script)).toBe(true);
+      // custom 지표 이름이 임계 키에 섞이면 관찰 전용 계약이 깨진다(조항 ⑥ (라)).
+      S3_STAGE_TREND_NAMES.forEach((name) =>
+        thresholdKeys(script).forEach((key) => expect(key).not.toContain(name)),
+      );
+      // 단계 축 밖인 seed / teardown 왕복은 record 하지 않고 로그 2 줄도 회귀 0 이다.
+      ["export function setup", "export function teardown"].forEach((header) =>
+        expect(trendAddArgsOf(s3Body(header))).toEqual([]),
+      );
+      expect(consoleLogArgsOf(script)).toHaveLength(2);
+      expect(script).toContain("return { startRows, startedAt: Date.now() };");
+    });
+  });
+
+  describe("Error path: 0-byte · import/선언 부재 · non-string(0-byte false-PASS 방지)", () => {
+    it("빈 본문과 배선 없는 합성 본문은 추측 없이 null · 빈 배열을 낸다", () => {
+      expect(k6MetricsImportsOf("")).toBeNull();
+      expect(k6MetricsImportsOf('import http from "k6/http";')).toBeNull();
+      [trendMetricNamesOf, trendAddArgsOf].forEach((fn) => {
+        expect(fn("")).toEqual([]);
+        expect(fn("export const options = { vus: 1 };")).toEqual([]);
+      });
+      // 정본 경로 오탈자 read 도 조용히 PASS 하지 않는다.
+      expect(() =>
+        readFileSync(path.join(REPO_ROOT, `${S3_SCRIPT_REL}.absent`)),
+      ).toThrow();
+    });
+
+    it("non-string 입력은 세 helper 모두 TypeError 로 드러난다(명시 계약)", () => {
+      [k6MetricsImportsOf, trendMetricNamesOf, trendAddArgsOf].forEach((fn) =>
+        [undefined, 42, null, {}, []].forEach((bad) =>
+          expect(() => fn(bad as unknown as string)).toThrow(TypeError),
+        ),
+      );
+    });
+  });
+
+  describe("flow / 분기 cover: 따옴표 · 한 줄/여러 줄 import · const/객체 리터럴 선언", () => {
+    it("따옴표 종류와 import 배치가 달라도 같은 정규형을 낸다", () => {
+      expect(k6MetricsImportsOf(`import { Trend } from 'k6/metrics';`)).toEqual(
+        ["Trend"],
+      );
+      expect(
+        k6MetricsImportsOf(
+          'import {\n  Trend,\n  Counter,\n} from "k6/metrics";',
+        ),
+      ).toEqual(["Trend", "Counter"]);
+      expect(k6MetricsImportsOf(`import {Trend} from "k6/metrics"`)).toEqual([
+        "Trend",
+      ]);
+    });
+
+    it("Trend 선언이 개별 const 든 객체 리터럴이든 같은 이름 목록을 낸다", () => {
+      const asConsts = S3_STAGE_TREND_NAMES.map(
+        (name, i) => `const t${i} = new Trend('${name}', true);`,
+      ).join("\n");
+      const asLiteral = `const M = {\n${S3_STAGE_TREND_NAMES.map(
+        (name, i) => `  [V[${i}]]: new Trend("${name}", true),`,
+      ).join("\n")}\n};`;
+      expect(trendMetricNamesOf(asConsts)).toEqual(S3_STAGE_TREND_NAMES);
+      expect(trendMetricNamesOf(asLiteral)).toEqual(S3_STAGE_TREND_NAMES);
+      // 인자 없는 호출은 이름을 만들어내지 않는다(추측 0).
+      expect(trendMetricNamesOf("new Trend()")).toEqual([]);
+      // add 인자도 공백 배치와 무관하게 같은 정규형이다.
+      expect(trendAddArgsOf("a.add( x.y );\nb.add(z)")).toEqual(["x.y", "z"]);
+    });
+  });
+
+  describe("negative cases 충분 cover — import 소실 · Trend 결손 · record 누락 · 임계화 · 분기", () => {
+    it("(1) k6/metrics import 를 지운 합성 본문을 guard 가 검출한다", () => {
+      const script = s3Script();
+      const dropped = script.replace(
+        `import { Trend } from "${K6_METRICS_MODULE}";`,
+        "",
+      );
+      expect(dropped).not.toBe(script);
+      expect(k6MetricsImportsOf(dropped)).toBeNull();
+      expect(k6MetricsImportsOf(s3Script())).toEqual(["Trend"]);
+    });
+
+    it("(2) 단계 3 의 Trend 인스턴스를 지운 합성 본문을 guard 가 검출한다", () => {
+      const script = s3Script();
+      const removed = script.replace(
+        `  [STAGE_TAG_VALUES[2]]: new Trend("${S3_STAGE_TREND_NAMES[2]}", true),\n`,
+        "",
+      );
+      expect(removed).not.toBe(script);
+      expect(trendMetricNamesOf(removed)).toEqual(
+        S3_STAGE_TREND_NAMES.slice(0, 2),
+      );
+      expect(trendMetricNamesOf(removed)).not.toEqual(S3_STAGE_TREND_NAMES);
+      expect(trendMetricNamesOf(s3Script())).toEqual(S3_STAGE_TREND_NAMES);
+    });
+
+    it("(3) 3 왕복 중 하나의 record 를 지운 합성 본문을 guard 가 검출한다", () => {
+      const body = s3Body("export default function");
+      const cut = body.replace(
+        "  STAGE_TRENDS[readParams.tags[STAGE_TAG_KEY]].add(listed.timings.duration);\n",
+        "",
+      );
+      expect(cut).not.toBe(body);
+      expect(trendAddArgsOf(cut)).toHaveLength(2);
+      expect(trendAddArgsOf(cut)).not.toContain("listed.timings.duration");
+      expect(trendAddArgsOf(s3Body("export default function"))).toHaveLength(3);
+    });
+
+    it("(4) custom Trend 를 임계로 굳힌 합성 본문(판정면 오염)을 검출한다", () => {
+      const script = s3Script();
+      const drifted = script.replace(
+        '    http_req_failed: ["rate<0.01"],',
+        `    http_req_failed: ["rate<0.01"],\n    ${S3_STAGE_TREND_NAMES[0]}: ["p(95)<3000"],`,
+      );
+      expect(drifted).not.toBe(script);
+      expect(thresholdKeys(drifted)).toHaveLength(S3_THRESHOLD_KEYS.length + 1);
+      expect(thresholdKeys(drifted)).toContain(S3_STAGE_TREND_NAMES[0]);
+      expect(thresholdKeys(s3Script())).toEqual(S3_THRESHOLD_KEYS);
+    });
+
+    it("(5) 조건 분기가 새로 들어간 합성 본문을 검출한다(머리 주석 규약 ⑤ 위반)", () => {
+      const script = s3Script();
+      [...GUARDED_PREFIXES, "if (", "} else", " ? ", " && "].forEach((token) =>
+        expect(script).not.toContain(token),
+      );
+      // __ENV fallback 1 종만 남는다 — Trend 배선이 `||` 를 늘리지 않았다.
+      expect(script.match(/\|\|/g)).toHaveLength(1);
+      const branched = script.replace(
+        "  STAGE_TRENDS[writeParams.tags[STAGE_TAG_KEY]].add(",
+        "  if (created.status === 201) STAGE_TRENDS[STAGE_TAG_VALUES[0]].add(",
+      );
+      expect(branched).not.toBe(script);
+      expect(branched).toContain("if (");
+      expect(s3Script()).not.toContain("if (");
+    });
+
+    it("(6) package.json 의 dependencies · devDependencies 에 k6 항목 유입이 0 이다", () => {
+      const p = pkg();
+      const deps = Object.keys({ ...p.dependencies, ...p.devDependencies });
+      ["k6", "@types/k6", "k6-metrics", "k6/metrics"].forEach((name) =>
+        expect(deps).not.toContain(name),
+      );
+      // 대조군 — 유입된 합성 목록은 같은 단언에서 즉시 걸린다(단언이 tautology 가 아님).
+      expect([...deps, "k6"]).toContain("k6");
+    });
+  });
+});

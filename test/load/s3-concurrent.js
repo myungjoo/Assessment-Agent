@@ -10,6 +10,10 @@
 // `http_reqs` 항등식이 `3 × iterations` → `3 × iterations + 2` 로 바뀐다. `#### S3 1 회차` 가
 // 자기정리 판정 근거로 쓴 배수 관계를 다음 회차 분석자가 그대로 적용하면 2 건만큼 어긋난다.
 import http from "k6/http";
+// (T-1691) 단계별 값 생성용 custom Trend — k6 런타임이 기본 제공하는 내장 모듈이라 새 외부
+// dependency 는 0 이다(계획 §3 설계 조항 ⑥ (다)). 종료 요약은 request tag 를 sub-metric 으로
+// 자동 분해하지 않아(조항 ⑥ (가)) stage tag 만으로는 단계별 값이 요약에 생기지 않는다.
+import { Trend } from "k6/metrics";
 
 // 대상 base URL — workflow 의 K6_BASE_URL 주입값과 동일한 기본값 (smoke.js · s2-read.js 동형).
 const BASE_URL = __ENV.K6_BASE_URL || "http://localhost:3000";
@@ -52,6 +56,15 @@ const withStage = (params, startedAt) =>
       [STAGE_TAG_KEY]: stageTagOf(startedAt),
     }),
   });
+// (T-1691) 단계 값 → 단계별 Trend lookup 표 — STAGE_TAG_VALUES 3 종과 1:1 대응하는 고정 접두형
+// 지표라 종료 요약에 `s3_stage_duration_<단계>` 행이 그대로 찍힌다(값의 생성 = 경로 β). 선택은
+// 조회 1 회뿐이라 조건 분기는 늘지 않고(머리 주석 규약 ⑤), 임계를 붙이지 않으므로 pass/fail
+// 판정면 변화는 0 이다(조항 ② · ⑥ (라)). 둘째 인자 true 는 요약을 시간 단위로 표시시킨다.
+const STAGE_TRENDS = {
+  [STAGE_TAG_VALUES[0]]: new Trend("s3_stage_duration_1", true),
+  [STAGE_TAG_VALUES[1]]: new Trend("s3_stage_duration_2", true),
+  [STAGE_TAG_VALUES[2]]: new Trend("s3_stage_duration_3", true),
+};
 
 export const options = {
   // (T-1688) 종료 요약 percentile 열 — k6 기본 6 종을 전부 보존한 위에 p(99) 만 더해
@@ -93,21 +106,29 @@ export default function (data) {
   // run · VU · iteration 조합 접미사 — Person.email @unique 충돌(409)이 동시 실행에서도 전역
   // http_req_failed 임계를 오염시키지 않게 한다 (T-1623 stamp 규약 승계).
   const stamp = `${Date.now()}-${__VU}-${__ITER}`;
+  // (T-1691) 요청에 실제로 붙은 단계 tag 를 그대로 재사용해 Trend 행을 고른다 — 요청 뒤에
+  // stageTagOf 를 다시 부르면 단 경계를 넘는 왕복에서 tag 와 record 가 서로 다른 단계로 갈린다.
+  const writeParams = withStage(WRITE_PARAMS, data.startedAt);
   const created = http.post(
     `${BASE_URL}/api/persons`,
     JSON.stringify({
       fullName: `동시 부하 ${stamp}`,
       email: `load-s3-${stamp}@example.com`,
     }),
-    withStage(WRITE_PARAMS, data.startedAt),
+    writeParams,
   );
+  STAGE_TRENDS[writeParams.tags[STAGE_TAG_KEY]].add(created.timings.duration);
   // 그 write 와 동시에 도는 목록 조회(혼합 부하의 read 절반) 후 자기 정리.
-  http.get(`${BASE_URL}/api/persons`, withStage(READ_PARAMS, data.startedAt));
-  http.del(
+  const readParams = withStage(READ_PARAMS, data.startedAt);
+  const listed = http.get(`${BASE_URL}/api/persons`, readParams);
+  STAGE_TRENDS[readParams.tags[STAGE_TAG_KEY]].add(listed.timings.duration);
+  const deleteParams = withStage(DELETE_PARAMS, data.startedAt);
+  const removed = http.del(
     `${BASE_URL}/api/persons/${created.json("id")}`,
     null,
-    withStage(DELETE_PARAMS, data.startedAt),
+    deleteParams,
   );
+  STAGE_TRENDS[deleteParams.tags[STAGE_TAG_KEY]].add(removed.timings.duration);
 }
 
 export function teardown(data) {
