@@ -2,7 +2,7 @@
 id: T-1694
 title: 단계별 Trend 두 번째 dispatch 로 S3 4 회차 실측 회수 + §3.1 회차 기록 (단계 표본 2 회 확보)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047, REQ-048]
 independentStream: load-k6-s3-baseline
@@ -117,3 +117,22 @@ T-1693 이 같은 run 의 S1 · S2 leg 를 재독으로 회수했다. 그 두 sl
   새 dispatch 0.
 - (planner 사전 메모) ② 단계 표본이 2 개가 되면 `latency cliff` 판정 slice 와 조항 ⑥ 꼬리의 표시 수단
   판단 slice 가 입력을 갖는다 — 각각 별도 `direct` 문서 slice.
+
+## 결과 요약 (완료: 2026-08-25T11:52:00Z)
+
+- `gh workflow run load-k6.yml --ref main -f s1_persons=133` 을 **정확히 1 회** 실행 — run
+  **32843613484**(head sha `640f5fe3`), rerun · 재 dispatch · 재시도 **0**.
+- run conclusion 은 **`failure`** — 원인은 step 12 S1 leg 의 관찰용 게이트
+  `✗ 'p(95)<1100' p(95)=1.15s`(exit 99) 이며, S3 step 15 는 `if: ${{ !cancelled() }}` 로 그대로 돌아
+  conclusion **`success`**(k6 exit 0) 라 S3 leg 수치는 전량 회수됐다. AC 1 의 "fail 로 끝나도 그 사실을
+  기록하고 종료" 를 따라 **재실행하지 않았다**.
+- [load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) `§3.1` 에
+  `#### S3 4 회차 (T-1694, run 32843613484, 단계별 Trend 2 번째 표본)` 신설 — 임계 **4/4 `✓`**,
+  단계별 custom Trend **3 행 전부 출력**(단계 1 p95 `4.36ms` · p99 `7.34ms` / 단계 2 `20.01ms` ·
+  `64.93ms` / 단계 3 `18.24ms` · `23.08ms`), `p(99)` 열 **연속 2 회 확보**(전역 `33.94ms`),
+  행 수 잔여 **0 행**(133 → 133), 2 표본 Δ 는 산술 차이로만 기록.
+- `§3.1` 헤더 회분 표기 `S3 3 회분 → 4 회분`(S1 14 · S2 4 는 무변경), `#### S3 3 회차` 꼬리에 표본 2 개
+  도달 pointer 1 줄 append(기존 문장 · 수치 삭제 **0**), `§5` item 5 꼬리에 집행 문단 1 개 append,
+  [PLAN.md](../PLAN.md) `141 행` 꼬리 1 문장 append(`140 행` checkbox 는 `[ ]` 유지).
+- `§3` 임계 표 · `test/load/*` · `.github/workflows/*` · `package.json` **문자 단위 0 변경**,
+  `pnpm lint` 1 회 무경고(doc-only · production 0 LOC — R-110 tester 면제).
