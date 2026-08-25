@@ -2,7 +2,7 @@
 id: T-1706
 title: 실 수집 왕복(§5 잔여 ①) 해소 경로 판단 사전 박제 (후보 3 종 · 조건 2 개 · 분기 결론 3 값, 부하계획 §3 + §5 + PLAN 141 행)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 estimatedDiff: 120
@@ -130,3 +130,23 @@ R-91 chain 의 다음 칸이다.
 ## Follow-ups
 
 (작성 시점 없음 — sub-agent 가 발견 시 여기에 append)
+
+## Result (Status: DONE)
+
+- **완료 시각**: 2026-08-25 (UTC) — `commitMode: direct` doc-only 단독 slice, 2 파일 · +110/-1 LOC.
+- **집행 내용**: ① [부하계획](../ops/load-resilience-test-plan.md) `§3` 에
+  `#### 실 수집 왕복(§5 잔여 ①) 해소 경로 판단 (사전 박제, T-1706)` 소절을 T-1704 소절 직후 ·
+  `### 3.1` 직전에 **add-only** 신설 (사실 확정 4 항 ㄱ~ㄹ → 후보 3 종 ㉠㉡㉢ → 조건 2 개 ⓐⓑ →
+  분기 결론 3 값 → 기계 대입 → 집행 경로 → 재개 트리거 T1~T3). ② `§5` item 5 꼬리에 결론 문단
+  **1 개** append. ③ `docs/PLAN.md` `141 행` 꼬리에 **1 문장** append.
+- **결론**: **㉠ 실 자격증명 주입 → `사람 승인 대기`** (ⓐ true — batch 표본이 stub 조건을 벗어나
+  판정면을 실제로 움직임 / ⓑ false — [CLAUDE.md](../../CLAUDE.md) `§5` 외부 자격증명 ·
+  security/auth 트리거) · **㉡ 왕복 재현 대체안 → `해소 불요`** (ⓐ false — shape 만 재현해서는 실
+  수집 조건의 판정 입력이 되지 못함) · **㉢ 해소 불요 → `해소 불요`**. `자율 집행 채택` **0 건**
+  이라 T-1668 규칙 ④ split 은 **발화하지 않고** 본 slice 는 아무것도 배선하지 않는다. ㉠ 의
+  `humanQuestion` 도 본 slice 에서는 만들지 않으며 재개 트리거 **T1** 발화 시 후속 slice 소관이다.
+- **자기 점검**: `§5` item 5 잔여 ① 원문 · 잔여 개수(**1 개**) · `§3` 임계 표 8 행 · T-1644 각주 ·
+  T-1668 규칙 소절 · T-1698/T-1703/T-1704 판단 소절 · `§3.1` 회차 본문 · 회분 표기(S1 16 · S2 6 ·
+  S3 5) · PLAN `140 행` checkbox `[ ]` 모두 **문자 단위 무변경**. `test/` · `src/` · `web/` ·
+  `.github/workflows/` · `package.json` diff **0 파일 · 0 LOC**. 새 `workflow_dispatch` · rerun ·
+  실측 회수 **0**. `pnpm lint` 무경고, R-110 은 direct doc-only 면제.
