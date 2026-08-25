@@ -4377,3 +4377,187 @@ describe("s3-concurrent.js persons 행 수 로그 배선 drift smoke (T-1682)", 
     });
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-1688 — 부하 스크립트 3 종의 `options.summaryTrendStats` p(99) 배선 drift. 존재 이유 —
+// 계획 §3 "집계" 규약 셋째 항(p99)이 S1 12·13 · S2 2·3 · S3 1·2 회차 전 회차에서 "미확보" 로
+// 이월된 원인은 k6 기본 요약이 p(90) · p(95) 까지만 낸다는 것 하나뿐이었다. 설계 후보 A 가 그
+// 열을 여는데, 그 선언이 ① 한 스크립트에서만 빠지거나 ② 기본 6 종 중 하나를 지워 기존 회차와
+// 대조 불가가 되거나 ③ p(99) 가 관찰이 아니라 임계로 굳어도 상시 CI 는 green 이다(부하 job 은
+// workflow_dispatch 전용). 새 helper 1(summaryTrendStatsOf) 외 기존 재사용.
+//      🔥 실 k6 실행 0 · 실 HTTP 0 · DB 의존 0 · 새 dependency 0 — 파일 read + 합성 문자열만.
+
+/** k6 가 기본으로 내는 Trend 통계 6 종 — 하나라도 지우면 기존 회차 기록과 열 대조가 끊긴다. */
+const K6_DEFAULT_TREND_STATS = ["avg", "min", "med", "max", "p(90)", "p(95)"];
+/** 설계 후보 A 가 더하는 열 하나 — 문제 (a)(p99 미확보)를 닫는 유일한 추가분. */
+const ADDED_TREND_STAT = "p(99)";
+/** 배선 대상 3 종 — 회차 기록이 있는 시나리오 스크립트만(smoke.js 는 측정 대상이 아니다). */
+const TREND_STAT_SCRIPTS: [string, () => string][] = [
+  [S1_SCRIPT_REL, s1Script],
+  [S2_SCRIPT_REL, s2Script],
+  [S3_SCRIPT_REL, s3Script],
+];
+
+/**
+ * (T-1688) `options.summaryTrendStats` 배열의 원소 목록(선언 순서 보존).
+ * 선언이 없으면 `null`(미발견 정규형 — 추측 0 · throw 0), non-string 입력은 `TypeError`.
+ * 따옴표 종류(`"` / `'`)와 원소 사이 줄바꿈 배치가 달라도 같은 정규형을 낸다.
+ */
+function summaryTrendStatsOf(script: string): string[] | null {
+  if (typeof script !== "string") {
+    throw new TypeError("summaryTrendStatsOf: script 는 string 이어야 함");
+  }
+  const matched = script.match(/summaryTrendStats:\s*\[([^\]]*)\]/);
+  if (matched === null) {
+    return null;
+  }
+  return (matched[1].match(/"[^"]*"|'[^']*'/g) || []).map((raw) =>
+    raw.slice(1, -1),
+  );
+}
+
+/** 배선 불변식 — 선언이 있고 기본 6 종 + p(99) 를 모두 담고 있어야 true. */
+function trendStatsIntact(script: string): boolean {
+  const stats = summaryTrendStatsOf(script);
+  return (
+    stats !== null &&
+    [...K6_DEFAULT_TREND_STATS, ADDED_TREND_STAT].every((s) =>
+      stats.includes(s),
+    )
+  );
+}
+
+describe("부하 스크립트 3 종 summaryTrendStats p(99) 배선 drift smoke (T-1688)", () => {
+  describe("Happy-path: 세 스크립트가 기본 6 종 + p(99) 를 선언한다", () => {
+    TREND_STAT_SCRIPTS.forEach(([rel, read]) => {
+      it(`${rel} 이 summaryTrendStats 로 기본 6 종 + p(99) 를 선언하고 목적 주석을 남긴다`, () => {
+        expect(existsSync(path.join(REPO_ROOT, rel))).toBe(true);
+        const script = read();
+        const stats = summaryTrendStatsOf(script) as string[];
+        expect(stats).not.toBeNull();
+        // 기본 6 종은 선언 순서까지 그대로 — 기존 회차 기록의 열 대조가 유지된다.
+        expect(stats.slice(0, K6_DEFAULT_TREND_STATS.length)).toEqual(
+          K6_DEFAULT_TREND_STATS,
+        );
+        expect(stats).toContain(ADDED_TREND_STAT);
+        expect(stats).toHaveLength(K6_DEFAULT_TREND_STATS.length + 1);
+        expect(trendStatsIntact(script)).toBe(true);
+        // 목적(관찰 전용 · 문제 (a) 회수)이 스크립트 안에 한국어 주석으로 남아 있다.
+        expect(script).toContain("(T-1688)");
+        expect(script).toContain("관찰 전용");
+      });
+    });
+
+    it("세 스크립트의 선언이 서로 같은 정규형이라 회차 간 열 대조가 성립한다", () => {
+      const declared = TREND_STAT_SCRIPTS.map(([, read]) =>
+        summaryTrendStatsOf(read()),
+      );
+      expect(declared[0]).toEqual(declared[1]);
+      expect(declared[1]).toEqual(declared[2]);
+    });
+  });
+
+  describe("Error path: 정본 경로 오탈자 · non-string 입력", () => {
+    it("없는 스크립트 경로 read 는 throw 하고 non-string 입력은 TypeError 다", () => {
+      // 0-byte 조용한 fallback 으로 false-PASS 되지 않는다 — 경로가 틀리면 즉시 드러난다.
+      expect(() =>
+        readFileSync(path.join(REPO_ROOT, `${S1_SCRIPT_REL}.absent`)),
+      ).toThrow();
+      [undefined, 42, null, {}, []].forEach((bad) => {
+        expect(() => summaryTrendStatsOf(bad as unknown as string)).toThrow(
+          TypeError,
+        );
+      });
+    });
+  });
+
+  describe("flow / 분기 cover: 선언 있음 · 없음 · 표기 변형", () => {
+    it("(a) 배열이 있는 합성 입력은 원소 목록을 선언 순서 그대로 낸다", () => {
+      expect(
+        summaryTrendStatsOf('  summaryTrendStats: ["avg", "p(99)"],'),
+      ).toEqual(["avg", "p(99)"]);
+    });
+
+    it("(b) 선언이 없는 입력은 throw 없이 null(미발견 정규형)이다", () => {
+      expect(
+        summaryTrendStatsOf("export const options = { vus: 1 };"),
+      ).toBeNull();
+      expect(summaryTrendStatsOf("")).toBeNull();
+    });
+
+    it("(c) 따옴표 종류 · 줄바꿈 배치가 달라도 같은 정규형을 낸다", () => {
+      const expected = ["avg", "p(95)", "p(99)"];
+      expect(
+        summaryTrendStatsOf(`summaryTrendStats: ['avg', 'p(95)', 'p(99)']`),
+      ).toEqual(expected);
+      expect(
+        summaryTrendStatsOf(
+          'summaryTrendStats: [\n  "avg",\n  "p(95)",\n  "p(99)",\n]',
+        ),
+      ).toEqual(expected);
+      expect(
+        summaryTrendStatsOf(`summaryTrendStats:["avg",'p(95)',"p(99)"]`),
+      ).toEqual(expected);
+    });
+  });
+
+  describe("negative cases 충분 cover — 열 소실 · 임계화 · dependency · 트리거", () => {
+    it("(1) p(99) 를 뺀 합성 본문이면 guard 가 검출한다(세 스크립트 각각)", () => {
+      TREND_STAT_SCRIPTS.forEach(([, read]) => {
+        const script = read();
+        const dropped = script.replace(`, "${ADDED_TREND_STAT}"`, "");
+        expect(dropped).not.toBe(script);
+        expect(trendStatsIntact(dropped)).toBe(false);
+        expect(summaryTrendStatsOf(dropped)).not.toContain(ADDED_TREND_STAT);
+        // 원본은 mutate 되지 않는다 — 대조군이 성립한다.
+        expect(trendStatsIntact(read())).toBe(true);
+      });
+    });
+
+    it("(2) 기본 6 종 중 med 를 지운 합성 본문이면 guard 가 검출한다(열 소실 차단)", () => {
+      TREND_STAT_SCRIPTS.forEach(([, read]) => {
+        const script = read();
+        const removed = script.replace(`"med", `, "");
+        expect(removed).not.toBe(script);
+        expect(trendStatsIntact(removed)).toBe(false);
+        expect(summaryTrendStatsOf(removed)).not.toContain("med");
+      });
+    });
+
+    it("(3) 세 스크립트 어디에도 p(99) 를 임계로 쓴 표현이 없다(관찰 전용 · 조항 ②)", () => {
+      TREND_STAT_SCRIPTS.forEach(([, read]) => {
+        const script = read();
+        expect(script).not.toContain("p(99)<");
+        // 주석을 뺀 코드 행에서 p(99) 는 summaryTrendStats 선언 한 곳뿐이다.
+        const p99CodeLines = script
+          .split("\n")
+          .filter((l) => !l.trim().startsWith("//"))
+          .filter((l) => l.includes(ADDED_TREND_STAT));
+        expect(p99CodeLines).toHaveLength(1);
+        expect(p99CodeLines[0]).toContain("summaryTrendStats:");
+        // 임계 키 집합에도 새 항목이 붙지 않았다 — 판정면 문자 단위 0 변경.
+        expect(thresholdKeys(script)).not.toContain("summaryTrendStats");
+      });
+      // 대조군 — p(99) 를 임계로 굳힌 합성본은 위 단언에서 즉시 걸린다.
+      const drifted = s3Script().replace(
+        'http_req_failed: ["rate<0.01"],',
+        'http_req_failed: ["rate<0.01"],\n    http_req_duration: ["p(99)<3000"],',
+      );
+      expect(drifted).toContain("p(99)<");
+    });
+
+    it("(4) package.json 어디에도 k6 dependency 키가 없다(정적 바이너리 규약 승계)", () => {
+      const p = pkg();
+      const deps = Object.keys({ ...p.dependencies, ...p.devDependencies });
+      ["k6", "@types/k6"].forEach((name) => expect(deps).not.toContain(name));
+    });
+
+    it("(5) load-k6.yml 에 여전히 pull_request · push · schedule 트리거가 없다", () => {
+      const triggers = triggerSection(loadYml());
+      ["pull_request:", "push:", "schedule:"].forEach((t) =>
+        expect(triggers).not.toContain(t),
+      );
+      expect(triggers).toContain("workflow_dispatch:");
+    });
+  });
+});

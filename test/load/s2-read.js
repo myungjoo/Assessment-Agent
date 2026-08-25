@@ -55,6 +55,10 @@ const SEED_PARAMS = {
 const TEARDOWN_PARAMS = { tags: { route: "teardown" } };
 
 export const options = {
+  // (T-1688) 종료 요약 percentile 열 — k6 기본 6 종을 전부 보존한 위에 p(99) 만 더해
+  // 계획 §3 "집계" 셋째 항의 미확보(설계 문제 (a))를 run log 에서 회수한다. 관찰 전용이라
+  // 아래 thresholds 판정면은 문자 단위 0 변경이다(설계 조항 ②).
+  summaryTrendStats: ["avg", "min", "med", "max", "p(90)", "p(95)", "p(99)"],
   // 반복 조회 프로파일 — smoke(1 VU × 1 iteration) 보다 큰 지속 부하. ramping stages 는
   // S3(동시성 내성) 소관이라 쓰지 않는다. 수동 발화 job 이라 비용은 1 회 실행에 국한.
   vus: 5,
