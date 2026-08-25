@@ -2,7 +2,7 @@
 id: T-1686
 title: K6_SEED_PERSONS 상한 30→133 상향 여부를 S2 실측 3 회차 근거로 판단·박제
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048, REQ-047]
 independentStream: load-resilience
@@ -57,3 +57,10 @@ plannerNote: P5 부하 harness — T-1685 승계 Follow-up ①, S2 3 회차 근�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 append)
+
+## 완료 기록
+
+- 완료: 2026-08-25T03:55Z (cron fire `cron@aa-local-fafeb05e-19657`, direct commit `9f49d8a8`)
+- 결론: **상향 없이 `K6_SEED_PERSONS=30` 유지**. `§3.1` 에 `#### K6_SEED_PERSONS 상한 상향 판단 (T-1686)` 소절을 신설해 판단 기준 3 종(ⓐ binding · ⓑ 측정 영향 · ⓒ 임계 여유) → 기박제 증거 인용 → 결론 → 재판단 트리거 `T1`~`T4` 순으로 박제했고, `§2` 조항 ③ 꼬리에 판단 완료 pointer 1 줄, `§5` item 5 · `PLAN.md` `141 행` 꼬리에 append 했다.
+- 범위 준수: doc-only 2 파일 `+100/-1` 순수 삽입 hunk, `§3` 임계 표 · `§3.1` 회차 수치 · `§2` 조항 ①②④⑤ · `§4` 는 문자 단위 **0 변경**. 새 `workflow_dispatch` · rerun · 값 변경 **0**. `src/` · `test/` · `.github/workflows/` · `package.json` 변경 **0 파일**. R-110 면제(production 0 LOC), 확인용 `pnpm lint` 무경고.
+- Follow-ups 승계: ① 재판단 트리거 `T1`~`T4` 중 하나라도 발화하면 상향 배선 `pr` slice (workflow env · 스크립트 기본값 · drift-guard 단언 **3 자 parity**) ② 단계별 percentile export step.
