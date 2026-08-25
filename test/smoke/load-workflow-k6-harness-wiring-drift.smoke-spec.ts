@@ -1316,11 +1316,12 @@ const S1_BATCH_ROUTE = "/api/assessment-evaluation/unevaluated-fill-run";
 /** S1 임계 정본 — batch p95(외삽 산식) + 전역 error rate = 2 종, 선언 순서 그대로. */
 const S1_THRESHOLD_KEYS = ["http_req_duration{route:batch}", "http_req_failed"];
 /**
- * (T-1645) T-1644 가 계획 §3 표에 확정한 stub 조건 baseline — 표본 133 · p95 1100ms.
- * (T-1676) 값은 T-1675 가 S1 11 회차 실 run 으로 재확정한 관찰용 임계다(T-1668 규칙 ②).
+ * (T-1645) T-1644 가 계획 §3 표에 확정한 stub 조건 baseline — 표본 133 · p95 1200ms.
+ * (T-1696) 값은 T-1695 가 S1 15 회차 실 run 으로 재확정한 관찰용 임계다(T-1668 규칙 ② —
+ * 실 scale 표본 12 개 평균 + 3σ = 1198.83ms 의 100ms 올림). 직전 값은 1100ms(T-1676)였다.
  */
 const S1_STUB_BASELINE_PERSONS = 133;
-const S1_STUB_BASELINE_P95_MS = 1100;
+const S1_STUB_BASELINE_P95_MS = 1200;
 /** baseline 원소를 표본 133 에만 얹는 조건식(분기문 0 규약을 지키는 filter 콜백 형태). */
 const S1_BASELINE_GATE =
   /\.filter\(\s*\(\) => SAMPLE_PERSONS === STUB_BASELINE_PERSONS,?\s*\)/;
@@ -1468,7 +1469,7 @@ describe("test/load/s1-batch.js S1 평가 배치 부하 골격 drift smoke (T-16
       expect(script).toContain("rate<0.01");
     });
 
-    it("(T-1645) batch 임계 배열이 외삽 + 표본 133 stub baseline 1100ms 2 종이다", () => {
+    it("(T-1645) batch 임계 배열이 외삽 + 표본 133 stub baseline 1200ms 2 종이다", () => {
       const script = s1Script();
       // 임계 key 목록·순서는 2 종 그대로 — 늘어난 것은 batch 값 배열의 원소뿐이다.
       expect(thresholdKeys(script)).toEqual(S1_THRESHOLD_KEYS);
@@ -1673,16 +1674,16 @@ describe("test/load/s1-batch.js S1 평가 배치 부하 골격 drift smoke (T-16
     it("(T-1645) baseline 배선 mutation 4 종이 전부 검출된다", () => {
       const script = s1Script();
       expect(baselineWiringIntact(script)).toBe(true);
-      // ① 1100 → 다른 숫자로 변조(상향 · 하향 두 방향 모두 검출돼야 한다).
+      // ① 1200 → 다른 숫자로 변조(상향 · 하향 두 방향 모두 검출돼야 한다).
       const shifted = script.replace(
-        "STUB_BASELINE_P95_MS = 1100;",
+        "STUB_BASELINE_P95_MS = 1200;",
         "STUB_BASELINE_P95_MS = 1500;",
       );
       expect(shifted).not.toBe(script);
       expect(baselineWiringIntact(shifted)).toBe(false);
       // ①-b 하향 변조(T-1668 규칙 ③ 이 금지한 방향) 도 같은 불변식이 잡는다.
       const lowered = script.replace(
-        "STUB_BASELINE_P95_MS = 1100;",
+        "STUB_BASELINE_P95_MS = 1200;",
         "STUB_BASELINE_P95_MS = 800;",
       );
       expect(lowered).not.toBe(script);
