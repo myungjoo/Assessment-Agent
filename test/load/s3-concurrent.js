@@ -28,6 +28,31 @@ const READ_PARAMS = { tags: { route: "read" } };
 const SEED_PARAMS = { tags: { route: "seed" } };
 const TEARDOWN_PARAMS = { tags: { route: "teardown" } };
 
+// (T-1689) 단계 식별 전용 tag key — 판정 축(route)과 직교한 새 key 하나로 stages 3 단을 가른다
+// (계획 §3 설계 조항 ③). route 값 집합(read · write · seed · teardown)에는 단계 값을 섞지
+// 않으므로 `http_req_duration{route:read}` · `{route:write}` 의 판정 표본은 문자 단위 그대로다.
+const STAGE_TAG_KEY = "stage";
+// stages 3 단과 1:1 대응하는 단계 값 — 관찰 전용이라 새 tag 용 임계는 추가하지 않는다(조항 ②).
+const STAGE_TAG_VALUES = ["1", "2", "3"];
+// 앞 두 단의 폭(ms) — 경과시간을 이 폭으로 나눈 몫이 곧 0-based 단계 index 다.
+const STAGE_STEP_MS = 10000;
+// 단계 값 산출은 조건 분기 0 의 산술 1 식 — 경과 ms 를 단 폭으로 나눈 index 를 마지막 단에
+// Math.min 으로 clamp 한다(ramp-down 초과분도 마지막 단으로 접힌다). 머리 주석 규약 ⑤ 유지.
+const stageTagOf = (startedAt) =>
+  STAGE_TAG_VALUES[
+    Math.min(
+      STAGE_TAG_VALUES.length - 1,
+      Math.floor((Date.now() - startedAt) / STAGE_STEP_MS),
+    )
+  ];
+// 판정 params 원본은 그대로 두고 단계 축만 덧붙인 사본을 만든다(tags 병합 1 회 · 분기 0).
+const withStage = (params, startedAt) =>
+  Object.assign({}, params, {
+    tags: Object.assign({}, params.tags, {
+      [STAGE_TAG_KEY]: stageTagOf(startedAt),
+    }),
+  });
+
 export const options = {
   // (T-1688) 종료 요약 percentile 열 — k6 기본 6 종을 전부 보존한 위에 p(99) 만 더해
   // 계획 §3 "집계" 셋째 항의 미확보(설계 문제 (a))를 run log 에서 회수한다. 관찰 전용이라
@@ -59,10 +84,12 @@ export function setup() {
     .json().length;
   console.log(`[s3-concurrent] persons 행 수 시작 ${startRows}행`);
   // 반환값은 teardown 으로 그대로 전달되므로 JSON 직렬화 가능한 형태만 담는다.
-  return { startRows };
+  // (T-1689) startedAt 은 단계 축의 기준 시각 — 부하 시작 직전 1 회만 찍어 모든 VU 가 같은
+  // 기준을 공유한다(VU 별 init 시각을 쓰면 ramping 중 생성 시점만큼 축이 어긋난다).
+  return { startRows, startedAt: Date.now() };
 }
 
-export default function () {
+export default function (data) {
   // run · VU · iteration 조합 접미사 — Person.email @unique 충돌(409)이 동시 실행에서도 전역
   // http_req_failed 임계를 오염시키지 않게 한다 (T-1623 stamp 규약 승계).
   const stamp = `${Date.now()}-${__VU}-${__ITER}`;
@@ -72,14 +99,14 @@ export default function () {
       fullName: `동시 부하 ${stamp}`,
       email: `load-s3-${stamp}@example.com`,
     }),
-    WRITE_PARAMS,
+    withStage(WRITE_PARAMS, data.startedAt),
   );
   // 그 write 와 동시에 도는 목록 조회(혼합 부하의 read 절반) 후 자기 정리.
-  http.get(`${BASE_URL}/api/persons`, READ_PARAMS);
+  http.get(`${BASE_URL}/api/persons`, withStage(READ_PARAMS, data.startedAt));
   http.del(
     `${BASE_URL}/api/persons/${created.json("id")}`,
     null,
-    DELETE_PARAMS,
+    withStage(DELETE_PARAMS, data.startedAt),
   );
 }
 
