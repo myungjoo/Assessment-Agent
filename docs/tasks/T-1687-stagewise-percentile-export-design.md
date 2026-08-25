@@ -2,7 +2,8 @@
 id: T-1687
 title: 단계별 percentile export 설계를 부하계획 문서에 사전 박제
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-25T04:52:00Z
 commitMode: direct
 coversReq: [REQ-047, REQ-048]
 independentStream: load-resilience-plan
@@ -62,3 +63,12 @@ T-1686 이 승계한 Follow-up **②**(단계별 percentile export step) 는 [do
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 append)
+
+## Result
+
+- **DONE** (2026-08-25T04:52Z, direct commit `d912da8a`) — `docs/ops/load-resilience-test-plan.md` `§3` 에 `#### 단계별 percentile export 설계 (사전 박제, T-1687)` 소절을 신설(문제 정의 2 항 → 조항 ①~⑤), `§5` item 5 · `docs/PLAN.md` `141 행` 꼬리 append. 2 파일 `+79/-1` 순수 삽입, `§3` 임계 표 · `§3.1` 회차 수치 · `§2` · `§4` 문자 단위 0 변경, 새 `workflow_dispatch` · rerun · 측정 수치 0, 확인용 `pnpm lint` 무경고.
+
+## Follow-ups (승계)
+
+1. 조항 ①~⑤ 설계의 **코드 배선** slice (`pr`) — k6 내장 수단으로 단계별 percentile 을 실제 출력하고 drift-guard parity 확보.
+2. 배선 완료 후 기존 "미확보" 표기 6 군데를 실측 `p99` 로 갱신하는 문서 slice (`direct`).
