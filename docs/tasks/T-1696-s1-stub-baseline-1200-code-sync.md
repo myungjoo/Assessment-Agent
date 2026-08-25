@@ -2,7 +2,7 @@
 id: T-1696
 title: S1 stub baseline 임계 1100ms → 1200ms 코드 동기 (규칙 ④ split 앞단, 스크립트 + drift guard 동시)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-047]
 estimatedDiff: 50
@@ -13,6 +13,7 @@ touchesFiles:
   - test/load/s1-batch.js
   - test/smoke/load-workflow-k6-harness-wiring-drift.smoke-spec.ts
 created: 2026-08-25
+completedAt: 2026-08-25T13:58:07Z
 plannerNote: P5 R-91 chain — T-1695 Follow-up ① (T-1668 규칙 ④ 2 task split 앞단 코드 pr, 상수 + drift guard 대조군 동시 갱신)
 ---
 
@@ -64,4 +65,10 @@ plannerNote: P5 R-91 chain — T-1695 Follow-up ① (T-1668 규칙 ④ 2 task sp
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 적는다.)
+- **①** (T-1668 규칙 ④ 2 task split **뒷단**, `direct`) — [docs/ops/load-resilience-test-plan.md](../ops/load-resilience-test-plan.md) 의 `§3` 임계 표 · 도출식 각주 · T-1668 규칙 소절(`248~281 행`) · `§5` item 5 의 `1100ms` 표기를 새 관찰용 임계 `1200ms` 로 동기한다. 본 slice 가 코드만 옮겼으므로 문서 숫자는 아직 `1100` 에 머물러 있다 (executor 가 종료 보고에서 재확인).
+- **②** — 새 관찰용 임계 `1200ms` 가 실제 run 에서 `✓` 로 도는지는 다음 `workflow_dispatch` slice 에서 확인한다. 본 slice 는 부하 job 을 발화하지 않았다.
+- **③** (관측) — 초안 주석이 `p(95)<` 문자열을 포함해 기존 negative 불변식(`p(95)<` 등장 2 회 고정)이 red 를 냈고 표현 변경으로 해소됐다. 가드가 의도대로 작동한 사례이며 추가 조치는 불요 — 향후 같은 파일 주석 편집 시 참고.
+
+## 결과 요약 (2026-08-25 완료)
+
+PR [#1340](https://github.com/myungjoo/Assessment-Agent/pull/1340) squash 머지 (main `5fb0931c`). `test/load/s1-batch.js` 의 `STUB_BASELINE_P95_MS` 를 `1100` → `1200` 으로 대입하고, 문자열 대조로 이 값을 감시하는 drift guard smoke 의 `S1_STUB_BASELINE_P95_MS` 상수 · JSDoc · `it` 제목 · mutation ① / ①-b 의 원본 리터럴을 **같은 commit** 에서 동기했다 (분리하면 불변식이 즉시 red). 판정 게이트(`BATCH_P95_MS` 외삽 산식 · `FULL_RUN_BUDGET_MS` · `http_req_failed`) · `filter` 조건식 · `summaryTrendStats` 열은 문자 단위 무변경으로 관찰 게이트와의 성격 구분을 지켰다. 2 파일 `+14/-11`. `pnpm lint` · `build` green, unit 453 suite / 13,009 test pass, `test:cov` 임계 통과(`src/` 무변경 → coverage 변동 0). reviewer APPROVE round 1/7, 4-게이트 PASS. 문서 숫자 갱신은 Follow-up ① 의 뒷단 `direct` slice 소관으로 남았다.
