@@ -2,7 +2,7 @@
 id: T-1685
 title: 같은 run 재독으로 S1 13 회차 · S2 3 회차 실측 회수 + §3.1 회차 기록
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047, REQ-048]
 estimatedDiff: 190
@@ -65,3 +65,15 @@ plannerNote: PLAN 141 행 R-91 chain 65/N — T-1684 run 32798553930 재독만�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 append)
+
+## 완료 기록
+
+- 완료 시각: 2026-08-25T02:52:00Z (cron fire `cron@aa-local-e6c4db44-1320`)
+- 결과: run `32798553930` 로그 **재독만** (새 dispatch · rerun · 재시도 **0**) 으로 `§3.1` 에 `#### 13 회차`(S1) · `#### S2 3 회차` 신설. 헤더 회분 S1 12→13 · S2 2→3(S3 2 유지), `#### S3 2 회차` 꼬리 pointer 1 줄, `§5` item 5 · `PLAN.md` `141 행` 꼬리 append.
+- T-1668 규칙 기계 재계수: 표본 10 개 · 평균 797.16ms · σ 75.85ms · 평균+3σ 1024.70ms → 트리거 ①-(a)/①-(b) **미발화** 라 `§3` 임계 표 · `STUB_BASELINE_P95_MS` · drift-guard spec 문자 단위 **0 변경**.
+- direct commit `6e177b67` (doc-only 2 파일 `+171/-2`), 확인용 `pnpm lint` 무경고. R-110 면제(production 0 LOC).
+
+## Follow-ups (승계)
+
+- `K6_SEED_PERSONS` 30→133 상향 판단.
+- 단계별 percentile export step (`p99` 미확보 해소).
