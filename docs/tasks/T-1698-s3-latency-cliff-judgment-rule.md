@@ -2,7 +2,7 @@
 id: T-1698
 title: S3 latency cliff 판정 규칙 사전 박제 (단계 표본 2 개 확보 후, 부하계획 §3 신규 소절 + §5 + PLAN 141 행)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047, REQ-048]
 estimatedDiff: 130
@@ -13,6 +13,7 @@ touchesFiles:
   - docs/ops/load-resilience-test-plan.md
   - docs/PLAN.md
 created: 2026-08-25
+completedAt: 2026-08-25T15:52:00Z
 plannerNote: P5 R-91 chain 63/N — T-1694 Follow-up ② 의 "규칙 사전 박제 → 기계 적용" 2 단계 중 앞단(규칙만, 판정 0)
 ---
 
@@ -119,3 +120,15 @@ plannerNote: P5 R-91 chain 63/N — T-1694 Follow-up ② 의 "규칙 사전 박�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+---
+
+## 완료 기록 (2026-08-25T15:52:00Z, direct)
+
+- 집행 commit `a65f1479` — `docs/ops/load-resilience-test-plan.md` `§3` 에 `#### S3 latency cliff 판정 규칙 (사전 박제, T-1698)` 소절 신설(조항 6 개: ① 판정 입력 = 단계별 Trend p95 1 차 · 정황 4 종 보조 강등 / ② 판정식 = 단계 간 배수 임계 **8.0** + 절대 하한 가드 **10ms** + 산출 근거 동석 / ③ 표본 요건 = 최소 2 개 · 연속 동일 결론 · 미달 시 판정 보류 / ④ 결론 3 값과 `§3` 표 귀결 / ⑤ 집행 split = 적용은 별도 `direct` slice / ⑥ 판정면 불변 = `thresholds` · `stages` · `summaryTrendStats` 0 변경) + `#### S3 4 회차` 꼬리 add-only pointer 1 줄 + `§5` item 5 꼬리 집행 문단 1 개, [PLAN.md](../PLAN.md) `141 행` 꼬리 1 문장 append.
+- **판정 0** — 2 표본 수치는 임계 산출 근거로만 인용했고 "cliff 가 있다/없다" 단정 문장은 diff 에 0. `140 행` checkbox `[ ]` 유지.
+- doc-only 2 파일 `+99/-1` (≤300 LOC · ≤5 파일). `test/` · `src/` · `.github/workflows/` · `package.json` **0 LOC**, 새 `workflow_dispatch` · rerun · 실측 회수 **0**. `pnpm lint` 무경고. R-110 tester 의무는 direct doc-only 면제(CLAUDE.md §3.2).
+
+### Follow-ups
+
+- 확보된 S3 단계 분해 표본 2 개(T-1692 3 회차 · T-1694 4 회차)에 본 규칙 조항 ② 를 **기계 대입** 해 결론(`cliff 부재` / `cliff 있음` / `판정 보류`)을 `§3.1` 및 `§3` 표 S3 행에 박제하는 별도 `direct` slice — 본 slice 의 조항 ⑤ 가 같은 commit 을 금지한다.
