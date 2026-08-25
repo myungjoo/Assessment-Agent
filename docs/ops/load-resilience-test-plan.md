@@ -165,6 +165,17 @@ iteration 안에서 생성한 row 를 스스로 정리하는 read + write 혼합
   degradation). 명시 임계는 harness 실측 baseline 확정 후 fix(초기 가이드: error rate
   < 1%, p95 저하가 부하 대비 linear 이내).
 - **관찰**: 동시성 단계별 error rate·p95, 커넥션 풀·DB 포화 지점, 타임아웃 발생.
+- **행 수 로그 계약(T-1682 배선)**: [`s3-concurrent.js`](../../test/load/s3-concurrent.js) 의
+  `setup()` 이 부하 **시작 시점**의 `GET /api/persons` 행 수를
+  `[s3-concurrent] persons 행 수 시작 N행` 한 줄로, `teardown()` 이 **종료 시점** 행 수와 시작
+  행 수를 `[s3-concurrent] persons 행 수 종료 N행 / 시작 M행` 한 줄로 찍는다(각 run 1 회 ·
+  조건 분기 0). 시작 값은 S2 teardown 뒤 **공유 dataset 보존**(위 `②`)을, 두 값의 차이는
+  iteration **자기 정리 잔여**를 각각 `data_received` · `http_reqs` 배수 같은 정황이 아니라
+  **직접 카운트**로 회수하게 한다. 준비 / 정리 왕복은 판정 tag `read` · `write` 와 **겹치지 않는
+  별도 route tag**(`seed` · `teardown`)를 달아
+  `http_req_duration{route:read}` · `{route:write}` p95 **오염이 0** 이며, 이 tag 용 임계는
+  추가하지 않는다(`§3` 표 재산정 0). 로그에는 **수치만** 싣고 email 원문 · 자격증명 ·
+  `/api/` 경로 리터럴은 싣지 않는다(T-1666 규약 승계).
 
 ---
 
@@ -945,6 +956,13 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
   아니다. 따라서 **보존 계약이 깨진 징후는 0** 이다. 다만 이는 정황이며 **행 수를 직접 찍는
   로그가 없어** 133 행 잔존의 직접 카운트는 **미확보**다(직접 검증은 S3 leg 에 표본 로그를
   심는 별도 slice 소관 — Follow-ups).
+  **[배선 완료 (T-1682) — 위 "로그가 없어 … 별도 slice 소관" 은 본 회차 시점의 서술로 보존하고,
+  그 slice 는 이미 끝났다: T-1682(PR #1336 → main `a5f84cb1`)가
+  [`s3-concurrent.js`](../../test/load/s3-concurrent.js) 의 `setup()` · `teardown()` 에 행 수
+  로그 2 줄을 배선했다(계약은 `§2` `### S3.` 참조). 따라서 다음 dispatch 부터 133 행 잔존은
+  `data_received` 같은 정황이 아니라 직접 카운트로 회수된다. 다만 본 회차(run 32780975839)는
+  배선 이전 run 이라 그 로그 줄이 로그에 존재하지 않으며, 위 "미확보" 판정은 본 회차에 한해
+  그대로 유효하다.]**
 - **설계 ③ 실증 판정 — 실증됐다**: 같은 로그 한 줄이 `필터 통과 133건` 과 `상한 30명` 을
   **분리해** 찍었고 `취득 30명` 이 그 사이에 놓였다. 즉 `GET /api/persons` 는 **133 행 전량**을
   응답했고 상한 `30` 은 그 결과에서 `setup()` 이 메모리에 남길 id 배열 길이를 자른 것뿐이다.
@@ -1018,6 +1036,11 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
   회수가 어긋났다면 DELETE 가 4xx 로 떨어졌을 텐데 `http_req_failed` 은 **0.00%**(0/22752) 로
   오류 폭증 징후가 **0** 이다. 다만 잔여 row 수를 직접 세는 로그는 없으므로 "잔여 0" 을
   단정하지는 않는다.
+  **[항등식 주의 (T-1682) — 위 `http_reqs` 22752 = `iterations` 7584 × 3 은 배선 이전 값이다.
+  T-1682(PR #1336 → main `a5f84cb1`) 이후 run 은 `setup()` · `teardown()` 이
+  `GET /api/persons` 를 각 1 왕복 더 때리므로 항등식이 `3 × iterations + 2` 로 바뀐다 —
+  같은 배수식을 다음 회차에 그대로 적용하면 안 된다(2 건만큼 어긋난다). 다음 회차부터는
+  배수 대신 행 수 로그 2 줄의 차이로 잔여를 직접 읽는다.]**
 - **`§3` 표 S3 축 무변경 판정**: 표본이 **1 회**뿐이라 error rate `< 1% (baseline 후 fix)` ·
   p95 저하 곡선 `latency cliff 부재` 는 **fix 하지 않는다**(무변경). 특히 후자는 위 판정대로
   단계 분해 자체가 불가해 fix 근거가 서지 않는다. S2 축과 마찬가지로 규칙 사전 박제 → 기계
@@ -1207,6 +1230,18 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    scale(표본 133) 표본이 **9 개**가 되며 평균 **790.35ms** · 평균+3σ **1021.77ms** 로 T-1668
    규칙 트리거 ①-(a) · ①-(b) 가 **모두 미발화**라 `§3` 표 · 상수 · spec 은 전부 무변경이고,
    잔여 ① 미해소 · 잔여 개수 **1 개** · ② · ③ 표기도 그대로다(실 수집 왕복 여전히 **0**).
+   **그 두 회차가 정황 추정으로만 답했던 두 물음(공유 dataset 보존 · iteration 자기 정리)에
+   직접 카운트가 배선됐다** — T-1682 가 [`s3-concurrent.js`](../../test/load/s3-concurrent.js) 의
+   `setup()` · `teardown()` 에 `GET /api/persons` 행 수 로그 2 줄(수치만 · 분기 0)을 얹고
+   [drift-guard smoke spec](../../test/smoke/load-workflow-k6-harness-wiring-drift.smoke-spec.ts)
+   에 `T-1682` describe **12 케이스**(R-112 4 종)를 더했다(PR **#1336** → main **`a5f84cb1`**,
+   2 파일). 준비 / 정리 왕복은 `seed` · `teardown` route tag 라 판정 tag `read` · `write` 의
+   p95 오염이 **0** 이고 임계 4 종 · stages · 규약 ①~⑤ 는 무변경이다. 대신 `http_reqs` 항등식이
+   `3 × iterations` → **`3 × iterations + 2`** 로 바뀌므로 위 `S3 1 회차` 의 배수 판정은 그
+   회차 한정이다(같은 소절의 항등식 주의 표기 참조). **새 dispatch 는 0** 이라 실측 회차는
+   증가하지 않는다 — S1 **12 회** · S2 **2 회** · S3 **1 회** 그대로이며, 행 수 로그의 실
+   수치 회수는 다음 측정 slice 소관이다. 잔여 ① 미해소 · 잔여 개수 **1 개** · ② · ③ 표기도
+   무변경이다(LLM stub · 실 수집 왕복 **0**).
    ② **반복 run 기반 임계 fix** 는
    **해소 — 임계 확정 완료(T-1644)**. 실 scale 축(표본 133)의 같은 조건 표본이 T-1643 run
    `32540981922` 로 **3 개**가 됐고(3·4·5 회차 760.91ms → 730.81ms → 711.23ms), 그 batch p95
