@@ -2,7 +2,7 @@
 id: T-1699
 title: S3 latency cliff 판정 규칙 기계 적용 (2 표본 산출값 + 결론 박제, 부하계획 §3.1 + §5 + PLAN 141 행)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047, REQ-048]
 estimatedDiff: 75
@@ -13,6 +13,7 @@ touchesFiles:
   - docs/ops/load-resilience-test-plan.md
   - docs/PLAN.md
 created: 2026-08-26
+completedAt: 2026-08-25T16:48:00Z
 plannerNote: P5 R-91 chain 64/N — T-1698 Follow-up 의 뒷단(규칙 ② 기계 대입 · 결론 박제, 규칙 재조정 0)
 ---
 
@@ -111,3 +112,16 @@ S3 3 회차 run `32833365988` · [T-1694](T-1694-s3-stage-trend-second-dispatch-
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 기록 (2026-08-25T16:48:00Z, direct)
+
+- 집행 commit `54f4823a` — [T-1698](T-1698-s3-latency-cliff-judgment-rule.md) 이 박제한 `#### S3 latency cliff 판정 규칙` 조항 ② 를 확보된 단계 분해 표본 **2 개** 에 기계 대입했다. `docs/ops/load-resilience-test-plan.md` `§3.1` 의 `#### S3 3 회차` · `#### S3 4 회차` 꼬리에 표본별 산출값 bullet 2 개 + 종합 결론 bullet 1 개를 add-only 로 append.
+- 산출값: 3 회차 `R(1) = 4.26` · `Δp95 = 16.32ms`, 4 회차 `R(1) = 4.59` · `Δp95 = 15.65ms`. 두 표본 모두 배수 임계 `8.0` 미달이므로 조항 ② 의 결합 조건(배수 AND 절대 하한) 불충족 — 표본 결론 `cliff 부재`.
+- 조항 ③ 표본 요건(최소 2 개 · 최근 연속 2 표본 동일 결론) 충족 → 종합 결론 **`cliff 부재`**. 조항 ④ 귀결에 따라 `§3` 표 S3 행 문구는 이미 `latency cliff 부재` 라 **표 diff 0 줄**.
+- **규칙 재조정 0** — 규칙 소절(`394~472 행`)은 hunk 0, 임계 `8.0` · 가드 `10ms` · 조항 문안 문자 단위 무변경. 산출 결과에 맞춘 사후 임계 조정이 diff 에 없다.
+- ramp-down 단계 `2 → 3` 은 조항 ② 대상 밖이라 임계 비교 0. 회분 표기(S1 15 · S2 5 · S3 4) 무변경, `140 행` checkbox `[ ]` 유지, 기박제 수치 소급 치환 0.
+- doc-only 2 파일 `+36/-1` (≤300 LOC · ≤5 파일). `test/` · `src/` · `.github/workflows/` · `package.json` **0 LOC**, 새 `workflow_dispatch` · rerun · 실측 회수 **0**. `pnpm lint` 무경고. R-110 tester 의무는 direct doc-only 면제(CLAUDE.md §3.2).
+
+### Follow-ups
+
+- 종합 결론 `cliff 부재` 가 박제됐으므로 S3 축의 다음 칸은 판정이 아니라 **다른 관측면** 이다 — [부하계획](../ops/load-resilience-test-plan.md) `§3` 표 S3 행의 남은 정황 서술(`http_req_failed` · interrupted iteration)에 같은 방식의 사전 판정 규칙이 필요한지 planner 가 판단한다.
