@@ -39,11 +39,13 @@ const BATCH_P95_MS = Math.round(
 // stub 조건 baseline — T-1644 가 계획 §3 표에 확정한 stub(ADR-0057 D1) · 표본 133 관찰 임계다.
 // REQ-047 판정 임계(위 외삽 산식) 가 아니라 회귀 감시용이라 둘을 합치지 않고 병기하며, 표본이
 // 133 일 때만 얹는다(축소 표본에 적용하면 근거 없는 red). 조건은 분기문 0 규약대로 식으로만 쓴다.
-// T-1668 규칙 ①-(a) 트리거가 S1 11 회차 실 run 에서 처음 충족돼 T-1675 가 재확정했다 — 실 scale
-// 표본 전량(outlier 제거 0)의 평균 + 3σ = 1030.18ms 를 100ms 올림한 값이며, 성격은 그대로 관찰용
-// 회귀 감시 임계다(REQ-047 판정 게이트 아님).
+// T-1668 규칙 ①-(a) 트리거가 S1 11 회차 실 run 에서 처음 충족돼 T-1675 가 1100ms 로 재확정했고
+// (당시 평균 + 3σ = 1030.18ms 의 100ms 올림), S1 15 회차에서 ①-(a)(관찰 게이트가 ✗ 로 크로스 —
+// p95 1.15s) 와 ①-(b) 가 동시에 발화해 T-1695 가 규칙 ② 로 재산정했다 — 실 scale 표본 12 개(outlier
+// 제거 0)의 평균 + 3σ = 1198.83ms 를 100ms 올림한 1200ms 다. 성격은 그대로 관찰용 회귀 감시
+// 임계다(REQ-047 판정 게이트 아님).
 const STUB_BASELINE_PERSONS = 133;
-const STUB_BASELINE_P95_MS = 1100;
+const STUB_BASELINE_P95_MS = 1200;
 
 // 실 devset seed 가 만드는 email 도메인 — 정본은 test/helpers/realdata-devset-seed-descriptors.ts
 // 의 DEVSET_EMAIL_DOMAIN 이다. 한쪽만 바뀌면 조회가 0 건이 되어 부하가 조용히 빈 run 이 된다.
