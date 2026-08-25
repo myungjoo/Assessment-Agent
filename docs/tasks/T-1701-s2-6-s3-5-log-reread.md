@@ -2,7 +2,7 @@
 id: T-1701
 title: 같은 run 32879776505 재독으로 S2 6 회차 · S3 5 회차 실측 회수
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047, REQ-048]
 independentStream: load-k6-baseline-record
@@ -14,6 +14,7 @@ estimatedDiff: 210
 estimatedFiles: 2
 created: 2026-08-26
 createdAt: 2026-08-26T00:00:00Z
+completedAt: 2026-08-25T18:52:00Z
 plannerNote: PLAN 144 행 R-91 chain 다음 칸 — T-1700 이 이월한 같은 run 의 S2 6·S3 5 leg 를 재독만으로 회수, dispatch 0
 ---
 
