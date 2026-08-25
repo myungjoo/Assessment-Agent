@@ -470,7 +470,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
   ⑥-(라), 그리고 "export 는 관찰 전용 · 판정 임계 불변" 인 같은 소절 조항 ② 와 정합된다. 이 두
   숫자로 CI 를 red 로 만들 필요가 생기면 본 규칙과 **별도의 판정**을 거친다.
 
-### 3.1 baseline 실측 기록 (S1 16 회분 · S2 5 회분 · S3 4 회분)
+### 3.1 baseline 실측 기록 (S1 16 회분 · S2 6 회분 · S3 5 회분)
 
 #### 1 회차 (T-1637, run 32459501970)
 
@@ -1798,6 +1798,85 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
   [`s3-concurrent.js`](../../test/load/s3-concurrent.js) 한정이라 `s2-read.js` 로의 확대 배선은
   별도 `pr` slice 소관이다.
 
+#### S2 6 회차 (T-1701, run 32879776505, 같은 run 재독 회수)
+
+- **측정 일시 / run**: 2026-08-25T17:45:36Z dispatch(`workflow_dispatch`, ref `main`,
+  `-f s1_persons=133`, head sha `45c7376a`), run id **32879776505**, job
+  17:45:40Z~17:48:22Z(2 분 42 초). **run conclusion 은 `success`** — step **21 개 중 success
+  21 · failure 0 · skipped 0** 이다. S2 는 step 14 `k6 S2 조회 부하 시나리오 실행`
+  (17:47:33Z~17:47:53Z, 약 20 초) 이고 **step conclusion 은 `success`** 라 k6 **exit code 0**
+  이다(`bash -e` 셸 — 비영 exit 면 step 이 fail 한다). **본 run 은 T-1700 이 이미 소진했고 본
+  slice 는 로그를 재독만 했다 — 새 dispatch · rerun · 재시도 전부 0** 이다(T-1685 · T-1693 ·
+  T-1695 선례 승계).
+- **S2 표본 로그 원문**: step 14 의 17:47:33Z k6 console 줄을 그대로 인용한다 —
+  `time="2026-08-25T17:47:33Z" level=info msg="[s2-read] devset 표본 취득 30명 / 필터 통과 133건 / 상한 30명" source=console`.
+  세 수의 관계 판정 — **필터 통과 `M` = 133** 이 seed step 이 적재한 devset **133** 과 정확히
+  일치해 표본 부족은 **0** 이고, **취득 `N` = 30 = 상한 30** 이라 `N` 은 **상한에 잘렸다**
+  (`M` 133 > 상한 30). S2 2 · 3 · 4 · 5 회차와 세 수가 **완전히 동일**하다(`K6_SEED_PERSONS=30`
+  무변경 — 상향은 T-1686 이 **유지(`30`)** 로 닫았다). 줄에 자격증명 · cookie · email 원문은 없다.
+- **표본 행 수 로그 줄 — 미출력(S2 leg 에는 배선 없음)**: T-1682 의 `persons 행 수` 로그 2 줄은
+  `s3-concurrent.js` 한정이라 S2 step 에는 **0 줄**이다. 따라서 S2 축의 직접 행 수 카운트는
+  **미확보**이며 S3 leg 값으로 대체하지 않는다(값 전용 **0**). 같은 run 의 S3 leg 가 S2 teardown
+  **이후** 시점에 시작 **133행** · 종료 **133행** 을 찍어 S2 가 공유 dataset 을 깨지 않았다는
+  사실은 아래 `#### S3 5 회차` 에서 직접 카운트로 닫힌다(그 소절 pointer 로 갈음).
+- **`level=error` 줄 수**: S2 step **0 줄**이고, run log 전체로도 **0 줄**이다 — 같은 run 의 S1
+  leg 가 게이트를 크로스하지 않아(위 `#### 16 회차`) `thresholds ... have been crossed` error 가
+  아예 없다. run 전체 `level=error` 가 **0 줄**인 것은 S2 축에서 본 회차가 **처음**이다.
+- **seed step 결과**: 위 `#### 16 회차` 의 seed 항목과 **같은 run 의 같은 step** 이라 재현성
+  회차를 **여기서 다시 세지 않는다** — 그 소절이 **연속 9 회 성공**으로 셌고 본 소절은 pointer
+  로 가리킬 뿐이다(중복 계수 0 · 중복 전재 0).
+- **k6 THRESHOLDS 원문**: 요구된 **6 종이 전부 등장**하고 **6 종 모두 `✓`**(`✗` **0**)다 —
+  전역 `http_req_duration` `✓ 'p(95)<3000' p(95)=6.88ms` · `{route:groups}`
+  `✓ 'p(95)<3000' p(95)=6.5ms` · `{route:me}` `✓ 'p(95)<3000' p(95)=7.24ms` ·
+  `{route:parts}` `✓ 'p(95)<3000' p(95)=6.17ms` · `{route:persons}`
+  `✓ 'p(95)<3000' p(95)=7.3ms` · `http_req_failed` `✓ 'rate<0.01' rate=0.00%`. 개수 판정은
+  **6/6** 이다(같은 run 의 S1 leg 도 3/3 `✓` 라 run 전체에 `✗` 가 **0** 인 첫 S2 회차다).
+- **수치**: route 별 p95 는 `persons` **7.3ms** · `me` **7.24ms** · `groups` **6.5ms** ·
+  `parts` **6.17ms** 다. 전역 `http_req_duration` 원문은
+  `avg=4.49ms  min=1.2ms   med=4.42ms  max=70.27ms p(90)=6.24ms  p(95)=6.88ms  p(99)=8.57ms`
+  라 **p50(med) 4.42ms · p95 6.88ms · p99 8.57ms** 다. route 별 원문은
+  `groups` `avg=4.04ms  min=1.2ms   med=3.9ms   max=15.65ms p(90)=5.71ms  p(95)=6.5ms   p(99)=8.03ms` ·
+  `me` `avg=4.93ms  min=2.09ms  med=4.76ms  max=13.91ms p(90)=6.47ms  p(95)=7.24ms  p(99)=9.12ms` ·
+  `parts` `avg=3.83ms  min=1.22ms  med=3.73ms  max=33.08ms p(90)=5.47ms  p(95)=6.17ms  p(99)=7.62ms` ·
+  `persons` `avg=5.12ms  min=2.36ms  med=4.96ms  max=43.56ms p(90)=6.64ms  p(95)=7.3ms   p(99)=8.88ms` 다.
+  `http_req_failed` **0.00%**(`0 out of 22023`), `http_reqs` **22023**(1091.674934/s),
+  `iteration_duration`
+  `avg=18.16ms min=11.55ms med=17.82ms max=68.04ms p(90)=21.18ms p(95)=23.25ms p(99)=29.08ms`,
+  `iterations` **5504**(272.831987/s), `vus` **5**(min=5 max=5) · `vus_max` **5** 로
+  `20s × 5 VU` 프로파일 그대로다(k6 wall-clock **20.2s**). `data_received` **155 MB**(7.7 MB/s) ·
+  `data_sent` **3.0 MB**(146 kB/s).
+- **`p(99)` 열 확보 여부 — 확보(S2 축 연속 3 회)**: T-1688 의 `summaryTrendStats` 배선이 본
+  회차에서도 그대로 작동해 `p(99)` 열이 **실제로 출력**됐다 — 전역 `http_req_duration`
+  **8.57ms** · `{expected_response:true}` **8.57ms** · `{route:groups}` **8.03ms** ·
+  `{route:me}` **9.12ms** · `{route:parts}` **7.62ms** · `{route:persons}` **8.88ms** ·
+  `iteration_duration` **29.08ms** 다. **이전 회차들의 "미확보" 표기는 그대로 둔다**(소급 치환
+  **0** — `§12`).
+- **S1 leg 가 green 인 run 에서 얻은 첫 S2 표본**: S2 2 · 3 · 4 · 5 회차는 모두 같은 run 의 S1
+  leg 가 관찰용 게이트를 크로스한(step conclusion `failure`) 상태에서 T-1678 의
+  `if: ${{ !cancelled() }}` 덕에 실행된 표본이었다. 본 회차는 S1 leg 자체가
+  **`success`**(위 `#### 16 회차`, `✓ 'p(95)<1200' p(95)=824.89ms`) 인 run 에서 얻은 **첫 S2
+  표본**이라, S2 수치가 S1 게이트 크로스 여부와 무관하게 재현된다는 사실이 실 run 두 조건 모두로
+  확인됐다. T-1678 배선 뒤 S2 leg 가 수치를 남긴 것은 **연속 5 회**다.
+- **S2 5 회차 대비(표본 6 개 → 비교만, 재확정 0)**: 전역 p95 **6 → 6.88ms**(Δ **+0.88ms**),
+  `http_reqs` **24963 → 22023**(Δ **−2940**, 1238.94 → 1091.67 req/s), `iterations`
+  **6239 → 5504**(Δ **−735**) 로 같은 프로파일에서 처리량이 줄고 지연이 늘었다(4 → 5 회차의
+  방향과 반대다). 여섯 회차 모두 `http_req_failed` **0.00%** 다. 표본이 **6 개**뿐이라 이 차이를
+  추세로 읽지 않으며 산정식 · 임계 재확정은 하지 않는다(S1 축이 밟은 규칙 사전 박제 → 기계 적용
+  2 단계를 S2 도 그대로 따를 일이다).
+- **환경 메타(로그로 회수됨)**: 커널 `Linux 6.17.0-1022-azure`, 아키텍처 `x86_64`, vCPU **4**,
+  메모리 **15Gi**, DB image `postgres:16-alpine`, 부하 대상 image `assessment-agent:load`,
+  표본 인원 `K6_S1_PERSONS=133` · `K6_SEED_PERSONS=30`. **7 항목이 S2 1~5 회차와 전부
+  동일**하므로 같은 조건이 유지됐다(`s1_persons` input 주입 계수는 위 `#### 16 회차` 가 세며
+  여기서 중복하지 않는다).
+- **`§3` 표 S2 축 무변경 판정**: 회수된 표본이 **6 회**뿐이라 재확정 근거가 되지 못한다 —
+  p95 `< 3s` · p50 / throughput `baseline 후 fix` · error rate `< 1%` 를 **문자 단위로 고치지
+  않았다**(측정 p95 **6.88ms** 가 임계 `3s` 대비 크게 여유롭다는 사실도 하향 근거가 못 된다).
+- **의미 / 한계**: (a) LLM stub(ADR-0057 `D1`) · 실 수집 왕복 **0** 조건은 S2 축에도 그대로
+  걸리므로 얻은 것은 *stub 조건의* 조회 지연이다 — 목록 4 route 를 되풀이 조회한 값이다.
+  (b) 단계 분해는 S2 축에서 **여전히 미확보**다 — T-1691 이 배선한 단계별 custom `Trend` 는
+  [`s3-concurrent.js`](../../test/load/s3-concurrent.js) 한정이라 `s2-read.js` 로의 확대 배선은
+  별도 `pr` slice 소관이다.
+
 #### K6_SEED_PERSONS 상한 상향 판단 (T-1686)
 
 `§2` 의 `#### S2 dataset 교체 설계` 조항 **③** 이 유예한 "S2 첫 실측 이후 별도 판단" 을
@@ -2181,6 +2260,79 @@ S2 실측 **3 회차**(위 `#### S2 1 회차` · `#### S2 2 회차` · `#### S2 
   규칙 소절 자체(임계 **8.0** · 가드 **10ms** · 조항 ①~⑥ 문안) 도 산출 결과에 맞춰 조정하지 않아
   **문자 단위 무변경**이며, 새 dispatch · rerun · 실측 **0** · 코드 **0 LOC** 이라 회분 표기
   (S1 **15 회** · S2 **5 회** · S3 **4 회**) 도 그대로다.
+
+#### S3 5 회차 (T-1701, run 32879776505, 단계별 Trend 3 번째 표본)
+
+- **측정 일시 / run · step 구간 · k6 exit code**: 2026-08-25T17:45:36Z dispatch
+  (`workflow_dispatch`, ref `main`, `-f s1_persons=133`),
+  [`load-k6.yml`](../../.github/workflows/load-k6.yml) run id **32879776505**, head sha
+  `45c7376a`, job 17:45:40Z~17:48:22Z(2 분 42 초). **run conclusion 은 `success`** 이고
+  step **21 개 중 success 21 · failure 0 · skipped 0** 이라, S1 leg 가 `failure` 인 상태에서
+  얻은 3 · 4 회차와 달리 본 회차는 **run 전체가 green 인 조건**의 표본이다(S1 은 위
+  `#### 16 회차`). 본 회차 수치는 step 15 `k6 S3 동시 요청 내성 시나리오 실행` 구간
+  17:47:53Z~17:48:18Z(약 25 초) 것이며 **step 15 conclusion 은 `success`** 라 S3 k6
+  **exit code 0** 이다. **본 run 은 T-1700 이 이미 소진했고 본 slice 는 같은 로그를 재독만 했다 —
+  새 dispatch · rerun · 재시도 전부 0** 이다.
+- **k6 THRESHOLDS 원문**: S3 step 에 요구된 **4 종이 전부 등장**하고 **4 종 모두 `✓`**(`✗`
+  **0**)다 — 전역 `http_req_duration` `✓ 'p(95)<3000' p(95)=20.26ms` · `{route:read}`
+  `✓ 'p(95)<3000' p(95)=19.27ms` · `{route:write}` `✓ 'p(95)<3000' p(95)=20.76ms` ·
+  `http_req_failed` `✓ 'rate<0.01' rate=0.00%`. 개수 판정은 **4/4** 다. 단계별 Trend 3 종에는
+  임계를 붙이지 않았으므로(조항 ② · ⑥ (라)) 판정면은 3 · 4 회차와 문자 단위 그대로다.
+- **수치**: 전역 `http_req_duration` 원문은
+  `avg=8.3ms   min=1.04ms med=6.65ms max=253.16ms p(90)=17.08ms p(95)=20.26ms p(99)=27ms`
+  라 **p50(med) 6.65ms · p95 20.26ms · p99 27ms** 다. route 별 원문은 `read`
+  `avg=8.25ms  min=1.59ms med=6.72ms max=55.78ms  p(90)=16.67ms p(95)=19.27ms p(99)=24.63ms` ·
+  `write`
+  `avg=8.32ms  min=1.04ms med=6.61ms max=253.16ms p(90)=17.32ms p(95)=20.76ms p(99)=28.29ms`
+  다. `http_req_failed` **0.00%**(`0 out of 23510`), `http_reqs` **23510**(940.031309/s),
+  `iteration_duration`
+  `avg=25.22ms min=4.15ms med=22ms   max=352.44ms p(90)=49.5ms  p(95)=56ms    p(99)=68.32ms`,
+  `iterations` **7836**(313.317113/s), `vus` **1**(min=1 max=19) · `vus_max` **20**(min=20
+  max=20) 이다. 1 초 단위 progress 줄 원문 예는
+  `running (01.0s), 01/20 VUs, 194 complete and 0 interrupted iterations` ·
+  `running (10.0s), 04/20 VUs, 2699 complete and 0 interrupted iterations` ·
+  `running (20.0s), 19/20 VUs, 6164 complete and 0 interrupted iterations` ·
+  `running (25.0s), 00/20 VUs, 7836 complete and 0 interrupted iterations` 이고
+  **interrupted iteration 은 전 구간 0** 이다.
+- **단계별 custom Trend 3 행 — 전부 출력**: 종료 요약 `CUSTOM` 블록에 계약된 **3 행이 모두**
+  찍혔다(미출력 **0**). 원문은
+  `s3_stage_duration_1............: avg=2.96ms  min=1.05ms med=2.37ms max=253.16ms p(90)=4.27ms  p(95)=4.92ms  p(99)=9.01ms` ·
+  `s3_stage_duration_2............: avg=11.42ms min=1.92ms med=10.6ms max=44.37ms  p(90)=18.65ms p(95)=21.41ms p(99)=27.23ms` ·
+  `s3_stage_duration_3............: avg=10.48ms min=1.04ms med=9.48ms max=56.6ms   p(90)=19.5ms  p(95)=23.13ms p(99)=29.95ms`
+  다. **표본 수 열은 3 · 4 회차와 동일하게 세 행 모두 요약에 없다** — 단계별 표본 수는
+  **미출력**이며 원인 추정 · 재계산은 하지 않는다.
+- **단계별 값 직전 회차 대비 — 산술 차이만**: 4 회차(run 32843613484) 대비 본 5 회차
+  (run 32879776505) 를 나란히 적고 Δ 는 **5 회차 − 4 회차** 의 산술 차이다.
+  - 단계 **1**: p95 **4.36ms → 4.92ms**(Δ **+0.56ms**), p99 **7.34ms → 9.01ms**(Δ **+1.67ms**).
+  - 단계 **2**: p95 **20.01ms → 21.41ms**(Δ **+1.4ms**), p99 **64.93ms → 27.23ms**
+    (Δ **−37.7ms**).
+  - 단계 **3**: p95 **18.24ms → 23.13ms**(Δ **+4.89ms**), p99 **23.08ms → 29.95ms**
+    (Δ **+6.87ms**).
+  적는 것은 여기까지다 — 본 회차로 단계 표본이 **2 개 → 3 개**가 됐다는 사실만 확정하고,
+  `§3` 의 `#### S3 latency cliff 판정 규칙 (사전 박제, T-1698)` 조항 ② 를 이 **3 번째 표본에
+  대입하지는 않는다**(별도 slice 소관 — Out of Scope. T-1699 가 표본 1 · 2 에 적용한 것과 같은
+  형태를 뒤 slice 가 승계한다). 단계 2 의 p99 가 **64.93 → 27.23ms** 로 크게 내려온 것과 단계 3 이
+  세 값 모두 상승한 것도 **관측 사실로만** 두고 해석하지 않는다.
+- **`p(99)` 열 재확인 — 세 번째 run 에서도 출력(S3 축 연속 3 회)**: T-1688 의
+  `summaryTrendStats` 배선이 본 회차에서도 그대로 작동해 `p(99)` 열이 **실제로 출력**됐다 —
+  전역 `http_req_duration` **27ms** · `{route:read}` **24.63ms** · `{route:write}` **28.29ms** ·
+  `iteration_duration` **68.32ms** · 단계별 Trend **9.01ms**(`_1`) · **27.23ms**(`_2`) ·
+  **29.95ms**(`_3`) 다. **이전 회차들의 "미확보" 표기는 그대로 둔다**(소급 치환 **0** — `§12`).
+- **행 수 잔여 판정**: 계약된 로그 **2 줄이 그대로 출력**됐다 —
+  `[s3-concurrent] persons 행 수 시작 133행`(17:47:53Z) ·
+  `[s3-concurrent] persons 행 수 종료 133행 / 시작 133행`(17:48:18Z). 따라서 **종료 133 −
+  시작 133 = 0 행**이라 iteration 자기 정리(규약 ②) 잔여는 직접 카운트로 **0** 이고, 공유
+  dataset **133 건 보존**도 같은 두 줄로 확인된다(**연속 4 회**). 항등식
+  `3 × iterations + 2` = 3 × 7836 + 2 = **23510** = 실측 `http_reqs` 는 **확인만** 하고 잔여
+  근거로는 쓰지 않는다.
+- **`§3` 표 S3 축 무변경 판정**: S3 표본은 **5 회**, 그중 단계 분해가 있는 표본은 **3 회**다.
+  error rate `< 1% (baseline 후 fix)` · p95 저하 곡선 `latency cliff 부재` 는 본 slice 에서
+  **fix 하지 않는다**(문자 단위 무변경) — T-1699 가 표본 2 개로 닫은 종합 결론(`cliff 부재`) 도
+  3 번째 표본 대입 전까지 **그대로 둔다**(규칙 소절의 임계 `8.0` · 가드 `10ms` 도 무변경).
+- **같은 run 의 미회수 leg 0 — 이월 없음**: 본 slice 로 run 32879776505 의 S1(위
+  `#### 16 회차`) · S2(위 `#### S2 6 회차`) · S3(본 소절) **세 leg 가 모두 회수**됐다. 따라서
+  T-1700 이 남긴 이월은 여기서 닫히고, 본 slice 의 회분 갱신은 S2 **5 회 → 6 회** · S3
+  **4 회 → 5 회** 이며 S1 **16 회** 는 그대로다(새 dispatch · rerun · 실측 **0** · 코드 **0 LOC**).
 
 ---
 
