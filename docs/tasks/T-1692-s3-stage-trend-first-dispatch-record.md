@@ -2,7 +2,8 @@
 id: T-1692
 title: 단계별 Trend 배선 후 첫 dispatch 로 S3 3 회차 실측 회수 + §3.1 회차 기록 (조항 ⑥ (마) 문서 direct 축)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-25T09:50:00Z
 commitMode: direct
 coversReq: [REQ-047, REQ-048]
 independentStream: load-k6-s3-baseline
@@ -118,3 +119,13 @@ T-1680 → T-1681 선례 승계 — 새 dispatch 를 두 번 태우지 않는다
   새 dispatch 0.
 - (planner 사전 메모) ② 단계별 Trend 3 행이 실제로 확보되면 `§3` 표의 `latency cliff 부재` 판정 근거
   서술과 조항 ⑥ 꼬리의 "표시 수단(후보 A · B)" 판단이 비로소 입력을 갖는다 — 표본 누적(2 회 이상) 후 별도 slice.
+
+## 결과 (2026-08-25 완료)
+
+- `load-k6.yml` 을 정확히 1 회 dispatch (run `32833365988`, head sha `4c6eaac6`, conclusion `success`, rerun 0).
+- `§3.1` 에 `#### S3 3 회차` 신설 — 단계별 custom Trend 3 행 전부 출력 (단계1 p95 5.01ms / p99 6.55ms →
+  단계2 21.33 / 26.25 → 단계3 21.4 / 26.12), 전역 `p(99)` 25.02ms 첫 확보, 행 수 133→133 차이 0 행.
+- 377 행 헤더 S3 2→3 회분 갱신 · `#### S3 2 회차` 꼬리 회수 pointer · `§5` item 5 집행 문단 ·
+  PLAN 141 행 꼬리 1 문장 append. `§3` 임계 표 문자 단위 0 변경, 코드 · 워크플로 변경 0.
+- 2 파일 +96/-2, 확인용 `pnpm lint` 무경고. direct commit `a386fdc9`.
+- k6 종료 요약이 Trend 지표에 표본 수 (count) 열을 내지 않아 단계별 표본 수는 "미출력" 로 사실만 기록했다.
