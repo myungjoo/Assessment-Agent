@@ -2,13 +2,16 @@
 id: T-1682
 title: S3 동시 부하 leg 에 persons 행 수 로그를 배선하고 drift-guard 단언을 같은 commit 에서 갱신
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 200
 estimatedFiles: 2
 created: 2026-08-25
 createdAt: 2026-08-25T00:10:00Z
+completedAt: 2026-08-25T00:05:00Z
+prNumber: 1336
+mergeCommit: a5f84cb1
 independentStream: load-harness-r91
 dependsOn: []
 touchesFiles:
