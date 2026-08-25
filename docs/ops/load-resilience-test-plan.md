@@ -273,7 +273,7 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
     pass/fail 판정 임계는 `FULL_RUN_BUDGET_MS`(1h 예산) 그대로다(위 "REQ-047 판정 임계가 아니다"
     서술과 모순 0).
 
-### 3.1 baseline 실측 기록 (S1 12 회분 · S2 2 회분 · S3 1 회분)
+### 3.1 baseline 실측 기록 (S1 12 회분 · S2 2 회분 · S3 2 회분)
 
 #### 1 회차 (T-1637, run 32459501970)
 
@@ -1041,10 +1041,65 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
   `GET /api/persons` 를 각 1 왕복 더 때리므로 항등식이 `3 × iterations + 2` 로 바뀐다 —
   같은 배수식을 다음 회차에 그대로 적용하면 안 된다(2 건만큼 어긋난다). 다음 회차부터는
   배수 대신 행 수 로그 2 줄의 차이로 잔여를 직접 읽는다.]**
+  **[회수 완료 pointer (T-1684) — 그 배선을 통과한 첫 실측은 아래 `#### S3 2 회차`
+  (run **32798553930**) 에 있고 거기서 행 수 차이가 직접 카운트로 회수됐다. 위 문장 · 수치는
+  이 회차 한정 기록이라 그 값으로 대체 · 삭제하지 않는다(이력 보존).]**
 - **`§3` 표 S3 축 무변경 판정**: 표본이 **1 회**뿐이라 error rate `< 1% (baseline 후 fix)` ·
   p95 저하 곡선 `latency cliff 부재` 는 **fix 하지 않는다**(무변경). 특히 후자는 위 판정대로
   단계 분해 자체가 불가해 fix 근거가 서지 않는다. S2 축과 마찬가지로 규칙 사전 박제 → 기계
   적용 2 단계를 따를 일이다.
+
+#### S3 2 회차 (T-1684, run 32798553930, T-1682 행 수 로그 배선 후 첫 회차)
+
+- **측정 일시 / run · step 구간 · k6 exit code**: 2026-08-25T01:42:00Z dispatch
+  (`workflow_dispatch`, ref `main`, `-f s1_persons=133`),
+  [`load-k6.yml`](../../.github/workflows/load-k6.yml) run id **32798553930**, head sha
+  `3193d68d`, job 01:42:03Z~01:44:42Z(2분 39초), conclusion **`success`**. 본 회차 수치는 그
+  job 의 step 15 `k6 S3 동시 요청 내성 시나리오 실행` 구간 01:44:14Z~01:44:40Z(약 26 초) 것이며,
+  step conclusion 이 **`success`** 라 k6 **exit code 0** 이다. dispatch 는 **정확히 1 회** —
+  rerun · 재 dispatch · 재시도 **0** 이고, T-1682(PR #1336 → main `a5f84cb1`) 의 행 수 로그
+  배선을 실제로 통과한 **첫 회차**다.
+- **k6 THRESHOLDS 원문**: 요구된 **4 종이 전부 등장**하고 **4 종 모두 `✓`**(`✗` **0**)다 —
+  전역 `http_req_duration` `✓ 'p(95)<3000' p(95)=51.53ms` · `{route:read}`
+  `✓ 'p(95)<3000' p(95)=16.44ms` · `{route:write}` `✓ 'p(95)<3000' p(95)=75.52ms` ·
+  `http_req_failed` `✓ 'rate<0.01' rate=0.00%`. 개수 판정은 **4/4** 다.
+- **수치**: 전역 `http_req_duration` 원문은
+  `avg=13.25ms min=893.88µs med=6.87ms  max=227.66ms p(90)=19.04ms p(95)=51.53ms` 라 **p50(med)
+  6.87ms · p95 51.53ms** 다. route 별 원문은 `read`
+  `avg=7.7ms   min=1.36ms   med=6.29ms  max=177.76ms p(90)=14.34ms p(95)=16.44ms` · `write`
+  `avg=16.03ms min=893.88µs med=7.27ms  max=227.66ms p(90)=30.34ms p(95)=75.52ms` 다.
+  `http_req_failed` **0.00%**(`0 out of 14867`), `http_reqs` **14867**(594.419832/s),
+  `iteration_duration`
+  `avg=39.95ms min=3.48ms   med=25.28ms max=341.32ms p(90)=96.61ms p(95)=157.69ms`,
+  `iterations` **4955**(198.113289/s), `vus` **1**(min=1 max=19) · `vus_max` **20**(min=20
+  max=20) 이다. 1 초 단위 progress 줄 원문 예는
+  `running (01.0s), 01/20 VUs, 140 complete and 0 interrupted iterations` ·
+  `running (10.0s), 04/20 VUs, 1423 complete and 0 interrupted iterations` ·
+  `running (20.0s), 19/20 VUs, 3952 complete and 0 interrupted iterations` ·
+  `running (25.0s), 00/20 VUs, 4955 complete and 0 interrupted iterations` 이고
+  **interrupted iteration 은 전 구간 0** 이다.
+- **`p99` 미확보**: k6 기본 요약이 `p(90)` · `p(95)` 까지만 내므로 본 회차도 **p99 는 미확보**다.
+  다른 회차 값으로 대체하지 않는다(값 전용 **0**).
+- **행 수 잔여 판정 — 배선 후 첫 직접 카운트**: 계약된 로그 **2 줄이 모두 출력**됐다 —
+  `[s3-concurrent] persons 행 수 시작 133행`(01:44:14Z) ·
+  `[s3-concurrent] persons 행 수 종료 133행 / 시작 133행`(01:44:39Z). 따라서 **종료 133 −
+  시작 133 = 0 행**이고, iteration 자기 정리(규약 ②) 잔여는 정황이 아니라 **직접 카운트로 0**
+  으로 판정된다 — `S3 1 회차` 가 "잔여 0 을 단정하지 않는다" 로 이월했던 공백이 여기서 닫힌다.
+  시작 값 **133** 은 S2 leg teardown 뒤에도 공유 dataset 133 건이 그대로 남아 있었다는 뜻이라
+  **보존 계약(`S2 2 회차` 의 `data_received` 정황뿐이던 공백)도 직접 카운트로 확인**됐다.
+  `http_reqs` 배수식은 T-1682 이후 규격 `3 × iterations + 2` 가 맞음을 **확인만** 한다
+  (3 × 4955 + 2 = **14867** = 실측 `http_reqs`) — 잔여 근거로는 쓰지 않는다.
+- **latency cliff 판정 — 요약 지표로는 단계 분해 불가(1 회차와 동일)**: ramping 3 단의 **단계별**
+  p95 를 k6 종료 요약이 run 전체 1 개 값으로만 내는 구조는 그대로다(구간별 percentile export
+  step 없음). 로그가 허용하는 사실만 적으면 — ① 임계 **4 종 전부 `✓`**, ② `http_req_failed`
+  **0.00%**(0/14867), ③ interrupted iteration **0**, ④ progress 줄의 누적 완료 iteration 이 VU
+  상승 구간에서도 끊기지 않는다(`01.0s` **140** → `10.0s` **1423** → `20.0s` **3952** →
+  `25.0s` **4955**). 그럼에도 **cliff 가 있다 · 없다 어느 쪽으로도 단정하지 않는다** — 단정하려면
+  단계별 지표 분리 export 가 필요하고 그것은 별도 slice 소관이다. 추정 · 재계산은 하지 않았다.
+- **`§3` 표 S3 축 무변경 판정**: 표본이 **2 회**뿐이라 error rate `< 1% (baseline 후 fix)` ·
+  p95 저하 곡선 `latency cliff 부재` 는 **fix 하지 않는다**(문자 단위 무변경). 후자는 위 판정대로
+  단계 분해가 여전히 불가하고, 전자도 두 회차 모두 `0.00%` 라는 사실만으로 숫자를 고정하지
+  않는다 — 규칙 사전 박제 → 기계 적용 2 단계를 그대로 따른다.
 
 ---
 
@@ -1242,6 +1297,19 @@ harness 최초 실측으로 기준선을 잡은 뒤 확정한다(over-fitting �
    증가하지 않는다 — S1 **12 회** · S2 **2 회** · S3 **1 회** 그대로이며, 행 수 로그의 실
    수치 회수는 다음 측정 slice 소관이다. 잔여 ① 미해소 · 잔여 개수 **1 개** · ② · ③ 표기도
    무변경이다(LLM stub · 실 수집 왕복 **0**).
+   **그 배선을 통과한 첫 dispatch 가 S3 2 회차를 회수했다** — T-1684 의 run **32798553930**
+   (2026-08-25T01:42:00Z dispatch, head sha `3193d68d`, `-f s1_persons=133`, **1 회 한정** ·
+   rerun 0)은 conclusion **`success`** 로 끝났고 S3 step(01:44:14Z~01:44:40Z)이 임계 **4 종 전부
+   `✓`**(전역 p95 **51.53ms** · `{route:read}` **16.44ms** · `{route:write}` **75.52ms** ·
+   `http_req_failed` **0.00%** `0 out of 14867`) 를 남겼다. 핵심은 행 수 로그 2 줄이 처음 실제로
+   찍혔다는 것이다 — 시작 **133행** · 종료 **133행 / 시작 133행** 이라 차이가 **0 행** 이고,
+   그동안 `data_received` · `http_reqs` 배수 같은 정황으로만 답하던 **공유 dataset 보존** 과
+   **iteration 자기 정리 잔여** 두 물음이 **직접 카운트로** 닫혔다(항등식 `3 × iterations + 2`
+   = 3 × 4955 + 2 = **14867** 도 확인만 했고 잔여 근거로 쓰지 않았다). 실측 회분은 S3 **1 회 →
+   2 회** 로만 오르고 **S1 · S2 는 12 회 · 2 회 그대로**다 — 같은 run 의 S1 · S2 leg 수치는 새
+   dispatch 0 으로 **다음 slice 가 같은 로그를 재독**해 회수한다(T-1680 run 을 T-1681 이 재독한
+   선례 승계). `§3` 표의 S2 · S3 임계는 표본이 2 회뿐이라 **문자 단위 무변경**이고, 잔여 ① 미해소
+   · 잔여 개수 **1 개** · ② · ③ 표기도 무변경이다(LLM stub · 실 수집 왕복 **0**).
    ② **반복 run 기반 임계 fix** 는
    **해소 — 임계 확정 완료(T-1644)**. 실 scale 축(표본 133)의 같은 조건 표본이 T-1643 run
    `32540981922` 로 **3 개**가 됐고(3·4·5 회차 760.91ms → 730.81ms → 711.23ms), 그 batch p95
