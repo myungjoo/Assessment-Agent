@@ -2,7 +2,7 @@
 id: T-1683
 title: S3 행 수 로그 배선(T-1682)을 계획 문서와 PLAN 에 동기
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 80
@@ -15,6 +15,8 @@ dependsOn: []
 touchesFiles:
   - docs/ops/load-resilience-test-plan.md
   - docs/PLAN.md
+completedAt: 2026-08-25T00:55:00Z
+commitSha: 042f8862
 plannerNote: PLAN 141 행 R-91 chain 63/N — T-1682 Follow-up ①(코드→문서 split 뒷단), doc-only 2 파일 · 새 dispatch 0
 ---
 
