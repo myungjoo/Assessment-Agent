@@ -56,6 +56,10 @@ const SEED_PARAMS = { headers: JSON_HEADERS, tags: { route: "seed" } };
 const AUTH_PARAMS = { headers: JSON_HEADERS, tags: { route: "auth" } };
 
 export const options = {
+  // (T-1688) 종료 요약 percentile 열 — k6 기본 6 종을 전부 보존한 위에 p(99) 만 더해
+  // 계획 §3 "집계" 셋째 항의 미확보(설계 문제 (a))를 run log 에서 회수한다. 관찰 전용이라
+  // 아래 thresholds 판정면은 문자 단위 0 변경이다(설계 조항 ②).
+  summaryTrendStats: ["avg", "min", "med", "max", "p(90)", "p(95)", "p(99)"],
   // 배치는 1 회 호출이 곧 1 회 측정이라 반복(S2) · 동시성 단계 상승(S3) 프로파일을 쓰지 않는다.
   vus: 1,
   iterations: 1,
