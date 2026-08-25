@@ -2,7 +2,7 @@
 id: T-1704
 title: S2 · S3 `baseline 후 fix` 표기 해제 판단 사전 박제 (S1 선례 승계 요건 · 판정 규칙 · 결론, 부하계획 §3 + §5 + PLAN 141 행)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047, REQ-048]
 estimatedDiff: 100
@@ -13,6 +13,7 @@ touchesFiles:
   - docs/ops/load-resilience-test-plan.md
   - docs/PLAN.md
 created: 2026-08-26
+completedAt: 2026-08-25T21:52:00Z
 plannerNote: P5 R-91 chain — 이월 ③(§3 임계 표 재조정) 의 앞단 판단 소절 + 240 행 "실측 0 회" drift 폐쇄 (코드 0 LOC)
 ---
 
