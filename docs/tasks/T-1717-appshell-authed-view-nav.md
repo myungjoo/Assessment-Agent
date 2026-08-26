@@ -2,7 +2,7 @@
 id: T-1717
 title: 인증 후 대시보드↔관리 화면 전환 내비게이션 박제 (REQ-070 slice 1)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-070]
 estimatedDiff: 140
@@ -62,3 +62,9 @@ plannerNote: P6 오너 지시(PLAN 130 행 🔴) 분해 slice 1 — view==='admi
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가한다.)
+
+## 완료 기록
+
+- **Status: DONE** — 2026-08-26T10:55Z, PR [#1348](https://github.com/myungjoo/Assessment-Agent/pull/1348) round 1 APPROVE → squash merge `152ec239`.
+- 결과: `AUTHED_NAV_ITEMS` 상수 + 순수 `isNavItemActive` named export, `<nav class="app-shell-nav">` 를 `AuthGate` children 안(view 분기 위)에 배치 (+182/-3, 2 파일). 도달 불가였던 `view === 'admin'` 분기가 살아났다.
+- test: 기존 파일에 13 it 추가 — happy 1 · error path 1 · 분기 4 · negative 6 · drift guard 1. web 2167 test green, `pnpm --dir web build` green, root `pnpm lint` green. backend diff 0 파일이라 전역 coverage 무영향.
