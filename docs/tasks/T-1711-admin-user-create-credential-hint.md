@@ -2,7 +2,7 @@
 id: T-1711
 title: Admin 사용자 추가 폼에 아이디·암호 조건 사전 안내 박제 (REQ-067 slice 2)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-067]
 independentStream: owner-account-ux
@@ -13,6 +13,9 @@ touchesFiles:
 estimatedDiff: 150
 estimatedFiles: 2
 created: 2026-08-26
+completedAt: 2026-08-26T04:54:11Z
+prNumber: 1342
+mergeCommit: 936e2786
 plannerNote: P6 오너 지시 계정 생성 UX(PLAN 129 행) 분해 slice 2 — REQ-067 나머지 절반인 Admin 사용자 추가 폼 조건 사전 안내
 ---
 
