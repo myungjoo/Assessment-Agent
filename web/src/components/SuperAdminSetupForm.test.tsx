@@ -1,7 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import SuperAdminSetupForm from './SuperAdminSetupForm';
+import SuperAdminSetupForm, {
+  PASSWORD_HINT_ID,
+  PASSWORD_HINT_TEXT,
+  PASSWORD_MIN_LENGTH,
+  USERNAME_HINT_ID,
+  USERNAME_HINT_TEXT,
+} from './SuperAdminSetupForm';
 import type { SuperAdminSetupFormProps } from './SuperAdminSetupForm';
+
+// 안내 문구 <p> 의 내용만 잘라낸다 — 폼 전체 markup 에는 controlled input 의 value 가
+// 그대로 들어있으므로, "안내가 비밀번호를 노출하지 않는다" 는 안내 영역으로 범위를 좁혀야 한다.
+const extractHint = (html: string, id: string): string => {
+  const matched = html.match(new RegExp(`<p id="${id}"[^>]*>(.*?)</p>`));
+  return matched === null ? '' : matched[1];
+};
+
+// name 속성으로 <input> 태그 하나를 통째로 잘라낸다 — aria-describedby 배선 검증용.
+const extractInput = (html: string, name: string): string => {
+  const matched = html.match(new RegExp(`<input[^>]*name="${name}"[^>]*>`));
+  return matched === null ? '' : matched[0];
+};
 
 // R-112 — R-84(Auth/RBAC) 최초 부트스트랩 SuperAdmin 초기 셋업 폼(ADR-0040 §2 인증 흐름) 검증.
 // LoginForm.test.tsx / DifficultyModelSelector.test.tsx 와 동일 패턴: jsdom·@testing-library
@@ -186,5 +205,91 @@ describe('SuperAdminSetupForm', () => {
     expect(html).toContain('disabled');
     // 입력 미완이므로 진행 표시는 없다(loading 미전달).
     expect(html).not.toContain(LOADING_TEXT);
+  });
+  // ── REQ-067: 아이디·암호 조건 사전 안내 ────────────────────────────────────────
+  // happy-path — 정상 props 렌더 시 아이디 안내와 비밀번호 안내가 둘 다 존재하고,
+  // 비밀번호 안내에 최소 길이 값(8) 이 포함된다.
+  it('정상 props 렌더 시 아이디·비밀번호 조건 안내가 둘 다 보이고 최소 길이 8 을 명시한다 (happy-path — REQ-067)', () => {
+    const html = renderToStaticMarkup(
+      <SuperAdminSetupForm username="root@example.com" password="secret12" {...callbacks} />,
+    );
+    expect(html).toContain(USERNAME_HINT_TEXT);
+    expect(html).toContain(PASSWORD_HINT_TEXT);
+    // 안내 문구는 backend AddUserDto 의 실제 규칙만 인용한다 — email 형식 + 최소 길이.
+    expect(extractHint(html, USERNAME_HINT_ID)).toContain('email');
+    expect(extractHint(html, PASSWORD_HINT_ID)).toContain(String(PASSWORD_MIN_LENGTH));
+    expect(PASSWORD_MIN_LENGTH).toBe(8);
+  });
+
+  // negative — backend 에 없는 조건(대문자/숫자/특수문자 필수) 을 지어내지 않는다.
+  it('안내 문구가 backend 에 없는 대문자·숫자·특수문자 필수 조건을 지어내지 않는다 (negative — 없는 조건 인용 금지)', () => {
+    const html = renderToStaticMarkup(
+      <SuperAdminSetupForm username="root@example.com" password="secret12" {...callbacks} />,
+    );
+    const passwordHint = extractHint(html, PASSWORD_HINT_ID);
+    expect(passwordHint).not.toContain('대문자를 포함');
+    expect(passwordHint).not.toContain('특수문자를 포함');
+    expect(passwordHint).not.toContain('숫자를 포함');
+  });
+
+  // error path — 실패 후에도 조건 안내가 사라지지 않는다(alert 와 동시 렌더).
+  it('error 전달 시 role="alert" 와 조건 안내가 동시에 렌더된다 (error path — 실패 후에도 조건 유지)', () => {
+    const html = renderToStaticMarkup(
+      <SuperAdminSetupForm
+        username="root@example.com"
+        password="secret12"
+        {...callbacks}
+        error="SuperAdmin 셋업에 실패했습니다"
+      />,
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).toContain(USERNAME_HINT_TEXT);
+    expect(html).toContain(PASSWORD_HINT_TEXT);
+  });
+
+  // negative ① — 입력 전 초기 상태(빈 문자열)에서도 안내가 보인다(사전 안내의 핵심).
+  it('username="" + password="" 초기 상태에서도 조건 안내가 보인다 (negative — 입력 전 사전 안내)', () => {
+    const html = renderToStaticMarkup(
+      <SuperAdminSetupForm username="" password="" {...callbacks} />,
+    );
+    expect(html).toContain(USERNAME_HINT_TEXT);
+    expect(html).toContain(PASSWORD_HINT_TEXT);
+  });
+
+  // negative ② / branch — loading=true 로 submit 이 막힌 분기에서도 안내가 그대로 렌더된다.
+  it('loading=true 로 submit 이 막힌 상태에서도 조건 안내가 그대로 렌더된다 (branch — loading true)', () => {
+    const html = renderToStaticMarkup(
+      <SuperAdminSetupForm
+        username="root@example.com"
+        password="secret12"
+        {...callbacks}
+        loading={true}
+      />,
+    );
+    expect(html).toContain('disabled');
+    expect(html).toContain(USERNAME_HINT_TEXT);
+    expect(html).toContain(PASSWORD_HINT_TEXT);
+  });
+
+  // negative ③ — 안내 문구가 password props 의 실제 값을 노출하지 않는다(마스킹 침해 0).
+  it('안내 문구가 password props 의 실제 값을 노출하지 않는다 (negative — 마스킹 침해 0)', () => {
+    const secret = 'SuperSecretValue99';
+    const html = renderToStaticMarkup(
+      <SuperAdminSetupForm username="root@example.com" password={secret} {...callbacks} />,
+    );
+    expect(extractHint(html, PASSWORD_HINT_ID)).not.toContain(secret);
+    expect(extractHint(html, USERNAME_HINT_ID)).not.toContain(secret);
+  });
+
+  // aria-describedby 배선 — 각 입력이 대응 안내의 id 를 정확히 가리킨다.
+  it('각 입력의 aria-describedby 가 대응 안내 문구의 id 와 일치한다 (접근성 배선)', () => {
+    const html = renderToStaticMarkup(
+      <SuperAdminSetupForm username="root@example.com" password="secret12" {...callbacks} />,
+    );
+    expect(extractInput(html, 'username')).toContain(`aria-describedby="${USERNAME_HINT_ID}"`);
+    expect(extractInput(html, 'password')).toContain(`aria-describedby="${PASSWORD_HINT_ID}"`);
+    // 두 안내는 서로 다른 id 를 쓴다 — 교차 연결 방지.
+    expect(USERNAME_HINT_ID).not.toBe(PASSWORD_HINT_ID);
+    expect(extractInput(html, 'username')).not.toContain(PASSWORD_HINT_ID);
   });
 });
