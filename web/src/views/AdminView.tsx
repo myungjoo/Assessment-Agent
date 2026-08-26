@@ -19,6 +19,9 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { useApiResource, toErrorMessage } from '../api/useApiResource';
 import { request, ApiError } from '../api/apiClient';
 import type { RequestOptions } from '../api/apiClient';
+// 사용자 추가(POST /api/users) 400 실패를 축별 구체 사유로 분류하는 순수 helper(T-1712).
+// AppShell 셋업 화면(T-1714)과 같은 분류기를 공유해 두 계정 생성 화면의 어휘가 갈리지 않는다.
+import { classifySignupFailure, formatSignupFailure } from '../api/signupError';
 // P6 export 계약 정합 배선(T-1246) — handleExport 를 구 GET 모델 runExport 에서 job-flow(POST
 // create → poll → download)로 교체하는 격리 모듈들(T-1242/T-1243/T-1245). 구 runExport 는
 // dead-but-exported 로 남긴다(제거는 후속 slice T-1247).
@@ -1829,6 +1832,32 @@ async function runCreatePart(
   } finally {
     deps.setCreating(false);
   }
+}
+
+// 사용자 추가 실패 사유 줄들을 하나의 error 문자열로 이을 때 쓰는 구분자 (T-1715).
+// 값은 AppShell 의 SETUP_ERROR_SEPARATOR 선례와 같다. 줄바꿈(\n)이 아닌 이유도 그쪽과 같다 —
+// 표시 지점이 `<p role="alert">{createUserError}</p>` 한 줄이라, \n 은 별도 CSS(white-space)
+// 없이는 HTML 에서 접혀 사라진다. 그 렌더 개편은 본 slice Out of Scope 이므로 접히지 않는
+// 시각적 구분자를 쓴다. 각 줄의 사유 문장 자체는 원문 그대로 보존하며 요약·병합하지 않는다
+// (REQ-068 포괄 문구 금지).
+const CREATE_USER_ERROR_SEPARATOR = ' / ';
+
+// 사용자 추가 실패 표면을 화면 문구로 바꾸는 순수 함수 (T-1715 — REQ-068/REQ-069).
+// 400(AddUserDto 검증 실패)만 축별 구체 사유로 교체하고, 그 외 모든 입력은 종전 toErrorMessage
+// 결과를 그대로 돌려준다(동작 변화 0). 409(중복)는 러너의 isConflict 분기가 USER_DUPLICATE_ERROR
+// 로 먼저 처리하므로 본 함수에 도달하지 않는다 — 도달하더라도 형식/길이 어휘를 섞지 않는다
+// (분류기가 409 를 중복 축으로만 매핑한다, REQ-069 구분 축).
+// ApiError.message 가 비-2xx 응답 body 원문이라는 apiClient 계약 위에서 성립한다.
+// 어떤 입력에도 throw 하지 않는다(분류기·formatter 모두 순수·무-throw).
+// (named export 는 파일 말미의 export 블록에서 한다 — 본 파일의 기존 helper 들과 같은 방식.)
+function describeCreateUserFailure(e: unknown): string {
+  if (e instanceof ApiError && e.status === 400) {
+    // 분류기가 400 에 대해 최소 1 줄을 보장하므로 결과가 빈 문자열이 되지 않는다.
+    return formatSignupFailure(classifySignupFailure(e.status, e.message)).join(
+      CREATE_USER_ERROR_SEPARATOR,
+    );
+  }
+  return toErrorMessage(e);
 }
 
 // 사용자 생성 POST + state-전이 deps(T-1160 — 위 CreatePartDeps 1:1 mirror, 필드 의미는 그쪽 주석).
@@ -3861,7 +3890,8 @@ function AdminView({
     () =>
       runCreateUser(userEmailInput, userPasswordInput, {
         create: request,
-        describeError: toErrorMessage,
+        // T-1715 — 400 만 축별 구체 사유로 교체(그 외 status 는 toErrorMessage 그대로).
+        describeError: describeCreateUserFailure,
         isConflict: (e: unknown) => e instanceof ApiError && e.status === 409,
         creating: creatingUser,
         setCreating: setCreatingUser,
@@ -5014,6 +5044,7 @@ export {
   runCreateGroup,
   runCreatePart,
   runCreateUser,
+  describeCreateUserFailure,
   runChangeRole,
   buildInstanceAccessPath,
   runGrantInstanceAccess,
