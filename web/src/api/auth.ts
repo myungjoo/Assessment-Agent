@@ -15,6 +15,7 @@
 // 의무는 apiClient 가 담당하므로 본 helper 는 비즈니스 분기만 표현한다.
 
 import { ApiError, request } from './apiClient';
+import { classifySignupFailure, type SignupFailure } from './signupError';
 
 const LOGIN_PATH = '/api/auth/login';
 const REFRESH_PATH = '/api/auth/refresh';
@@ -61,20 +62,33 @@ async function refresh(): Promise<boolean> {
 // (T-0394, ADR-0041 Decision 1 / ADR-0040 §2). `POST /api/users`(architecture/api.md
 // 72) 를 호출한다. backend 는 첫 user(`countAll === 0`)를 자동으로 role="SuperAdmin"
 // 으로, 그 외에는 role="User" 로 생성하고 201 응답 body `{ id, email, role, ... }` 를
-// 준다. 본 helper 는 응답 body 의 `role` 문자열을 반환해 호출측이 첫-user 여부를
-// `role === 'SuperAdmin'` 로 판정할 수 있게 한다.
+// 준다.
+//
+// signupDetailed 의 반환 — 성공/실패를 하나의 객체로 구분한다. 성공이면 failure 가
+// null 이고, 409/400 실패면 role 이 null 이며 failure 에 축별 구체 사유가 담긴다
+// (REQ-068 포괄 문구 금지 · REQ-069 중복 vs 형식 구분의 정보원).
+interface SignupResult {
+  // 2xx 응답 body 의 role 문자열. 누락/비문자열이거나 실패면 null.
+  role: string | null;
+  // 409/400 실패 시의 축별 사유. 성공이면 null.
+  failure: SignupFailure | null;
+}
+
+// 실패 사유를 보존하는 signup 계약(T-1713). 기존 signup 이 409·400 을 둘 다 null 로
+// 흡수해 "어느 입력이 어떤 조건을 위반했는지" 를 버리던 정보 손실 지점을 연다.
 //
 // 정책:
-//  - 성공(2xx): 응답 body 의 `role` 이 문자열이면 그 값을, 누락/비문자열이면 null 을
-//    반환한다(throw 없이 안전 분기 — 호출측이 단순 null 체크로 처리).
+//  - 성공(2xx): `{ role, failure: null }`. body 의 `role` 이 문자열이면 그 값을,
+//    누락/비문자열이면 null 을 담는다(throw 없이 안전 분기).
 //  - 409(email 중복) / 400(`AddUserDto` 위반 — `@IsEmail`/`@MinLength(8)` 등):
-//    null 반환. 중복/검증 실패를 enumeration-safe 한 단일 null 분기로 흡수한다.
-//  - 그 외 에러(네트워크/5xx): ApiError 를 그대로 throw 해 호출측 catch 가 '셋업 중
-//    오류' 등으로 표면화하도록 전파한다(흡수 안 함).
-async function signup(
+//    `{ role: null, failure }`. failure 는 classifySignupFailure(status, 응답 body
+//    원문) 결과다 — ApiError.message 가 비-2xx 응답의 body 원문을 담는다(apiClient).
+//  - 그 외 에러(네트워크 status 0 / 5xx): ApiError 를 그대로 throw 해 호출측 catch 가
+//    표면화하도록 전파한다(흡수 금지 — 사유를 지어내지 않는다).
+async function signupDetailed(
   username: string,
   password: string,
-): Promise<string | null> {
+): Promise<SignupResult> {
   try {
     // login 과 동일하게 username→email 매핑. backend AddUserDto 는 email 을 기대한다.
     const body = await request<{ role?: unknown }>(SIGNUP_PATH, {
@@ -84,17 +98,29 @@ async function signup(
     });
     // 응답 body 의 role 이 문자열일 때만 반환 — 누락/비문자열은 안전하게 null.
     if (body && typeof body.role === 'string') {
-      return body.role;
+      return { role: body.role, failure: null };
     }
-    return null;
+    return { role: null, failure: null };
   } catch (e) {
-    // 409(중복) / 400(검증 실패) 는 null 로 흡수 — 호출측이 단일 분기로 처리한다.
+    // 409(중복) / 400(검증 실패) 만 사유로 환원 — 그 외는 아래에서 전파한다.
     if (e instanceof ApiError && (e.status === 409 || e.status === 400)) {
-      return null;
+      return { role: null, failure: classifySignupFailure(e.status, e.message) };
     }
     // 그 외(네트워크/5xx)는 전파 — 호출측 catch 가 표면 에러로 외화한다.
     throw e;
   }
 }
 
-export { login, refresh, signup };
+// 기존 호출측(AppShell / AdminView) 계약을 그대로 유지하는 얇은 wrapper. 반환은
+// `Promise<string | null>` — 409/400 은 종전대로 null 로 흡수된다(구체 사유가 필요한
+// 호출측은 signupDetailed 를 쓴다). 그 외 에러는 signupDetailed 가 그대로 전파한다.
+async function signup(
+  username: string,
+  password: string,
+): Promise<string | null> {
+  const { role } = await signupDetailed(username, password);
+  return role;
+}
+
+export { login, refresh, signup, signupDetailed };
+export type { SignupResult };

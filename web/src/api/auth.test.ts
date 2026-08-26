@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { login, refresh, signup } from './auth';
+import { login, refresh, signup, signupDetailed } from './auth';
+import { formatSignupFailure } from './signupError';
 
 // R-112 — P6 composition wiring ②b auth helper(T-0380) 검증.
 // jsdom/@testing-library 미사용 — 전역 fetch 를 vi.fn 으로 mock 해 apiClient 경유
@@ -230,5 +231,152 @@ describe('auth.signup', () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(201, { id: 'u4', role: 42 }));
     const role = await signup('d@x.com', 'password8');
     expect(role).toBeNull();
+  });
+});
+
+// R-112 — T-1713 signupDetailed 계약 검증. signup 이 409·400 을 둘 다 null 로 흡수해
+// 버리던 실패 사유를 SignupFailure 로 보존하는지, 그리고 409/400 이외는 종전대로
+// throw 전파하는지를 분기별로 단언한다(REQ-068 / REQ-069).
+describe('auth.signupDetailed', () => {
+  // 오너가 정면으로 금지한 포괄 문구 — 어떤 실패 표시에도 이 문자열이 섞이면 안 된다.
+  const FORBIDDEN_MESSAGE = '이미 등록된 사용자이거나 입력이 올바르지 않습니다.';
+
+  let fetchSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // happy-path / branch ① — 2xx + role 문자열.
+  it("201 { role: 'SuperAdmin' } 시 role 보존 · failure=null (happy-path)", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse(201, { id: 'u1', email: 'admin@x.com', role: 'SuperAdmin' }),
+    );
+    const result = await signupDetailed('admin@x.com', 'password8');
+    expect(result).toEqual({ role: 'SuperAdmin', failure: null });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [path, init] = fetchSpy.mock.calls[0];
+    expect(path).toBe('/api/users');
+    expect(init.method).toBe('POST');
+    // login/signup 과 동일하게 username→email 매핑 — 계약 회귀 guard.
+    expect(JSON.parse(init.body)).toEqual({ email: 'admin@x.com', password: 'password8' });
+  });
+
+  // branch ② — 2xx 인데 role 누락/비문자열이면 role=null, failure 는 여전히 null.
+  it('201 응답에 role 이 없으면 role=null · failure=null (branch — role 누락)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(201, { id: 'u2', email: 'b@x.com' }));
+    await expect(signupDetailed('b@x.com', 'password8')).resolves.toEqual({
+      role: null,
+      failure: null,
+    });
+  });
+
+  it('201 응답의 role 이 비문자열이면 role=null · failure=null (branch — 비문자열 role)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(201, { id: 'u3', role: 42 }));
+    await expect(signupDetailed('c@x.com', 'password8')).resolves.toEqual({
+      role: null,
+      failure: null,
+    });
+  });
+
+  // negative — 2xx body 가 null / 빈 객체여도 throw 0.
+  it('2xx body 가 null 또는 빈 객체여도 throw 없이 role=null (negative — 빈 body)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(200, null));
+    await expect(signupDetailed('d@x.com', 'password8')).resolves.toEqual({
+      role: null,
+      failure: null,
+    });
+    fetchSpy.mockResolvedValueOnce(mockResponse(200, {}));
+    await expect(signupDetailed('d@x.com', 'password8')).resolves.toEqual({
+      role: null,
+      failure: null,
+    });
+  });
+
+  // error path / branch ③ — 409 는 중복 축에만 사유가 쌓이고 형식 축은 비어 있다(REQ-069).
+  it('409 시 kind=duplicate-username · username 축에만 사유 (error path — 중복)', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse(409, { statusCode: 409, message: 'Conflict' }),
+    );
+    const { role, failure } = await signupDetailed('dup@x.com', 'password8');
+    expect(role).toBeNull();
+    expect(failure?.kind).toBe('duplicate-username');
+    expect(failure?.username.length).toBeGreaterThan(0);
+    // 중복 축과 형식 축이 섞이지 않아야 한다 — REQ-069 의 핵심 구분.
+    expect(failure?.password).toEqual([]);
+    expect(failure?.other).toEqual([]);
+  });
+
+  // branch ④ — 400 은 class-validator 문구를 축별로 환원한다.
+  it('400 시 kind=invalid-input · password 축에 길이 사유 (branch — 검증 실패)', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse(400, {
+        statusCode: 400,
+        message: ['password must be longer than or equal to 8 characters'],
+      }),
+    );
+    const { role, failure } = await signupDetailed('a@x.com', 'short');
+    expect(role).toBeNull();
+    expect(failure?.kind).toBe('invalid-input');
+    expect(failure?.password.join(' ')).toContain('8');
+    // 형식 실패에 중복 사유가 섞이면 안 된다(REQ-069 반대 방향 guard).
+    expect(failure?.username).toEqual([]);
+  });
+
+  // negative — @IsEmail 위반 문구는 username 축에만 쌓인다.
+  it('400 @IsEmail 위반 시 username 축에만 사유 (negative — 축 분리)', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse(400, { statusCode: 400, message: ['email must be an email'] }),
+    );
+    const { failure } = await signupDetailed('not-an-email', 'password8');
+    expect(failure?.username.length).toBeGreaterThan(0);
+    expect(failure?.password).toEqual([]);
+  });
+
+  // negative — 400 body 가 비-JSON 원문이어도 throw 없이 other 에 최소 1 줄 보존.
+  it('400 body 가 비-JSON 원문이어도 throw 0 · other 보존 (negative — 원문 body)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(400, 'Bad Request', 'text/plain'));
+    const { role, failure } = await signupDetailed('bad', 'short');
+    expect(role).toBeNull();
+    expect(failure?.kind).toBe('invalid-input');
+    expect(failure?.other.length).toBeGreaterThan(0);
+  });
+
+  // error path / branch ⑤ — 5xx 는 failure 를 지어내지 않고 그대로 reject.
+  it('500 시 failure 를 만들지 않고 ApiError 전파 (error path — 5xx)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(500, 'server boom', 'text/plain'));
+    await expect(signupDetailed('a@x.com', 'password8')).rejects.toThrow();
+  });
+
+  // branch ⑤ / negative — 네트워크 실패(status 0)도 흡수하지 않고 전파.
+  it('fetch 가 throw 하면(status 0) ApiError 전파 (negative — 네트워크)', async () => {
+    fetchSpy.mockRejectedValueOnce(new Error('offline'));
+    await expect(signupDetailed('a@x.com', 'password8')).rejects.toThrow();
+  });
+
+  // negative — 금지 문구 guard. 409/400 어느 실패에서도 포괄 문구가 나오면 안 된다.
+  it('formatSignupFailure 결과에 금지된 포괄 문구가 없다 (negative — 오너 금지 조항)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(409, 'Conflict', 'text/plain'));
+    const dup = await signupDetailed('dup@x.com', 'password8');
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse(400, { statusCode: 400, message: ['email must be an email'] }),
+    );
+    const invalid = await signupDetailed('bad', 'password8');
+    for (const failure of [dup.failure, invalid.failure]) {
+      const lines = formatSignupFailure(failure!);
+      expect(lines.length).toBeGreaterThan(0);
+      expect(lines.join(' | ')).not.toContain(FORBIDDEN_MESSAGE);
+    }
+  });
+
+  // 회귀 게이트 — wrapper signup 은 signupDetailed 위에서 기존 계약을 그대로 유지한다.
+  it('signup wrapper 는 409 를 종전대로 null 로 흡수 (회귀 — 호출측 계약 불변)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(409, 'Conflict', 'text/plain'));
+    await expect(signup('dup@x.com', 'password8')).resolves.toBeNull();
   });
 });
