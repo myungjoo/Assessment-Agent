@@ -2,12 +2,13 @@
 id: T-1716
 title: signup 실패 응답 body 의 축별 사유 계약을 e2e 로 고정
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-068, REQ-069]
 estimatedDiff: 240
 estimatedFiles: 1
 created: 2026-08-26
+completedAt: 2026-08-26T10:10:27Z
 independentStream: account-creation-ux
 dependsOn: [T-1712, T-1714, T-1715]
 touchesFiles:
@@ -62,3 +63,11 @@ plannerNote: P6 오너 지시(PLAN 129 행 🔴) 분해 slice 7 — REQ-068/069 
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 요약
+
+- **DONE** — PR [#1347](https://github.com/myungjoo/Assessment-Agent/pull/1347) round 1 APPROVE → squash merge `e8d22e3c` (2026-08-26T10:10:27Z).
+- 신규 `test/e2e/signup-failure-contract.e2e-spec.ts` 1 파일(+300/-0)만 추가 — 프로덕션 코드 · 기존 spec · `src/` · `web/` · 워크플로 · `package.json` diff 0 파일이라 전역 coverage 무영향.
+- 400 `message` 배열의 축별 문자열 · 409 중복 축 어휘 분리(REQ-069) · 평문 password 비노출 · web `MESSAGE_MAP` key 대조 drift guard 를 e2e 로 고정해 [requirements.md](../requirements.md) `87~88 행` REQ-068/069 의 verify `e2e` 축을 충족.
+- R-112 4 종 cover — happy(형식+길이 동시 위반 2 문자열) · error path(409 어휘 불혼입) · 분기 4 종(email 누락 · password 빈 문자열 · 비-문자열 · 미정의 필드) · negative 5 종(평문 미노출 · hashedPassword 부재 · message 비어있지 않음 · statusCode · 201 대조군).
+- 로컬 lint · build · `test:cov`(453 suite / 13009 test) green, CI PR run + 머지 후 main run 둘 다 success.
