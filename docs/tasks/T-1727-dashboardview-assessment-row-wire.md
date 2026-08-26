@@ -2,7 +2,7 @@
 id: T-1727
 title: DashboardView 행 파이프라인·결과 표를 AssessmentDisplayRow 계약으로 교체 배선
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-075]
 independentStream: p6-dashboard-actual-behavior
@@ -66,4 +66,13 @@ plannerNote: P6 오너지시 PLAN 131행 ② 분해 slice 3b — 3 slice(T-1724~
 
 ## Follow-ups
 
-(비어 있음 — sub-agent 가 발견 시 여기에 append)
+- REQ-076 축 스케일 정합 — `deriveMetrics` · `deriveScoreBuckets` 를 `AssessmentDisplayRow` 계약으로 이전하고 본 slice 가 남긴 임시 브리지 `toLegacyScoreRows` 를 제거한다.
+- `EvaluationResultTable.tsx` 와 그 spec 정리 후 `DashboardView` 의 `EvaluationResultRow` type-only import 제거 (다른 소비처 유무 확인 선행).
+
+## Result
+
+- **DONE 2026-08-26T23:01:40Z** — PR [#1357](https://github.com/myungjoo/AA_S1/pull/1357) merge (main `a2e643a2`, round 1, CI pass).
+- 3 파일 +409/-144: `DashboardView.tsx` 를 `useApiResource<unknown[]>` 로 전환해 `deriveAssessmentDisplayRows` → `searchAssessmentRows` → `sortAssessmentRows` 3 단 파이프라인을 소비하고, 표를 `AssessmentResultTable` 로 교체했다. 지역 `filterRows` · `sortRows` 는 삭제, `SORT_OPTIONS` 는 `ASSESSMENT_TABLE_COLUMNS` 에서 파생.
+- 요약 지표 · 점수 분포는 시그니처를 바꾸지 않고 임시 브리지 `toLegacyScoreRows` (null 축 행은 집계 제외) 로 이어 두었다 — REQ-076 은 위 Follow-ups.
+- AC 1 건 partial: `DashboardView.assessments-list-contract.test.ts` 의 call-site anchor 1 곳을 무-alias 구조분해로 갱신 (옛 타입 인자 문자열 anchor 가 `<unknown[]>` 전환과 양립 불가 — 검증 축 자체는 불변). summaries · contributions guard 는 수정 0.
+- web vitest 78 파일 2357 test green · `pnpm build` 통과 · 루트 `pnpm lint` 통과 · `src/` diff 0 으로 backend coverage 불변.
