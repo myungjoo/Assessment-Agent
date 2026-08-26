@@ -2,12 +2,14 @@
 id: T-1713
 title: signup 실패 사유를 보존하는 signupDetailed 계약 추가
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-068, REQ-069]
 estimatedDiff: 150
 estimatedFiles: 2
 created: 2026-08-26
+completedAt: 2026-08-26T06:50:25Z
+prNumber: 1344
 independentStream: account-creation-ux
 dependsOn: [T-1712]
 touchesFiles:
