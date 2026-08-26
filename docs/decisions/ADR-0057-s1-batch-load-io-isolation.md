@@ -248,7 +248,7 @@ step 순서 덕에 S1 `setup()` 의 signup 이 그 run 의 첫 user = `SuperAdmi
 - [ADR-0056](ADR-0056-perf-baseline-checkin-ci.md) — perf baseline 정책(임계 승격 절차)
 - [docs/requirements.md](../requirements.md) `66 행` — REQ-047(평가 배치 1h, PLANNED)
 - [docs/ops/realdata-scale-devset.md](../ops/realdata-scale-devset.md) `6 행` — 실 devset 133명(외삽 기준 인원)
-- [docs/PLAN.md](../PLAN.md) `144 행` — 오너 지시(R-91 k6 최우선·즉시 착수)
+- [docs/PLAN.md](../PLAN.md) `150 행` — 오너 지시(R-91 k6 최우선·즉시 착수)
 - [CLAUDE.md](../../CLAUDE.md) `§5` — 신규 dependency / schema / 인증 변경 BLOCKED 경계
 
 Refs: T-1626, REQ-047
