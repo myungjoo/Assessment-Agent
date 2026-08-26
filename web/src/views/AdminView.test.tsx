@@ -59,6 +59,12 @@ import type { CreateExportInput } from '../api/exportJob';
 // T-1142 — 인원 관리 마운트 test 의 인원 샘플 row 타입. PersonList 가 named export 하는
 // PersonRow 를 그대로 재사용해(컴포넌트 계약 정합) mock data shape 을 통제한다.
 import type { PersonRow } from '../components/PersonList';
+// T-1711 — Admin 사용자 추가 폼 조건 안내 문구의 정본. 컨테이너가 재사용하는 바로 그 상수를
+// test 도 그대로 import 해, 문구를 AdminView 안에서 새로 쓰면(=drift) 단언이 깨지게 만든다.
+import {
+  USERNAME_HINT_TEXT,
+  PASSWORD_HINT_TEXT,
+} from '../components/SuperAdminSetupForm';
 
 import AdminView, {
   findGroup,
@@ -9655,5 +9661,167 @@ describe('AdminView — 인스턴스 접근 폼 초기 렌더 회귀 (T-1168)', 
     setRoutes({ [AUTH_ME]: USER_ME, [USERS]: { data: USER_ROWS, loading: false, error: undefined } });
     const html = renderToStaticMarkup(<AdminView />);
     SELECTORS.forEach((selector) => expect(html).not.toContain(selector));
+  });
+});
+
+// R-112 — T-1711 (REQ-067) Admin 사용자 추가 폼 조건 사전 안내 검증. 안내는 상태 의존이 없는
+// 무조건 렌더라 (a) 실 정적 렌더 markup 단언으로 표면을, (b) createUserError/creatingUser 같은
+// 컨테이너 내부 state 는 RTL 부재(ADR-0040 §5)로 밖에서 주입할 수 없으므로 소스 drift guard
+// (T-1168 선례 패턴)로 "분기 없음" 을 각각 고정한다.
+describe('AdminView — 사용자 추가 폼 조건 사전 안내 (T-1711, REQ-067)', () => {
+  const USERS = '/api/users';
+  const USER_SECTION = 'aria-label="사용자 관리 섹션"';
+  const EMAIL_HINT_ID = 'admin-create-user-email-hint';
+  const PASSWORD_HINT_ID = 'admin-create-user-password-hint';
+  const EMAIL_LABEL = 'aria-label="추가할 사용자 이메일"';
+  const PASSWORD_LABEL = 'aria-label="추가할 사용자 비밀번호"';
+  const USER_ROWS = [{ id: 'u1', email: 'user-a@example.com', role: 'User' }];
+  // 비-Admin(User 등급) me 응답 — 섹션 자체가 미마운트되는 fail-closed 분기 통제용.
+  const USER_ME = { data: { role: 'User' }, loading: false, error: undefined };
+  const source = readFileSync(new URL('./AdminView.tsx', import.meta.url), 'utf8');
+
+  beforeEach(() => {
+    requestMock.mockReset();
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // 사용자 관리 섹션만 잘라내는 helper(기존 T-1166/T-1168 렌더 test 와 동일한 slice 규약).
+  function renderUserSection(
+    routes: Record<string, ApiResourceState<unknown>>,
+  ): string {
+    setRoutes(routes);
+    const html = renderToStaticMarkup(<AdminView />);
+    const start = html.indexOf(USER_SECTION);
+    expect(start).toBeGreaterThanOrEqual(0);
+    return html.slice(start, html.indexOf('</section>', start));
+  }
+
+  // happy-path — 입력 전 초기 렌더에서 안내 2 축 + 고유 id + aria-describedby 가 모두 보인다.
+  it('사용자 관리 섹션에 아이디·비밀번호 안내와 aria-describedby 2 개를 렌더한다 (happy-path — 정적 렌더)', () => {
+    const section = renderUserSection({
+      [USERS]: { data: USER_ROWS, loading: false, error: undefined },
+    });
+    expect(section).toContain(USERNAME_HINT_TEXT);
+    expect(section).toContain(PASSWORD_HINT_TEXT);
+    expect(section).toContain(`id="${EMAIL_HINT_ID}"`);
+    expect(section).toContain(`id="${PASSWORD_HINT_ID}"`);
+    expect(section).toContain(`aria-describedby="${EMAIL_HINT_ID}"`);
+    expect(section).toContain(`aria-describedby="${PASSWORD_HINT_ID}"`);
+    // 안내 id 는 화면별 고유 — SuperAdmin 셋업 폼의 id 와 값이 겹치지 않는다.
+    expect(section).not.toContain('superadmin-setup-username-hint');
+    expect(section).not.toContain('superadmin-setup-password-hint');
+  });
+
+  // error path — 섹션 안에 실패 alert 가 떠 있어도 안내 2 축은 그대로 남는다(실패가 안내를
+  // 대체하지 않는다). 컨테이너 state 인 createUserError 는 주입할 수 없어, 같은 섹션에서
+  // 주입 가능한 사용자 조회 실패 alert 로 "alert 공존" 을 실 렌더로 확인한다.
+  it('실패 alert 가 떠 있어도 안내 2 축이 함께 남는다 (error path — alert 공존)', () => {
+    const section = renderUserSection({
+      [USERS]: { data: undefined, loading: false, error: 'HTTP 500: users boom' },
+    });
+    expect(section).toContain('role="alert"');
+    expect(section).toContain('HTTP 500: users boom');
+    expect(section).toContain(USERNAME_HINT_TEXT);
+    expect(section).toContain(PASSWORD_HINT_TEXT);
+  });
+
+  // 분기(a) — creatingUser 진행 중 렌더에서도 안내가 유지된다. 진행 플래그는 컨테이너 내부
+  // state 라 주입 불가하므로, 안내 markup 이 어떤 상태도 참조하지 않음을 소스로 고정한다
+  // (상태 비의존 = 진행 중/실패/평시 어느 렌더에서도 동일 출력).
+  it('안내 markup 이 creatingUser·createUserError 를 참조하지 않는다 (분기 — 진행 중에도 안내 유지)', () => {
+    // 안내 <p> 2 줄만 뽑아 상태 참조·조건 연산자 부재를 각각 확인한다(사이에 낀 input 의
+    // disabled={creatingUser} 는 안내 소관이 아니므로 줄 단위로 좁힌다).
+    const hintLines = source
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.startsWith('<p id={CREATE_USER_'));
+    expect(hintLines).toEqual([
+      '<p id={CREATE_USER_EMAIL_HINT_ID}>{USERNAME_HINT_TEXT}</p>',
+      '<p id={CREATE_USER_PASSWORD_HINT_ID}>{PASSWORD_HINT_TEXT}</p>',
+    ]);
+    hintLines.forEach((line) => {
+      expect(line).not.toContain('creatingUser');
+      expect(line).not.toContain('createUserError');
+      expect(line).not.toContain('?');
+      expect(line).not.toContain('&&');
+    });
+    // 실패 alert 는 종전대로 조건부 그대로다(안내를 alert 분기 안으로 옮기지 않았다).
+    expect(source).toContain('{createUserError ? <p role="alert">{createUserError}</p> : null}');
+  });
+
+  // 분기(b) — 비-Admin 등급이면 섹션 자체가 미마운트라 안내도 노출 0(fail-closed).
+  it('비-Admin 등급이면 안내도 렌더하지 않는다 (분기/negative — fail-closed)', () => {
+    setRoutes({
+      [AUTH_ME]: USER_ME,
+      [USERS]: { data: USER_ROWS, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).not.toContain(USERNAME_HINT_TEXT);
+    expect(html).not.toContain(PASSWORD_HINT_TEXT);
+    expect(html).not.toContain(EMAIL_HINT_ID);
+    expect(html).not.toContain(PASSWORD_HINT_ID);
+  });
+
+  // negative① — 안내 영역에 입력값이 섞이지 않는다. 안내 <p> 본문이 상수와 문자 그대로
+  // 같은지 추출해 비교하고(문자열 보간 0), 소스에서도 입력 state 참조 부재를 고정한다.
+  it('안내 <p> 본문이 상수와 정확히 같고 입력값을 섞지 않는다 (negative — 입력값 노출 0)', () => {
+    const section = renderUserSection({
+      [USERS]: { data: USER_ROWS, loading: false, error: undefined },
+    });
+    const emailHint = new RegExp(`<p id="${EMAIL_HINT_ID}">([^<]*)</p>`).exec(section);
+    const passwordHint = new RegExp(`<p id="${PASSWORD_HINT_ID}">([^<]*)</p>`).exec(section);
+    expect(emailHint?.[1]).toBe(USERNAME_HINT_TEXT);
+    expect(passwordHint?.[1]).toBe(PASSWORD_HINT_TEXT);
+    expect(source).not.toContain('{CREATE_USER_EMAIL_HINT_ID}>{userEmailInput');
+    const hintLines = source
+      .split('\n')
+      .filter((line) => line.includes('HINT_ID}>'));
+    expect(hintLines).toHaveLength(2);
+    hintLines.forEach((line) => {
+      expect(line).not.toContain('userEmailInput');
+      expect(line).not.toContain('userPasswordInput');
+    });
+  });
+
+  // negative② — 안내가 입력의 접근 가능 이름을 오염시키지 않는다(aria-label 종전 값 유지 +
+  // 두 input 태그가 label 과 describedby 를 함께 갖는다. 안내 <p> 에는 aria-label 없음).
+  it('입력의 aria-label 이 종전 값 그대로다 (negative — 접근 가능 이름 오염 0)', () => {
+    const section = renderUserSection({
+      [USERS]: { data: USER_ROWS, loading: false, error: undefined },
+    });
+    expect(section).toContain(EMAIL_LABEL);
+    expect(section).toContain(PASSWORD_LABEL);
+    expect(section).toMatch(
+      new RegExp(`<input[^>]*${EMAIL_LABEL}[^>]*aria-describedby="${EMAIL_HINT_ID}"[^>]*/?>`),
+    );
+    expect(section).toMatch(
+      new RegExp(`<input[^>]*${PASSWORD_LABEL}[^>]*aria-describedby="${PASSWORD_HINT_ID}"[^>]*/?>`),
+    );
+    expect(section).not.toMatch(new RegExp(`<p id="${EMAIL_HINT_ID}"[^>]*aria-label`));
+    expect(section).not.toMatch(new RegExp(`<p id="${PASSWORD_HINT_ID}"[^>]*aria-label`));
+  });
+
+  // negative③ — 안내는 경보가 아니다. 안내 <p> 에 role 이 없고, 실패가 없는 평시 렌더의
+  // 섹션에는 role="alert" 자체가 등장하지 않는다(기존 T-1160 회귀 단언과 동일 계약).
+  it('안내 문구는 role="alert" 를 갖지 않는다 (negative — 매 렌더 경보 낭독 방지)', () => {
+    const section = renderUserSection({
+      [USERS]: { data: USER_ROWS, loading: false, error: undefined },
+    });
+    expect(section).not.toMatch(new RegExp(`<p id="${EMAIL_HINT_ID}"[^>]*role=`));
+    expect(section).not.toMatch(new RegExp(`<p id="${PASSWORD_HINT_ID}"[^>]*role=`));
+    expect(section).not.toContain('role="alert"');
+  });
+
+  // drift guard — 문구는 반드시 SuperAdminSetupForm 상수 재사용. AdminView 안에 문구 리터럴을
+  // 다시 쓰면(=두 화면 drift) fail 한다.
+  it('문구를 재정의하지 않고 SuperAdminSetupForm 상수를 import 한다 (drift guard)', () => {
+    expect(source).toContain("from '../components/SuperAdminSetupForm'");
+    expect(source).toContain('USERNAME_HINT_TEXT');
+    expect(source).toContain('PASSWORD_HINT_TEXT');
+    expect(source).not.toContain('아이디는 email 형식이어야 합니다');
+    expect(source).not.toContain('비밀번호는 최소');
   });
 });
