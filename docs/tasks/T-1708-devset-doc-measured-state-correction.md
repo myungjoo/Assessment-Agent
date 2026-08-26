@@ -2,7 +2,7 @@
 id: T-1708
 title: realdata devset 정본의 stale "실 run 0 회" 실측 상태 문장을 실사실로 정정
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 estimatedDiff: 25
@@ -89,3 +89,13 @@ dispatch · 코드 변경 0** 이다.
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-26T01:50Z, direct `8bbb9376`)
+
+`docs/ops/realdata-scale-devset.md` `## seed 실행 경로` 의 stale bullet 을 기박제 4 사실
+(run `32652307813` fail · `32665014391` 첫 성공 person/serviceIdentity 133 · `32677333740` 표본
+133 명 회수 · 부하계획 `§3.1` `16 회차` seed step 연속 9 회 성공) 인용으로 교체했고, 같은 bullet 에
+실 수집 왕복 0([ADR-0057](../decisions/ADR-0057-s1-batch-load-io-isolation.md) D1 stub · 자격증명 0)
+과 T-1706 결론 분포 · `§5` item 5 잔여 ① pointer 를 동거시켰다. `docs/PLAN.md` `154 행` 은 꼬리
+pointer 1 문장 append 만 — 기존 문장 삭제 0, checkbox `[ ]` 유지. 2 파일 +18/-2, `pnpm lint` 무경고,
+`test/` · `src/` · `web/` · CI · `package.json` diff 0 파일이라 전역 coverage 불변.
