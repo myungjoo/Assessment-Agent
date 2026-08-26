@@ -2,7 +2,7 @@
 id: T-1707
 title: PLAN R-92 mega-narrative bullet prune — 46k 자 1 줄을 ≤ 10 줄 요약본 + 정본 pointer 로 압축 (오너 지시 PLAN 146 행)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 15
@@ -102,3 +102,12 @@ bullet prune (문서 smell)** 이다. 지시 본문은 "현 R-92 sub-bullet 이 
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 append)
+
+---
+
+## 완료 기록
+
+- **완료 시각**: 2026-08-26T00:47Z (cron fire `cron@aa-local-e69b69e4`)
+- **commit**: `9cba851f` (direct → main), +9/-3, 2 파일
+- **결과**: `docs/PLAN.md` `142 행` 의 46,156 자 단일 줄 R-92 mega-narrative 를 6 사실 축을 보존한 **7 줄 요약본 + `test/perf/README.md` 정본 pointer** 로 교체했다. 사라진 서술은 전량이 README `618 행` · `108 행` · `1244 행` 쪽에 이미 외화돼 있어 신규 정보 손실 0. 오너 지시 checkbox(구 `146 행` → 현 `152 행`)를 `[x]` 로 닫고 집행 사실 1 문장을 붙였으며, prune 으로 밀린 +6 행 좌표 때문에 [ADR-0057](../decisions/ADR-0057-s1-batch-load-io-isolation.md) `251 행` 의 PLAN pointer 를 `144 행` → `150 행` 으로 정정했다. `ADR-0056` 의 `PLAN 142 행` pointer 는 bullet 머리 행이 `142` 로 불변이라 stale 아님(무변경).
+- **범위 불변 확인**: `test/` · `src/` · `web/` · `.github/workflows/` · `package.json` diff 0 파일, 새 perf-spec · 임계 재조정 · 실측 0. `pnpm lint` 무경고.
