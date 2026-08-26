@@ -10,7 +10,9 @@
 // 으로 교체하고 `signup`(POST /api/users 첫-user→SuperAdmin) helper 를 주입한다 —
 // 본 slice 의 변경점. setup 모드는 미인증 단계라 AuthGate(로그인) 와 상호배타로
 // 렌더한다(둘 다 동시 렌더 금지). setup↔login 전환은 주입형 controlled lift-up 으로
-// 표현하고 새 라우터는 도입하지 않는다(ADR-0041 Decision 1·2). 새 dependency 0 —
+// 표현하고 새 라우터는 도입하지 않는다(ADR-0041 Decision 1·2). T-1714 는 그 셋업
+// 제출 경로의 `signup` 을 `signupDetailed`(사유 보존 계약) 로 교체해, 실패 시 포괄
+// 문구 대신 축별 구체 사유를 표시한다(REQ-068 · REQ-069). 새 dependency 0 —
 // react/react-dom + 브라우저 표준 fetch 만 사용한다(ADR-0040 §5 게이트).
 
 import { useState } from 'react';
@@ -19,7 +21,9 @@ import AuthGate from './AuthGate';
 import SuperAdminSetupForm from './components/SuperAdminSetupForm';
 import DashboardView from './views/DashboardView';
 import AdminView from './views/AdminView';
-import { login as authLogin, signup as authSignup } from './api/auth';
+import { login as authLogin, signupDetailed as authSignupDetailed } from './api/auth';
+import { formatSignupFailure } from './api/signupError';
+import type { SignupFailure } from './api/signupError';
 
 // 무라우터 view 전환 (ADR-0041 Decision 2) — view enum 으로 추상화해 두면
 // 후일 react-router 전환 시 교체 표면이 AppShell 한 곳에 국한된다.
@@ -30,6 +34,38 @@ const DEFAULT_AUTHED_VIEW: View = 'dashboard';
 
 // 헤더에 표시할 전역 식별 토큰 — App.test/AppShell.test 의 happy-path 단언 기준.
 const APP_TITLE = 'Assessment-Agent';
+
+// 셋업 실패 사유 줄들을 하나의 error 문자열로 이을 때 쓰는 구분자 (T-1714).
+// SuperAdminSetupForm 의 `error?: string` 제약 때문에 여러 줄을 한 문자열로 합쳐야 하는데,
+// 줄바꿈(\n)은 별도 CSS(white-space) 없이는 HTML 에서 접혀 사라진다 — 그 스타일 도입은
+// 본 slice Out of Scope 라, 접히지 않는 시각적 구분자를 쓴다. 각 줄의 사유 문장 자체는
+// 원문 그대로 보존하며 요약·병합하지 않는다(REQ-068 포괄 문구 금지).
+const SETUP_ERROR_SEPARATOR = ' / ';
+
+// 사유를 하나도 얻지 못한 비정상 응답용 fallback (T-1714). 2xx 인데 role 도 failure 도
+// 없는 경우가 여기 해당한다 — 없는 사유를 지어내지 않고 상태 불명임을 그대로 알린다.
+// 네트워크/5xx catch 문구(SETUP_THROWN_ERROR_MESSAGE)와 어휘가 겹치지 않아야 한다.
+const SETUP_UNRESOLVED_MESSAGE =
+  '셋업 응답을 해석하지 못했습니다. 계정이 생성되었는지 확인한 뒤 다시 시도해 주세요.';
+
+// 네트워크/5xx 등 throw 경로 문구 — 위 fallback 과 구분 가능해야 한다.
+const SETUP_THROWN_ERROR_MESSAGE = '셋업 중 오류가 발생했습니다.';
+
+// signupDetailed 가 준 축별 사유(SignupFailure)를 폼 error 한 줄 문자열로 변환한다 (T-1714).
+// 순수 함수로 분리해 named export 하는 이유: web 에 @testing-library/react 가 없어(ADR-0040 §5
+// 새-dep 게이트) 상호작용 렌더 test 가 불가하므로, 이 변환 규칙만은 단위로 검증 가능해야 한다.
+//  - failure 가 null(사유 미상) 또는 축이 전부 비어 있으면 → SETUP_UNRESOLVED_MESSAGE.
+//  - 그 외 → formatSignupFailure 의 줄들을 구분자로 이어 붙인다(각 줄 원문 보존).
+export function buildSetupErrorMessage(failure: SignupFailure | null): string {
+  if (failure === null) {
+    return SETUP_UNRESOLVED_MESSAGE;
+  }
+  const lines = formatSignupFailure(failure);
+  if (lines.length === 0) {
+    return SETUP_UNRESOLVED_MESSAGE;
+  }
+  return lines.join(SETUP_ERROR_SEPARATOR);
+}
 
 // 인증 제출 위임 콜백 — wiring ②b(T-0380) 가 실 `auth.login` 을 주입한다.
 // `auth.login(username, password)` 가 `POST /api/auth/login` 호출 + 401 시 false
@@ -79,28 +115,30 @@ function AppShell({ initialView = 'login', initialSetupError }: AppShellProps = 
     setView('superadmin-setup');
   };
 
-  // 셋업 제출 핸들러 — 주입된 `signup`(POST /api/users) 에 위임하고 결과에 따라
-  // 분기한다. signup 은 성공 시 role 문자열, 중복/검증 실패 시 null 을 반환하고
-  // 그 외(네트워크/5xx)는 throw 한다.
-  //  - role 반환(특히 'SuperAdmin'): 셋업 성공 → 로그인 화면('login')으로 재진입
+  // 셋업 제출 핸들러 — `signupDetailed`(POST /api/users, T-1713) 에 위임하고 결과에
+  // 따라 분기한다. 종전 `signup` wrapper 는 409/400 을 똑같이 null 로 흡수해 "어느 입력이
+  // 어떤 조건을 위반했는지" 를 버렸고, 그 자리에 오너가 금지한 포괄 문구가 있었다 —
+  // T-1714 가 그 소비 지점을 사유 보존 계약으로 교체한다(REQ-068 · REQ-069).
+  //  - role 문자열(특히 'SuperAdmin'): 셋업 성공 → 로그인 화면('login')으로 재진입
   //    (POST /api/users 는 세션 쿠키를 발급하지 않으므로 자동 로그인 연쇄는 Follow-up).
-  //  - null 반환: 중복/검증 실패 → SuperAdminSetupForm 의 error props 로 안전 표시.
-  //  - throw: 네트워크/서버 오류 → 동일하게 error 로 외화한다.
+  //  - role null + failure: 중복(409)/검증 실패(400) → 축별 구체 사유를 폼 error 로 표시.
+  //  - role null + failure null: 비정상 2xx → 사유를 지어내지 않는 fallback 문구.
+  //  - throw: 네트워크/5xx → 위 fallback 과 구분되는 별도 문구로 외화한다.
   const handleSetupSubmit = async () => {
     setSetupLoading(true);
     setSetupError(undefined);
     try {
-      const role = await authSignup(setupUsername, setupPassword);
-      if (role) {
+      const { role, failure } = await authSignupDetailed(setupUsername, setupPassword);
+      if (typeof role === 'string') {
         // 셋업 성공 — 로그인 화면으로 재진입(셋업한 자격증명으로 로그인 유도).
         setView('login');
       } else {
-        // 중복(409) 또는 검증 실패(400) — null 흡수, 에러를 폼에 표시한다.
-        setSetupError('이미 등록된 사용자이거나 입력이 올바르지 않습니다.');
+        // 실패 — 축별 구체 사유(또는 사유 미상 fallback)를 폼에 표시한다.
+        setSetupError(buildSetupErrorMessage(failure));
       }
     } catch {
       // 네트워크/5xx 등 — 사용자에게 에러로 외화한다.
-      setSetupError('셋업 중 오류가 발생했습니다.');
+      setSetupError(SETUP_THROWN_ERROR_MESSAGE);
     } finally {
       setSetupLoading(false);
     }
