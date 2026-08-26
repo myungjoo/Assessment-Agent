@@ -2,12 +2,14 @@
 id: T-1714
 title: AppShell 셋업 실패 포괄 문구를 축별 구체 사유로 교체
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-068, REQ-069]
 estimatedDiff: 160
 estimatedFiles: 2
 created: 2026-08-26
+completedAt: 2026-08-26T07:51:54Z
+prNumber: 1345
 independentStream: account-creation-ux
 dependsOn: [T-1712, T-1713]
 touchesFiles:
