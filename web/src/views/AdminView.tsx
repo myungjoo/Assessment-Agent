@@ -81,6 +81,15 @@ import type { PartRow } from '../components/PartList';
 // UserRow 를 그대로 조회 제네릭·props 타입에 재사용한다(PartRow 차용 convention 동형).
 import UserList from '../components/UserList';
 import type { UserRow } from '../components/UserList';
+// T-1711 (REQ-067) — 사용자 추가 폼의 아이디·비밀번호 조건 사전 안내 문구. 여기서 문구를 새로
+// 쓰지 않고 SuperAdmin 초기 셋업 폼(T-1710)이 이미 export 한 상수를 재사용한다 — 두 화면이 같은
+// backend 계약(POST /api/users 의 AddUserDto: @IsEmail + @IsNotEmpty + @MinLength)을 쓰므로
+// 문구가 두 벌이 되면 규칙 변경 시 한쪽만 갱신되는 drift 가 생긴다. 컴포넌트 자체는 마운트하지
+// 않고 상수만 named import 한다(SuperAdminSetupForm 수정 0).
+import {
+  USERNAME_HINT_TEXT,
+  PASSWORD_HINT_TEXT,
+} from '../components/SuperAdminSetupForm';
 
 // 그룹 목록 조회 path — 고정 endpoint(GET /api/groups, api.md 81 User+). personId 같은
 // 필수 query 가 없어 무조건 조회한다(미인증은 AuthGate 가 이미 차단). DashboardView 의
@@ -121,6 +130,13 @@ const USERS_PATH = '/api/users';
 // 사용자 관리 섹션 heading 문구(T-1159) — 사용자 목록을 담는 별도 섹션의 제목(PART_HEADING 동형).
 // §12 한국어. <h2> 로 렌더하며, 섹션 aria-label 은 다른 섹션과 구분되도록 "… 섹션" 접미를 붙인다.
 const USER_HEADING = '사용자 관리';
+
+// 사용자 추가 폼 조건 안내 <p> 의 고유 DOM id(T-1711, REQ-067) — 대응 입력의 aria-describedby 가
+// 이 값을 가리켜 스크린리더에서도 입력 전에 조건이 함께 읽힌다. 문구 본문은 SuperAdmin 셋업 폼과
+// 공유하지만 id 는 화면별로 분리한다(같은 문서에 동시 존재하지 않더라도 화면마다 고유 id 유지 —
+// SuperAdminSetupForm 의 superadmin-setup-* id 와 값이 겹치지 않게 admin-create-user-* 접두).
+const CREATE_USER_EMAIL_HINT_ID = 'admin-create-user-email-hint';
+const CREATE_USER_PASSWORD_HINT_ID = 'admin-create-user-password-hint';
 
 // 사용자 생성 409(중복 이메일) 전용 문구(T-1160 — PART_DUPLICATE_ERROR mirror. User.email @unique).
 const USER_DUPLICATE_ERROR = '이미 존재하는 이메일입니다';
@@ -4543,6 +4559,12 @@ function AdminView({
             <h2>{USER_HEADING}</h2>
             {/* 사용자 생성(T-1160, REQ-044/REQ-045) — 파트 생성 폼(T-1153) mirror, 입력만 2 필드.
                 빈 입력·진행 중엔 버튼·입력 비활성으로 발사 억제(러너도 no-op 가드로 이중 방어). */}
+            {/* 조건 안내 2 축(T-1711, REQ-067) — 제출 후 400 을 받고서야 규칙을 추측하지 않도록
+                입력 전에도 항상 보이게 둔다. 그래서 creatingUser·createUserError 등 어떤 상태에도
+                의존하지 않는 무조건 렌더이며(분기 0), 실패 alert 가 떠도 안내는 그대로 남는다.
+                안내는 경보가 아니므로 role="alert" 를 붙이지 않는다(매 렌더 낭독 방지) — 대신
+                aria-describedby 로 대응 입력의 설명으로만 연결한다(접근 가능 이름은 종전 aria-label
+                그대로 유지). 문구는 위 named import 상수 그대로 — 입력값을 섞지 않는다. */}
             <div>
               <input
                 aria-label="추가할 사용자 이메일"
@@ -4550,14 +4572,18 @@ function AdminView({
                 value={userEmailInput}
                 onChange={(event) => setUserEmailInput(event.target.value)}
                 disabled={creatingUser}
+                aria-describedby={CREATE_USER_EMAIL_HINT_ID}
               />
+              <p id={CREATE_USER_EMAIL_HINT_ID}>{USERNAME_HINT_TEXT}</p>
               <input
                 aria-label="추가할 사용자 비밀번호"
                 type="password"
                 value={userPasswordInput}
                 onChange={(event) => setUserPasswordInput(event.target.value)}
                 disabled={creatingUser}
+                aria-describedby={CREATE_USER_PASSWORD_HINT_ID}
               />
+              <p id={CREATE_USER_PASSWORD_HINT_ID}>{PASSWORD_HINT_TEXT}</p>
               <button
                 type="button"
                 onClick={handleCreateUser}
