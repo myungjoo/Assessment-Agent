@@ -1,8 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import AppShell, { AUTHED_NAV_ITEMS, buildSetupErrorMessage, isNavItemActive } from './AppShell';
+import AppShell, {
+  AUTHED_NAV_ITEMS,
+  buildSetupErrorMessage,
+  isNavItemActive,
+  shouldLoadCurrentUser,
+  visibleNavItems,
+} from './AppShell';
 import type { View } from './AppShell';
+import type { CurrentUser } from './api/auth';
 import { classifySignupFailure } from './api/signupError';
 import type { SignupFailure } from './api/signupError';
 
@@ -245,10 +252,17 @@ function activeMarkCount(html: string): number {
   return html.split('aria-current="page"').length - 1;
 }
 
+// T-1720 등급 차등 도입 이후, '관리'(editOnly) 항목이 렌더되는 전제는 "편집 권한 있는
+// 등급이 적재된 상태" 다. 아래 T-1717 케이스들은 그 전제를 initialCurrentUser 로 명시해
+// 종전 검증 의도(항목 노출 · 활성 표식 규칙)를 그대로 보존한다 — 삭제·약화가 아니라 보강.
+const ADMIN_USER = { id: 'u-1', email: 'admin@example.com', role: 'Admin' };
+
 describe('AppShell 인증 후 내비게이션 (T-1717)', () => {
   // happy-path — 인증 후 진입 화면에 내비게이션 컨테이너와 두 항목 라벨이 모두 렌더된다.
   it('initialView=dashboard 렌더에 내비게이션 컨테이너와 두 항목 라벨을 모두 포함한다 (happy-path)', () => {
-    const html = renderToStaticMarkup(<AppShell initialView="dashboard" />);
+    const html = renderToStaticMarkup(
+      <AppShell initialView="dashboard" initialCurrentUser={ADMIN_USER} />,
+    );
     expect(html).toContain(NAV_TOKEN);
     expect(html).toContain('<nav');
     expect(html).toContain('대시보드');
@@ -257,14 +271,18 @@ describe('AppShell 인증 후 내비게이션 (T-1717)', () => {
 
   // 분기 ① — 현재 view 가 'dashboard' 면 대시보드 항목만 활성 표식을 갖는다.
   it('initialView=dashboard 면 대시보드 항목만 aria-current=page 를 갖는다 (분기 — dashboard 활성)', () => {
-    const html = renderToStaticMarkup(<AppShell initialView="dashboard" />);
+    const html = renderToStaticMarkup(
+      <AppShell initialView="dashboard" initialCurrentUser={ADMIN_USER} />,
+    );
     expect(navButtonTag(html, 'dashboard')).toContain('aria-current="page"');
     expect(navButtonTag(html, 'admin')).not.toContain('aria-current="page"');
   });
 
   // 분기 ② — 현재 view 가 'admin' 이면 관리 항목이 활성이고 대시보드 항목은 아니다.
   it('initialView=admin 이면 관리 항목이 aria-current=page 이고 대시보드 항목은 아니다 (분기 — admin 활성)', () => {
-    const html = renderToStaticMarkup(<AppShell initialView="admin" />);
+    const html = renderToStaticMarkup(
+      <AppShell initialView="admin" initialCurrentUser={ADMIN_USER} />,
+    );
     expect(navButtonTag(html, 'admin')).toContain('aria-current="page"');
     expect(navButtonTag(html, 'dashboard')).not.toContain('aria-current="page"');
   });
@@ -284,14 +302,26 @@ describe('AppShell 인증 후 내비게이션 (T-1717)', () => {
 
   // negative ③ — 활성 표식은 한 렌더에 최대 1 개다(중복 표식 금지).
   it('한 렌더 결과에 aria-current=page 가 2 개 이상 등장하지 않는다 (negative — 활성 표식 중복 금지)', () => {
-    expect(activeMarkCount(renderToStaticMarkup(<AppShell initialView="dashboard" />))).toBe(1);
-    expect(activeMarkCount(renderToStaticMarkup(<AppShell initialView="admin" />))).toBe(1);
+    expect(
+      activeMarkCount(
+        renderToStaticMarkup(<AppShell initialView="dashboard" initialCurrentUser={ADMIN_USER} />),
+      ),
+    ).toBe(1);
+    expect(
+      activeMarkCount(
+        renderToStaticMarkup(<AppShell initialView="admin" initialCurrentUser={ADMIN_USER} />),
+      ),
+    ).toBe(1);
   });
 
   // negative ④ — 항목 목록에 미인증 view 가 섞이지 않는다(목록 오염 방지).
   it('AUTHED_NAV_ITEMS 에 미인증 view(login·superadmin-setup)가 섞여 있지 않다 (negative — 목록 오염 방지)', () => {
     const views = AUTHED_NAV_ITEMS.map((item) => item.view);
     expect(views).toEqual(['dashboard', 'admin']);
+    // T-1720 보강 — 편집 동선 표식은 '관리' 항목에만 붙고 조회 동선에는 붙지 않는다.
+    expect(AUTHED_NAV_ITEMS.filter((item) => item.editOnly === true).map((item) => item.view)).toEqual([
+      'admin',
+    ]);
     expect(views).not.toContain('login');
     expect(views).not.toContain('superadmin-setup');
     // 라벨도 비어 있지 않아야 클릭 가능한 동선이 된다.
@@ -314,7 +344,8 @@ describe('AppShell 인증 후 내비게이션 (T-1717)', () => {
   // 귀결되는지: 항목 목록의 (view: 'admin', label: '관리') 쌍 + onClick 의 setView(item.view).
   it("소스에서 '관리' 항목의 클릭 경로가 setView('admin') 로 배선돼 있다 (drift guard)", () => {
     const source = readFileSync(new URL('./AppShell.tsx', import.meta.url), 'utf8');
-    expect(source).toMatch(/\{\s*view:\s*'admin',\s*label:\s*'관리'\s*\}/);
+    // T-1720 보강 — 항목에 editOnly 표식이 추가돼도 (view, label) 쌍 대조 의도는 그대로다.
+    expect(source).toMatch(/\{\s*view:\s*'admin',\s*label:\s*'관리'[,\s][^}]*\}/);
     expect(source).toMatch(/onClick=\{\(\)\s*=>\s*setView\(item\.view\)\}/);
   });
 });
@@ -347,5 +378,152 @@ describe('isNavItemActive (T-1717)', () => {
     expect(isNavItemActive('login', 'login')).toBe(false);
     expect(isNavItemActive('superadmin-setup', 'superadmin-setup')).toBe(false);
     expect(isNavItemActive('login', 'dashboard')).toBe(false);
+  });
+});
+
+// R-112 — T-1720 등급별 내비게이션 노출 차등 검증 (REQ-073 slice 3).
+// web 에 @testing-library/react 가 없어(ADR-0040 §5 새-dep 게이트) effect 를 실행하는
+// 렌더 test 가 불가하므로, ① 순수 함수(visibleNavItems · shouldLoadCurrentUser) 단위 검증
+// ② initialCurrentUser 주입 정적 렌더 markup 대조 ③ 소스 문자열 drift guard 세 축으로
+// 배선을 고정한다(T-1717 선례 승계).
+
+// 등급별 사용자 fixture — CurrentUser 계약({ id, email, role }) 그대로.
+function userWithRole(role: string): CurrentUser {
+  return { id: 'u-1', email: 'user@example.com', role };
+}
+
+// 항목 목록에서 view 문자열만 뽑는다 — 순서 의존 없이 포함/미포함을 단언하기 위함.
+function viewsOf(items: ReadonlyArray<{ view: string }>): string[] {
+  return items.map((item) => item.view);
+}
+
+// '관리' 항목의 안정 식별 토큰 (AppShell 의 app-shell-nav-item-${view} className 과 정합).
+const ADMIN_ITEM_TOKEN = 'app-shell-nav-item-admin';
+
+describe('visibleNavItems (T-1720)', () => {
+  // happy-path ① — Admin 등급은 조회·편집 동선 두 항목을 모두 본다.
+  it('Admin 등급이면 dashboard·admin 두 항목을 모두 포함한다 (happy-path)', () => {
+    expect(viewsOf(visibleNavItems(userWithRole('Admin')))).toEqual(['dashboard', 'admin']);
+  });
+
+  // 분기 (b) — SuperAdmin 은 Admin 상위 등급이므로 편집 동선을 본다.
+  it('SuperAdmin 등급이면 admin 항목을 포함한다 (분기 — 상위 등급)', () => {
+    expect(viewsOf(visibleNavItems(userWithRole('SuperAdmin')))).toContain('admin');
+  });
+
+  // 분기 (c) + negative ① — User 등급은 조회 동선만 본다(REQ-073 "User 등급은 조회만").
+  it('User 등급이면 admin 항목이 없고 dashboard 만 남는다 (분기/negative — 조회 전용)', () => {
+    const views = viewsOf(visibleNavItems(userWithRole('User')));
+    expect(views).toEqual(['dashboard']);
+    expect(views).not.toContain('admin');
+  });
+
+  // 분기 (d) + error path — 적재 실패로 null 이 남아도 throw 없이 조회 항목만 반환한다.
+  it('user 가 null 이면 throw 없이 조회 항목만 반환한다 (error path — 적재 실패 상태)', () => {
+    expect(() => visibleNavItems(null)).not.toThrow();
+    expect(viewsOf(visibleNavItems(null))).toEqual(['dashboard']);
+  });
+
+  // 분기 (e) — undefined(미적재) 도 동일하게 조회 전용이다.
+  it('user 가 undefined 여도 조회 항목만 반환한다 (분기 — 미적재)', () => {
+    expect(viewsOf(visibleNavItems(undefined))).toEqual(['dashboard']);
+  });
+
+  // 분기 (f) + negative ⑤ — 미지 등급을 권한 있음으로 해석하지 않는다(fail-safe).
+  it("미지 등급('Root')은 admin 항목을 얻지 못한다 (분기/negative — 미지 등급 fail-safe)", () => {
+    expect(viewsOf(visibleNavItems(userWithRole('Root')))).not.toContain('admin');
+  });
+
+  // negative ③ — 빈 문자열 role 도 편집 권한이 아니다.
+  it("role 이 빈 문자열이면 admin 항목이 없다 (negative — 빈 등급)", () => {
+    expect(viewsOf(visibleNavItems(userWithRole('')))).not.toContain('admin');
+  });
+
+  // negative ④ — 대소문자가 다른 'admin' 은 backend 토큰과 불일치이므로 거부한다.
+  it("role 이 소문자 'admin' 이면 admin 항목이 없다 (negative — 대소문자 drift)", () => {
+    expect(viewsOf(visibleNavItems(userWithRole('admin')))).not.toContain('admin');
+  });
+});
+
+describe('shouldLoadCurrentUser (T-1720)', () => {
+  // 분기 (g) — 인증 view + 미적재면 적재한다.
+  it('인증 view 이고 사용자가 없으면 true 다 (분기 — 적재 필요)', () => {
+    expect(shouldLoadCurrentUser('dashboard', null)).toBe(true);
+    expect(shouldLoadCurrentUser('admin', undefined)).toBe(true);
+  });
+
+  // 분기 (h) — 이미 적재됐으면 중복 조회하지 않는다.
+  it('이미 사용자가 적재돼 있으면 false 다 (분기 — 중복 조회 방지)', () => {
+    expect(shouldLoadCurrentUser('dashboard', userWithRole('User'))).toBe(false);
+    expect(shouldLoadCurrentUser('admin', userWithRole('Admin'))).toBe(false);
+  });
+
+  // 분기 (i) — 미인증 view(login)에서는 조회하지 않는다.
+  it('login view 에서는 사용자가 없어도 false 다 (분기 — 미인증 view)', () => {
+    expect(shouldLoadCurrentUser('login', null)).toBe(false);
+  });
+
+  // 분기 (j) — 초기 셋업 단계에서도 조회하지 않는다.
+  it('superadmin-setup view 에서는 사용자가 없어도 false 다 (분기 — 셋업 단계)', () => {
+    expect(shouldLoadCurrentUser('superadmin-setup', null)).toBe(false);
+  });
+
+  // error path — 타입을 우회한 비정상 view 를 넘겨도 throw 없이 false 다.
+  it('View 가 아닌 값을 넘겨도 throw 없이 false 를 반환한다 (error path — 타입 우회 입력)', () => {
+    expect(() => shouldLoadCurrentUser('' as View, null)).not.toThrow();
+    expect(shouldLoadCurrentUser('' as View, null)).toBe(false);
+    expect(shouldLoadCurrentUser(undefined as unknown as View, null)).toBe(false);
+    expect(shouldLoadCurrentUser(42 as unknown as View, null)).toBe(false);
+  });
+});
+
+describe('AppShell 등급별 내비게이션 렌더 (T-1720)', () => {
+  // happy-path ② — Admin 등급 주입 시 '관리' 버튼이 정적 렌더 결과에 존재한다.
+  it('Admin 등급 주입 렌더에 관리 항목 버튼이 존재한다 (happy-path)', () => {
+    const html = renderToStaticMarkup(
+      <AppShell initialView="dashboard" initialCurrentUser={userWithRole('Admin')} />,
+    );
+    expect(html).toContain(ADMIN_ITEM_TOKEN);
+    expect(html).toContain('관리');
+    expect(html).toContain('대시보드');
+  });
+
+  // negative ② — User 등급 주입 렌더에는 '관리' 라벨도 식별 토큰도 없다.
+  it('User 등급 주입 렌더에 관리 라벨과 식별 토큰이 모두 부재한다 (negative — 편집 동선 노출 0)', () => {
+    const html = renderToStaticMarkup(
+      <AppShell initialView="dashboard" initialCurrentUser={userWithRole('User')} />,
+    );
+    expect(html).not.toContain(ADMIN_ITEM_TOKEN);
+    expect(html).not.toContain('관리');
+    // 조회 동선은 그대로 남는다.
+    expect(html).toContain('대시보드');
+    expect(html).toContain('app-shell-nav-item-dashboard');
+  });
+
+  // negative ⑥ — 미주입(적재 전) 초기 상태도 조회 전용이며 대시보드는 무회귀로 렌더된다.
+  it('initialCurrentUser 미주입 렌더는 관리 미노출 + 대시보드 노출이다 (negative — 적재 전 fail-safe)', () => {
+    const html = renderToStaticMarkup(<AppShell initialView="dashboard" />);
+    expect(html).not.toContain(ADMIN_ITEM_TOKEN);
+    expect(html).toContain('app-shell-nav-item-dashboard');
+    expect(html).toContain('대시보드');
+  });
+
+  // drift guard — effect 배선(적재 판단 · 1 회 호출 · 실패 흡수 · cancel 플래그)은 정적
+  // 렌더로 발화되지 않으므로 소스 문자열로 대조한다(AdminView.userlist-wiring 선례).
+  it('소스에서 등급 적재 effect 와 내비 필터가 배선돼 있다 (drift guard)', () => {
+    const source = readFileSync(new URL('./AppShell.tsx', import.meta.url), 'utf8');
+    // 내비게이션이 원본 목록이 아니라 필터 결과를 map 한다.
+    expect(source).toMatch(/visibleNavItems\(currentUser\)\.map\(/);
+    // 적재 판단 게이트 + 실 조회 helper 호출.
+    expect(source).toMatch(/if\s*\(!shouldLoadCurrentUser\(view,\s*currentUser\)\)/);
+    expect(source).toMatch(/fetchCurrentUser\(\)/);
+    // 실패 흡수(catch) 와 경쟁 상태 cancel 플래그.
+    expect(source).toMatch(/\.catch\(\(\)\s*=>\s*\{/);
+    expect(source).toMatch(/cancelled\s*=\s*true/);
+    // 등급 판정은 roleAccess 정본에 위임한다 — 등급 비교를 이 파일에 재구현하지 않는다.
+    expect(source).toMatch(/from '\.\/api\/roleAccess'/);
+    expect(source).toMatch(/canEditAssessmentTargets\(user\)/);
+    // 항목 표식(editOnly)으로 필터하며 view 문자열을 함수 안에 하드코딩하지 않는다.
+    expect(source).toMatch(/item\.editOnly === true/);
   });
 });

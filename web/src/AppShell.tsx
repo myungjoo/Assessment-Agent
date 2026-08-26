@@ -14,16 +14,25 @@
 // 제출 경로의 `signup` 을 `signupDetailed`(사유 보존 계약) 로 교체해, 실패 시 포괄
 // 문구 대신 축별 구체 사유를 표시한다(REQ-068 · REQ-069). T-1717 은 인증 후에만
 // 렌더되는 view 전환 내비게이션(대시보드 ↔ 관리)을 AuthGate children 안에 얹어,
-// 도달 경로가 없던 'admin' 분기를 살린다(REQ-070 slice 1). 새 dependency 0 —
+// 도달 경로가 없던 'admin' 분기를 살린다(REQ-070 slice 1). T-1720 은 그 내비게이션에
+// 등급 차등을 얹는다(REQ-073 slice 3): 인증 후 `fetchCurrentUser()`(T-1718) 로 현재
+// 사용자 등급을 1 회 적재하고, `canEditAssessmentTargets`(T-1719) 판정으로 편집 동선
+// 항목('관리')을 필터한다 — User 등급에게는 조회 동선만 남는다. 새 dependency 0 —
 // react/react-dom + 브라우저 표준 fetch 만 사용한다(ADR-0040 §5 게이트).
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import EvaluationGuardBanner from './components/EvaluationGuardBanner';
 import AuthGate from './AuthGate';
 import SuperAdminSetupForm from './components/SuperAdminSetupForm';
 import DashboardView from './views/DashboardView';
 import AdminView from './views/AdminView';
-import { login as authLogin, signupDetailed as authSignupDetailed } from './api/auth';
+import {
+  fetchCurrentUser,
+  login as authLogin,
+  signupDetailed as authSignupDetailed,
+} from './api/auth';
+import type { CurrentUser } from './api/auth';
+import { canEditAssessmentTargets } from './api/roleAccess';
 import { formatSignupFailure } from './api/signupError';
 import type { SignupFailure } from './api/signupError';
 
@@ -42,9 +51,20 @@ const DEFAULT_AUTHED_VIEW: View = 'dashboard';
 // §5 새-dep 게이트) 클릭 상호작용 test 가 불가하므로, 항목 구성만은 단위로 검증 가능해야
 // 한다(buildSetupErrorMessage 선례와 동형). 미인증 view('login' · 'superadmin-setup')는
 // 이 목록에 넣지 않는다 — 내비게이션 자체가 인증 후에만 렌더된다.
-export const AUTHED_NAV_ITEMS: ReadonlyArray<{ view: View; label: string }> = [
+//
+// T-1720: 항목별 필요 등급을 항목 자체의 표식 `editOnly` 로 둔다 — 필터 함수가 view
+// 문자열('admin' 등)을 하드코딩해 분기하면 항목이 늘 때마다 수정 지점이 둘로 갈라진다.
+// `editOnly: true` 는 "평가 대상 편집 권한(canEditAssessmentTargets)이 있어야 노출" 을
+// 뜻하며, 표식이 없는 항목은 인증된 모든 등급에게 노출되는 조회 동선이다.
+interface AuthedNavItem {
+  view: View;
+  label: string;
+  editOnly?: boolean;
+}
+
+export const AUTHED_NAV_ITEMS: ReadonlyArray<AuthedNavItem> = [
   { view: 'dashboard', label: '대시보드' },
-  { view: 'admin', label: '관리' },
+  { view: 'admin', label: '관리', editOnly: true },
 ];
 
 // 주어진 값이 인증 후 내비게이션 항목의 view 인지 — 항목 목록을 단일 근거로 삼는다.
@@ -59,6 +79,31 @@ function isAuthedView(view: View): boolean {
 // 등 타입 우회 입력)은 활성으로 보지 않는다(활성 표식 중복·오염 방지).
 export function isNavItemActive(current: View, item: View): boolean {
   return isAuthedView(current) && isAuthedView(item) && current === item;
+}
+
+// 현재 사용자 등급으로 필터한 내비게이션 항목 목록 (T-1720, REQ-073 slice 3).
+// AUTHED_NAV_ITEMS 를 단일 근거로 삼아, `editOnly` 표식이 붙은 항목은 편집 권한
+// (canEditAssessmentTargets — Admin 이상)이 있을 때만 남긴다. 등급 비교 문자열('Admin'
+// 등)은 이 파일에 다시 적지 않고 roleAccess 판정만 사용한다(판정 규칙 정본 1 곳).
+// 미인증·미적재(null/undefined)·미지 등급은 roleAccess 의 거부 fail-safe 를 그대로
+// 물려받아 조회 항목만 남는다 — 권한을 임의로 부여하지 않는다. throw 0.
+export function visibleNavItems(
+  user: CurrentUser | null | undefined,
+): ReadonlyArray<AuthedNavItem> {
+  const canEdit = canEditAssessmentTargets(user);
+  return AUTHED_NAV_ITEMS.filter((item) => (item.editOnly === true ? canEdit : true));
+}
+
+// 현재 사용자 등급을 지금 적재해야 하는지 판정한다 (T-1720).
+// 인증 후 view 이고 아직 적재된 사용자가 없을 때만 true — 미인증 view('login' ·
+// 'superadmin-setup')에서는 GET /api/auth/me 가 401 로 귀결될 뿐이라 부르지 않고,
+// 이미 적재됐으면 중복 조회를 하지 않는다. 타입을 우회한 비정상 view(빈 문자열 등)도
+// isAuthedView 를 거쳐 안전하게 false 다(throw 0).
+export function shouldLoadCurrentUser(
+  view: View,
+  currentUser: CurrentUser | null | undefined,
+): boolean {
+  return isAuthedView(view) && (currentUser === null || currentUser === undefined);
 }
 
 // 헤더에 표시할 전역 식별 토큰 — App.test/AppShell.test 의 happy-path 단언 기준.
@@ -110,12 +155,21 @@ interface AppShellProps {
   // setup 폼 초기 에러 문구 — 기본 미설정. error 전달 경로를 정적 렌더로 검증할
   // 수 있도록 초기값 주입을 허용한다.
   initialSetupError?: string;
+  // 초기 사용자 등급 — 기본 미설정(→ null, 적재 전 상태). renderToStaticMarkup 은
+  // effect 를 실행하지 않아 fetchCurrentUser 적재 결과를 정적 렌더로 볼 수 없으므로,
+  // 등급별 내비 렌더를 검증할 수 있도록 주입점을 연다(initialView ·
+  // AuthGate.initialAuthenticated 선례와 동형 — ADR-0041 Decision 1).
+  initialCurrentUser?: CurrentUser | null;
 }
 
 // 전역 레이아웃 컴포넌트. view enum 상태와 R-78 평가 진행 중 상태를 보유하고,
 // 미인증 단계의 두 분기(로그인=AuthGate / 초기 셋업=SuperAdminSetupForm)를
 // 상호배타로 렌더한다. 인증 후에는 view 별 실 화면 컨테이너를 렌더한다.
-function AppShell({ initialView = 'login', initialSetupError }: AppShellProps = {}) {
+function AppShell({
+  initialView = 'login',
+  initialSetupError,
+  initialCurrentUser = null,
+}: AppShellProps = {}) {
   // 현재 view 상태 — 초기값 'login' (ADR-0041 Decision 1 인증 게이트 진입점).
   const [view, setView] = useState<View>(initialView);
 
@@ -131,6 +185,32 @@ function AppShell({ initialView = 'login', initialSetupError }: AppShellProps = 
   const [setupPassword, setSetupPassword] = useState<string>('');
   const [setupLoading, setSetupLoading] = useState<boolean>(false);
   const [setupError, setSetupError] = useState<string | undefined>(initialSetupError);
+
+  // 현재 인증 사용자 등급 (T-1720, REQ-073) — 적재 전 상태는 null 이며, 그 상태의 판정은
+  // "편집 권한 없음"(조회 전용)이다. 등급을 모르는 동안 편집 동선을 미리 보여주지 않는다.
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(initialCurrentUser);
+
+  // 인증 후 진입 시 등급을 1 회 적재한다. 조회 실패(5xx·네트워크 reject)는 삼켜서
+  // null(조회 전용)을 유지한다 — 실패를 이유로 편집 권한을 부여하지 않는 fail-safe 이며
+  // 렌더도 깨지 않는다. cancel 플래그로 언마운트/재진입 경쟁 상태의 늦은 setState 를 막는다.
+  useEffect(() => {
+    if (!shouldLoadCurrentUser(view, currentUser)) {
+      return;
+    }
+    let cancelled = false;
+    void fetchCurrentUser()
+      .then((user) => {
+        if (!cancelled) {
+          setCurrentUser(user);
+        }
+      })
+      .catch(() => {
+        // 사유를 지어내지 않고 조회 전용 상태를 유지한다(등급 미상 = 편집 불가).
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [view, currentUser]);
 
   // 인증 성공 시 view 전환 — 인증 후 기본 view('dashboard')로 무라우터 전환한다.
   const handleAuthenticated = () => {
@@ -212,8 +292,11 @@ function AppShell({ initialView = 'login', initialSetupError }: AppShellProps = 
             {/* 인증 후 내비게이션 (T-1717) — AuthGate children 안에 두어 미인증 단계에서는
                 구조적으로 렌더되지 않는다(AuthGate 가 미인증이면 children 을 렌더하지 않음).
                 새 라우터 없이 setView 로만 전환한다(ADR-0041 Decision 2 무라우터 전환). */}
+            {/* T-1720: 항목 목록을 그대로 map 하지 않고 현재 등급으로 필터한 결과를
+                map 한다 — User 등급에게는 편집 동선('관리')이 노출되지 않는다(REQ-073).
+                실 mutation 차단의 정본은 backend RolesGuard 이며, 여기는 UI 표면 차등이다. */}
             <nav className="app-shell-nav" aria-label="화면 이동">
-              {AUTHED_NAV_ITEMS.map((item) => (
+              {visibleNavItems(currentUser).map((item) => (
                 <button
                   key={item.view}
                   type="button"
@@ -248,5 +331,5 @@ function AppShell({ initialView = 'login', initialSetupError }: AppShellProps = 
   );
 }
 
-export type { View, AppShellProps };
+export type { View, AppShellProps, AuthedNavItem };
 export default AppShell;
