@@ -81,7 +81,7 @@ describe('AssessmentResultTable', () => {
     const html = renderToStaticMarkup(<AssessmentResultTable rows={sampleRows} />);
     expect(html).toContain('<table>');
     for (const label of LABELS) expect(html).toContain(label);
-    for (const token of ['2026-07', 'team', 'HIGH', '92.5', '2026-08', 'individual', 'LOW', '41']) {
+    for (const token of ['2026-07', 'team', 'HIGH', '<td>92.5</td>', '<td>12</td>', '2026-08', 'individual', 'LOW', '<td>41</td>', '<td>3</td>']) {
       expect(html).toContain(token);
     }
     expect(countOf(html, /<th[ >]/g)).toBe(6);
