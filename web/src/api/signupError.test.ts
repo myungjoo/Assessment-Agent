@@ -69,6 +69,13 @@ describe('classifySignupFailure — error path (비정상 body 흡수)', () => {
     }
   });
 
+  it('message 가 빈 배열이어도 표시할 사유 1 줄을 보장한다', () => {
+    const failure = classifySignupFailure(400, badRequest([]));
+    expect(failure.kind).toBe('invalid-input');
+    expect(formatSignupFailure(failure)).toHaveLength(1);
+    expect(allLines(400, badRequest([]))).not.toContain(FORBIDDEN_PHRASE);
+  });
+
   it('message 배열 안의 비문자열 요소도 버리지 않는다', () => {
     expect(classifySignupFailure(400, badRequest([{ nested: 1 }])).other.join(' ')).toContain('nested');
   });

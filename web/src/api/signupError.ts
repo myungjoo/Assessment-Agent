@@ -92,8 +92,11 @@ export function classifySignupFailure(status: number, body: string): SignupFailu
         failure.other.push(normalize(item));
       }
     }
-    if (!parsed) {
-      const raw = normalize(body);
+    // 사유를 하나도 모으지 못한 경우(파싱 실패 · message 가 빈 배열 등) 화면이 무엇도
+    // 표시하지 못하는 상태가 되므로 최소 1 줄을 보장한다 — 축을 지어내지 않고 other 로만.
+    const collected = failure.username.length + failure.password.length + failure.other.length;
+    if (collected === 0) {
+      const raw = parsed ? '' : normalize(body);
       failure.other.push(
         raw === '' ? '입력값을 다시 확인해 주세요 — 서버가 상세 사유를 주지 않았습니다.' : `서버 응답: ${raw}`,
       );
