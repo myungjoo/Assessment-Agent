@@ -47,21 +47,18 @@ export const AUTHED_NAV_ITEMS: ReadonlyArray<{ view: View; label: string }> = [
   { view: 'admin', label: '관리' },
 ];
 
+// 주어진 값이 인증 후 내비게이션 항목의 view 인지 — 항목 목록을 단일 근거로 삼는다.
+// 아래 두 곳(활성 표식 판정 · AuthGate 초기 인증 여부)이 같은 판정을 공유하도록
+// 한 함수로 둔다. 타입을 우회한 런타임 입력(빈 문자열 · undefined 등)도 안전하게 false.
+function isAuthedView(view: View): boolean {
+  return AUTHED_NAV_ITEMS.some((item) => item.view === view);
+}
+
 // 내비게이션 항목의 현재 view 표식(aria-current="page") 판정 — 순수 함수로 분리해
 // 단위 검증한다. 어떤 입력에도 throw 하지 않으며, View 가 아닌 값(빈 문자열 · undefined
 // 등 타입 우회 입력)은 활성으로 보지 않는다(활성 표식 중복·오염 방지).
 export function isNavItemActive(current: View, item: View): boolean {
-  const isKnownView = (value: unknown): boolean =>
-    AUTHED_NAV_ITEMS.some((navItem) => navItem.view === value);
-  return isKnownView(current) && isKnownView(item) && current === item;
-}
-
-// initialView 가 인증 후 view 인지 — 인증 후 view 로 진입한다는 것은 이미 인증됐다는
-// 뜻이므로 AuthGate 의 초기 인증 여부로 그대로 내려보낸다(정적 렌더 검증 가능성 확보,
-// AuthGate.initialAuthenticated 주입 패턴 — ADR-0041 Decision 1). 기본값 'login' 에서는
-// false 라 미인증 동작은 종전과 동일하다.
-function isAuthedView(view: View): boolean {
-  return AUTHED_NAV_ITEMS.some((item) => item.view === view);
+  return isAuthedView(current) && isAuthedView(item) && current === item;
 }
 
 // 헤더에 표시할 전역 식별 토큰 — App.test/AppShell.test 의 happy-path 단언 기준.
@@ -206,6 +203,10 @@ function AppShell({ initialView = 'login', initialSetupError }: AppShellProps = 
           <AuthGate
             onLogin={onLogin}
             onAuthenticated={handleAuthenticated}
+            // 인증 후 view 로 진입한다는 것은 이미 인증됐다는 뜻이므로 그대로 초기
+            // 인증 여부로 내려보낸다 — 내비게이션·인증 후 화면을 @testing-library 없이
+            // 정적 렌더로 검증 가능하게 하는 주입점이다(AuthGate.initialAuthenticated
+            // 패턴, ADR-0041 Decision 1). 기본값 'login' 에서는 false 라 미인증 동작 불변.
             initialAuthenticated={isAuthedView(initialView)}
           >
             {/* 인증 후 내비게이션 (T-1717) — AuthGate children 안에 두어 미인증 단계에서는
