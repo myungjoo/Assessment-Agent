@@ -2,7 +2,7 @@
 id: T-1721
 title: 오너 지시 3 건(대시보드 실동작 · 서비스 ID 매핑 · UI 기본기)을 requirements.md REQ row 로 동기 (REQ-074~REQ-084)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-074, REQ-075, REQ-076, REQ-077, REQ-078, REQ-079, REQ-080, REQ-081, REQ-082, REQ-083, REQ-084]
 estimatedDiff: 25
