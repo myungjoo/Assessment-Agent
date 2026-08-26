@@ -37,6 +37,13 @@ import EvaluationGuardBanner from '../components/EvaluationGuardBanner';
 // 단일 User+ surface 마운트로 "사용자+관리자 모두 인식 가능" 을 충족한다(REQ-008·REQ-016).
 import PermissionDeniedRecordList from '../components/PermissionDeniedRecordList';
 import type { PermissionDeniedRecordRow } from '../components/PermissionDeniedRecordList';
+// T-1723 (REQ-074, PLAN 131 행 ①) — 직전 slice T-1722 가 신설한 순수 presentational
+// DashboardPersonSelector 를 본 컨테이너가 실제로 소비한다. AppShell 이 <DashboardView /> 를
+// 무-prop 으로 마운트해도 컨테이너가 선택 personId state 를 소유하므로 선택 수단이 살아난다
+// (ADR-0041 Decision 1·3 — 컴포넌트는 fetch 를 모르고, 컨테이너가 data/loading/error 를 소유).
+// 컴포넌트 파일 수정 0 — default import + named type 만.
+import DashboardPersonSelector from '../components/DashboardPersonSelector';
+import type { SelectablePerson } from '../components/DashboardPersonSelector';
 
 // 정렬 가능 컬럼 옵션 — EvaluationResultTable/DashboardFilterBar 의 컬럼 키와 정합.
 const SORT_OPTIONS: SortOption[] = [
@@ -67,6 +74,16 @@ const PERMISSION_DENIED_RECORDS_PATH = '/api/permission-denied-records';
 
 // 권한 부족 record 섹션 heading — 기존 패널과 시각적으로 구분되는 별도 섹션 제목(§12 한국어).
 const PERMISSION_DENIED_HEADING = '권한 부족 기록';
+
+// T-1723 — 인원 목록 조회 endpoint(GET /api/persons, User+, PersonController). personId 같은
+// 필수 query 가 없어 무조건 조회한다(미인증은 상위 AuthGate 가 이미 차단) — 위
+// PERMISSION_DENIED_RECORDS_PATH 선례 그대로 조건부 가드 없는 고정 상수로 둔다. 재조회 nonce·
+// 검색·페이지네이션은 Out of Scope(본 slice 는 최초 1 회 조회로 선택 후보를 채운다).
+const PERSONS_PATH = '/api/persons';
+
+// 인원 이름이 결손된 row 의 안전 fallback 라벨(§12 한국어). 이름이 없다고 후보에서 제외하면
+// 선택 자체가 불가능해지므로 제외 대신 대체 라벨로 표시한다 — id 는 살아 있으므로 선택은 유효하다.
+const FALLBACK_PERSON_NAME = '이름 미상';
 
 // 정렬 키 — EvaluationResultRow 의 표시 컬럼 키(id 제외)로 제한한다.
 type SortKey = 'subjectName' | 'metricLabel' | 'score';
@@ -336,6 +353,49 @@ function pageRows<T>(rows: T[], page: number, pageSize: number): T[] {
   return rows.slice(start, start + safeSize);
 }
 
+// GET /api/persons 응답 row → DashboardPersonSelector 의 persons 형태 파생(순수 함수).
+// backend 응답 shape 다양성과 부분 결손을 보수적으로 흡수한다 — (1) 입력이 배열이 아니면
+// (undefined/null/객체 등) 빈 배열을 반환하고(throw 0), (2) 비객체 row 와 id 가 없거나
+// 비문자열이거나 공백뿐인 row 는 선택 불가능하므로 제외하며, (3) fullName 이 결손이면
+// FALLBACK_PERSON_NAME 으로 대체해 후보에서 떨어뜨리지 않는다. email/active 는 문자열/불리언일
+// 때만 그대로 전달한다 — active 기반 후보 필터링은 컴포넌트의 filterSelectablePersons 책임이라
+// 여기서 재구현하지 않는다(ADR-0041 Decision 1 경계 — 컨테이너는 매핑만).
+function derivePersonOptions(rows: unknown): SelectablePerson[] {
+  if (!Array.isArray(rows)) {
+    return [];
+  }
+  const options: SelectablePerson[] = [];
+  for (const row of rows) {
+    if (typeof row !== 'object' || row === null) {
+      continue;
+    }
+    const candidate = row as {
+      id?: unknown;
+      fullName?: unknown;
+      email?: unknown;
+      active?: unknown;
+    };
+    // id 는 <option> value·React key·선택 콜백 인자라 비문자열/공백은 사용 불가 → 제외.
+    const id = typeof candidate.id === 'string' ? candidate.id.trim() : '';
+    if (id === '') {
+      continue;
+    }
+    const fullName =
+      typeof candidate.fullName === 'string' && candidate.fullName.trim() !== ''
+        ? candidate.fullName
+        : FALLBACK_PERSON_NAME;
+    const option: SelectablePerson = { id, fullName };
+    if (typeof candidate.email === 'string' && candidate.email.trim() !== '') {
+      option.email = candidate.email;
+    }
+    if (typeof candidate.active === 'boolean') {
+      option.active = candidate.active;
+    }
+    options.push(option);
+  }
+  return options;
+}
+
 // 대시보드 화면 컨테이너. useApiResource 로 GET /api/assessments 결과를 소유하고,
 // 정렬/필터/검색 상태를 useState 로 보유해 client-side 정렬/필터 후 presentational 에
 // props 로 내려보낸다.
@@ -351,6 +411,11 @@ function DashboardView({
   evaluationActive = false,
   evaluationMessage,
 }: DashboardViewProps) {
+  // T-1723 — 선택된 평가 대상 personId(controlled lift-up). 기존 personId prop 을 초기값으로만
+  // 받아 하위 호환을 유지하고(주입 시 종전과 동일 렌더), 이후 선택 변경은 컨테이너 state 가
+  // 권위다. AppShell 이 무-prop 으로 마운트해도 사용자가 화면 안에서 대상을 고를 수 있다.
+  const [selectedPersonId, setSelectedPersonId] = useState<string>(personId ?? '');
+
   // 정렬/필터/검색 상태 — controlled lift-up(컨테이너 소유).
   const [sortKey, setSortKey] = useState<SortKey>(initialSortKey);
   const [sortDirection, setSortDirection] =
@@ -364,14 +429,15 @@ function DashboardView({
   const [currentPage, setCurrentPage] = useState<number>(initialPage);
   const [pageSize, setPageSize] = useState<number>(initialPageSize);
 
-  // assessments 조회 path — personId 미선택이면 null(조회 미수행). path 변경이 곧 재조회.
-  const path = buildAssessmentsPath(personId, period);
+  // assessments 조회 path — 선택 personId 미선택이면 null(조회 미수행). path 변경이 곧 재조회.
+  // prop 이 아니라 선택 state 를 소비한다(T-1723 — 화면 안 선택이 즉시 조회로 이어진다).
+  const path = buildAssessmentsPath(selectedPersonId, period);
   const { data, loading, error } = useApiResource<EvaluationResultRow[]>(path);
 
   // summaries(시계열) 조회 path — assessments 와 독립적으로 personId 가드를 받는다
   // (둘 다 null 가능). 두 번째 useApiResource 호출로 컨테이너가 시계열 상태를 소유한다.
   // 변수명에 trend prefix 를 붙여 assessments 의 loading/error 와 섞이지 않게 분리한다.
-  const summariesPath = buildSummariesPath(personId, period);
+  const summariesPath = buildSummariesPath(selectedPersonId, period);
   const {
     data: trendData,
     loading: trendLoading,
@@ -400,11 +466,29 @@ function DashboardView({
     error: permissionDeniedError,
   } = useApiResource<PermissionDeniedRecordRow[]>(PERMISSION_DENIED_RECORDS_PATH);
 
+  // 인원 목록 조회(T-1723, REQ-074) — 고정 endpoint 라 조건부 가드 없이 무조건 조회한다
+  // (PERMISSION_DENIED_RECORDS_PATH 선례). 다섯 번째 useApiResource 호출로 컨테이너가 후보
+  // 목록 상태를 소유하고, presentational DashboardPersonSelector 에 persons/loading/error 를
+  // props 로만 내려보낸다(컴포넌트 수정 0). 변수명에 persons prefix 를 붙여 다른 조회의
+  // loading/error 와 섞이지 않게 분리한다(상태 오염 차단).
+  const {
+    data: personsData,
+    loading: personsLoading,
+    error: personsError,
+  } = useApiResource<unknown[]>(PERSONS_PATH);
+
   // 표시 직전 client-side 필터 → 정렬. data 미도착이면 빈 배열로 간주한다.
   const visibleRows = useMemo(() => {
     const rows = Array.isArray(data) ? data : [];
     return sortRows(filterRows(rows, searchTerm), sortKey, sortDirection);
   }, [data, searchTerm, sortKey, sortDirection]);
+
+  // 인원 선택 후보 파생(T-1723) — 응답 row 배열을 선택 컨트롤의 persons 형태로 매핑한다.
+  // active 기반 후보 필터링은 컴포넌트(filterSelectablePersons) 책임이라 여기서 하지 않는다.
+  const personOptions = useMemo(
+    () => derivePersonOptions(personsData),
+    [personsData],
+  );
 
   // 요약 지표 파생 — 표시 row(필터/정렬 후) 기준 집계.
   const metrics = useMemo(() => deriveMetrics(visibleRows), [visibleRows]);
@@ -504,16 +588,42 @@ function DashboardView({
     setCurrentPage(1);
   };
 
-  // personId 미선택 분기 — 조회 미수행 안내만 렌더한다(api.md 400 회피 가드). R-78 배너는
+  // 평가 대상 인원 선택 변경(T-1723) — 선택 personId 를 컨테이너 state 로 올린다. 빈 값
+  // (placeholder 선택)이면 미선택으로 되돌아가 조회가 미수행된다. 대상이 바뀌면 이전 대상의
+  // row 선택/페이지는 무의미하므로 함께 초기화한다(다른 대상의 assessmentId 로 상세를 조회하는
+  // 잘못된 요청과 빈 페이지 표시를 차단).
+  const handlePersonSelect = (nextPersonId: string) => {
+    setSelectedPersonId(nextPersonId);
+    setSelectedId('');
+    setCurrentPage(1);
+  };
+
+  // 선택 컨트롤 — 미선택 early-return 분기와 정상 분기 양쪽에 같은 element 를 렌더한다.
+  // 미선택 상태에서 선택 수단이 사라지면 사용자가 빈 화면에서 빠져나올 길이 없다(REQ-074).
+  // 조회 loading/error 는 그대로 props 로 내려보내며, 에러여도 컴포넌트가 선택 수단을 삼키지
+  // 않는다(DashboardPersonSelector 의 error → alert + select 병렬 렌더 계약).
+  const personSelector = (
+    <DashboardPersonSelector
+      persons={personOptions}
+      selectedId={selectedPersonId}
+      onSelect={handlePersonSelect}
+      loading={personsLoading}
+      error={personsError}
+    />
+  );
+
+  // 선택 personId 미선택 분기 — 조회 미수행 안내만 렌더한다(api.md 400 회피 가드). R-78 배너는
   // 자료 영역 위 최상단에 노출한다 — 평가 진행 중이면 대상 미선택이어도 경고가 보여야 한다
   // (controlled lift-up: active 는 evaluationActive props 에서 주입, 컨테이너 미파생).
-  if (!personId) {
+  // 안내 문구와 함께 선택 컨트롤을 반드시 렌더한다(T-1723 — 미선택 탈출 수단).
+  if (!selectedPersonId) {
     return (
       <section aria-label="대시보드">
         <EvaluationGuardBanner
           active={evaluationActive}
           message={evaluationMessage}
         />
+        {personSelector}
         <p>{NO_PERSON_TEXT}</p>
       </section>
     );
@@ -529,6 +639,9 @@ function DashboardView({
         active={evaluationActive}
         message={evaluationMessage}
       />
+      {/* 평가 대상 인원 선택 컨트롤(T-1723) — 자료 영역 위에 두어 선택 변경 수단이 항상
+          보이게 한다. 미선택 분기와 동일한 element 라 두 분기 모두에서 선택이 가능하다. */}
+      {personSelector}
       {/* 상단 요약 지표 — 파생 metrics/loading/error 를 props 로만 내려보낸다. */}
       <MetricSummaryCards metrics={metrics} loading={loading} error={error} />
       {/* 필터/정렬 툴바 — 검색/정렬 상태와 콜백을 props 로 배선한다. */}
@@ -650,6 +763,7 @@ export {
   buildContributionsPath,
   deriveContributionMetrics,
   pageRows,
+  derivePersonOptions,
 };
 export type { DashboardViewProps, SortKey, SummaryRow, ContributionRow };
 export default DashboardView;
