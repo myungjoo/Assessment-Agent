@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import AppShell, { buildSetupErrorMessage } from './AppShell';
+import AppShell, { AUTHED_NAV_ITEMS, buildSetupErrorMessage, isNavItemActive } from './AppShell';
+import type { View } from './AppShell';
 import { classifySignupFailure } from './api/signupError';
 import type { SignupFailure } from './api/signupError';
 
@@ -221,5 +223,129 @@ describe('buildSetupErrorMessage', () => {
     expect(message).toContain('기타:');
     expect(message).toContain('응답 상태 503');
     expect(message).not.toContain(UNRESOLVED_TOKEN);
+  });
+});
+
+// R-112 — T-1717 인증 후 view 전환 내비게이션(대시보드 ↔ 관리) 검증 (REQ-070 slice 1).
+// web 에 @testing-library/react 가 없어(ADR-0040 §5 새-dep 게이트) 클릭 상호작용은 발화할 수
+// 없으므로, ① 정적 렌더 markup 대조(노출/미노출·활성 표식) ② 순수 함수 isNavItemActive 단위
+// 검증 ③ 소스 문자열 drift guard 세 축으로 배선을 고정한다.
+
+// 내비게이션 컨테이너의 안정 식별 토큰 (AppShell <nav className> 과 정합).
+const NAV_TOKEN = 'app-shell-nav';
+
+// 특정 항목의 <button> 여는 태그만 잘라낸다 — 속성 순서에 의존하지 않고 활성 표식을 단언하기 위함.
+function navButtonTag(html: string, view: string): string {
+  const match = html.match(new RegExp(`<button[^>]*${NAV_TOKEN}-item-${view}[^>]*>`));
+  return match === null ? '' : match[0];
+}
+
+// 한 렌더 결과에 등장한 활성 표식 개수.
+function activeMarkCount(html: string): number {
+  return html.split('aria-current="page"').length - 1;
+}
+
+describe('AppShell 인증 후 내비게이션 (T-1717)', () => {
+  // happy-path — 인증 후 진입 화면에 내비게이션 컨테이너와 두 항목 라벨이 모두 렌더된다.
+  it('initialView=dashboard 렌더에 내비게이션 컨테이너와 두 항목 라벨을 모두 포함한다 (happy-path)', () => {
+    const html = renderToStaticMarkup(<AppShell initialView="dashboard" />);
+    expect(html).toContain(NAV_TOKEN);
+    expect(html).toContain('<nav');
+    expect(html).toContain('대시보드');
+    expect(html).toContain('관리');
+  });
+
+  // 분기 ① — 현재 view 가 'dashboard' 면 대시보드 항목만 활성 표식을 갖는다.
+  it('initialView=dashboard 면 대시보드 항목만 aria-current=page 를 갖는다 (분기 — dashboard 활성)', () => {
+    const html = renderToStaticMarkup(<AppShell initialView="dashboard" />);
+    expect(navButtonTag(html, 'dashboard')).toContain('aria-current="page"');
+    expect(navButtonTag(html, 'admin')).not.toContain('aria-current="page"');
+  });
+
+  // 분기 ② — 현재 view 가 'admin' 이면 관리 항목이 활성이고 대시보드 항목은 아니다.
+  it('initialView=admin 이면 관리 항목이 aria-current=page 이고 대시보드 항목은 아니다 (분기 — admin 활성)', () => {
+    const html = renderToStaticMarkup(<AppShell initialView="admin" />);
+    expect(navButtonTag(html, 'admin')).toContain('aria-current="page"');
+    expect(navButtonTag(html, 'dashboard')).not.toContain('aria-current="page"');
+  });
+
+  // negative ① — 미인증 로그인 화면에는 내비게이션이 구조적으로 렌더되지 않는다.
+  it('initialView=login 렌더에는 내비게이션 토큰이 부재한다 (negative — 미인증 노출 0)', () => {
+    const html = renderToStaticMarkup(<AppShell initialView="login" />);
+    expect(html).not.toContain(NAV_TOKEN);
+    expect(html).not.toContain('aria-current="page"');
+  });
+
+  // negative ② — 초기 셋업 단계(미인증)에도 내비게이션이 노출되지 않는다.
+  it('initialView=superadmin-setup 렌더에도 내비게이션 토큰이 부재한다 (negative — 셋업 단계 노출 0)', () => {
+    const html = renderToStaticMarkup(<AppShell initialView="superadmin-setup" />);
+    expect(html).not.toContain(NAV_TOKEN);
+  });
+
+  // negative ③ — 활성 표식은 한 렌더에 최대 1 개다(중복 표식 금지).
+  it('한 렌더 결과에 aria-current=page 가 2 개 이상 등장하지 않는다 (negative — 활성 표식 중복 금지)', () => {
+    expect(activeMarkCount(renderToStaticMarkup(<AppShell initialView="dashboard" />))).toBe(1);
+    expect(activeMarkCount(renderToStaticMarkup(<AppShell initialView="admin" />))).toBe(1);
+  });
+
+  // negative ④ — 항목 목록에 미인증 view 가 섞이지 않는다(목록 오염 방지).
+  it('AUTHED_NAV_ITEMS 에 미인증 view(login·superadmin-setup)가 섞여 있지 않다 (negative — 목록 오염 방지)', () => {
+    const views = AUTHED_NAV_ITEMS.map((item) => item.view);
+    expect(views).toEqual(['dashboard', 'admin']);
+    expect(views).not.toContain('login');
+    expect(views).not.toContain('superadmin-setup');
+    // 라벨도 비어 있지 않아야 클릭 가능한 동선이 된다.
+    for (const item of AUTHED_NAV_ITEMS) {
+      expect(item.label.length).toBeGreaterThan(0);
+    }
+  });
+
+  // negative ⑤ — 내비게이션 추가로 인증 후 화면에 미인증 폼이 새로 섞이지 않는다.
+  it('initialView=admin 렌더에 LoginForm(로그인 버튼)·셋업 폼 제목이 섞이지 않는다 (negative — 미인증 폼 혼입 금지)', () => {
+    const html = renderToStaticMarkup(<AppShell initialView="admin" />);
+    expect(html).not.toContain(SETUP_TITLE);
+    expect(html).not.toContain('name="username"');
+    expect(html).not.toContain('type="password"');
+    expect(html).not.toContain('enter-setup');
+  });
+
+  // drift guard — 상호작용 렌더 test 가 불가하므로 소스 문자열로 클릭 경로 배선을 대조한다
+  // (AdminView.userlist-wiring.test.tsx 선례). '관리' 항목의 클릭이 setView('admin') 로
+  // 귀결되는지: 항목 목록의 (view: 'admin', label: '관리') 쌍 + onClick 의 setView(item.view).
+  it("소스에서 '관리' 항목의 클릭 경로가 setView('admin') 로 배선돼 있다 (drift guard)", () => {
+    const source = readFileSync(new URL('./AppShell.tsx', import.meta.url), 'utf8');
+    expect(source).toMatch(/\{\s*view:\s*'admin',\s*label:\s*'관리'\s*\}/);
+    expect(source).toMatch(/onClick=\{\(\)\s*=>\s*setView\(item\.view\)\}/);
+  });
+});
+
+describe('isNavItemActive (T-1717)', () => {
+  // 분기 ③ — 동일 view 면 활성이다.
+  it('현재 view 와 항목 view 가 같으면 true 를 반환한다 (분기 — 동일 view)', () => {
+    expect(isNavItemActive('dashboard', 'dashboard')).toBe(true);
+    expect(isNavItemActive('admin', 'admin')).toBe(true);
+  });
+
+  // 분기 ④ — 상이 view 면 비활성이다.
+  it('현재 view 와 항목 view 가 다르면 false 를 반환한다 (분기 — 상이 view)', () => {
+    expect(isNavItemActive('dashboard', 'admin')).toBe(false);
+    expect(isNavItemActive('admin', 'dashboard')).toBe(false);
+  });
+
+  // error path — View 가 아닌 값(타입 우회)을 넘겨도 throw 없이 false 다.
+  it('View 가 아닌 값을 넘겨도 throw 없이 false 를 반환한다 (error path — 타입 우회 입력)', () => {
+    expect(() => isNavItemActive('' as View, '' as View)).not.toThrow();
+    expect(isNavItemActive('' as View, '' as View)).toBe(false);
+    expect(isNavItemActive(undefined as unknown as View, undefined as unknown as View)).toBe(false);
+    expect(isNavItemActive(null as unknown as View, 'admin')).toBe(false);
+    expect(isNavItemActive('admin', undefined as unknown as View)).toBe(false);
+    expect(isNavItemActive(42 as unknown as View, 42 as unknown as View)).toBe(false);
+  });
+
+  // negative — 미인증 view 는 항목이 아니므로 스스로와 비교해도 활성이 아니다.
+  it('미인증 view(login·superadmin-setup)는 자기 자신과 비교해도 false 다 (negative — 미인증 view 활성 금지)', () => {
+    expect(isNavItemActive('login', 'login')).toBe(false);
+    expect(isNavItemActive('superadmin-setup', 'superadmin-setup')).toBe(false);
+    expect(isNavItemActive('login', 'dashboard')).toBe(false);
   });
 });

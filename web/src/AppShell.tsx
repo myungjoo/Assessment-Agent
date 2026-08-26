@@ -12,7 +12,9 @@
 // 렌더한다(둘 다 동시 렌더 금지). setup↔login 전환은 주입형 controlled lift-up 으로
 // 표현하고 새 라우터는 도입하지 않는다(ADR-0041 Decision 1·2). T-1714 는 그 셋업
 // 제출 경로의 `signup` 을 `signupDetailed`(사유 보존 계약) 로 교체해, 실패 시 포괄
-// 문구 대신 축별 구체 사유를 표시한다(REQ-068 · REQ-069). 새 dependency 0 —
+// 문구 대신 축별 구체 사유를 표시한다(REQ-068 · REQ-069). T-1717 은 인증 후에만
+// 렌더되는 view 전환 내비게이션(대시보드 ↔ 관리)을 AuthGate children 안에 얹어,
+// 도달 경로가 없던 'admin' 분기를 살린다(REQ-070 slice 1). 새 dependency 0 —
 // react/react-dom + 브라우저 표준 fetch 만 사용한다(ADR-0040 §5 게이트).
 
 import { useState } from 'react';
@@ -31,6 +33,36 @@ type View = 'login' | 'dashboard' | 'admin' | 'superadmin-setup';
 
 // 인증 후 기본 view — 로그인 성공 시 전환할 진입 화면.
 const DEFAULT_AUTHED_VIEW: View = 'dashboard';
+
+// 인증 후 내비게이션 항목 (T-1717, REQ-070 slice 1). 종전에는 `view === 'admin'` 분기가
+// 존재하는데도 인증 후 `setView('admin')` 을 호출하는 컨트롤이 코드베이스에 없어 AdminView
+// 가 도달 불가한 dead branch 였다 — 그래서 로그인 직후 대시보드 빈 상태에서 사용자가
+// 막혔다. 본 상수 + 아래 내비게이션이 그 동선을 살린다.
+// 목록을 named export 상수로 분리한 이유: web 에 @testing-library/react 가 없어(ADR-0040
+// §5 새-dep 게이트) 클릭 상호작용 test 가 불가하므로, 항목 구성만은 단위로 검증 가능해야
+// 한다(buildSetupErrorMessage 선례와 동형). 미인증 view('login' · 'superadmin-setup')는
+// 이 목록에 넣지 않는다 — 내비게이션 자체가 인증 후에만 렌더된다.
+export const AUTHED_NAV_ITEMS: ReadonlyArray<{ view: View; label: string }> = [
+  { view: 'dashboard', label: '대시보드' },
+  { view: 'admin', label: '관리' },
+];
+
+// 내비게이션 항목의 현재 view 표식(aria-current="page") 판정 — 순수 함수로 분리해
+// 단위 검증한다. 어떤 입력에도 throw 하지 않으며, View 가 아닌 값(빈 문자열 · undefined
+// 등 타입 우회 입력)은 활성으로 보지 않는다(활성 표식 중복·오염 방지).
+export function isNavItemActive(current: View, item: View): boolean {
+  const isKnownView = (value: unknown): boolean =>
+    AUTHED_NAV_ITEMS.some((navItem) => navItem.view === value);
+  return isKnownView(current) && isKnownView(item) && current === item;
+}
+
+// initialView 가 인증 후 view 인지 — 인증 후 view 로 진입한다는 것은 이미 인증됐다는
+// 뜻이므로 AuthGate 의 초기 인증 여부로 그대로 내려보낸다(정적 렌더 검증 가능성 확보,
+// AuthGate.initialAuthenticated 주입 패턴 — ADR-0041 Decision 1). 기본값 'login' 에서는
+// false 라 미인증 동작은 종전과 동일하다.
+function isAuthedView(view: View): boolean {
+  return AUTHED_NAV_ITEMS.some((item) => item.view === view);
+}
 
 // 헤더에 표시할 전역 식별 토큰 — App.test/AppShell.test 의 happy-path 단언 기준.
 const APP_TITLE = 'Assessment-Agent';
@@ -171,7 +203,27 @@ function AppShell({ initialView = 'login', initialSetupError }: AppShellProps = 
           // 로그인 분기 — AuthGate 가 미인증/인증을 담당한다. 미인증: LoginForm,
           // 인증: children(view 별 실 컨테이너). setup 진입 트리거(enterSetup)를
           // 미인증 화면에 controlled 콜백으로 노출한다(새 라우터 0).
-          <AuthGate onLogin={onLogin} onAuthenticated={handleAuthenticated}>
+          <AuthGate
+            onLogin={onLogin}
+            onAuthenticated={handleAuthenticated}
+            initialAuthenticated={isAuthedView(initialView)}
+          >
+            {/* 인증 후 내비게이션 (T-1717) — AuthGate children 안에 두어 미인증 단계에서는
+                구조적으로 렌더되지 않는다(AuthGate 가 미인증이면 children 을 렌더하지 않음).
+                새 라우터 없이 setView 로만 전환한다(ADR-0041 Decision 2 무라우터 전환). */}
+            <nav className="app-shell-nav" aria-label="화면 이동">
+              {AUTHED_NAV_ITEMS.map((item) => (
+                <button
+                  key={item.view}
+                  type="button"
+                  className={`app-shell-nav-item app-shell-nav-item-${item.view}`}
+                  aria-current={isNavItemActive(view, item.view) ? 'page' : undefined}
+                  onClick={() => setView(item.view)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </nav>
             {/* 인증 후 슬롯 — view 분기. 'dashboard' 는 DashboardView(wiring ③a),
                 'admin' 은 AdminView(wiring ④a)를 렌더한다('login' 은 AuthGate 가
                 LoginForm 으로 처리, 'superadmin-setup' 은 위 상호배타 분기에서 처리). */}
