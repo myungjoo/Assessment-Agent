@@ -2,7 +2,8 @@
 id: T-1710
 title: SuperAdmin 초기 셋업 폼에 아이디·암호 조건 사전 안내 박제 (REQ-067 slice 1)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-08-26T03:52:18Z
 commitMode: pr
 coversReq: [REQ-067]
 independentStream: owner-account-ux
@@ -63,3 +64,14 @@ REQ-068 / REQ-069 (실패 사유 구체 표시 · 중복 vs 형식 오류 구분
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 발견한 관련 작업을 여기 append)
+
+## 완료 기록 (2026-08-26)
+
+- PR [#1341](https://github.com/myungjoo/Assessment-Agent/pull/1341) round 1 APPROVE → squash merge `4924bc8c`. 2 파일 +131/-1.
+- `SuperAdminSetupForm.tsx` 상단에 `PASSWORD_MIN_LENGTH` · 힌트 문구 상수를 박제하고(backend `add-user.dto.ts` 동명 상수가 정본임을 주석으로 명시), 안내 `<p>` 를 label 바깥에 배치해 입력의 접근 가능 이름 오염을 피했다. 조건 분기 추가 0 — 무조건 렌더.
+- spec 은 기존 14 it 유지 + 7 it 추가. happy · error(alert 와 안내 동시 렌더) · branch(loading true/false · error 유무) · negative 3 종(빈 입력 · loading 차단 · 비밀번호 노출 0) · `aria-describedby` 배선 cover.
+- web 70 files / 2089 test green, backend 453 suite / 13009 test green. `src/` · `test/` · workflows · `package.json` diff 0 파일이라 backend coverage 수치 불변.
+
+## Follow-ups
+
+- REQ-067 나머지 절반 — Admin 사용자 추가 화면에 동일 안내. 그 시점에 `USERNAME_HINT_TEXT` / `PASSWORD_HINT_TEXT` 를 공용 모듈로 승격 검토.
