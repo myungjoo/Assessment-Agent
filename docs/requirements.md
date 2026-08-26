@@ -9,7 +9,7 @@
 - **상태 enum**: `PLANNED` (PLAN.md 에 bullet 으로 등록) / `IN_PROGRESS` (대응 task 진행 중) / `DONE` (대응 PR merge 됨) / `BLOCKED` (humanQuestion 발생) / `SUPERSEDED` (해당 REQ 가 다른 REQ 로 대체됨).
 - **검증 위치 enum**: `unit` / `smoke` / `e2e` / `perf` / `policy` (정책 / 문서 / agent rule) / `manual` (사람 검증 필요) / `n/a`.
 - **하나의 REQ 가 여러 task 에 분포 가능**: "구현 위치" 컬럼에 phase / task 목록을 comma 로.
-- 본 표의 본문은 **P1-Entry (T-0013) 가 채웠다** — **그 시점 66 REQ row** 모두 `kind` (FR / NFR / Constraint) 분류 완료, 7 컬럼 schema 로 확장. 이후 README 변경 시 planner 가 본 표를 동기화하며, **이후 README 추가분은 `REQ-067` 부터 이어 채번** 한다 (T-1709 이 오너 2026-08-26 지시분을 `REQ-067` ~ `REQ-073` 으로 승계).
+- 본 표의 본문은 **P1-Entry (T-0013) 가 채웠다** — **그 시점 66 REQ row** 모두 `kind` (FR / NFR / Constraint) 분류 완료, 7 컬럼 schema 로 확장. 이후 README 변경 시 planner 가 본 표를 동기화하며, **이후 README 추가분은 `REQ-067` 부터 이어 채번** 한다 (T-1709 이 오너 2026-08-26 지시분을 `REQ-067` ~ `REQ-073` 으로 승계, T-1721 이 오너 2026-08-26 UI 지시분을 `REQ-074` ~ `REQ-084` 로 승계).
 
 ## 매핑 표
 
@@ -90,6 +90,17 @@
 | REQ-071 | 166 | 평가 대상 인원의 추가/삭제/변경/Deactivate/Activate 를 Web UI 에서 수행 | FR | P6 (PLAN 130 행) | e2e | PLANNED |
 | REQ-072 | 167 | 평가 대상 시스템 등록·편집 (GitHub organization/repository, Confluence base URL·SPACE) | FR | P6 (PLAN 130 행) | e2e | PLANNED |
 | REQ-073 | 168 | 평가 대상 편집은 Admin 등급만, User 등급은 조회만 (RBAC 일관) | NFR | P6 (PLAN 130 행) | unit + e2e | PLANNED |
+| REQ-074 | 175 | 대시보드 화면 안에서 평가 대상 인원을 직접 선택하는 UI 제공 (안내문만 있고 선택 수단이 없는 상태 금지) | FR | P6 (PLAN 131 행) | e2e | PLANNED |
+| REQ-075 | 176 | 평가 결과 표시(테이블·상세 패널·점수 분포·시계열)가 backend 응답 필드(volume · difficulty · contributionScore · narrative · period/periodStart)와 계약 일치 + 실데이터 렌더 검증 | FR | P6 (PLAN 131 행) | unit + e2e | PLANNED |
+| REQ-076 | 177 | 점수 분포 등 시각화의 축·구간을 실제 metricScore 스케일에 맞춤 (0–100 임의 가정 금지) | FR | P6 (PLAN 131 행) | unit | PLANNED |
+| REQ-077 | 178 | 조회 기간(일/주/월 + 시작 시점) 지정 UI 제공 + 사용자 지정 기간 평가(POST /api/assessment-evaluation/period) UI 호출 경로 | FR | P6 (PLAN 131 행) | e2e | PLANNED |
+| REQ-078 | 182 | 인원별 서비스 ID 매핑(서비스별 ID · primary 지정 포함)의 조회·추가·수정·삭제 API 와 Admin UI 제공 | FR | P6 (PLAN 132 행) | unit + e2e | PLANNED |
+| REQ-079 | 183 | 인원 추가/편집 동선에서 서비스 ID 매핑까지 이어서 입력 가능 (이름/email 만 입력 가능한 상태 금지) | FR | P6 (PLAN 132 행) | e2e | PLANNED |
+| REQ-080 | 187 | 전역 스타일(CSS) 도입으로 구획·간격·표 스타일이 있는 화면 + 관리 화면 다수 섹션의 탭/구획 내비게이션 | NFR | P6 (PLAN 133 행) | e2e | PLANNED |
+| REQ-081 | 188 | 로그아웃 기능 제공 (backend 세션/쿠키 무효화 포함) | FR | P6 (PLAN 133 행) | unit + e2e | PLANNED |
+| REQ-082 | 189 | 새로고침 시 유효한 세션이면 로그인 화면으로 되돌리지 않고 인증 상태 복원 | FR | P6 (PLAN 133 행) | e2e | PLANNED |
+| REQ-083 | 190 | 평가 진행 중 경고 배너의 자동 갱신(polling) 반영 + 실행 상태 조회 endpoint 신설 | FR | P6 (PLAN 133 행) | unit + e2e | PLANNED |
+| REQ-084 | 191 | 폼 오류 등 여러 줄 안내를 줄 단위로 구분해 표시 (한 줄 합침 금지) | FR | P6 (PLAN 133 행) | unit | PLANNED |
 
 ## 매핑 표 갱신 룰
 
@@ -103,7 +114,7 @@
 - planner 는 P 단위 phase 진입 시 본 표를 grep 하여 해당 phase 에 매핑된 REQ row 중 `PLANNED` 상태로 남은 것이 있는지 확인. 있으면 task 생성 후보로.
 - reviewer 의 8 check (1) "주어진 주제 해결" 점검 시 PR 의 task frontmatter `coversReq` 가 본 표의 REQ 와 일치하는지 검증.
 
-> **T-1470 (`§ 12.68`) pointer 판정 각주 — 본 파일 소관 README 행 번호 pointer 요약.** 본 파일이 담은 README pointer 는 **산문 13 지점 + 매핑 표 `README 행` 컬럼 73 지점 = 86** 이며, 그중 **산문 13 지점을 전수 판정** 했다 (표 컬럼 중 T-1470 당시 66 지점은 census · 구조 검사까지만 — 어구 대조는 다음 batch 이월).
+> **T-1470 (`§ 12.68`) pointer 판정 각주 — 본 파일 소관 README 행 번호 pointer 요약.** 본 파일이 담은 README pointer 는 **산문 13 지점 + 매핑 표 `README 행` 컬럼 84 지점 = 97** 이며, 그중 **산문 13 지점을 전수 판정** 했다 (표 컬럼 중 T-1470 당시 66 지점은 census · 구조 검사까지만 — 어구 대조는 다음 batch 이월).
 > 판정 결과는 **참 11 · 부분참 2 · 거짓 0** 이다. 부분참 2 는 모두 **범위 표기의 끝 좌표** 에서 났다 — **20 행** 의 `136~139 행` (끝 139 는 빈 줄이고 인용 어구 `pnpm install` 은 **140** 행) 과 **39 행** 의 `19~22 행` (주제가 맞는 행은 **20** 단독이고 19 · 22 는 빈 줄).
 > 표 컬럼 66 값은 구조 검사를 통과했다 — 전부 **1 ≤ N ≤ 151** 범위 안이고 REQ-001 → REQ-066 순으로 **엄격 증가** 한다 (spot-check 6 건 전량 대응).
 > **본 각주는 append-only 기록이며 REQ 본문 · REQ ID · 기존 pointer 표기를 정정하지 않는다** ([REQ-COVERAGE-AUDIT.md](use-cases/REQ-COVERAGE-AUDIT.md) `§ 12.15`). 어긋난 pointer 2 건은 **pointer 정정 batch** 후보로만 이월한다.
