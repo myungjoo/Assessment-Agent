@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { login, refresh, signup, signupDetailed } from './auth';
+import { fetchCurrentUser, login, refresh, signup, signupDetailed } from './auth';
+import { ApiError } from './apiClient';
 import { formatSignupFailure } from './signupError';
 
 // R-112 — P6 composition wiring ②b auth helper(T-0380) 검증.
@@ -378,5 +379,124 @@ describe('auth.signupDetailed', () => {
   it('signup wrapper 는 409 를 종전대로 null 로 흡수 (회귀 — 호출측 계약 불변)', async () => {
     fetchSpy.mockResolvedValueOnce(mockResponse(409, 'Conflict', 'text/plain'));
     await expect(signup('dup@x.com', 'password8')).resolves.toBeNull();
+  });
+});
+// R-112 — fetchCurrentUser(T-1718, REQ-073 slice 1) 검증. 분기 5 종:
+// (a) 200 정상 → 객체, (b) 200 + 필드 결손/비객체 → null, (c) 401 → null,
+// (d) 404 → null, (e) 그 외 status → throw.
+describe('auth.fetchCurrentUser', () => {
+  let fetchSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // happy-path / branch (a) — 200 + 3 필드 정상 body → 그대로 반환, 요청 1 회.
+  it('200 + id·email·role 정상 body 시 CurrentUser 반환 (happy-path)', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse(200, {
+        id: 'u1',
+        email: 'admin@x.com',
+        role: 'SuperAdmin',
+        createdAt: '2026-08-26T00:00:00.000Z',
+        updatedAt: '2026-08-26T00:00:00.000Z',
+      }),
+    );
+    const user = await fetchCurrentUser();
+    // createdAt/updatedAt 는 계약에서 제외 — 3 필드만 담긴다.
+    expect(user).toEqual({ id: 'u1', email: 'admin@x.com', role: 'SuperAdmin' });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [path, init] = fetchSpy.mock.calls[0];
+    expect(path).toBe('/api/auth/me');
+    // GET 은 기본 method — 명시 지정하지 않는다.
+    expect(init.method).toBeUndefined();
+    expect(init.credentials).toBe('same-origin');
+  });
+
+  // branch (b) / negative ① — role 누락 시 null.
+  it('200 이지만 role 이 누락되면 null (negative ① — 필드 결손)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(200, { id: 'u1', email: 'a@x.com' }));
+    await expect(fetchCurrentUser()).resolves.toBeNull();
+  });
+
+  // branch (b) / negative ② — role 이 비문자열(숫자 · null) 이면 null.
+  it('200 이지만 role 이 숫자면 null (negative ② — type mismatch)', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse(200, { id: 'u1', email: 'a@x.com', role: 42 }),
+    );
+    await expect(fetchCurrentUser()).resolves.toBeNull();
+  });
+
+  it('200 이지만 role 이 null 이면 null (negative ② — type mismatch)', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse(200, { id: 'u1', email: 'a@x.com', role: null }),
+    );
+    await expect(fetchCurrentUser()).resolves.toBeNull();
+  });
+
+  // branch (b) / negative ② — id · email 축도 동일하게 문자열이어야 한다.
+  it('200 이지만 id 가 숫자거나 email 이 누락되면 null (negative ② — 나머지 축)', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      mockResponse(200, { id: 7, email: 'a@x.com', role: 'User' }),
+    );
+    await expect(fetchCurrentUser()).resolves.toBeNull();
+    fetchSpy.mockResolvedValueOnce(mockResponse(200, { id: 'u1', role: 'User' }));
+    await expect(fetchCurrentUser()).resolves.toBeNull();
+  });
+
+  // branch (b) / negative ③ — body 자체가 null 이어도 throw 없이 null.
+  it('200 이지만 body 가 null 이면 null (negative ③ — 빈 body)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(200, null));
+    await expect(fetchCurrentUser()).resolves.toBeNull();
+  });
+
+  // branch (b) / negative ④ — body 가 배열 · 문자열 등 비객체면 null.
+  it('200 이지만 body 가 배열이면 null (negative ④ — 비객체)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(200, [{ id: 'u1' }]));
+    await expect(fetchCurrentUser()).resolves.toBeNull();
+  });
+
+  it('200 이지만 body 가 문자열이면 null (negative ④ — 비객체)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(200, 'ok', 'text/plain'));
+    await expect(fetchCurrentUser()).resolves.toBeNull();
+  });
+
+  // branch (c) / negative ⑤ — 401(미인증) 은 throw 하지 않고 null.
+  it('401 이면 throw 없이 null 반환 (branch c — 미인증)', async () => {
+    // apiClient 가 401 에서 refresh 1 회 시도 → refresh 도 401 로 두어 원 401 전파.
+    fetchSpy.mockResolvedValueOnce(mockResponse(401, 'unauthorized', 'text/plain'));
+    fetchSpy.mockResolvedValueOnce(mockResponse(401, 'unauthorized', 'text/plain'));
+    await expect(fetchCurrentUser()).resolves.toBeNull();
+  });
+
+  // branch (d) — 404(stale token) 도 null.
+  it('404 이면 null 반환 (branch d — stale token)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(404, 'Not Found', 'text/plain'));
+    await expect(fetchCurrentUser()).resolves.toBeNull();
+  });
+
+  // branch (e) / error path — 5xx 는 흡수하지 않고 ApiError 전파.
+  it('500 이면 ApiError 전파 (error path — 흡수 금지)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(500, 'server boom', 'text/plain'));
+    await expect(fetchCurrentUser()).rejects.toBeInstanceOf(ApiError);
+  });
+
+  // negative ⑥ — 5xx 를 null 로 흡수해 버리지 않는지 status 까지 확인.
+  it('500 을 null 로 흡수하지 않는다 (negative ⑥ — status 보존)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(503, 'unavailable', 'text/plain'));
+    const caught = await fetchCurrentUser().catch((e: unknown) => e);
+    expect(caught).toBeInstanceOf(ApiError);
+    expect((caught as ApiError).status).toBe(503);
+  });
+
+  // branch (e) / negative — 네트워크 실패(status 0) 도 전파한다.
+  it('fetch 가 throw 하면(status 0) ApiError 전파 (negative — 네트워크)', async () => {
+    fetchSpy.mockRejectedValueOnce(new Error('offline'));
+    await expect(fetchCurrentUser()).rejects.toBeInstanceOf(ApiError);
   });
 });

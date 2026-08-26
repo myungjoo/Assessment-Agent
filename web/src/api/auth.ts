@@ -20,6 +20,7 @@ import { classifySignupFailure, type SignupFailure } from './signupError';
 const LOGIN_PATH = '/api/auth/login';
 const REFRESH_PATH = '/api/auth/refresh';
 const SIGNUP_PATH = '/api/users';
+const ME_PATH = '/api/auth/me';
 
 // AuthGate.onLogin prop signature 와 정합 — username/password 를 받아 성공 여부를
 // boolean 으로 반환한다. 본 helper 가 ApiError(401) 를 false 로 흡수한다.
@@ -122,5 +123,59 @@ async function signup(
   return role;
 }
 
-export { login, refresh, signup, signupDetailed };
-export type { SignupResult };
+// 현재 인증 사용자 등급 조회 helper — REQ-073 slice 1 (T-1718). RBAC 노출 차등
+// (평가 대상 편집은 Admin 등급만 · User 등급은 조회만) 의 전제인 role 정보원을
+// web 측에 연다. backend 는 이미 shipped — `GET /api/auth/me`(architecture/api.md
+// 72 행, T-0106) 가 JwtAuthGuard 단독으로 UserResponseDto 를 반환한다.
+//
+// 반환 계약은 `{ id, email, role }` 3 필드만 담는다 — createdAt/updatedAt 는 web
+// 소비처가 0 이므로 계약에서 제외한다(불필요한 표면 확장 금지).
+interface CurrentUser {
+  id: string;
+  email: string;
+  role: string;
+}
+
+// 정책:
+//  - 성공(2xx): body 의 id · email · role 셋이 **모두 문자열일 때만** 객체를 반환.
+//    하나라도 누락/비문자열이거나 body 가 비객체(null · 배열 · 문자열)면 null 을
+//    반환한다(사유를 지어내지 않는 안전 분기 — signupDetailed 의 role 문자열 검사
+//    선례 승계).
+//  - 401(미인증): throw 하지 않고 null. 미인증 = 등급 없음 이라는 정상 상태이므로
+//    refresh helper 의 401 흡수 정책을 mirror 한다.
+//  - 404(stale token — 서명은 유효하나 DB row 가 삭제됨): 동일하게 null.
+//  - 그 외(5xx · 네트워크 status 0 등): 흡수하지 않고 그대로 전파한다 — 호출측이
+//    표면 에러로 외화할 수 있어야 한다.
+async function fetchCurrentUser(): Promise<CurrentUser | null> {
+  let body: unknown;
+  try {
+    // GET 은 fetch 기본 method 이므로 init 을 넘기지 않는다(apiClient 가 credentials
+    // 동반 + 401 refresh 재시도를 담당).
+    body = await request<unknown>(ME_PATH);
+  } catch (e) {
+    if (e instanceof ApiError && (e.status === 401 || e.status === 404)) {
+      return null;
+    }
+    throw e;
+  }
+  // 비객체 body(null · 배열 · 문자열 등) 방어 — 아래 필드 접근 전에 걸러낸다.
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    return null;
+  }
+  const { id, email, role } = body as {
+    id?: unknown;
+    email?: unknown;
+    role?: unknown;
+  };
+  if (
+    typeof id !== 'string' ||
+    typeof email !== 'string' ||
+    typeof role !== 'string'
+  ) {
+    return null;
+  }
+  return { id, email, role };
+}
+
+export { fetchCurrentUser, login, refresh, signup, signupDetailed };
+export type { CurrentUser, SignupResult };
