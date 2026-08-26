@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import AppShell from './AppShell';
+import AppShell, { buildSetupErrorMessage } from './AppShell';
+import { classifySignupFailure } from './api/signupError';
+import type { SignupFailure } from './api/signupError';
 
 // R-112 — P6 composition wiring ①②(T-0378·T-0379) AppShell 검증.
 // App.test.tsx / EvaluationGuardBanner.test.tsx 와 동일 패턴: jsdom/@testing-library
@@ -97,5 +99,127 @@ describe('AppShell', () => {
     );
     expect(html).toContain('role="alert"');
     expect(html).toContain('셋업 실패');
+  });
+});
+
+// R-112 — T-1714 buildSetupErrorMessage(셋업 실패 사유 → 폼 error 문자열 변환) 검증.
+// AppShell 의 handleSetupSubmit 은 이벤트 발화가 필요해 정적 렌더로 직접 호출할 수 없고,
+// web 에는 @testing-library/react 가 없다(ADR-0040 §5 새-dep 게이트) — 그래서 변환 규칙을
+// 순수 함수로 분리해 단위로 검증한다.
+
+// 오너가 정면으로 금지한 포괄 문구 — 어떤 실패 경로에서도 다시 나타나면 안 된다(REQ-068).
+const FORBIDDEN_GENERIC_MESSAGE = '이미 등록된 사용자이거나 입력이 올바르지 않습니다.';
+
+// 사유를 하나도 얻지 못했을 때의 fallback 식별 토큰 (AppShell SETUP_UNRESOLVED_MESSAGE 와 정합).
+const UNRESOLVED_TOKEN = '셋업 응답을 해석하지 못했습니다';
+
+describe('buildSetupErrorMessage', () => {
+  // happy-path — 409 중복 실패는 중복 전용 사유를 그대로 담은 문자열이 된다(REQ-069 중복 축).
+  it('duplicate-username failure 를 중복 전용 사유 문자열로 만든다 (happy-path)', () => {
+    const failure = classifySignupFailure(409, '{"message":"Conflict"}');
+    const message = buildSetupErrorMessage(failure);
+    expect(message).toContain('아이디:');
+    expect(message).toContain('이미 등록된 아이디입니다');
+    // 중복 축에 형식/길이 어휘가 섞이면 REQ-069 구분이 무너진다.
+    expect(message).not.toContain('비밀번호:');
+  });
+
+  // error path — 400 입력 위반(아이디 형식 + 비밀번호 길이 동시 위반)에서 두 사유가 모두 남는다.
+  it('invalid-input failure 의 아이디·비밀번호 사유를 모두 보존한다 (error path — 병합 금지)', () => {
+    const failure = classifySignupFailure(
+      400,
+      JSON.stringify({
+        message: ['email must be an email', 'password must be longer than or equal to 8 characters'],
+      }),
+    );
+    const message = buildSetupErrorMessage(failure);
+    expect(message).toContain('아이디는 email 형식이어야 합니다');
+    expect(message).toContain('비밀번호는 최소 8자 이상이어야 합니다');
+    // 두 사유가 각각의 접두와 함께 남아야 한다(하나로 요약·병합 금지).
+    expect(message).toContain('아이디:');
+    expect(message).toContain('비밀번호:');
+  });
+
+  // 분기 ① — 줄이 1 개면 구분자 없이 그 줄 자체가 결과가 된다.
+  it('사유가 1 줄이면 구분자 없이 그 줄만 반환한다 (분기 — 단일 줄)', () => {
+    const failure: SignupFailure = {
+      kind: 'invalid-input',
+      username: ['아이디를 입력해 주세요.'],
+      password: [],
+      other: [],
+    };
+    expect(buildSetupErrorMessage(failure)).toBe('아이디: 아이디를 입력해 주세요.');
+  });
+
+  // 분기 ② — 줄이 2+ 개면 구분자로 이어 붙이되 각 줄 원문이 그대로 남는다.
+  it('사유가 2 줄 이상이면 구분자로 이어 붙이고 각 줄 원문을 보존한다 (분기 — 복수 줄)', () => {
+    const failure: SignupFailure = {
+      kind: 'invalid-input',
+      username: ['아이디 A'],
+      password: ['비밀번호 B'],
+      other: ['기타 C'],
+    };
+    const message = buildSetupErrorMessage(failure);
+    expect(message).toBe('아이디: 아이디 A / 비밀번호: 비밀번호 B / 기타: 기타 C');
+    expect(message.split(' / ')).toHaveLength(3);
+  });
+
+  // 분기 ③ — 축이 전부 비어 있으면 사유를 지어내지 않고 fallback 문구를 반환한다.
+  it('축이 전부 비어 있는 failure 는 사유를 지어내지 않고 fallback 문구를 반환한다 (분기 — 빈 목록)', () => {
+    const empty: SignupFailure = { kind: 'unknown', username: [], password: [], other: [] };
+    expect(buildSetupErrorMessage(empty)).toContain(UNRESOLVED_TOKEN);
+  });
+
+  // 분기 ③' — failure 자체가 null(비정상 2xx: role 도 failure 도 없음)인 경우도 같은 fallback.
+  it('failure 가 null 인 비정상 응답도 fallback 문구로 처리한다 (분기 — null 입력)', () => {
+    const message = buildSetupErrorMessage(null);
+    expect(message).toContain(UNRESOLVED_TOKEN);
+    // 네트워크/5xx catch 문구와 구분 가능해야 한다.
+    expect(message).not.toContain('셋업 중 오류가 발생했습니다');
+  });
+
+  // negative ① — 어떤 실패 경로에서도 오너 금지 포괄 문구가 결과에 나타나지 않는다.
+  it('어떤 실패 경로에서도 금지된 포괄 문구를 만들지 않는다 (negative — REQ-068 금지 문구)', () => {
+    const candidates = [
+      buildSetupErrorMessage(classifySignupFailure(409, '')),
+      buildSetupErrorMessage(classifySignupFailure(400, '{"message":["email must be an email"]}')),
+      buildSetupErrorMessage(classifySignupFailure(400, 'not-json')),
+      buildSetupErrorMessage(classifySignupFailure(500, '')),
+      buildSetupErrorMessage(null),
+    ];
+    for (const message of candidates) {
+      expect(message).not.toContain(FORBIDDEN_GENERIC_MESSAGE);
+    }
+  });
+
+  // negative ② — 사용자가 입력한 비밀번호 값이 결과 문자열에 섞이지 않는다(민감값 노출 금지).
+  it('결과 문자열에 사용자가 입력한 비밀번호 값이 섞이지 않는다 (negative — 민감값 미노출)', () => {
+    const secret = 'sup3rSecretPw!';
+    const failure = classifySignupFailure(
+      400,
+      JSON.stringify({ message: ['password must be longer than or equal to 8 characters'] }),
+    );
+    expect(buildSetupErrorMessage(failure)).not.toContain(secret);
+  });
+
+  // negative ③ — 중복 결과와 형식/길이 결과가 서로 다른 문자열이다(REQ-069 구분 축).
+  it('duplicate-username 결과와 invalid-input 결과가 서로 다른 문자열이다 (negative — REQ-069 구분)', () => {
+    const duplicate = buildSetupErrorMessage(classifySignupFailure(409, ''));
+    const invalid = buildSetupErrorMessage(
+      classifySignupFailure(400, '{"message":["email must be an email"]}'),
+    );
+    expect(duplicate).not.toBe(invalid);
+    // 중복 결과에는 형식 사유가, 형식 결과에는 중복 사유가 섞이지 않는다.
+    expect(duplicate).not.toContain('email 형식이어야 합니다');
+    expect(invalid).not.toContain('이미 등록된 아이디입니다');
+  });
+
+  // negative ④ — other 만 있는 failure(축 미상 5xx 등)에서도 원문이 유실되지 않는다.
+  it('other 축만 있는 failure 에서도 원문 사유가 유실되지 않는다 (negative — 정보 유실 금지)', () => {
+    const failure = classifySignupFailure(503, '');
+    const message = buildSetupErrorMessage(failure);
+    expect(message).toContain('기타:');
+    expect(message).toContain('응답 상태 503');
+    expect(message).not.toContain(UNRESOLVED_TOKEN);
   });
 });
