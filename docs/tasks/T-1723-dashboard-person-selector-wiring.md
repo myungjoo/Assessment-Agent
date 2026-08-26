@@ -2,7 +2,7 @@
 id: T-1723
 title: DashboardView 에 인원 목록 조회 + DashboardPersonSelector 배선 (선택 상태 lift-up)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-074]
 independentStream: p6-dashboard-actual-behavior
@@ -14,6 +14,9 @@ touchesFiles:
 estimatedDiff: 280
 estimatedFiles: 3
 created: 2026-08-26
+completed: 2026-08-26T17:10:52Z
+prNumber: 1353
+mergeCommit: 40a35485
 plannerNote: P6 오너지시 PLAN 131행 ① 분해 slice 2 — T-1722 컴포넌트를 DashboardView 가 실제 소비(무-prop 마운트에서도 선택 가능)
 ---
 
