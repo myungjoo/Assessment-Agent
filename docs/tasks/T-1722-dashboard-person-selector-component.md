@@ -2,7 +2,7 @@
 id: T-1722
 title: 대시보드 평가 대상 인원 선택 presentational 컴포넌트 DashboardPersonSelector 신설 (REQ-074 slice 1)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-074]
 estimatedDiff: 270
@@ -13,6 +13,8 @@ touchesFiles:
   - web/src/components/DashboardPersonSelector.tsx
   - web/src/components/DashboardPersonSelector.test.tsx
 created: 2026-08-26
+prNumber: 1352
+completedAt: 2026-08-26T16:11:59Z
 plannerNote: P6 — 오너 지시 PLAN 131 행 ①(대시보드 인원 선택 UI) 분해 slice 1. 순수 presentational 컴포넌트만, 배선은 후속 slice
 ---
 
