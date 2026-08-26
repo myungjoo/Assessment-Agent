@@ -1,7 +1,7 @@
 // P6 composition wiring ③a (T-0381, ADR-0041 Decision 1·3) — 대시보드 화면 컨테이너.
 // controlled lift-up: 본 컨테이너가 데이터(GET /api/assessments)·loading/error·정렬/
 // 필터/검색 상태를 useState/useApiResource 로 소유하고, presentational 컴포넌트
-// (MetricSummaryCards·DashboardFilterBar·EvaluationResultTable)는 props 로만 소비한다
+// (MetricSummaryCards·DashboardFilterBar·AssessmentResultTable)는 props 로만 소비한다
 // — 세 컴포넌트 수정 0 (ADR-0041 Decision 1 경계). 새 dependency 0 — react hooks +
 // apiClient(fetch) 경유만 (ADR-0040 §5 게이트).
 //
@@ -19,8 +19,19 @@ import MetricSummaryCards from '../components/MetricSummaryCards';
 import type { MetricSummaryItem } from '../components/MetricSummaryCards';
 import DashboardFilterBar from '../components/DashboardFilterBar';
 import type { SortOption } from '../components/DashboardFilterBar';
-import EvaluationResultTable from '../components/EvaluationResultTable';
+// T-1727 (REQ-075, PLAN 131 행 ②) slice 3b — 준비된 세 조각(매핑 helper·표 컴포넌트·정렬/검색
+// 순수 모듈)을 본 컨테이너가 실제로 소비하도록 배선한다. 옛 행 계약 EvaluationResultRow 는
+// 요약 지표·점수 분포의 임시 브리지(toLegacyScoreRows) 반환 타입으로만 남으므로 type-only
+// import 만 유지한다(EvaluationResultTable 파일 삭제·정리는 별도 slice — Out of Scope).
+import AssessmentResultTable, {
+  ASSESSMENT_TABLE_COLUMNS,
+} from '../components/AssessmentResultTable';
+import type { AssessmentSortKey } from '../components/AssessmentResultTable';
 import type { EvaluationResultRow } from '../components/EvaluationResultTable';
+import { deriveAssessmentDisplayRows } from '../api/assessmentRow';
+import type { AssessmentDisplayRow } from '../api/assessmentRow';
+import { filterAssessmentRows, sortAssessmentRows } from '../api/assessmentRowOps';
+import type { AssessmentRowSortKey } from '../api/assessmentRowOps';
 import TrendTimeSeriesPanel from '../components/TrendTimeSeriesPanel';
 import type { TrendPoint } from '../components/TrendTimeSeriesPanel';
 import ScoreDistributionChart from '../components/ScoreDistributionChart';
@@ -45,18 +56,19 @@ import type { PermissionDeniedRecordRow } from '../components/PermissionDeniedRe
 import DashboardPersonSelector from '../components/DashboardPersonSelector';
 import type { SelectablePerson } from '../components/DashboardPersonSelector';
 
-// 정렬 가능 컬럼 옵션 — EvaluationResultTable/DashboardFilterBar 의 컬럼 키와 정합.
-const SORT_OPTIONS: SortOption[] = [
-  { key: 'subjectName', label: '대상' },
-  { key: 'metricLabel', label: '지표' },
-  { key: 'score', label: '점수' },
-];
+// 정렬 가능 컬럼 옵션 — 표 헤더(ASSESSMENT_TABLE_COLUMNS)에서 파생한다. 하드코딩하면 표
+// 컬럼이 바뀔 때 툴바 정렬 옵션만 옛 키로 남는 drift 가 생기므로, 단일 출처에서 {key,label}
+// 을 그대로 옮긴다(표 헤더 클릭 정렬과 툴바 <select> 정렬이 같은 키 집합을 쓴다).
+const SORT_OPTIONS: SortOption[] = ASSESSMENT_TABLE_COLUMNS.map((column) => ({
+  key: column.key,
+  label: column.label,
+}));
 
 // personId 미선택 시 본문에 노출할 안내 문구(api.md: personId 누락 시 400 회피).
 const NO_PERSON_TEXT = '평가 대상을 선택하면 결과가 표시됩니다';
 
 // row 선택 컨트롤(③b-2) 의 빈 선택지 라벨 — selectedId 미선택 시 첫 옵션으로 노출한다.
-// EvaluationResultTable 은 row 선택 콜백 prop 이 없어(컴포넌트 수정 0 경계) 컨테이너가
+// AssessmentResultTable 은 row 선택 콜백 prop 이 없어(컴포넌트 수정 0 경계) 컨테이너가
 // 별도 <select> 선택 컨트롤로 선택 상호작용을 표현한다(ADR-0041 Decision 1 controlled).
 const NO_SELECTION_LABEL = '평가 결과를 선택하세요';
 // 상세 패널의 빈 상태 라벨 — row 선택이 없으면(조회 미수행) 이 안내를 노출한다.
@@ -85,9 +97,6 @@ const PERSONS_PATH = '/api/persons';
 // 선택 자체가 불가능해지므로 제외 대신 대체 라벨로 표시한다 — id 는 살아 있으므로 선택은 유효하다.
 const FALLBACK_PERSON_NAME = '이름 미상';
 
-// 정렬 키 — EvaluationResultRow 의 표시 컬럼 키(id 제외)로 제한한다.
-type SortKey = 'subjectName' | 'metricLabel' | 'score';
-
 interface DashboardViewProps {
   // 조회 대상 personId — 미선택(빈 문자열/undefined) 시 조회 미수행 + 안내 표시.
   // renderToStaticMarkup 정적 검증을 위해 초기값 주입을 허용한다(테스트 가능성).
@@ -95,7 +104,7 @@ interface DashboardViewProps {
   // 조회 기간(선택) — 있으면 query string 에 실어 보낸다.
   period?: string;
   // 초기 정렬 키/방향/검색어 — 정적 렌더로 정렬·필터 분기를 검증할 수 있도록 주입 허용.
-  initialSortKey?: SortKey;
+  initialSortKey?: AssessmentRowSortKey;
   initialSortDirection?: 'asc' | 'desc';
   initialSearchTerm?: string;
   // 초기 선택 row id(선택 assessmentId) — ③a/③b-1 의 initial* 주입 패턴 정합. 정적
@@ -281,38 +290,37 @@ function deriveScoreBuckets(
   }));
 }
 
-// 조회 결과 row 배열을 검색어로 필터링(순수 함수). 빈 검색어면 전체 통과(필터 미적용).
-// subjectName/metricLabel 에 대소문자 무시 부분 일치를 적용한다(client-side 필터).
-function filterRows(
-  rows: EvaluationResultRow[],
-  searchTerm: string,
-): EvaluationResultRow[] {
-  const term = searchTerm.trim().toLowerCase();
-  if (term === '') {
-    return rows;
+// REQ-076 축 스케일 정합 slice 에서 제거될 임시 브리지(T-1727). 표시 행(AssessmentDisplayRow)
+// 을 요약 지표·점수 분포 helper 가 아직 기대하는 옛 행 계약(EvaluationResultRow)으로 얇게
+// 옮긴다 — 두 helper 의 시그니처·본문을 본 slice 에서 바꾸지 않기 위한 장치이며, 그 helper 가
+// 새 행 계약과 실 metricScore 스케일로 이전되는 시점에 이 함수와 함께 사라진다.
+//
+// contributionScore 가 null(값 없음)인 행은 **집계에서 제외** 한다 — 0 으로 채우면 평균이
+// 끌어내려지고 점수 분포의 첫 bucket 이 부풀어 "값 없음" 이 0 점으로 위장되기 때문이다.
+// rows 가 배열이 아니면(타입 우회 · 응답 미도착) 빈 배열을 반환하고 throw 하지 않는다.
+function toLegacyScoreRows(rows: AssessmentDisplayRow[]): EvaluationResultRow[] {
+  if (!Array.isArray(rows)) {
+    return [];
   }
-  return rows.filter(
-    (row) =>
-      row.subjectName.toLowerCase().includes(term) ||
-      row.metricLabel.toLowerCase().includes(term),
-  );
-}
-
-// 필터된 row 를 정렬 키/방향으로 정렬(순수 함수, 비파괴 — 새 배열 반환). score 는 숫자
-// 비교, 그 외는 문자열 localeCompare. presentational 은 순서를 그대로 표시하므로 정렬
-// 책임은 컨테이너가 진다(EvaluationResultTable 경계 정합).
-function sortRows(
-  rows: EvaluationResultRow[],
-  sortKey: SortKey,
-  sortDirection: 'asc' | 'desc',
-): EvaluationResultRow[] {
-  const factor = sortDirection === 'asc' ? 1 : -1;
-  return [...rows].sort((a, b) => {
-    if (sortKey === 'score') {
-      return (a.score - b.score) * factor;
+  const legacy: EvaluationResultRow[] = [];
+  for (const row of rows) {
+    if (row === null || typeof row !== 'object') {
+      continue;
     }
-    return a[sortKey].localeCompare(b[sortKey]) * factor;
-  });
+    const score = row.contributionScore;
+    if (typeof score !== 'number' || !Number.isFinite(score)) {
+      continue;
+    }
+    // subjectName/metricLabel 은 집계 축이 아니라 두 helper 의 타입을 만족시키는 자리표시자다
+    // (평균·분포는 score 만 읽는다). 사람이 읽는 라벨은 표·상세 패널이 새 행에서 직접 낸다.
+    legacy.push({
+      id: row.id,
+      subjectName: row.period,
+      metricLabel: row.scope,
+      score,
+    });
+  }
+  return legacy;
 }
 
 // 표시할 row 로부터 요약 지표 카드 파생(순수 함수). 평가 건수·평균 점수 두 지표를
@@ -396,13 +404,30 @@ function derivePersonOptions(rows: unknown): SelectablePerson[] {
   return options;
 }
 
+// 컬럼 헤더 클릭 1 회의 정렬 전이를 결정하는 순수 함수(T-1727). 같은 키를 다시 누르면
+// 방향만 토글하고(asc ↔ desc), 다른 키를 누르면 그 키로 바꾸면서 방향을 asc 로 되돌린다 —
+// 이전 컬럼의 desc 가 새 컬럼에 얹혀 "가장 낮은 값이 위" 로 보이는 혼동을 막기 위함이다.
+function resolveHeaderSort(
+  currentKey: AssessmentRowSortKey,
+  currentDirection: 'asc' | 'desc',
+  nextKey: AssessmentSortKey,
+): { sortKey: AssessmentRowSortKey; sortDirection: 'asc' | 'desc' } {
+  if (nextKey === currentKey) {
+    return {
+      sortKey: currentKey,
+      sortDirection: currentDirection === 'asc' ? 'desc' : 'asc',
+    };
+  }
+  return { sortKey: nextKey, sortDirection: 'asc' };
+}
+
 // 대시보드 화면 컨테이너. useApiResource 로 GET /api/assessments 결과를 소유하고,
 // 정렬/필터/검색 상태를 useState 로 보유해 client-side 정렬/필터 후 presentational 에
 // props 로 내려보낸다.
 function DashboardView({
   personId,
   period,
-  initialSortKey = 'score',
+  initialSortKey = 'contributionScore',
   initialSortDirection = 'desc',
   initialSearchTerm = '',
   initialSelectedId = '',
@@ -417,7 +442,7 @@ function DashboardView({
   const [selectedPersonId, setSelectedPersonId] = useState<string>(personId ?? '');
 
   // 정렬/필터/검색 상태 — controlled lift-up(컨테이너 소유).
-  const [sortKey, setSortKey] = useState<SortKey>(initialSortKey);
+  const [sortKey, setSortKey] = useState<AssessmentRowSortKey>(initialSortKey);
   const [sortDirection, setSortDirection] =
     useState<'asc' | 'desc'>(initialSortDirection);
   const [searchTerm, setSearchTerm] = useState<string>(initialSearchTerm);
@@ -432,7 +457,9 @@ function DashboardView({
   // assessments 조회 path — 선택 personId 미선택이면 null(조회 미수행). path 변경이 곧 재조회.
   // prop 이 아니라 선택 state 를 소비한다(T-1723 — 화면 안 선택이 즉시 조회로 이어진다).
   const path = buildAssessmentsPath(selectedPersonId, period);
-  const { data, loading, error } = useApiResource<EvaluationResultRow[]>(path);
+  // 응답을 컨테이너가 특정 행 타입으로 단정하지 않는다(T-1727) — 매핑 책임은
+  // assessmentRow.ts 의 deriveAssessmentDisplayRows 가 지며, 여기서는 원문을 그대로 받는다.
+  const { data, loading, error } = useApiResource<unknown[]>(path);
 
   // summaries(시계열) 조회 path — assessments 와 독립적으로 personId 가드를 받는다
   // (둘 다 null 가능). 두 번째 useApiResource 호출로 컨테이너가 시계열 상태를 소유한다.
@@ -477,11 +504,24 @@ function DashboardView({
     error: personsError,
   } = useApiResource<unknown[]>(PERSONS_PATH);
 
-  // 표시 직전 client-side 필터 → 정렬. data 미도착이면 빈 배열로 간주한다.
-  const visibleRows = useMemo(() => {
-    const rows = Array.isArray(data) ? data : [];
-    return sortRows(filterRows(rows, searchTerm), sortKey, sortDirection);
-  }, [data, searchTerm, sortKey, sortDirection]);
+  // 표시 직전 파이프라인(T-1727) — 매핑 → 검색 필터 → 정렬. 세 단계 모두 순수 모듈이
+  // 담당하므로 컨테이너는 조합만 한다(응답 캐스팅·정규화 금지). 세 함수 모두 비배열 입력·
+  // 결손 행을 값으로 흡수하므로 data 미도착(undefined)·오류 응답에도 분기 없이 빈 표가 된다.
+  const visibleRows: AssessmentDisplayRow[] = useMemo(
+    () =>
+      sortAssessmentRows(
+        filterAssessmentRows(deriveAssessmentDisplayRows(data), searchTerm),
+        sortKey,
+        sortDirection,
+      ),
+    [data, searchTerm, sortKey, sortDirection],
+  );
+
+  // 요약 지표·점수 분포용 옛 계약 행(임시 브리지) — REQ-076 slice 에서 제거된다.
+  const legacyScoreRows = useMemo(
+    () => toLegacyScoreRows(visibleRows),
+    [visibleRows],
+  );
 
   // 인원 선택 후보 파생(T-1723) — 응답 row 배열을 선택 컨트롤의 persons 형태로 매핑한다.
   // active 기반 후보 필터링은 컴포넌트(filterSelectablePersons) 책임이라 여기서 하지 않는다.
@@ -491,7 +531,10 @@ function DashboardView({
   );
 
   // 요약 지표 파생 — 표시 row(필터/정렬 후) 기준 집계.
-  const metrics = useMemo(() => deriveMetrics(visibleRows), [visibleRows]);
+  const metrics = useMemo(
+    () => deriveMetrics(legacyScoreRows),
+    [legacyScoreRows],
+  );
 
   // 유효 페이지 파생 — 필터/검색 변경으로 visibleRows 가 줄어 currentPage 가 전체 페이지
   // 수를 넘으면(예: 3페이지에 있던 중 검색으로 1페이지 분량만 남음) 마지막 페이지로 보수적
@@ -510,7 +553,7 @@ function DashboardView({
   );
 
   // 현재 페이지 row slice — 필터/정렬된 visibleRows 를 (effectivePage, pageSize) 로 자른다.
-  // 이 결과(pagedRows)만 EvaluationResultTable 의 rows 로 내려보낸다(컴포넌트 수정 0).
+  // 이 결과(pagedRows)만 AssessmentResultTable 의 rows 로 내려보낸다(컴포넌트 수정 0).
   const pagedRows = useMemo(
     () => pageRows(visibleRows, effectivePage, effectivePageSize),
     [visibleRows, effectivePage, effectivePageSize],
@@ -522,8 +565,8 @@ function DashboardView({
   // 점수 분포 bucket 파생 — 이미 fetch 한 assessments row(visibleRows) 를 client-side
   // histogram 으로 집계한다(새 endpoint 0). 분포는 표시 데이터에서 파생(ADR-0040 §1).
   const scoreBuckets = useMemo(
-    () => deriveScoreBuckets(visibleRows),
-    [visibleRows],
+    () => deriveScoreBuckets(legacyScoreRows),
+    [legacyScoreRows],
   );
 
   // 평가 상세 metric 파생 — contributions 조회 결과(contributionData) 를
@@ -540,31 +583,28 @@ function DashboardView({
     [visibleRows, selectedId],
   );
 
-  // 정렬 컬럼 변경 — DashboardFilterBar/EvaluationResultTable 의 콜백이 컨테이너 상태를
+  // 정렬 컬럼 변경 — DashboardFilterBar/AssessmentResultTable 의 콜백이 컨테이너 상태를
   // 갱신해 표시 순서를 바꾼다(정렬 변경 분기 cover).
   const handleSortKeyChange = (key: string) => {
-    setSortKey(key as SortKey);
+    setSortKey(key as AssessmentRowSortKey);
   };
   // 정렬 방향 토글 — asc ↔ desc.
   const handleSortDirectionToggle = () => {
     setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
   };
-  // 컬럼 헤더 클릭 정렬 — 같은 키면 방향 토글, 다른 키면 그 키로 전환(asc 시작).
-  const handleHeaderSort = (key: keyof EvaluationResultRow) => {
-    const next = key as SortKey;
-    if (next === sortKey) {
-      handleSortDirectionToggle();
-    } else {
-      setSortKey(next);
-      setSortDirection('asc');
-    }
+  // 컬럼 헤더 클릭 정렬 — 전이 규칙 자체는 순수 helper(resolveHeaderSort)가 결정하고
+  // 여기서는 그 결과를 state 로 옮기기만 한다(정적 렌더 test 로 전이 분기를 직접 검증 가능).
+  const handleHeaderSort = (key: AssessmentSortKey) => {
+    const next = resolveHeaderSort(sortKey, sortDirection, key);
+    setSortKey(next.sortKey);
+    setSortDirection(next.sortDirection);
   };
   // 초기화 — 검색어를 비운다(정렬은 유지).
   const handleReset = () => {
     setSearchTerm('');
   };
   // row 선택 — 선택 컨트롤이 선택 id 를 컨테이너 상태로 올린다(빈 값 선택 시 미선택으로
-  // 되돌려 contributions 조회를 미수행으로 만든다). EvaluationResultTable 은 선택 콜백
+  // 되돌려 contributions 조회를 미수행으로 만든다). AssessmentResultTable 은 선택 콜백
   // prop 이 없어(컴포넌트 수정 0 경계) 별도 <select> 컨트롤로 선택 상호작용을 표현한다.
   const handleSelectChange = (event: { target: { value: string } }) => {
     setSelectedId(event.target.value);
@@ -659,7 +699,7 @@ function DashboardView({
       />
       {/* 결과 테이블 — 현재 페이지 row(pagedRows)만 내려보낸다(③b-3 페이지네이션, 컴포넌트
           수정 0). 정렬/필터된 전체는 visibleRows 지만 표는 한 페이지 분량만 렌더한다. */}
-      <EvaluationResultTable
+      <AssessmentResultTable
         rows={pagedRows}
         sortKey={sortKey}
         sortDirection={sortDirection}
@@ -698,7 +738,7 @@ function DashboardView({
         loading={loading}
         error={error}
       />
-      {/* 평가 상세 선택 컨트롤 — EvaluationResultTable 이 row 선택 콜백 prop 을 갖지 않아
+      {/* 평가 상세 선택 컨트롤 — AssessmentResultTable 이 row 선택 콜백 prop 을 갖지 않아
           (컴포넌트 수정 0 경계, ADR-0041 Decision 1) 컨테이너가 별도 <select> 로 선택
           상호작용을 표현한다. 선택 시 그 row.id 를 selectedId 로 올려 contributions path 를
           변경(재조회)한다.
@@ -715,7 +755,7 @@ function DashboardView({
         <option value="">{NO_SELECTION_LABEL}</option>
         {visibleRows.map((row) => (
           <option key={row.id} value={row.id}>
-            {row.subjectName} · {row.metricLabel}
+            {row.period} · {row.scope}
           </option>
         ))}
       </select>
@@ -725,7 +765,7 @@ function DashboardView({
           subjectName/period 를 헤더로 표시하고, 미선택이면 빈 안내(DETAIL_EMPTY_LABEL)를
           렌더한다. 컴포넌트 수정 0. */}
       <EvaluationDetailPanel
-        subjectName={selectedRow?.subjectName}
+        subjectName={selectedRow?.period}
         periodLabel={period}
         metrics={contributionMetrics}
         loading={contributionLoading}
@@ -754,8 +794,8 @@ function DashboardView({
 
 export {
   buildAssessmentsPath,
-  filterRows,
-  sortRows,
+  toLegacyScoreRows,
+  resolveHeaderSort,
   deriveMetrics,
   buildSummariesPath,
   deriveTrendPoints,
@@ -765,5 +805,5 @@ export {
   pageRows,
   derivePersonOptions,
 };
-export type { DashboardViewProps, SortKey, SummaryRow, ContributionRow };
+export type { DashboardViewProps, SummaryRow, ContributionRow };
 export default DashboardView;
