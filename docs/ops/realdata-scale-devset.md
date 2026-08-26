@@ -193,7 +193,23 @@ seed 방식: 각 개발자 = Person + github.com `ServiceIdentity`(login) → `a
   `@load.devset.test` 로 끝나는 원소만 필터해 표본 수만큼 취한다. 도메인 정본은
   `test/helpers/realdata-devset-seed-descriptors.ts` 의 `DEVSET_EMAIL_DOMAIN` 이고,
   공유 dataset 이라 `teardown()` 은 그중 하나도 지우지 않는다.
-- **실측 상태**: 위 배선 4 축은 main 에 있으나 **실 dataset 을 태운 run 은 아직 0 회**다
+- **실측 상태**: 위 배선 4 축은 main 에 있고 **실 dataset 을 태운 run 도 이미 성공했다**(아래는
+  [load-resilience-test-plan.md](load-resilience-test-plan.md) 의 기박제 수치 인용뿐이다 — 본
+  bullet 은 새 측정을 하지 않는다). ① 배선 후 첫 run **`32652307813`** 은 그 문서 `§3.1`
+  `#### 7 회차` 대로 seed step 이 **fail**(ServiceIdentity leg upsert 의 `person` 인자 누락)
+  이었고, 그 결함은 **T-1664**(PR #1330 → main `61f616a1`)가 닫았다. ② 첫 성공 run
+  **`32665014391`**(`#### 8 회차`)의 seed step 은
+  `devset seed 완료 — person 133 건 / serviceIdentity 133 건 적재` 를 찍었다. ③ run
+  **`32677333740`**(`#### 9 회차`)은 k6 console 에
+  `[s1-batch] devset 표본 취득 133명 / 요청 133명` 을 남겨 표본 수 **133** 을 간접 추론이 아니라
+  **직접 회수**했다. ④ 같은 `§3.1` `#### 16 회차` 기준 seed step 은 **연속 9 회 성공**이다.
+  다만 여기까지는 seed 적재 · 표본 취득이고 **실 수집 왕복은 여전히 0**이다 — LLM 이
+  `LOAD_TEST_STUB=1` **stub**
+  ([ADR-0057](../decisions/ADR-0057-s1-batch-load-io-isolation.md) `D1`)이고 부하 job 에
+  GitHub/Confluence **자격증명이 0** 이기 때문이다. 그 축의 성격은 같은 문서
+  `#### 실 수집 왕복(§5 잔여 ①) 해소 경로 판단 (사전 박제, T-1706)` 이 결론 분포
+  **`해소 불요` 2 건 + `사람 승인 대기` 1 건**(`자율 집행 채택` **0 건**)으로 규정했고, 잔여 ①
+  원문과 잔여 개수 **1 개** 는 그대로다
   ([load-resilience-test-plan.md](load-resilience-test-plan.md) `§5` item 5 잔여 ① 참조).
 
 ## 재생성(refresh) 명령
