@@ -126,6 +126,9 @@ P3 진행 중 발견된 진척 status quo + P4 진입 trigger 의사결정 가�
   - **게이트된 backlog** — web vitest CI 배선(T-0355)은 `onHold: credential-workflow-scope`(token workflow scope 부재)로 게이트됨 — 진입 시 게이트 상태 재확인 필요.
   - **게이트된 backlog — web coverage threshold (T-1165 reviewer MINOR-2)** — `web/package.json` 의 vitest 에 `coverageThreshold` 가 없어 web 쪽은 R-112 의 line/function ≥ 80% 가 기계적으로 강제되지 않는다(`vitest run` 만 존재, coverage provider 미설치). 도입하려면 `@vitest/coverage-v8` **새 외부 dependency** 가 필요해 CLAUDE.md §5 새-dep 게이트 대상 — 사용자 승인 후 ADR 없이도 진행 가능한 devDependency 인지 판단 필요. P6 web 코드가 계속 늘고 있어 승인 시 우선 처리 권장.
 
+- [ ] **🔴 [오너 지시 2026-08-26] 계정 생성 UX — 아이디/암호 조건 사전 안내 + 구체적 실패 사유 표시 (R-158~R-160)** — 계정 생성(첫 로긴 SuperAdmin 셋업 · Admin 의 사용자 추가) 화면에서 아이디·암호 조건(허용 문자·형식·길이)을 입력 전에 안내하고, 실패 시 위반 조건별 구체 사유를 표시한다. "이미 등록된 사용자이거나 입력이 올바르지 않습니다" 류 포괄 문구 금지, 아이디 중복 오류와 형식/길이 위반 오류 구분. backend 오류 응답 계약(필드별 사유)과 frontend 표시 양쪽 배선 필요. planner: README 신규 R-158~R-160 을 requirements.md REQ row 로 동기 후 task 분해.
+- [ ] **🔴 [오너 지시 2026-08-26] 평가 대상 추가·편집 인터페이스 (R-164~R-168)** — 로그인 직후 "평가 대상을 선택하면 결과가 표시됩니다" 빈 상태에서 막히지 않도록, 평가 대상(① 대상자 인원 ② 대상 시스템 — GitHub org/repo · Confluence 주소/SPACE)을 추가·편집하는 인터페이스를 제공한다. 인원 축은 기존 AdminView 패널 재사용/노출 동선 개선 위주, 시스템 축은 수집 대상 등록 모델·API·UI 가 부재하면 신설(architect 판단 — ADR 동반). Admin 편집 / User 조회 (RBAC 일관). planner: README 신규 R-164~R-168 을 requirements.md REQ row 로 동기 후 task 분해.
+
 ---
 
 ## Phase P7 — Scheduling & operations
