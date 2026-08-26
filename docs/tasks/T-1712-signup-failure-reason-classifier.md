@@ -2,12 +2,15 @@
 id: T-1712
 title: signup 실패 응답을 위반 조건별 구체 사유로 분류하는 순수 helper 박제
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-068, REQ-069]
 estimatedDiff: 270
 estimatedFiles: 2
 created: 2026-08-26
+completedAt: 2026-08-26T05:57:23Z
+prNumber: 1343
+mergeCommit: 04b112a9
 independentStream: account-create-ux
 dependsOn: []
 touchesFiles:
