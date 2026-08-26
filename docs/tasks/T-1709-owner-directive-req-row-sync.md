@@ -2,7 +2,7 @@
 id: T-1709
 title: 오너 지시 2 건(계정 생성 UX · 평가 대상 관리 UI)을 requirements.md REQ row 로 동기 (REQ-067~REQ-073)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-067, REQ-068, REQ-069, REQ-070, REQ-071, REQ-072, REQ-073]
 estimatedDiff: 20
