@@ -2,7 +2,7 @@
 id: T-1725
 title: backend 필드 정합 평가 결과 표 컴포넌트 AssessmentResultTable 신설 (표시 컬럼 재설계)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-075]
 independentStream: p6-dashboard-actual-behavior
@@ -13,6 +13,9 @@ touchesFiles:
 estimatedDiff: 290
 estimatedFiles: 2
 created: 2026-08-27
+completedAt: 2026-08-26T18:56:28Z
+prNumber: 1355
+mergeCommit: e1843e80
 plannerNote: P6 오너지시 PLAN 131행 ② 분해 slice 2 — T-1724 helper 를 소비할 표시 컬럼을 presentational 로 먼저 박제, DashboardView 배선은 slice 3
 ---
 
