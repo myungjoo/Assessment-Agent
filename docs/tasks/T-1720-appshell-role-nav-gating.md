@@ -2,7 +2,7 @@
 id: T-1720
 title: AppShell 인증 사용자 등급 hydration + 내비게이션 노출 차등 배선 (REQ-073 slice 3)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-073, REQ-070]
 estimatedDiff: 190
@@ -10,6 +10,8 @@ estimatedFiles: 2
 created: 2026-08-26
 independentStream: evaluation-target-ui
 dependsOn: [T-1719]
+prNumber: 1351
+completedAt: 2026-08-26T13:57:34Z
 touchesFiles:
   - web/src/AppShell.tsx
   - web/src/AppShell.test.tsx
