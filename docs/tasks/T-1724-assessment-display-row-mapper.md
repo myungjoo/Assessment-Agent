@@ -2,7 +2,7 @@
 id: T-1724
 title: backend Assessment 응답 → 대시보드 표시 행 순수 매핑 helper 신설 (표시 계약 고정)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-075]
 independentStream: p6-dashboard-actual-behavior
@@ -67,3 +67,15 @@ plannerNote: P6 오너지시 PLAN 131행 ② 분해 slice 1 — 프런트/백엔
 ## Follow-ups
 
 (생성 시 비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 append)
+
+## 결과 (2026-08-26T17:53Z DONE)
+
+- PR [#1354](https://github.com/myungjoo/Assessment-Agent/pull/1354) squash merge → main `41c6263c`, feature branch 삭제 완료.
+- 신규 2 파일 (`web/src/api/assessmentRow.ts` + `web/src/api/assessmentRow.test.ts`, +393/-0) — 순수 함수 3 개 (`parseNumericField` / `toAssessmentDisplayRow` / `deriveAssessmentDisplayRows`) 와 `AssessmentDisplayRow` 타입 신설. fetch · React import · throw · 입력 mutation 0, 새 dependency 0.
+- 신규 spec 27 test 로 R-112 4 종 + 계약 drift guard cover. web 76 파일 2290 test green, backend `test:cov` 13009 test green (src diff 0 이라 coverage 불변), `pnpm lint` · web build green.
+- reviewer APPROVE round 1/7, 4-게이트 driver 독립 재검증 통과 (reviewer comment 외부 존재 · PR CI run 32996152105 2 job green · squash merge + branch delete).
+- `DashboardView.tsx` · `EvaluationResultTable.tsx` · `src/` · `test/e2e/` · `package.json` diff 0 파일 — Out of Scope 경계 유지.
+
+## Follow-ups (실제)
+
+- 본 helper 의 **소비 배선** — `DashboardView` 가 `deriveAssessmentDisplayRows` 를 거쳐 표·요약 지표·점수 분포를 렌더하도록 하는 slice (REQ-075 분해 slice 2). 표시 컬럼 재설계 동반.
