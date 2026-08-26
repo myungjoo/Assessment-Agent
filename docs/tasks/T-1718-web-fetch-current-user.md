@@ -2,7 +2,10 @@
 id: T-1718
 title: web 인증 사용자 등급 조회 helper fetchCurrentUser 신설 (REQ-073 slice 1)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-08-26T11:53:34Z
+prNumber: 1349
+mergeCommit: 0519d8ca
 commitMode: pr
 coversReq: [REQ-073, REQ-070]
 estimatedDiff: 210
@@ -66,3 +69,10 @@ backend 는 이미 준비돼 있다 — `GET /api/auth/me`([src/auth/auth.contro
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-26)
+
+- PR [#1349](https://github.com/myungjoo/Assessment-Agent/pull/1349) round 1 reviewer APPROVE → 4-게이트 PASS → squash merge `0519d8ca` + branch delete.
+- 변경 2 파일 `+178/-3` — `web/src/api/auth.ts` 에 `fetchCurrentUser` + `type CurrentUser` named export 추가(알파벳 순 합류), 기존 `login`·`refresh`·`signup`·`signupDetailed` 무수정. `src/`·`AppShell.tsx`·`AdminView.tsx`·`package.json` diff 0 파일.
+- R-112 4 종 cover — happy 1 · error path 1 · 분기 5(200 정상 / 필드 결손 / 401 / 404 / 그 외 status) · negative 6(role 누락 · 비문자열 · null body · 비객체 · 401 무-throw · 5xx 흡수 금지), spec 13 케이스. web 2180 test + root 13009 test · lint · build green.
+- 후속: 본 정보원 위에 nav 항목·AdminView 패널 RBAC gating 을 배선하는 slice 가 REQ-073 을 닫는다.
