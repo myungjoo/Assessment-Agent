@@ -2,12 +2,13 @@
 id: T-1719
 title: web 평가 대상 편집 권한 판정 순수 모듈 roleAccess 신설 (REQ-073 slice 2)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-073, REQ-070]
 estimatedDiff: 200
 estimatedFiles: 2
 created: 2026-08-26
+completedAt: 2026-08-26T12:52:41Z
 independentStream: evaluation-target-ui
 dependsOn: [T-1718]
 touchesFiles:
@@ -63,3 +64,13 @@ REQ-073 ([requirements.md](../requirements.md) `92 행`) 은 "평가 대상 편�
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+---
+
+## 결과 (2026-08-26T12:52:41Z DONE)
+
+- PR [#1350](https://github.com/myungjoo/Assessment-Agent/pull/1350) round 1 reviewer APPROVE → squash merge `740a29c3`. 4-게이트 PASS (reviewer comment 외부 존재 · PR head `05d99d51` CI green · integrator self-check · main CI).
+- 변경 2 파일 +213/-0 — `web/src/api/roleAccess.ts` 신설(`ROLE_ORDER` · `hasRoleAtLeast` · `canEditAssessmentTargets` · `canViewAssessmentTargets` 4 심볼 named export), colocated `web/src/api/roleAccess.test.ts` 17 케이스.
+- 순수성 유지: 네트워크 0 · 가변 상태 0 · throw 0. 미지 role / 미지 required / 대소문자 불일치 는 전부 fail-safe `false`, 비문자열 입력도 `typeof` 로 걸러 boolean 반환.
+- R-112 4 종 cover(happy · error path · 분기 (a)~(f) · negative 6 종) + backend `ROLE_HIERARCHY` 토큰·서열 drift guard 1. web 73 파일 2201 test green, root lint · build · `test:cov` 13009 test green (line · function 80% 무회귀 — `src/` diff 0).
+- 범위 불변 확인: `auth.ts` · `AppShell.tsx` · `AdminView.tsx` · `src/` · `test/e2e/` · `package.json` diff **0 파일**, 새 dependency 0.
