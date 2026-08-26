@@ -23,8 +23,9 @@ import type { SortOption } from '../components/DashboardFilterBar';
 // 순수 모듈)을 본 컨테이너가 실제로 소비하도록 배선한다. 옛 행 계약 EvaluationResultRow 는
 // 요약 지표·점수 분포의 임시 브리지(toLegacyScoreRows) 반환 타입으로만 남으므로 type-only
 // import 만 유지한다(EvaluationResultTable 파일 삭제·정리는 별도 slice — Out of Scope).
-import AssessmentResultTable from '../components/AssessmentResultTable';
-import { ASSESSMENT_TABLE_COLUMNS } from '../components/AssessmentResultTable';
+import AssessmentResultTable, {
+  ASSESSMENT_TABLE_COLUMNS,
+} from '../components/AssessmentResultTable';
 import type { AssessmentSortKey } from '../components/AssessmentResultTable';
 import type { EvaluationResultRow } from '../components/EvaluationResultTable';
 import { deriveAssessmentDisplayRows } from '../api/assessmentRow';
@@ -95,7 +96,6 @@ const PERSONS_PATH = '/api/persons';
 // 인원 이름이 결손된 row 의 안전 fallback 라벨(§12 한국어). 이름이 없다고 후보에서 제외하면
 // 선택 자체가 불가능해지므로 제외 대신 대체 라벨로 표시한다 — id 는 살아 있으므로 선택은 유효하다.
 const FALLBACK_PERSON_NAME = '이름 미상';
-
 
 interface DashboardViewProps {
   // 조회 대상 personId — 미선택(빈 문자열/undefined) 시 조회 미수행 + 안내 표시.
