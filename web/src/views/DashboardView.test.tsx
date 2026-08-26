@@ -17,8 +17,8 @@ vi.mock('../api/useApiResource', () => ({
 
 import DashboardView, {
   buildAssessmentsPath,
-  filterRows,
-  sortRows,
+  toLegacyScoreRows,
+  resolveHeaderSort,
   deriveMetrics,
   buildSummariesPath,
   deriveTrendPoints,
@@ -30,6 +30,7 @@ import DashboardView, {
 import type { SummaryRow, ContributionRow } from './DashboardView';
 import type { EvaluationResultRow } from '../components/EvaluationResultTable';
 import type { PermissionDeniedRecordRow } from '../components/PermissionDeniedRecordList';
+import type { AssessmentDisplayRow } from '../api/assessmentRow';
 
 function setResource<T>(state: ApiResourceState<T>) {
   useApiResourceMock.mockReturnValue(state);
@@ -91,6 +92,47 @@ const TREND_SAMPLE: SummaryRow[] = [
   { period: '2026-06-15', value: 75 },
 ];
 
+// T-1727 — backend `GET /api/assessments` 응답 형태의 raw 행 3 개. 컨테이너가 이 원문을
+// deriveAssessmentDisplayRows 로 매핑해 표에 렌더한다. contributionScore 는 80/95/60 으로
+// 두어 요약 평균·점수 분포 bucket 기대값이 아래 legacy fixture 와 같도록 맞춘다.
+const RAW_SAMPLE: unknown[] = [
+  {
+    id: '1',
+    personId: 'p1',
+    period: '2026-06',
+    scope: '팀',
+    periodStart: '2026-06-01',
+    difficulty: '중',
+    contributionScore: 80,
+    volume: 12,
+    narrative: '협업 근거 서술',
+  },
+  {
+    id: '2',
+    personId: 'p1',
+    period: '2026-07',
+    scope: '개인',
+    periodStart: '2026-07-01',
+    difficulty: '상',
+    contributionScore: 95,
+    volume: 20,
+    narrative: '리더십 근거 서술',
+  },
+  {
+    id: '3',
+    personId: 'p1',
+    period: '2026-08',
+    scope: '팀',
+    periodStart: '2026-08-01',
+    difficulty: '하',
+    contributionScore: 60,
+    volume: 5,
+    narrative: '협업 근거 서술',
+  },
+];
+
+// 옛 행 계약 fixture — deriveMetrics/deriveScoreBuckets 순수 helper 검증 전용(본 slice 에서
+// 두 helper 의 시그니처·본문은 불변이라 그 spec 블록도 그대로 둔다).
 const SAMPLE: EvaluationResultRow[] = [
   { id: '1', subjectName: '김철수', metricLabel: '협업', score: 80 },
   { id: '2', subjectName: '이영희', metricLabel: '리더십', score: 95 },
@@ -107,14 +149,23 @@ describe('DashboardView — 컨테이너 렌더', () => {
 
   // happy-path — 조회 성공 시 결과 row + 요약 지표가 렌더된다.
   it('조회 성공 시 결과 row 와 요약 지표를 렌더한다 (happy-path)', () => {
-    setResource({ data: SAMPLE, loading: false, error: undefined });
+    setResource({ data: RAW_SAMPLE, loading: false, error: undefined });
     const html = renderToStaticMarkup(<DashboardView personId="p1" />);
-    // 요약 지표(평가 건수/평균 점수) + 결과 테이블 row 텍스트가 보인다.
+    // 요약 지표(평가 건수/평균 점수) + 결과 테이블이 보인다.
     expect(html).toContain('평가 건수');
     expect(html).toContain('평균 점수');
-    expect(html).toContain('김철수');
-    expect(html).toContain('이영희');
     expect(html).toContain('<table>');
+    // 새 표 계약의 6 컬럼 헤더(한국어 라벨)가 모두 렌더된다.
+    // 현재 정렬 컬럼 헤더에는 aria-sort 속성이 붙으므로 닫는 태그 쪽으로 단언한다.
+    for (const label of ['기간', '범위', '시작', '난이도', '기여 점수', '업무량']) {
+      expect(html).toContain(`>${label}</th>`);
+    }
+    // backend 응답 값이 실제 셀로 렌더된다(옛 계약에선 전 셀이 undefined 였다).
+    expect(html).toContain('<td>중</td>');
+    expect(html).toContain('<td>2026-07-01</td>');
+    expect(html).toContain('<td>상</td>');
+    expect(html).toContain('<td>95</td>');
+    expect(html).toContain('<td>12</td>');
   });
 
   // error path — 조회 실패 시 에러 표시 + 테이블 미렌더.
@@ -153,21 +204,21 @@ describe('DashboardView — 컨테이너 렌더', () => {
 
   // negative — 빈 검색어 + 결과 존재 시 전체 row 가 그대로 표시된다(필터 미적용 fallback).
   it('빈 검색어면 전체 결과가 표시된다 (negative — 빈 검색어 fallback)', () => {
-    setResource({ data: SAMPLE, loading: false, error: undefined });
+    setResource({ data: RAW_SAMPLE, loading: false, error: undefined });
     const html = renderToStaticMarkup(<DashboardView personId="p1" initialSearchTerm="" />);
-    expect(html).toContain('김철수');
-    expect(html).toContain('이영희');
-    expect(html).toContain('박민수');
+    expect(html).toContain('<td>중</td>');
+    expect(html).toContain('<td>상</td>');
+    expect(html).toContain('<td>하</td>');
   });
 
   // negative — 검색어가 어떤 row 와도 안 맞으면 빈 상태로 fallback.
   it('검색어가 매칭 0건이면 빈 상태로 fallback 한다 (negative — 빈 결과)', () => {
-    setResource({ data: SAMPLE, loading: false, error: undefined });
+    setResource({ data: RAW_SAMPLE, loading: false, error: undefined });
     const html = renderToStaticMarkup(
       <DashboardView personId="p1" initialSearchTerm="존재하지않는검색어" />,
     );
     expect(html).toContain('표시할 평가 결과가 없습니다');
-    expect(html).not.toContain('김철수');
+    expect(html).not.toContain('<td>중</td>');
   });
 });
 
@@ -181,27 +232,6 @@ describe('DashboardView — client-side 정렬/필터/요약 파생 (순수 함�
     // negative — personId 미선택(undefined/빈 문자열) 시 null(400 회피 가드).
     expect(buildAssessmentsPath(undefined, undefined)).toBeNull();
     expect(buildAssessmentsPath('', '2026Q2')).toBeNull();
-  });
-
-  // negative/정렬 변경 — 같은 데이터에 정렬 방향을 바꾸면 표시 순서가 뒤집힌다.
-  it('정렬 키/방향 변경이 표시 순서를 바꾼다 (negative — 정렬 변경 분기)', () => {
-    const ascById = sortRows(SAMPLE, 'score', 'asc').map((r) => r.id);
-    const descById = sortRows(SAMPLE, 'score', 'desc').map((r) => r.id);
-    expect(ascById).toEqual(['3', '1', '2']); // 60, 80, 95
-    expect(descById).toEqual(['2', '1', '3']); // 95, 80, 60
-    // 다른 키(문자열 컬럼)로의 전환도 cover.
-    const byNameAsc = sortRows(SAMPLE, 'subjectName', 'asc').map((r) => r.subjectName);
-    expect(byNameAsc[0] <= byNameAsc[1]).toBe(true);
-  });
-
-  // 필터 — 검색어 부분 일치(대소문자 무시) + 빈 검색어 전체 통과.
-  it('검색어로 row 를 필터링하고 빈 검색어는 전체를 통과시킨다 (필터 분기)', () => {
-    expect(filterRows(SAMPLE, '협업').map((r) => r.id)).toEqual(['1', '3']);
-    expect(filterRows(SAMPLE, '')).toHaveLength(3);
-    // negative — 공백만 있는 검색어도 빈 검색어로 취급(trim).
-    expect(filterRows(SAMPLE, '   ')).toHaveLength(3);
-    // negative — 매칭 0건.
-    expect(filterRows(SAMPLE, 'zzz')).toHaveLength(0);
   });
 
   // 요약 파생 — 평가 건수·평균 점수 집계 + 빈 배열이면 빈 목록.
@@ -226,7 +256,7 @@ describe('DashboardView — 시계열/분포 패널 배선 (③b-1)', () => {
   // happy-path — summaries 성공 시 시계열 포인트 + assessments row 로부터 분포 bucket 렌더.
   it('시계열 포인트와 점수 분포 bucket 을 함께 렌더한다 (happy-path)', () => {
     setResources({
-      assessments: { data: SAMPLE, loading: false, error: undefined },
+      assessments: { data: RAW_SAMPLE, loading: false, error: undefined },
       summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
     });
     const html = renderToStaticMarkup(<DashboardView personId="p1" />);
@@ -242,7 +272,7 @@ describe('DashboardView — 시계열/분포 패널 배선 (③b-1)', () => {
   // error path — summaries 실패 시 시계열만 에러 + 추이 미렌더(분포는 영향 없음).
   it('summaries 실패 시 시계열 패널만 에러를 표시한다 (error path — 상태 분리)', () => {
     setResources({
-      assessments: { data: SAMPLE, loading: false, error: undefined },
+      assessments: { data: RAW_SAMPLE, loading: false, error: undefined },
       summaries: { data: undefined, loading: false, error: 'HTTP 500: trend boom' },
     });
     const html = renderToStaticMarkup(<DashboardView personId="p1" />);
@@ -269,7 +299,7 @@ describe('DashboardView — 시계열/분포 패널 배선 (③b-1)', () => {
   // flow/branch — summaries loading 진행 표시(시계열만 진행, 분포는 정상).
   it('summaries loading 이면 시계열 패널이 진행 표시를 렌더한다 (branch — trend loading)', () => {
     setResources({
-      assessments: { data: SAMPLE, loading: false, error: undefined },
+      assessments: { data: RAW_SAMPLE, loading: false, error: undefined },
       summaries: { data: undefined, loading: true, error: undefined },
     });
     const html = renderToStaticMarkup(<DashboardView personId="p1" />);
@@ -282,7 +312,7 @@ describe('DashboardView — 시계열/분포 패널 배선 (③b-1)', () => {
   // flow/branch — summaries empty(시계열 0 포인트) + 분포는 populated.
   it('summaries 빈 배열이면 시계열 빈 상태 + 분포는 populated (branch — trend empty)', () => {
     setResources({
-      assessments: { data: SAMPLE, loading: false, error: undefined },
+      assessments: { data: RAW_SAMPLE, loading: false, error: undefined },
       summaries: { data: [], loading: false, error: undefined },
     });
     const html = renderToStaticMarkup(<DashboardView personId="p1" />);
@@ -405,7 +435,7 @@ describe('DashboardView — 평가 상세 패널 배선 (③b-2)', () => {
   // EvaluationDetailPanel 로 렌더되고 선택 row 의 subjectName/period 도 헤더에 표시된다.
   it('row 선택 후 contributions 성공 시 상세 metric 과 선택 row 메타를 렌더한다 (happy-path)', () => {
     setResources3({
-      assessments: { data: SAMPLE, loading: false, error: undefined },
+      assessments: { data: RAW_SAMPLE, loading: false, error: undefined },
       summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
       contributions: { data: CONTRIBUTION_SAMPLE, loading: false, error: undefined },
     });
@@ -416,15 +446,15 @@ describe('DashboardView — 평가 상세 패널 배선 (③b-2)', () => {
     expect(html).toContain('평가 상세');
     expect(html).toContain('코드 품질');
     expect(html).toContain('명확한 구조');
-    // 선택 row(id=1, 김철수)의 subjectName + period 가 헤더에 표시된다.
-    expect(html).toContain('김철수');
+    // 선택 row(id=1)의 period 메타 + 조회 기간 라벨이 헤더에 표시된다.
+    expect(html).toContain('2026-06');
     expect(html).toContain('2026년 6월');
   });
 
   // error path — contributions 실패 시 상세 패널이 에러 표시 + 기여 항목 미렌더.
   it('contributions 실패 시 상세 패널이 에러를 표시한다 (error path — 상태 분리)', () => {
     setResources3({
-      assessments: { data: SAMPLE, loading: false, error: undefined },
+      assessments: { data: RAW_SAMPLE, loading: false, error: undefined },
       summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
       contributions: { data: undefined, loading: false, error: 'HTTP 500: detail boom' },
     });
@@ -442,7 +472,7 @@ describe('DashboardView — 평가 상세 패널 배선 (③b-2)', () => {
   // error path/조건부 조회 — row 선택이 없으면 상세 조회 미수행 + 패널 빈 상태.
   it('row 미선택 시 상세 조회 미수행 + 패널 빈 안내를 렌더한다 (조건부 조회)', () => {
     setResources3({
-      assessments: { data: SAMPLE, loading: false, error: undefined },
+      assessments: { data: RAW_SAMPLE, loading: false, error: undefined },
       summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
       contributions: IDLE,
     });
@@ -457,7 +487,7 @@ describe('DashboardView — 평가 상세 패널 배선 (③b-2)', () => {
   // flow/branch — contributions loading 진행 표시(상세만 진행, 다른 패널은 정상).
   it('contributions loading 이면 상세 패널이 진행 표시를 렌더한다 (branch — detail loading)', () => {
     setResources3({
-      assessments: { data: SAMPLE, loading: false, error: undefined },
+      assessments: { data: RAW_SAMPLE, loading: false, error: undefined },
       summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
       contributions: { data: undefined, loading: true, error: undefined },
     });
@@ -472,7 +502,7 @@ describe('DashboardView — 평가 상세 패널 배선 (③b-2)', () => {
   // flow/branch — contributions empty(기여 0 건, api.md 104 매칭 0 → 빈 배열) 빈 상태.
   it('contributions 빈 배열이면 상세 패널이 빈 상태를 렌더한다 (branch — detail empty)', () => {
     setResources3({
-      assessments: { data: SAMPLE, loading: false, error: undefined },
+      assessments: { data: RAW_SAMPLE, loading: false, error: undefined },
       summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
       contributions: { data: [], loading: false, error: undefined },
     });
@@ -486,7 +516,7 @@ describe('DashboardView — 평가 상세 패널 배선 (③b-2)', () => {
   // negative — 비정상/누락 필드(점수 누락·라벨 누락) 도 안전 fallback 으로 렌더된다.
   it('비정상/누락 필드 contribution row 도 안전 fallback 으로 렌더한다 (negative — 누락 필드)', () => {
     setResources3({
-      assessments: { data: SAMPLE, loading: false, error: undefined },
+      assessments: { data: RAW_SAMPLE, loading: false, error: undefined },
       summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
       contributions: {
         data: [{ contribution: Number.NaN }], // id/label/score 누락 + NaN.
@@ -505,7 +535,7 @@ describe('DashboardView — 평가 상세 패널 배선 (③b-2)', () => {
   // negative — 상세 실패 시 다른 조회는 정상(상태 오염 차단의 역방향 확인).
   it('contributions 만 실패해도 분포·시계열·테이블은 정상 렌더한다 (negative — 오염 차단)', () => {
     setResources3({
-      assessments: { data: SAMPLE, loading: false, error: undefined },
+      assessments: { data: RAW_SAMPLE, loading: false, error: undefined },
       summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
       contributions: { data: undefined, loading: false, error: 'HTTP 503: detail down' },
     });
@@ -574,13 +604,19 @@ describe('DashboardView — 평가 상세 파생 (순수 함수)', () => {
   });
 });
 
-// 페이지네이션 검증용 12 건 샘플 — pageSize 10 기본에서 2 페이지로 나뉘도록 한다.
-// score 를 12..1 로 내림차순 부여해 기본 정렬(score desc)에서 id 순서가 예측 가능하다.
-const PAGED_SAMPLE: EvaluationResultRow[] = Array.from({ length: 12 }, (_, i) => ({
+// 페이지네이션 검증용 12 건 raw 샘플 — pageSize 10 기본에서 2 페이지로 나뉘도록 한다.
+// contributionScore 를 12..1 로 내림차순 부여해 기본 정렬(contributionScore desc)에서
+// 표시 순서(대상1..대상12)가 예측 가능하다. 표 첫 컬럼이 period 라 셀 텍스트는 `대상N`.
+const PAGED_SAMPLE: unknown[] = Array.from({ length: 12 }, (_, i) => ({
   id: `r${i + 1}`,
-  subjectName: `대상${i + 1}`,
-  metricLabel: '협업',
-  score: 12 - i,
+  personId: 'p1',
+  period: `대상${i + 1}`,
+  scope: '팀',
+  periodStart: `2026-06-0${(i % 9) + 1}`,
+  difficulty: '중',
+  contributionScore: 12 - i,
+  volume: i + 1,
+  narrative: '근거 서술',
 }));
 
 describe('DashboardView — 페이지네이션 배선 (③b-3)', () => {
@@ -757,7 +793,7 @@ describe('DashboardView — R-78 평가 진행 중 경고 배너 배선 (⑤)', 
   // happy-path — personId 주입 + evaluationActive=true 면 자료 영역 위에 경고 배너
   // (role="alert" + 기본 문구)가 노출된다(controlled lift-up).
   it('personId 선택 + active=true 면 경고 배너(role="alert"/기본 문구)를 상단에 렌더한다 (happy-path)', () => {
-    setResource({ data: SAMPLE, loading: false, error: undefined });
+    setResource({ data: RAW_SAMPLE, loading: false, error: undefined });
     const html = renderToStaticMarkup(
       <DashboardView personId="p1" evaluationActive={true} />,
     );
@@ -766,23 +802,23 @@ describe('DashboardView — R-78 평가 진행 중 경고 배너 배선 (⑤)', 
     // 배너가 자료 영역(요약 카드)보다 앞(최상단)에 위치한다 — markup 순서로 단언.
     expect(html.indexOf('role="alert"')).toBeLessThan(html.indexOf('평가 건수'));
     // 평가 진행 중이어도 기존 자료는 그대로 노출(자료를 가리지 않음).
-    expect(html).toContain('김철수');
+    expect(html).toContain('<td>중</td>');
   });
 
   // error/negative — evaluationActive 미주입(기본 false)이면 배너 미노출(자료 화면 미차단).
   it('active 미주입(기본 false)이면 경고 배너를 렌더하지 않는다 (negative — 자료 미차단)', () => {
-    setResource({ data: SAMPLE, loading: false, error: undefined });
+    setResource({ data: RAW_SAMPLE, loading: false, error: undefined });
     const html = renderToStaticMarkup(<DashboardView personId="p1" />);
     // 배너 미노출 — role="alert" 는 데이터 alert 가 없는 한 등장하지 않는다(여기선 정상 데이터).
     expect(html).not.toContain('role="alert"');
     expect(html).not.toContain(GUARD_DEFAULT_TOKEN);
     // 자료는 정상 노출.
-    expect(html).toContain('김철수');
+    expect(html).toContain('<td>중</td>');
   });
 
   // negative — evaluationActive=false 명시 + message 동시 주입이어도 배너 미노출(active 우선).
   it('active=false + message 주입이어도 배너를 렌더하지 않는다 (negative — active 우선)', () => {
-    setResource({ data: SAMPLE, loading: false, error: undefined });
+    setResource({ data: RAW_SAMPLE, loading: false, error: undefined });
     const html = renderToStaticMarkup(
       <DashboardView
         personId="p1"
@@ -797,7 +833,7 @@ describe('DashboardView — R-78 평가 진행 중 경고 배너 배선 (⑤)', 
   // branch (1) — personId 선택 + active=true 에서 배너 상단 노출(위 happy-path 와 별개로
   // custom message override 가 그대로 내려가는 controlled lift-up 도 함께 확인).
   it('personId 선택 + active=true + custom message 면 custom 문구가 상단에 내려간다 (branch — 선택 분기)', () => {
-    setResource({ data: SAMPLE, loading: false, error: undefined });
+    setResource({ data: RAW_SAMPLE, loading: false, error: undefined });
     const custom = '시스템 점검으로 일부 자료가 지연됩니다.';
     const html = renderToStaticMarkup(
       <DashboardView personId="p1" evaluationActive={true} evaluationMessage={custom} />,
@@ -824,7 +860,7 @@ describe('DashboardView — R-78 평가 진행 중 경고 배너 배선 (⑤)', 
 
   // negative — active=true + 빈 message 면 컴포넌트가 기본 문구로 fallback 한다(빈 배너 방지).
   it('active=true + 빈 message 면 기본 문구로 fallback 한다 (negative — 경계값)', () => {
-    setResource({ data: SAMPLE, loading: false, error: undefined });
+    setResource({ data: RAW_SAMPLE, loading: false, error: undefined });
     const html = renderToStaticMarkup(
       <DashboardView personId="p1" evaluationActive={true} evaluationMessage="" />,
     );
@@ -935,7 +971,7 @@ function setResourcesPD(pd: ApiResourceState<unknown>) {
     }
     // assessments 는 정상 SAMPLE 로 두어 본문 테이블이 정상 렌더(권한 부족 섹션과 상태 분리 확인).
     if (typeof path === 'string' && path.startsWith('/api/assessments')) {
-      return { data: SAMPLE, loading: false, error: undefined };
+      return { data: RAW_SAMPLE, loading: false, error: undefined };
     }
     return IDLE;
   });
@@ -1039,10 +1075,10 @@ describe('DashboardView — 권한 부족 record 섹션 배선 (T-1140, R-20/R-3
   it('권한 부족 실패가 본문 테이블 렌더를 오염시키지 않는다 (negative — 상태 분리)', () => {
     setResourcesPD({ data: undefined, loading: false, error: 'HTTP 500: pd boom' });
     const html = renderToStaticMarkup(<DashboardView personId="p1" />);
-    // 권한 부족 섹션은 에러, 그러나 본문 결과 테이블(assessments SAMPLE)은 정상 렌더.
+    // 권한 부족 섹션은 에러, 그러나 본문 결과 테이블(assessments RAW_SAMPLE)은 정상 렌더.
     expect(html).toContain('HTTP 500: pd boom');
     expect(html).toContain('<table>');
-    expect(html).toContain('김철수');
+    expect(html).toContain('<td>중</td>');
   });
 
   // 조건부 렌더 — personId 미선택 시 권한 부족 섹션(heading)은 미렌더(main return 에만 마운트).
@@ -1051,5 +1087,189 @@ describe('DashboardView — 권한 부족 record 섹션 배선 (T-1140, R-20/R-3
     const html = renderToStaticMarkup(<DashboardView />);
     expect(html).toContain('평가 대상을 선택하면');
     expect(html).not.toContain('권한 부족 기록');
+  });
+});
+
+
+// T-1727 — 새 행 계약 배선 검증. assessments 조회에만 상태를 주입하고 나머지 조회는 idle 로
+// 두어(persons·permission-denied·summaries·contributions) 표 렌더 단언이 다른 섹션 markup 에
+// 오염되지 않게 한다.
+function setAssessments(state: ApiResourceState<unknown>) {
+  useApiResourceMock.mockImplementation((path: string | null) =>
+    typeof path === 'string' && path.startsWith('/api/assessments') ? state : IDLE,
+  );
+}
+
+// 표시 행 1 개를 만드는 test helper — 지정하지 않은 축은 기본값으로 채운다.
+function displayRow(over: Partial<AssessmentDisplayRow>): AssessmentDisplayRow {
+  return {
+    id: 'x1',
+    personId: 'p1',
+    period: '2026-06',
+    scope: '팀',
+    periodStart: '2026-06-01',
+    difficulty: '중',
+    contributionScore: 50,
+    volume: 3,
+    narrative: '근거',
+    ...over,
+  };
+}
+
+describe('DashboardView — AssessmentDisplayRow 파이프라인 배선 (T-1727)', () => {
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — 브리지 helper 가 표시 행을 옛 집계 계약으로 정상 매핑한다.
+  it('toLegacyScoreRows 가 표시 행을 집계용 옛 행으로 매핑한다 (happy-path)', () => {
+    const legacy = toLegacyScoreRows([
+      displayRow({ id: '1', period: '2026-06', scope: '팀', contributionScore: 80 }),
+      displayRow({ id: '2', period: '2026-07', scope: '개인', contributionScore: 0 }),
+    ]);
+    expect(legacy).toEqual([
+      { id: '1', subjectName: '2026-06', metricLabel: '팀', score: 80 },
+      // 0 점은 "값 없음" 이 아니므로 집계에 그대로 포함된다(제외 대상은 null 뿐).
+      { id: '2', subjectName: '2026-07', metricLabel: '개인', score: 0 },
+    ]);
+  });
+
+  // error path — 비정상 입력에도 빈 배열 + throw 0.
+  it('비정상 입력이면 빈 배열을 반환하고 throw 하지 않는다 (error path — 브리지 방어)', () => {
+    expect(() =>
+      toLegacyScoreRows(null as unknown as AssessmentDisplayRow[]),
+    ).not.toThrow();
+    expect(toLegacyScoreRows(null as unknown as AssessmentDisplayRow[])).toEqual([]);
+    expect(toLegacyScoreRows(undefined as unknown as AssessmentDisplayRow[])).toEqual([]);
+    expect(toLegacyScoreRows('boom' as unknown as AssessmentDisplayRow[])).toEqual([]);
+    // 배열 안의 비객체 원소·NaN 점수도 조용히 제외된다(throw 0).
+    expect(
+      toLegacyScoreRows([
+        null as unknown as AssessmentDisplayRow,
+        displayRow({ contributionScore: Number.NaN }),
+      ]),
+    ).toEqual([]);
+  });
+
+  // negative (c) — contributionScore null 행은 요약 평균·점수 분포 집계에서 제외된다.
+  it('contributionScore=null 행을 집계에서 제외한다 (negative — 0 점 위장 금지)', () => {
+    const rows = [
+      displayRow({ id: '1', contributionScore: 60 }),
+      displayRow({ id: '2', contributionScore: null }),
+    ];
+    const legacy = toLegacyScoreRows(rows);
+    expect(legacy).toHaveLength(1);
+    // 평균이 30(=60/2)으로 끌려 내려가지 않고 60 을 유지한다.
+    const metrics = deriveMetrics(legacy);
+    expect(metrics[0]).toMatchObject({ id: 'count', value: 1 });
+    expect(metrics[1]).toMatchObject({ id: 'avg', value: 60 });
+    // 분포도 1 건만 집계 — 0 점 bucket(b0)이 부풀지 않는다.
+    const byId = Object.fromEntries(
+      deriveScoreBuckets(legacy).map((b) => [b.id, b.count]),
+    );
+    expect(byId.b60).toBe(1);
+    expect(byId.b0).toBe(0);
+  });
+
+  // branch (c) — 헤더 클릭 정렬 전이: 같은 키 → 방향 토글 / 다른 키 → asc 전환.
+  it('같은 키 재클릭은 방향을 토글한다 (branch — 헤더 정렬 토글)', () => {
+    expect(resolveHeaderSort('contributionScore', 'desc', 'contributionScore')).toEqual({
+      sortKey: 'contributionScore',
+      sortDirection: 'asc',
+    });
+    expect(resolveHeaderSort('contributionScore', 'asc', 'contributionScore')).toEqual({
+      sortKey: 'contributionScore',
+      sortDirection: 'desc',
+    });
+  });
+
+  it('다른 키 클릭은 그 키로 바꾸고 asc 로 되돌린다 (branch — 헤더 정렬 전환)', () => {
+    expect(resolveHeaderSort('contributionScore', 'desc', 'period')).toEqual({
+      sortKey: 'period',
+      sortDirection: 'asc',
+    });
+  });
+
+  // branch (d) — 숫자 축 null 행은 정렬 방향과 무관하게 항상 마지막.
+  it('contributionScore=null 행이 정렬 순서상 마지막에 온다 (branch — null 정렬)', () => {
+    setAssessments({
+      data: [
+        { id: '1', period: '값없음', scope: '팀', contributionScore: null },
+        { id: '2', period: '높음', scope: '팀', contributionScore: 95 },
+        { id: '3', period: '낮음', scope: '팀', contributionScore: 60 },
+      ],
+      loading: false,
+      error: undefined,
+    });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    expect(html.indexOf('<td>높음</td>')).toBeLessThan(html.indexOf('<td>낮음</td>'));
+    expect(html.indexOf('<td>낮음</td>')).toBeLessThan(html.indexOf('<td>값없음</td>'));
+  });
+
+  // branch (e) — 검색어가 문자열 축에 걸리면 그 행만 남는다.
+  it('검색어로 행이 걸러진다 (branch — 검색 필터)', () => {
+    setAssessments({ data: RAW_SAMPLE, loading: false, error: undefined });
+    const html = renderToStaticMarkup(
+      <DashboardView personId="p1" initialSearchTerm="개인" />,
+    );
+    expect(html).toContain('<td>2026-07</td>');
+    expect(html).not.toContain('<td>2026-06</td>');
+    expect(html).not.toContain('<td>2026-08</td>');
+  });
+
+  // error path — 조회 실패·data 미도착 어느 쪽도 throw 없이 빈 표로 흡수된다.
+  it('조회 실패·data 미도착을 빈 표로 흡수한다 (error path — throw 0)', () => {
+    setAssessments({ data: undefined, loading: false, error: 'HTTP 500: boom' });
+    const errorHtml = renderToStaticMarkup(<DashboardView personId="p1" />);
+    expect(errorHtml).toContain('표시할 평가 결과가 없습니다');
+    setAssessments(IDLE);
+    expect(() => renderToStaticMarkup(<DashboardView personId="p1" />)).not.toThrow();
+  });
+
+  // negative (a) — 배열이 아닌 응답(객체·문자열)도 빈 표로 흡수(throw 0).
+  it('배열이 아닌 응답이면 빈 표로 흡수한다 (negative — 비배열 응답)', () => {
+    for (const bad of [{ items: RAW_SAMPLE }, 'boom']) {
+      setAssessments({
+        data: bad as unknown as unknown[],
+        loading: false,
+        error: undefined,
+      });
+      const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+      expect(html).toContain('표시할 평가 결과가 없습니다');
+      expect(html).not.toContain('<td>');
+    }
+  });
+
+  // negative (b) — 결손 행은 '—' 로 흡수되고 undefined/NaN 문자열이 화면에 새지 않는다.
+  it('결손 행을 — 로 흡수하고 undefined/NaN 을 노출하지 않는다 (negative — 결손 행)', () => {
+    setAssessments({
+      data: [
+        { id: 'ok', period: '2026-06', scope: '팀', contributionScore: 70 },
+        { id: 'partial', difficulty: 12345, contributionScore: 'NaN' },
+        { period: '버려질 행' }, // id 결손 → 행 자체가 제외된다.
+      ],
+      loading: false,
+      error: undefined,
+    });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    expect(html).toContain('<td>—</td>');
+    expect(html).not.toContain('undefined');
+    expect(html).not.toContain('NaN');
+    expect(html).not.toContain('버려질 행');
+  });
+
+  // negative (e) — 표에 narrative·personId·id 컬럼이 노출되지 않는다(상세/내부 식별자 축).
+  it('narrative·personId·id 를 표 컬럼으로 노출하지 않는다 (negative — 컬럼 경계)', () => {
+    setAssessments({ data: RAW_SAMPLE, loading: false, error: undefined });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    expect(html).not.toContain('<td>협업 근거 서술</td>');
+    expect(html).not.toContain('<td>p1</td>');
+    expect(html).not.toContain('<th>근거</th>');
+    // 툴바 정렬 옵션도 표 헤더 6 키와 같은 집합이라 narrative 옵션이 없다.
+    expect(html).not.toContain('value="narrative"');
+    expect(html).not.toContain('value="personId"');
   });
 });

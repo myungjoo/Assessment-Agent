@@ -71,14 +71,17 @@ function extractPathQueryParams(path: string): string[] {
     .sort();
 }
 
-// DashboardView 조회 call site 의 발사 method 추론. `useApiResource<EvaluationResultRow[]>(path)` 를
-// 옵션 인자 없이(단일 인자) 호출 → request→fetch default GET. 인자 2+ (options 전달)면 non-GET 가능.
-// 형제 조회(useApiResource<SummaryRow[]>·<ContributionRow[]>·<PermissionDeniedRecordRow[]>)와
-// 섞이지 않도록 <EvaluationResultRow[]> 타입 인자를 명시 anchor 로 슬라이스한다.
+// DashboardView 조회 call site 의 발사 method 추론. assessments 조회를 옵션 인자 없이(단일 인자)
+// 호출 → request→fetch default GET. 인자 2+ (options 전달)면 non-GET 가능.
+// T-1727 이후 컨테이너는 응답을 특정 행 타입으로 단정하지 않으므로(<unknown[]>) 옆 타입 인자
+// (<EvaluationResultRow[]>)를 anchor 로 쓸 수 없다. 형제 조회(<SummaryRow[]>·<ContributionRow[]>·
+// <PermissionDeniedRecordRow[]>·persons 의 <unknown[]>)와 섞이지 않도록, assessments 조회만 갖는
+// 무-alias 구조분해(`const { data, loading, error } =`)를 anchor 로 슬라이스한다.
 function extractAssessmentsFireMethod(source: string): string | null {
-  const matched = /useApiResource<EvaluationResultRow\[\]>\(\s*([^)]*)\)/.exec(
-    stripComments(source),
-  );
+  const matched =
+    /const \{ data, loading, error \} = useApiResource<unknown\[\]>\(\s*([^)]*)\)/.exec(
+      stripComments(source),
+    );
   if (!matched) {
     return null;
   }
@@ -281,7 +284,9 @@ describe('DashboardView — 시계열 평가 결과 조회(GET /api/assessments)
   });
   it('web call site 가 옵션 인자를 전달하면(단일 인자 아님) GET 추론이 깨져 method 불일치로 잡힌다 (negative — 발사 override drift)', () => {
     const overridden = extractAssessmentsFireMethod(
-      ["const x = useApiResource<EvaluationResultRow[]>(path, { method: 'POST' });"].join('\n'),
+      [
+        "const { data, loading, error } = useApiResource<unknown[]>(path, { method: 'POST' });",
+      ].join('\n'),
     );
     expect(overridden).toBe('NON-GET(args=2)'); // 옵션 인자 존재 → GET 아님
     const fired: WebFire = { path: `${BASE}?personId=p1&period=week`, method: overridden ?? 'GET', queryParams: ['period', 'personId'] };
