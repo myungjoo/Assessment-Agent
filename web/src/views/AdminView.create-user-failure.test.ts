@@ -160,4 +160,24 @@ describe('AdminView — 사용자 추가 실패 문구 배선 drift guard (T-171
   it('describeCreateUserFailure 가 named export 로 노출된다', () => {
     expect(source).toContain('\n  describeCreateUserFailure,\n');
   });
+
+  // Nit-1 closure (round 2) — 두 계정 생성 화면의 구분자 값이 갈리지 않게 고정한다. 둘 다 각자
+  // 모듈 내부 상수라(공통 helper 추출은 본 slice Out of Scope) 소스 대조 외에는 묶을 방법이 없다.
+  it('CREATE_USER_ERROR_SEPARATOR 가 AppShell 의 SETUP_ERROR_SEPARATOR 와 같은 값이다', () => {
+    const appShell = readFileSync(
+      new URL('../AppShell.tsx', import.meta.url),
+      'utf8',
+    );
+    const literal = (text: string, name: string): string | undefined =>
+      new RegExp(`const ${name} = '([^']*)';`).exec(text)?.[1];
+
+    const here = literal(source, 'CREATE_USER_ERROR_SEPARATOR');
+    const there = literal(appShell, 'SETUP_ERROR_SEPARATOR');
+
+    expect(here).toBeDefined();
+    expect(there).toBeDefined();
+    expect(here).toBe(there);
+    // 값이 실제로 spec 이 쓰는 SEPARATOR 와도 같아야 위쪽 단언들이 유효하다.
+    expect(here).toBe(SEPARATOR);
+  });
 });
