@@ -2,7 +2,9 @@
 id: T-1715
 title: Admin 사용자 추가 실패 문구를 축별 구체 사유로 교체
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1346
+completedAt: 2026-08-26T08:56:17Z
 commitMode: pr
 coversReq: [REQ-068, REQ-069]
 estimatedDiff: 150
@@ -63,3 +65,10 @@ plannerNote: P6 오너 지시(PLAN 129 행 🔴) 분해 slice 6 — T-1714 가 �
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 요약
+
+- **DONE** — PR [#1346](https://github.com/myungjoo/Assessment-Agent/pull/1346) round 2 APPROVE → squash merge `a9225679` (2026-08-26T08:56:17Z).
+- `web/src/views/AdminView.tsx` 에 순수 함수 `describeCreateUserFailure` + 구분자 상수 `CREATE_USER_ERROR_SEPARATOR` 신설, `handleCreateUser` deps 의 `describeError` 만 교체(+215/-1). `CreateUserDeps` · `runCreateUser` · 409 문구 무수정으로 회귀 0.
+- 신규 spec `AdminView.create-user-failure.test.ts` 14 it 로 R-112 4 종 cover(happy 1 · error path 1 · 분기 4 · negative 5 · drift guard 3). web vitest 72 files / 2154 test green, build · lint green.
+- reviewer round 1 Nit(구분자 상수 값 동기 drift guard 부재) 을 §3 Nit-in-PR closure 로 같은 PR round 2 에서 마감.
