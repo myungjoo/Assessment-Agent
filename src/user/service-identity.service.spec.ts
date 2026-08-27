@@ -1,5 +1,5 @@
-// ServiceIdentityService spec — T-1741 acceptance (R-112: happy / error / branch /
-// negative 4 카테고리 + coverage line/function ≥ 80%).
+// ServiceIdentityService spec — T-1741 (findByPersonId) + T-1742 (create) acceptance
+// (R-112: happy / error / branch / negative 4 카테고리 + coverage line/function ≥ 80%).
 //
 // 본 spec 은 PersonRepository / ServiceIdentityRepository 를 Jest mock 으로 대체해
 // PostgreSQL 없이 isolated 하게 실행된다. 검증 포인트:
@@ -10,9 +10,10 @@
 //     **호출되지 않음** (선검사가 실제로 선행함을 고정).
 //   - negative: 각 collaborator 의 throw propagate (변환 0) · 반환 배열 무가공 drift
 //     guard · soft-deleted (`active=false`) Person 도 404 아님.
-import { NotFoundException } from "@nestjs/common";
+import { ConflictException, NotFoundException } from "@nestjs/common";
 import type { Person, ServiceIdentity } from "@prisma/client";
 
+import type { CreateServiceIdentityDto } from "./dto/create-service-identity.dto";
 import type { PersonRepository } from "./person.repository";
 import type { ServiceIdentityRepository } from "./service-identity.repository";
 import { ServiceIdentityService } from "./service-identity.service";
@@ -54,14 +55,20 @@ function buildHarness(): {
   service: ServiceIdentityService;
   personFindById: jest.Mock;
   identityFindByPersonId: jest.Mock;
+  identityCreate: jest.Mock;
+  identitySetPrimary: jest.Mock;
 } {
   const personFindById = jest.fn();
   const identityFindByPersonId = jest.fn();
+  const identityCreate = jest.fn();
+  const identitySetPrimary = jest.fn();
   const personRepository = {
     findById: personFindById,
   } as unknown as PersonRepository;
   const serviceIdentityRepository = {
     findByPersonId: identityFindByPersonId,
+    create: identityCreate,
+    setPrimary: identitySetPrimary,
   } as unknown as ServiceIdentityRepository;
 
   return {
@@ -71,7 +78,15 @@ function buildHarness(): {
     ),
     personFindById,
     identityFindByPersonId,
+    identityCreate,
+    identitySetPrimary,
   };
+}
+
+function buildCreateDto(
+  overrides: Partial<CreateServiceIdentityDto> = {},
+): CreateServiceIdentityDto {
+  return { service: "github.com", externalId: "external-1", ...overrides };
 }
 
 describe("ServiceIdentityService", () => {
@@ -220,6 +235,197 @@ describe("ServiceIdentityService", () => {
       );
       expect(personFindById).toHaveBeenCalledWith("");
       expect(identityFindByPersonId).not.toHaveBeenCalled();
+    });
+  });
+  describe("create — happy path", () => {
+    it("기존 row 2 개인 Person 에 추가하면 create 인자에 isPrimary 키가 없고 setPrimary 미호출 + 생성 row 를 그대로 반환한다", async () => {
+      const h = buildHarness();
+      const created = buildServiceIdentityFixture({ id: "si-new" });
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([
+        buildServiceIdentityFixture({ id: "si-1", isPrimary: true }),
+        buildServiceIdentityFixture({ id: "si-2", service: "gitlab.com" }),
+      ]);
+      h.identityCreate.mockResolvedValue(created);
+
+      await expect(
+        h.service.create(
+          "person-1",
+          buildCreateDto({ service: "ghe.corp", externalId: "ext-9" }),
+        ),
+      ).resolves.toBe(created);
+
+      expect(h.identityCreate).toHaveBeenCalledTimes(1);
+      expect(h.identityCreate).toHaveBeenCalledWith({
+        personId: "person-1",
+        service: "ghe.corp",
+        externalId: "ext-9",
+      });
+      expect(Object.keys(h.identityCreate.mock.calls[0][0]).sort()).toEqual([
+        "externalId",
+        "personId",
+        "service",
+      ]);
+      expect(h.identitySetPrimary).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("create — 분기 cover", () => {
+    it("(a) 기존 row 0 개면 setPrimary 를 1 회 호출하고 그 반환값을 최종 반환한다", async () => {
+      const h = buildHarness();
+      const promoted = buildServiceIdentityFixture({
+        id: "si-new",
+        isPrimary: true,
+      });
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([]);
+      h.identityCreate.mockResolvedValue(
+        buildServiceIdentityFixture({ id: "si-new" }),
+      );
+      h.identitySetPrimary.mockResolvedValue(promoted);
+
+      await expect(
+        h.service.create("person-1", buildCreateDto()),
+      ).resolves.toBe(promoted);
+      expect(h.identitySetPrimary).toHaveBeenCalledTimes(1);
+      expect(h.identitySetPrimary).toHaveBeenCalledWith("person-1", "si-new");
+    });
+
+    it("(b) 기존 row 1 개면 setPrimary 미호출 + create 반환값이 최종 반환값이다", async () => {
+      const h = buildHarness();
+      const created = buildServiceIdentityFixture({ id: "si-new" });
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([
+        buildServiceIdentityFixture({ id: "si-1", isPrimary: true }),
+      ]);
+      h.identityCreate.mockResolvedValue(created);
+
+      await expect(
+        h.service.create("person-1", buildCreateDto()),
+      ).resolves.toBe(created);
+      expect(h.identitySetPrimary).not.toHaveBeenCalled();
+    });
+
+    it("(c) create 가 P2002 를 던지면 ConflictException 으로 변환한다 (409)", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([]);
+      h.identityCreate.mockRejectedValue(
+        Object.assign(new Error("unique constraint"), { code: "P2002" }),
+      );
+
+      await expect(
+        h.service.create("person-1", buildCreateDto()),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(h.identitySetPrimary).not.toHaveBeenCalled();
+    });
+
+    it("(d) create 가 P2002 외 code 를 던지면 변환 없이 원 오류를 propagate 한다", async () => {
+      const h = buildHarness();
+      const boom = Object.assign(new Error("db down"), { code: "P1001" });
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([]);
+      h.identityCreate.mockRejectedValue(boom);
+
+      await expect(h.service.create("person-1", buildCreateDto())).rejects.toBe(
+        boom,
+      );
+    });
+  });
+
+  describe("create — error path / negative cases", () => {
+    it("(i) Person 부재면 NotFoundException 이고 create · setPrimary 가 둘 다 호출되지 않는다", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(null);
+
+      await expect(h.service.create("ghost", buildCreateDto())).rejects.toThrow(
+        "person not found: ghost",
+      );
+      expect(h.identityFindByPersonId).not.toHaveBeenCalled();
+      expect(h.identityCreate).not.toHaveBeenCalled();
+      expect(h.identitySetPrimary).not.toHaveBeenCalled();
+    });
+
+    it("(ii) P2002 변환 결과는 ConflictException 이며 NotFoundException 이 아니다", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([]);
+      h.identityCreate.mockRejectedValue(
+        Object.assign(new Error("unique constraint"), { code: "P2002" }),
+      );
+
+      await expect(
+        h.service.create("person-1", buildCreateDto()),
+      ).rejects.not.toBeInstanceOf(NotFoundException);
+      await expect(
+        h.service.create("person-1", buildCreateDto()),
+      ).rejects.toThrow("service identity already exists: person-1/github.com");
+    });
+
+    it("(iii) code 가 P2025 이거나 code 가 없는 · string 이 아닌 오류는 원형 그대로 propagate 한다", async () => {
+      const errors = [
+        Object.assign(new Error("record not found"), { code: "P2025" }),
+        new Error("plain failure"),
+        Object.assign(new Error("numeric code"), { code: 2002 }),
+      ];
+
+      for (const boom of errors) {
+        const h = buildHarness();
+        h.personFindById.mockResolvedValue(buildPersonFixture());
+        h.identityFindByPersonId.mockResolvedValue([]);
+        h.identityCreate.mockRejectedValue(boom);
+
+        await expect(
+          h.service.create("person-1", buildCreateDto()),
+        ).rejects.toBe(boom);
+      }
+    });
+
+    it("(iv) setPrimary 가 throw 하면 승격 실패를 삼키지 않고 propagate 한다", async () => {
+      const h = buildHarness();
+      const boom = Object.assign(new Error("promotion failed"), {
+        code: "P2025",
+      });
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([]);
+      h.identityCreate.mockResolvedValue(
+        buildServiceIdentityFixture({ id: "si-new" }),
+      );
+      h.identitySetPrimary.mockRejectedValue(boom);
+
+      await expect(h.service.create("person-1", buildCreateDto())).rejects.toBe(
+        boom,
+      );
+    });
+
+    it("(v) PersonRepository.findById 가 throw 하면 그대로 propagate 하고 이후 경로를 타지 않는다", async () => {
+      const h = buildHarness();
+      const boom = new Error("person lookup failed");
+      h.personFindById.mockRejectedValue(boom);
+
+      await expect(h.service.create("person-1", buildCreateDto())).rejects.toBe(
+        boom,
+      );
+      expect(h.identityFindByPersonId).not.toHaveBeenCalled();
+      expect(h.identityCreate).not.toHaveBeenCalled();
+    });
+
+    it("(vi) active=false 인 soft-deleted Person 도 404 가 아니라 정상 create 경로를 탄다 (drift guard)", async () => {
+      const h = buildHarness();
+      const promoted = buildServiceIdentityFixture({
+        id: "si-new",
+        isPrimary: true,
+      });
+      h.personFindById.mockResolvedValue(buildPersonFixture({ active: false }));
+      h.identityFindByPersonId.mockResolvedValue([]);
+      h.identityCreate.mockResolvedValue(
+        buildServiceIdentityFixture({ id: "si-new" }),
+      );
+      h.identitySetPrimary.mockResolvedValue(promoted);
+
+      await expect(
+        h.service.create("person-1", buildCreateDto()),
+      ).resolves.toBe(promoted);
     });
   });
 });
