@@ -18,16 +18,19 @@ import type { ServiceIdentityRepository } from "./service-identity.repository";
 import { ServiceIdentityService } from "./service-identity.service";
 
 // Person fixture — active 기본 true. soft delete 분기는 overrides 로 false 지정.
+// 반환 타입을 Person 으로 명시하되 `as` 단언은 쓰지 않는다 — schema 에 컬럼이
+// 늘면 본 fixture 가 compile error 로 drift 를 알려야 하기 때문이다.
 function buildPersonFixture(overrides: Partial<Person> = {}): Person {
   return {
     id: "person-1",
     fullName: "홍길동",
     email: "hong@example.com",
     active: true,
+    partId: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     ...overrides,
-  } as Person;
+  };
 }
 
 // ServiceIdentity fixture — schema.prisma 의 7 컬럼을 모두 채운 default row.
