@@ -1,14 +1,14 @@
 // ServiceIdentityService — ServiceIdentity 도메인 의 application service.
 // ADR-0058 §Follow-ups (a) 의 잔여 slice 중 **골격 + 목록 조회** (T-1741) · **create**
-// (T-1742) 에 이어 **update 1 경로** (T-1743) 까지 담는다 (DTO 는 T-1739, repository 는
-// T-1740 이 마감).
+// (T-1742) · **update 1 경로** (T-1743) 에 이어 **setPrimary 1 경로** (T-1744) 까지
+// 담는다 (DTO 는 T-1739, repository 는 T-1740 이 마감).
 //
 // 책임:
 //   - ADR-0058 §Decision 5 (c) 의 **Person 존재 선검사** 계약을 본 service 에 못 박는다.
 //     nested route (`/api/persons/:personId/service-identities`) 는 상위 resource 인
 //     Person 이 부재하면 하위 collection 이 빈 배열 200 을 주는 대신 404 여야 한다 —
 //     "부재한 상위 resource 가 200 을 주면 경로 의미가 깨진다" 는 ADR 근거 그대로다.
-//   - 후속 slice 의 update / delete / setPrimary route 도 본 선검사를 재사용한다.
+//   - update / setPrimary route 가 본 선검사를 재사용하며, 후속 delete route 도 같다.
 //   - ADR-0058 §Decision 2 의 **첫 row 자동 primary 승격** — 판정 기준은 **생성 직전 시점의
 //     기존 row 수 0 개**. 승격 누락은 `N ≥ 1` 인데 primary 0 인 조용한 수집 0 건으로 이어진다.
 //   - ADR-0058 §Decision 5 (a) 의 `P2002` → `ConflictException` (409) 변환, (b) 의
@@ -16,10 +16,10 @@
 //   - ADR-0058 §Decision 3 의 **PATCH 는 `externalId` 단일 축 + 미전달 보존** (RFC-7396
 //     merge patch) 과 §Decision 5 (e) 의 **타 Person 소유 identity 는 403 이 아니라 404**.
 //
-// 책임 경계 (Out of Scope — T-1743 §Out of Scope 박제):
-//   - delete 후 재승격 · setPrimary 는 public 메서드로 노출하지 않는다 (후속 slice).
-//     `setPrimary` 는 create 경로 안에서 **호출만** 하며 그 2 op transaction 을
-//     재구현하지 않는다 (ADR-0058 §Decision 2 — repository 가 유일 경로).
+// 책임 경계 (Out of Scope — T-1744 §Out of Scope 박제):
+//   - delete 후 재승격 (잔여 row `createdAt` · `id` 오름차순 첫 row 자동 승격) 은 public
+//     메서드로 노출하지 않는다 (후속 slice). 어느 경로에서도 `setPrimary` 의 2 op
+//     transaction 을 재구현하지 않는다 (ADR-0058 §Decision 2 — repository 가 유일 경로).
 //   - `P2002` · `P2025` 외의 오류는 어느 경로에서도 삼키지 않고 그대로 propagate 한다.
 //   - controller · route · guard 배선 없음 (ADR-0058 §Follow-ups (b)).
 //   - 정렬 · 필터 · DTO 매핑 없음 — repository 의 "Prisma default 순서 유지" 주석 승계.
@@ -160,6 +160,51 @@ export class ServiceIdentityService {
       return await this.serviceIdentityRepository.update(identityId, {
         externalId: dto.externalId,
       });
+    } catch (error) {
+      if (getPrismaErrorCode(error) === "P2025") {
+        throw new NotFoundException(
+          `service identity not found: ${identityId}`,
+        );
+      }
+      throw error;
+    }
+  }
+
+  // setPrimary — 해당 Person 소유 identity 1 개를 primary 로 지정 (ADR-0058 §Decision 1
+  // 의 전용 action POST `/api/persons/:personId/identities/:identityId/primary` backend,
+  // 성공 200).
+  //
+  //   (1) 선검사: findByPersonId / create / update 와 **동일한** Person 존재 계약 (ADR
+  //       §Decision 5 c). 부재면 404 이고 ServiceIdentityRepository 는 미호출.
+  //   (2) 소유 검사: update 와 같은 3 단 패턴 — 목록에 identityId 가 없으면 404 이며
+  //       **403 이 아니다** (ADR §Decision 5 e). 타 Person row 의 존재 사실도 소유자
+  //       personId 도 메시지에 드러내지 않는다. findById 를 새로 추가하지 않고 기존
+  //       findByPersonId primitive 를 재사용한다.
+  //   (3) 대상이 **이미 `isPrimary === true` 여도 early return 하지 않는다** — 다른 row 가
+  //       잘못 primary 로 남은 상태의 복구를 early return 이 막기 때문이다. 재요청해도 결과
+  //       상태가 같으므로 idempotent 하다 (ADR §Decision 1 primary 행).
+  //   (4) repository.setPrimary 결과를 가공 없이 반환 (2 op transaction 재구현 0 — ADR
+  //       §Decision 2 가 유일 경로). row 가 사라져 `P2025` 가 오면 404 로 변환 (ADR
+  //       §Decision 5 b), 그 외 오류는 원형 그대로 propagate.
+  async setPrimary(
+    personId: string,
+    identityId: string,
+  ): Promise<ServiceIdentity> {
+    const person = await this.personRepository.findById(personId);
+    if (person === null) {
+      throw new NotFoundException(`person not found: ${personId}`);
+    }
+
+    const owned = await this.serviceIdentityRepository.findByPersonId(personId);
+    if (!owned.some((row) => row.id === identityId)) {
+      throw new NotFoundException(`service identity not found: ${identityId}`);
+    }
+
+    try {
+      return await this.serviceIdentityRepository.setPrimary(
+        personId,
+        identityId,
+      );
     } catch (error) {
       if (getPrismaErrorCode(error) === "P2025") {
         throw new NotFoundException(
