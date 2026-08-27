@@ -2,8 +2,9 @@
 id: T-1738
 title: ADR — 인원별 ServiceIdentity 관리 API 계약 (route shape · primary invariant · RBAC · 오류 계약)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1368
 coversReq: [REQ-078, REQ-079]
 independentStream: p6-service-identity-api
 dependsOn: []
@@ -12,6 +13,7 @@ touchesFiles:
 estimatedDiff: 225
 estimatedFiles: 1
 created: 2026-08-27
+completedAt: 2026-08-27T16:57:18Z
 plannerNote: "PLAN 132 행(REQ-078/079) 진입 — 오너가 'API 설계는 architect ADR 동반' 을 명시한 축의 ADR-우선 첫 slice (doc-only 신규 ADR × 1.6)"
 ---
 
