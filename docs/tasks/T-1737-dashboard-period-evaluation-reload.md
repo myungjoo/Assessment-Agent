@@ -2,7 +2,7 @@
 id: T-1737
 title: DashboardView 에 기간 평가 성공 후 결과 재조회 배선
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-077]
 independentStream: web-dashboard-period-evaluation
@@ -15,6 +15,9 @@ estimatedFiles: 3
 sizeExempt: true
 exemptReason: 초과분은 전부 R-112 강제 spec — production 순증 ≤60 LOC 로 억제. T-1734(455) · T-1735(419) · T-1736(356) 선례 승계.
 created: 2026-08-28
+completedAt: 2026-08-27T16:01:41Z
+resultCommit: 5e37019e
+resultPr: 1367
 plannerNote: 오너 지시 PLAN 131 행 ④ / REQ-077 slice 5b — T-1736 이 신설한 reload 를 제출 성공 분기에 실제로 배선.
 ---
 
@@ -67,3 +70,10 @@ plannerNote: 오너 지시 PLAN 131 행 ④ / REQ-077 slice 5b — T-1736 이 �
 ## Follow-ups
 
 (비어 있음)
+
+## 결과 (DONE)
+
+- 2026-08-27T16:01:41Z 완료 — PR [#1367](https://github.com/myungjoo/Assessment-Agent/pull/1367) squash 머지 → main `5e37019e`, reviewer round 2/7 APPROVE 후 4-게이트 충족.
+- 3 파일 `+330/-3` — production 순증 **59 LOC**(AC 상한 60 준수), 나머지는 전부 colocated spec. 순수 판정 `shouldReloadAfterPeriodEvaluation` + 흡수 호출 `invokeResourceReload` + 조합 `reloadAfterPeriodEvaluation` 신설 후 `handlePeriodSubmit` 에 배선.
+- test: web vitest 83 파일 2524 case green, 루트 `pnpm test:cov` 453 suite 13009 case green(backend diff 0), `pnpm lint` · web build 통과. R-112 4 종 전부 cover(happy · error path · 분기 4 종 · negative 6 종 + 배선 source guard 4 종).
+- reviewer MINOR-1 은 [CLAUDE.md](../../CLAUDE.md) §3 Nit-in-PR closure 로 같은 PR round 2 에서 완결 — follow-up task 0.
