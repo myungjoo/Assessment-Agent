@@ -16,7 +16,13 @@ vi.mock('./apiClient', async () => {
 });
 
 import { ApiError, request } from './apiClient';
-import { runFetch, toErrorMessage, useApiResource } from './useApiResource';
+import {
+  nextReloadToken,
+  runFetch,
+  startResourceEffect,
+  toErrorMessage,
+  useApiResource,
+} from './useApiResource';
 import type { ApiResourceState } from './useApiResource';
 
 const requestMock = request as unknown as ReturnType<typeof vi.fn>;
@@ -154,5 +160,281 @@ describe('useApiResource — toErrorMessage', () => {
   // negative — Error 아닌 throw 표면도 안전 fallback.
   it('Error 아닌 값은 기본 문구로 fallback 한다 (negative — 비 Error throw)', () => {
     expect(toErrorMessage('string-throw')).toBe('알 수 없는 오류');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// T-1736 (REQ-077 slice 5a) — reload 재조회 계약 검증. hook 의 effect 본체를 캡슐화한
+// startResourceEffect 를 React 없이 직접 호출해 "재조회 = effect 재실행" 을 시뮬레이션하고
+// (loading 재전이 · 조건부 조회 no-op · race/unmount 가드 · 연속 재조회), 안정 신원과
+// 반환 계약은 정적 렌더의 render-phase update 로 실제 재렌더를 만들어 검증한다.
+// ---------------------------------------------------------------------------
+
+// 태스크 큐 flush — startResourceEffect 는 runFetch 의 promise 를 반환하지 않으므로
+// (React effect 계약: cleanup 만 반환) 도착 응답 commit 을 기다리려면 tick 을 넘긴다.
+function flush(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
+// 응답 도착 시점을 테스트가 통제하기 위한 수동 promise — race/연속 재조회 검증용.
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  // 미처리 rejection 경고 방지 — 실제 소비는 runFetch 가 한다.
+  promise.catch(() => undefined);
+  return { promise, resolve, reject };
+}
+
+describe('useApiResource — startResourceEffect (재조회 effect 본체)', () => {
+  beforeEach(() => {
+    requestMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — path 가 truthy 면 loading=true 선행 commit 후 응답 데이터로 갱신하고,
+  // race 가드용 cleanup 함수를 반환한다.
+  it('path 가 truthy 면 loading=true 를 먼저 commit 하고 응답으로 갱신한다 (happy-path)', async () => {
+    requestMock.mockResolvedValueOnce([{ id: '1' }]);
+    const sink = makeSink<unknown>();
+    const cleanup = startResourceEffect('/api/assessments?personId=p1', undefined, sink.commit);
+    expect(sink.calls[0]).toEqual({ data: undefined, loading: true, error: undefined });
+    expect(typeof cleanup).toBe('function');
+    await flush();
+    expect(requestMock).toHaveBeenCalledTimes(1);
+    expect(sink.last()).toEqual({ data: [{ id: '1' }], loading: false, error: undefined });
+  });
+
+  // 분기 (a) — 재조회 토큰만 바뀐 effect 재실행: 같은 path 로 request 가 다시 1 회 호출되고
+  // loading=true 로 되돌아간 뒤 최신 응답으로 갱신된다.
+  it('같은 path 로 재실행되면 request 를 다시 1 회 호출하고 loading=true 로 되돌아간다 (분기 — 토큰 재조회)', async () => {
+    requestMock.mockResolvedValueOnce(['old']).mockResolvedValueOnce(['new']);
+    const sink = makeSink<unknown>();
+    const cleanup = startResourceEffect('/api/x', undefined, sink.commit);
+    await flush();
+    expect(sink.last()).toMatchObject({ data: ['old'], loading: false });
+    cleanup?.();
+    const beforeReload = sink.calls.length;
+    startResourceEffect('/api/x', undefined, sink.commit);
+    expect(sink.calls[beforeReload]).toEqual({ data: undefined, loading: true, error: undefined });
+    await flush();
+    expect(requestMock).toHaveBeenCalledTimes(2);
+    expect(requestMock).toHaveBeenNthCalledWith(2, '/api/x', undefined);
+    expect(sink.last()).toEqual({ data: ['new'], loading: false, error: undefined });
+  });
+
+  // 분기 (b) — path 가 falsy 면 재실행돼도 request 0 회 + idle 유지(조건부 조회 불변),
+  // cleanup 도 불요(undefined).
+  it('path 가 falsy 면 재실행돼도 request 0 회이고 idle 을 유지한다 (분기 — 조건부 조회 no-op)', async () => {
+    const sink = makeSink<unknown>();
+    expect(startResourceEffect(null, undefined, sink.commit)).toBeUndefined();
+    expect(startResourceEffect('', undefined, sink.commit)).toBeUndefined();
+    await flush();
+    expect(requestMock).not.toHaveBeenCalled();
+    expect(sink.calls).toEqual([
+      { data: undefined, loading: false, error: undefined },
+      { data: undefined, loading: false, error: undefined },
+    ]);
+  });
+
+  // 분기 (d) — path 축만 바뀐 재실행: 각 path 로 정확히 1 회씩 조회한다(토큰 축과 동형).
+  it('path 만 바뀌어 재실행되면 각 path 로 1 회씩 조회한다 (분기 — path 축 재실행)', async () => {
+    requestMock.mockResolvedValue([]);
+    const sink = makeSink<unknown>();
+    startResourceEffect('/api/x?personId=p1', undefined, sink.commit)?.();
+    startResourceEffect('/api/x?personId=p2', undefined, sink.commit);
+    await flush();
+    expect(requestMock).toHaveBeenCalledTimes(2);
+    expect(requestMock).toHaveBeenNthCalledWith(1, '/api/x?personId=p1', undefined);
+    expect(requestMock).toHaveBeenNthCalledWith(2, '/api/x?personId=p2', undefined);
+  });
+
+  // error path — 첫 조회는 성공, 재조회가 실패하면 error 문구로 전이하고 data 는 비운다.
+  it('첫 조회 성공 후 재조회가 실패하면 error 문구로 전이한다 (error path — 성공에서 실패)', async () => {
+    requestMock.mockResolvedValueOnce(['ok']).mockRejectedValueOnce(new ApiError(500, 'boom'));
+    const sink = makeSink<unknown>();
+    // 첫 조회가 완결된 뒤 재조회로 effect 가 교체된다(cleanup → 재실행, React 와 동형).
+    const cleanup = startResourceEffect('/api/x', undefined, sink.commit);
+    await flush();
+    expect(sink.last()).toMatchObject({ data: ['ok'], error: undefined });
+    cleanup?.();
+    startResourceEffect('/api/x', undefined, sink.commit);
+    await flush();
+    expect(sink.last()).toEqual({ data: undefined, loading: false, error: 'HTTP 500: boom' });
+  });
+
+  // error path — 첫 조회 실패 후 재조회가 성공하면 error 가 해제되고 데이터가 채워진다(복구).
+  it('첫 조회 실패 후 재조회가 성공하면 error 가 해제된다 (error path — 실패에서 복구)', async () => {
+    requestMock.mockRejectedValueOnce(new ApiError(503, '일시 장애')).mockResolvedValueOnce(['ok']);
+    const sink = makeSink<unknown>();
+    const cleanup = startResourceEffect('/api/x', undefined, sink.commit);
+    await flush();
+    expect(sink.last()).toMatchObject({ error: 'HTTP 503: 일시 장애' });
+    cleanup?.();
+    startResourceEffect('/api/x', undefined, sink.commit);
+    await flush();
+    expect(sink.last()).toEqual({ data: ['ok'], loading: false, error: undefined });
+  });
+
+  // 분기 (c) — 재조회 도중 path 가 바뀌어 cleanup 된 effect 의 늦은 응답은 stale 이므로
+  // commit 되지 않는다(loading commit 1 개만 남는다).
+  it('재조회 도중 cleanup 되면 늦게 도착한 응답을 commit 하지 않는다 (분기 — stale race 가드)', async () => {
+    const late = deferred<unknown>();
+    requestMock.mockReturnValueOnce(late.promise);
+    const sink = makeSink<unknown>();
+    const cleanup = startResourceEffect('/api/x', undefined, sink.commit);
+    cleanup?.();
+    late.resolve(['stale']);
+    await flush();
+    expect(sink.calls).toEqual([{ data: undefined, loading: true, error: undefined }]);
+  });
+
+  // negative ① — 연속 2 회 재조회 시 중간 응답은 무시되고 마지막 응답만 반영된다.
+  it('연속 2 회 재조회하면 중간 응답을 무시하고 마지막 응답만 반영한다 (negative — 연속 reload)', async () => {
+    const first = deferred<unknown>();
+    const second = deferred<unknown>();
+    requestMock.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    const sink = makeSink<unknown>();
+    // 첫 재조회 effect 가 두 번째 재조회로 인해 cleanup 된다(React 의 effect 교체와 동형).
+    startResourceEffect('/api/x', undefined, sink.commit)?.();
+    startResourceEffect('/api/x', undefined, sink.commit);
+    first.resolve(['중간']);
+    second.resolve(['마지막']);
+    await flush();
+    expect(requestMock).toHaveBeenCalledTimes(2);
+    expect(sink.last()).toEqual({ data: ['마지막'], loading: false, error: undefined });
+    const committedData = sink.calls.filter((call) => call.data !== undefined);
+    expect(committedData).toHaveLength(1);
+  });
+
+  // negative ② — unmount(cleanup) 이후 도착한 재조회 응답이 state 를 덮어쓰지 않는다.
+  it('unmount 이후 도착한 재조회 응답은 state 를 덮어쓰지 않는다 (negative — unmount 가드)', async () => {
+    requestMock.mockResolvedValueOnce(['first']);
+    const sink = makeSink<unknown>();
+    const firstCleanup = startResourceEffect('/api/x', undefined, sink.commit);
+    await flush();
+    const settled = sink.last();
+    firstCleanup?.();
+    const late = deferred<unknown>();
+    requestMock.mockReturnValueOnce(late.promise);
+    const cleanup = startResourceEffect('/api/x', undefined, sink.commit);
+    cleanup?.(); // unmount
+    late.resolve(['after-unmount']);
+    await flush();
+    expect(sink.calls.filter((call) => call.data !== undefined)).toEqual([settled]);
+  });
+
+  // negative ③ — ApiError(status 0) 로 실패해도 예외가 호출자 밖으로 새지 않고 네트워크
+  // 문구로 흡수된다(startResourceEffect 는 동기 throw 0).
+  it('ApiError(status=0) 실패도 throw 없이 네트워크 문구로 흡수한다 (negative — 네트워크 실패)', async () => {
+    requestMock.mockRejectedValueOnce(new ApiError(0, 'fetch failed'));
+    const sink = makeSink<unknown>();
+    expect(() => startResourceEffect('/api/x', undefined, sink.commit)).not.toThrow();
+    await flush();
+    expect(sink.last()).toEqual({
+      data: undefined,
+      loading: false,
+      error: '네트워크 오류: fetch failed',
+    });
+  });
+
+  // negative ④ — 비-Error 값이 throw 돼도 문자열 error 로 안전 변환된다.
+  it('비-Error 값 throw 도 문자열 error 로 안전 변환한다 (negative — 비 Error throw)', async () => {
+    requestMock.mockRejectedValueOnce('문자열-throw');
+    const sink = makeSink<unknown>();
+    startResourceEffect('/api/x', undefined, sink.commit);
+    await flush();
+    expect(sink.last()).toEqual({ data: undefined, loading: false, error: '알 수 없는 오류' });
+  });
+});
+
+describe('useApiResource — nextReloadToken', () => {
+  // 토큰은 단조 증가하며 직전 값과 항상 달라야 한다(같으면 effect 가 재실행되지 않는다).
+  it('직전 값과 항상 다른 값으로 단조 증가한다 (happy-path — deps 변경 보장)', () => {
+    expect(nextReloadToken(0)).toBe(1);
+    let token = 0;
+    for (let i = 0; i < 5; i += 1) {
+      const next = nextReloadToken(token);
+      expect(next).not.toBe(token);
+      expect(next).toBeGreaterThan(token);
+      token = next;
+    }
+  });
+});
+
+describe('useApiResource — reload 반환 계약 (정적 렌더)', () => {
+  beforeEach(() => {
+    requestMock.mockReset();
+    requestMock.mockResolvedValue([]);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // 렌더마다 reload 참조를 수집하고, 첫 렌더에서 reload() 를 호출해 render-phase update
+  // (같은 컴포넌트의 즉시 재실행)를 유발하는 프로브. 정적 렌더라 effect 는 돌지 않는다.
+  function makeReloadProbe(path: string | null) {
+    const seen: Array<() => void> = [];
+    const outcome: { returned: unknown; threw: unknown } = { returned: '미호출', threw: null };
+    function Probe() {
+      const handle = useApiResource<unknown[]>(path);
+      seen.push(handle.reload);
+      if (seen.length === 1) {
+        try {
+          outcome.returned = handle.reload();
+        } catch (e) {
+          outcome.threw = e;
+        }
+      }
+      return createElement('span', null, handle.loading ? 'loading' : 'idle');
+    }
+    return { Probe, seen, outcome };
+  }
+
+  // negative ⑤ — reload 참조가 재렌더 간 동일해야 호출부 effect deps 에 실려도 무한
+  // refetch 가 나지 않는다(useCallback deps []).
+  it('reload 참조가 재렌더 간 동일하다 (negative — 무한 refetch 금지)', () => {
+    const probe = makeReloadProbe('/api/assessments?personId=p1');
+    renderToStaticMarkup(createElement(probe.Probe));
+    expect(probe.seen.length).toBeGreaterThan(1);
+    expect(probe.seen.every((fn) => fn === probe.seen[0])).toBe(true);
+  });
+
+  // negative ⑥ — reload() 는 값을 반환하지 않고 호출자에게 예외도 던지지 않는다.
+  it('reload() 는 undefined 를 반환하고 예외를 던지지 않는다 (negative — 반환/예외 계약)', () => {
+    const probe = makeReloadProbe('/api/assessments?personId=p1');
+    renderToStaticMarkup(createElement(probe.Probe));
+    expect(probe.outcome.returned).toBeUndefined();
+    expect(probe.outcome.threw).toBeNull();
+  });
+
+  // 분기 (b) hook 레벨 — path 가 falsy 면 reload() 를 호출해도 idle 이 유지되고 조회 0 회.
+  it('path 가 falsy 면 reload() 호출 후에도 idle 이 유지되고 request 0 회다 (분기 — 조건부 조회)', () => {
+    const probe = makeReloadProbe(null);
+    const html = renderToStaticMarkup(createElement(probe.Probe));
+    expect(html).toContain('idle');
+    expect(probe.outcome.threw).toBeNull();
+    expect(requestMock).not.toHaveBeenCalled();
+  });
+
+  // 호환 유지 — 반환 handle 은 기존 3 필드(data/loading/error)를 그대로 갖고 reload 만
+  // 가산된다(기존 5 개 호출부의 destructuring 이 깨지지 않는다).
+  it('반환 handle 이 기존 3 필드 + reload 를 노출한다 (happy-path — 호출부 호환)', () => {
+    let keys: string[] = [];
+    function Probe() {
+      const handle = useApiResource<unknown[]>('/api/x');
+      keys = Object.keys(handle).sort();
+      return createElement('span', null, typeof handle.reload);
+    }
+    const html = renderToStaticMarkup(createElement(Probe));
+    expect(html).toContain('function');
+    expect(keys).toEqual(['data', 'error', 'loading', 'reload']);
   });
 });
