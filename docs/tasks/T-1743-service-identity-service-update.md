@@ -2,7 +2,9 @@
 id: T-1743
 title: ServiceIdentityService 에 update 추가 — 소유 검사 404 + merge patch 미전달 보존
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1373
+completedAt: 2026-08-27T21:55:07Z
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 215
@@ -114,3 +116,14 @@ spec 포함 시 cap (≤ 300 LOC) 을 확실히 넘는다. 본 slice 는 그중 
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 append)
+
+## 결과 (2026-08-27)
+
+`pr` mode 로 PR [#1373](https://github.com/myungjoo/Assessment-Agent/pull/1373) → main `89ef41b2` squash 머지.
+`ServiceIdentityService.update` 단일 public 메서드만 추가 — Person 존재 선검사 404 → `findByPersonId`
+재사용 소유 검사 404(403 아님) → `externalId` 미전달 시 `repository.update` 미호출 + 현재 row 반환
+(RFC-7396 merge patch) → `P2025` 만 404 변환(기존 `getPrismaErrorCode` 재사용, 그 외 propagate).
+2 파일 `+290/-10`, colocated spec 에 `update` describe 3 개 추가로 R-112 4 종 cover
+(happy 2 · 분기 4 · error 2 · negative 6). 대상 service stmt/branch/func/line 100%,
+루트 `lint` · `build` · `test:cov` 456 suite / 13085 test green. reviewer round 1/7 APPROVE
+(PR 코멘트로 외화) → 4-게이트 충족 → squash 머지 + branch delete.
