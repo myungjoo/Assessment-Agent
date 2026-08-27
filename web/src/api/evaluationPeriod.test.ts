@@ -90,6 +90,8 @@ describe('buildPeriodEvaluationRequest — happy path · 분기', () => {
   it('reevaluate 는 엄격히 true 일 때만 body 에 실린다 (3 분기)', () => {
     expect('reevaluate' in (withInput({})?.body ?? {})).toBe(false);
     expect('reevaluate' in (withInput({ reevaluate: false })?.body ?? {})).toBe(false);
+    // 비-boolean 은 backend `@IsBoolean` 400 을 유발하므로 body 에서 제외된다.
+    expect('reevaluate' in (withInput({ reevaluate: 'true' })?.body ?? {})).toBe(false);
     expect(withInput({ reevaluate: true })?.body.reevaluate).toBe(true);
   });
   it('period 3 종이 모두 body 에 그대로 실린다', () => {
