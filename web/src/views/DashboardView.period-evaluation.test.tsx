@@ -176,6 +176,27 @@ describe('DashboardView — 기간 지정 평가 요청 배선 (T-1735, REQ-077)
       expect(notice.error).toBe('');
     });
 
+    // 경계값 — 0 건 성공은 "결과 없음" 이 아니라 0 건을 명시하고, NaN 건수는 건수형으로
+    // 오인하지 않고 미상형으로 떨어진다(숫자처럼 생긴 비수치 방어).
+    it('건수 0 은 0건으로 알리고 NaN 건수는 미상형으로 떨어뜨린다 (negative — 건수 경계값)', () => {
+      const zero = derivePeriodEvaluationNotice({
+        status: 'ok',
+        assessmentId: null,
+        created: null,
+        resultCount: 0,
+      });
+      expect(zero.success).toContain('평가 결과 0건');
+      expect(zero.error).toBe('');
+      const nan = derivePeriodEvaluationNotice({
+        status: 'ok',
+        assessmentId: null,
+        created: null,
+        resultCount: Number.NaN,
+      });
+      expect(nan.success).toBe(`${SUCCESS_PREFIX}.`);
+      expect(nan.error).toBe('');
+    });
+
     // error path — 모듈이 준 한국어 사유를 가공 없이 그대로 전달하고 성공 문구는 비운다.
     it('실패 outcome 의 사유를 그대로 전달한다 (error path — 실패 분기)', () => {
       const notice = derivePeriodEvaluationNotice({
