@@ -2,7 +2,7 @@
 id: T-1745
 title: DELETE 후 primary 재승격 대상 선택 순수 모듈 신설 — createdAt 오름차순 · 동률 시 id 오름차순
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079, REQ-024]
 estimatedDiff: 195
@@ -122,3 +122,11 @@ presentational/pure-module-first 패턴 (T-1733 → T-1735, T-1734 → T-1737) �
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 append)
+
+## 결과 (DONE — 2026-08-27T23:55:37Z)
+
+- PR [#1375](https://github.com/myungjoo/Assessment-Agent/pull/1375) squash 머지 → main `b7d94c55`, feature branch 삭제 완료.
+- `src/user/service-identity-primary-order.ts` 에 `selectNextPrimaryIdentity` 하나만 export — `createdAt` 오름차순 · 동률 시 `id` 오름차순 · 빈 배열 `null`. 단일 순회 최소값 선택이라 입력 배열 비변형(`sort` 미사용), `Date` 는 `getTime()` epoch 비교, `isPrimary` 는 선택에 무영향(삭제 직후 primary 0 · 복구 상황 결정성 — 근거 주석 박제).
+- 의존성 0 — `@nestjs/*` · `PrismaService` · repository import 0 건, 소비처 0 (`delete` 배선은 후속 slice).
+- 2 파일 `+239/-0`. colocated spec 15 케이스로 R-112 4 종 cover (happy 1 · error 2 · branch 5 · negative 7). 신규 모듈 line 92.85% / function 100% / branch 100% (미커버는 `id` 동률 시에만 닿는 `return 0` — `id` 는 PK 라 입력 불가). 전체 457 suite 13116 test green.
+- reviewer round 1/7 APPROVE (PR 코멘트로 외화) 후 4-게이트 PASS.
