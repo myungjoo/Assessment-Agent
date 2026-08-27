@@ -2,7 +2,7 @@
 id: T-1729
 title: DashboardView 점수 분포 축을 실 contributionScore 스케일(0–3) 집계로 교체
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-076]
 independentStream: p6-dashboard-actual-behavior
@@ -13,6 +13,8 @@ touchesFiles:
 estimatedDiff: 235
 estimatedFiles: 2
 created: 2026-08-27
+completedAt: 2026-08-27T03:54:45Z
+prNumber: 1359
 plannerNote: P6 오너지시 PLAN 131행 ③ 분해 slice 4b-1 — T-1728 순수 모듈을 분포 축에만 배선(요약 지표·브리지 제거는 4b-2)
 ---
 
@@ -64,3 +66,10 @@ plannerNote: P6 오너지시 PLAN 131행 ③ 분해 slice 4b-1 — T-1728 순수
 ## Follow-ups
 
 - (비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-27 완료)
+
+- **DONE** — PR [#1359](https://github.com/myungjoo/AA_S1/pull/1359) squash merge → main `6f9d5b18`. reviewer APPROVE round 1/7 (finding 0), 4-게이트 PASS.
+- `DashboardView.tsx` 의 `BUCKET_EDGES`(0–20…80–100) · `deriveScoreBuckets`(0–100 clamp) · 미사용 `ScoreDistributionBucket` type import 를 삭제하고, `scoreBuckets` useMemo 를 T-1728 의 `deriveContributionScoreBuckets(visibleRows)`(폭 0.5 6 등분, 값역 `[0, 3]`) 호출로 교체했다 — 의존 배열 동반 교체. 변경 2 파일 +186/-112.
+- spec 은 `RAW_SAMPLE` 을 실 스케일로 교정하고 신규 describe 10 test 추가: happy(실 스케일 라벨·count 렌더) / error(분포 에러) / 분기(미선택·전 행 null·혼재) / negative 4 종(미도착·결손·범위 밖·비유한 값) + **0–100 회귀 drift guard**. web 2393 test · 루트 `pnpm lint` · `test:cov`(13009) · `pnpm --dir web build`(tsc) 전량 green.
+- 범위 불변 — `deriveMetrics` · `toLegacyScoreRows` 브리지 · 요약 카드 만점 표기는 미변경(slice 4b-2 가 이어받는다). 새 dependency 0, `src/` diff 0.
