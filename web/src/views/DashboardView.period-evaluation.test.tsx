@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
@@ -28,6 +29,9 @@ vi.mock('../api/periodEvaluationSubmit', () => ({
 import DashboardView, {
   derivePeriodEvaluationNotice,
   runPeriodEvaluation,
+  shouldReloadAfterPeriodEvaluation,
+  invokeResourceReload,
+  reloadAfterPeriodEvaluation,
 } from './DashboardView';
 
 const IDLE: ApiResourceState<unknown> = {
@@ -295,5 +299,246 @@ describe('DashboardView — 기간 지정 평가 요청 배선 (T-1735, REQ-077)
       expect(notice.success).toBe('');
       expect(notice.error).toBe(UNKNOWN_NOTICE);
     });
+  });
+});
+
+// R-112 — T-1737 (REQ-077 slice 5b) 기간 평가 성공 후 결과 재조회 배선 검증. 상호작용
+// 이벤트가 필요한 경로는 jsdom 없이 재현할 수 없으므로, 컨테이너의 handlePeriodSubmit 이
+// 실제로 수행하는 조합(runPeriodEvaluation → reloadAfterPeriodEvaluation)을 그대로 호출해
+// happy/error/분기/negative 를 cover 한다.
+describe('DashboardView — 기간 평가 성공 후 재조회 배선 (T-1737, REQ-077)', () => {
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+    submitMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // 컨테이너가 실제로 넘기는 성공 notice 모양 — derive 결과와 같은 shape 을 쓴다.
+  const SUCCESS_NOTICE = { success: `${SUCCESS_PREFIX}.`, error: '' };
+  const FAILURE_NOTICE = { success: '', error: UNKNOWN_NOTICE };
+
+  describe('shouldReloadAfterPeriodEvaluation — 재조회 여부 판정', () => {
+    // 분기 ① — 성공 문구만 존재하면 재조회 대상이다(happy-path).
+    it('성공 문구만 있으면 true 를 돌려준다 (happy-path — 성공 분기)', () => {
+      expect(shouldReloadAfterPeriodEvaluation(SUCCESS_NOTICE)).toBe(true);
+      expect(
+        shouldReloadAfterPeriodEvaluation(
+          derivePeriodEvaluationNotice({ status: 'ok', resultCount: 3 }),
+        ),
+      ).toBe(true);
+    });
+
+    // 분기 ② — 에러 문구만 존재하면 재조회하지 않는다(error path).
+    it('에러 문구만 있으면 false 를 돌려준다 (error path — 실패 분기)', () => {
+      expect(shouldReloadAfterPeriodEvaluation(FAILURE_NOTICE)).toBe(false);
+      expect(
+        shouldReloadAfterPeriodEvaluation(
+          derivePeriodEvaluationNotice({ status: 'error', message: '권한이 없습니다.' }),
+        ),
+      ).toBe(false);
+    });
+
+    // 분기 ③ — 초기 상태(둘 다 빈 값)에서는 재조회하지 않는다.
+    it('성공·실패 문구가 모두 비어 있으면 false 다 (분기 — 초기 상태)', () => {
+      expect(shouldReloadAfterPeriodEvaluation({ success: '', error: '' })).toBe(false);
+      expect(shouldReloadAfterPeriodEvaluation({ success: '   ', error: '' })).toBe(false);
+    });
+
+    // 분기 ④ — 방어적으로, 둘 다 존재하는 모순 상태에서는 재조회하지 않는다.
+    it('성공·실패 문구가 모두 존재하면 false 다 (분기 — 방어적 모순 상태)', () => {
+      expect(shouldReloadAfterPeriodEvaluation({ success: '완료', error: '그런데 실패' })).toBe(
+        false,
+      );
+    });
+
+    // negative ① — null/undefined 를 성공으로 오인하지 않는다.
+    it('notice 가 null·undefined 면 false 다 (negative — 결손 notice)', () => {
+      for (const value of [null, undefined]) {
+        expect(shouldReloadAfterPeriodEvaluation(value)).toBe(false);
+      }
+    });
+
+    // negative ② — 문자열·숫자 등 비객체 입력도 값으로 흡수한다.
+    it('notice 가 비객체면 false 다 (negative — 비객체 입력)', () => {
+      for (const value of ['완료', 42, true, Symbol('x'), () => undefined]) {
+        expect(shouldReloadAfterPeriodEvaluation(value)).toBe(false);
+      }
+      // 배열·빈 객체도 성공 문구가 없으므로 재조회 대상이 아니다.
+      expect(shouldReloadAfterPeriodEvaluation([])).toBe(false);
+      expect(shouldReloadAfterPeriodEvaluation({})).toBe(false);
+    });
+
+    // negative ③ — success/error 가 문자열이 아닌 타입인 미지 shape.
+    it('success·error 가 문자열이 아니면 false 다 (negative — 타입 mismatch)', () => {
+      expect(shouldReloadAfterPeriodEvaluation({ success: 1, error: '' })).toBe(false);
+      expect(shouldReloadAfterPeriodEvaluation({ success: true, error: '' })).toBe(false);
+      expect(shouldReloadAfterPeriodEvaluation({ success: '완료', error: 42 })).toBe(false);
+      expect(shouldReloadAfterPeriodEvaluation({ success: '완료', error: {} })).toBe(false);
+      // error 키 자체가 없거나 null 이면 "실패 없음" 으로 읽어 재조회한다.
+      expect(shouldReloadAfterPeriodEvaluation({ success: '완료' })).toBe(true);
+      expect(shouldReloadAfterPeriodEvaluation({ success: '완료', error: null })).toBe(true);
+    });
+
+    // 순수성 — 입력 mutation 0 · throw 0.
+    it('입력 notice 를 변형하지 않는다 (순수 — mutation 0)', () => {
+      const notice = { success: '완료', error: '' };
+      const snapshot = { ...notice };
+      expect(() => shouldReloadAfterPeriodEvaluation(notice)).not.toThrow();
+      expect(notice).toEqual(snapshot);
+    });
+  });
+
+  describe('invokeResourceReload — 재조회 수단 호출 흡수', () => {
+    // happy-path — 함수면 1 회 호출하고 true 를 돌려준다.
+    it('함수 handle 을 1 회 호출한다 (happy-path)', () => {
+      const reload = vi.fn();
+      expect(invokeResourceReload(reload)).toBe(true);
+      expect(reload).toHaveBeenCalledTimes(1);
+    });
+
+    // negative ④⑤ — undefined handle · 비함수 값 모두 값으로 흡수한다.
+    it('함수가 아닌 값은 호출 없이 false 로 흡수한다 (negative — 비함수 handle)', () => {
+      for (const value of [undefined, null, 'reload', 42, {}, []]) {
+        expect(() => invokeResourceReload(value)).not.toThrow();
+        expect(invokeResourceReload(value)).toBe(false);
+      }
+    });
+
+    // negative — reload 자체가 throw 해도 컨테이너로 전파하지 않는다.
+    it('reload 가 throw 해도 삼키고 false 를 돌려준다 (negative — throw 흡수)', () => {
+      const boom = vi.fn(() => {
+        throw new Error('boom');
+      });
+      expect(() => invokeResourceReload(boom)).not.toThrow();
+      expect(invokeResourceReload(boom)).toBe(false);
+      expect(boom).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('reloadAfterPeriodEvaluation — 성공 시에만 재조회', () => {
+    // happy-path — 성공 notice 면 assessments·summaries 재조회가 각각 1 회.
+    it('성공 notice 면 두 재조회를 각각 1 회 호출한다 (happy-path — 재조회 배선)', () => {
+      const reload = vi.fn();
+      const trendReload = vi.fn();
+      expect(reloadAfterPeriodEvaluation(SUCCESS_NOTICE, [reload, trendReload])).toBe(2);
+      expect(reload).toHaveBeenCalledTimes(1);
+      expect(trendReload).toHaveBeenCalledTimes(1);
+      expect(reload).toHaveBeenCalledWith();
+    });
+
+    // error path — 실패 notice 면 호출 0 회(실패 후 표가 흔들리지 않는다).
+    it('실패 notice 면 재조회를 호출하지 않는다 (error path — 호출 0)', () => {
+      const reload = vi.fn();
+      const trendReload = vi.fn();
+      expect(reloadAfterPeriodEvaluation(FAILURE_NOTICE, [reload, trendReload])).toBe(0);
+      expect(reload).not.toHaveBeenCalled();
+      expect(trendReload).not.toHaveBeenCalled();
+    });
+
+    // happy-path (조합) — 컨테이너 handlePeriodSubmit 과 같은 순서로 실제 제출을 태운다.
+    it('제출 성공 흐름 전체에서 재조회가 각각 1 회 일어난다 (happy-path — 제출→재조회 조합)', async () => {
+      submitMock.mockResolvedValue({ status: 'ok', assessmentId: 'a-1', created: true });
+      const reload = vi.fn();
+      const trendReload = vi.fn();
+      const notice = await runPeriodEvaluation(VALID_REQUEST);
+      expect(reloadAfterPeriodEvaluation(notice, [reload, trendReload])).toBe(2);
+      expect(reload).toHaveBeenCalledTimes(1);
+      expect(trendReload).toHaveBeenCalledTimes(1);
+    });
+
+    // error path + negative ⑥ — 제출이 reject 한 뒤에도 throw 0 이고 재조회 호출 0 회.
+    it('제출이 reject 하면 throw 없이 재조회 호출 0 회다 (error path — reject 흡수)', async () => {
+      submitMock.mockRejectedValue(new Error('boom'));
+      const reload = vi.fn();
+      const trendReload = vi.fn();
+      const notice = await runPeriodEvaluation(VALID_REQUEST);
+      expect(() => reloadAfterPeriodEvaluation(notice, [reload, trendReload])).not.toThrow();
+      expect(reload).not.toHaveBeenCalled();
+      expect(trendReload).not.toHaveBeenCalled();
+    });
+
+    // negative ④⑤ — reload 가 미주입·비함수인 handle 조합에서도 throw 0.
+    it('reload 가 미주입·비함수여도 throw 하지 않는다 (negative — 구 mock 호환)', () => {
+      expect(() => reloadAfterPeriodEvaluation(SUCCESS_NOTICE, [undefined, 'reload'])).not.toThrow();
+      expect(reloadAfterPeriodEvaluation(SUCCESS_NOTICE, [undefined, 'reload'])).toBe(0);
+      // 일부만 함수인 혼합 조합에서도 함수인 쪽만 호출된다.
+      const reload = vi.fn();
+      expect(reloadAfterPeriodEvaluation(SUCCESS_NOTICE, [reload, undefined])).toBe(1);
+      expect(reload).toHaveBeenCalledTimes(1);
+    });
+
+    // 경계 — 빈 재조회 목록이어도 성공 판정과 무관하게 0 이고 throw 0.
+    it('재조회 목록이 비어도 0 을 돌려준다 (negative — 빈 목록)', () => {
+      expect(reloadAfterPeriodEvaluation(SUCCESS_NOTICE, [])).toBe(0);
+    });
+  });
+
+  describe('컨테이너 호환성 — reload 미제공 mock', () => {
+    // 호환성 게이트 — 기존 3 개 spec 의 mock 은 reload 없는 상태 객체를 돌려준다.
+    // 그 상태에서도 마운트가 throw 하지 않고 렌더가 종전과 같아야 한다.
+    it('reload 없는 mock 상태에서도 마운트가 throw 하지 않는다 (negative — 구 mock 호환)', () => {
+      setPersons({ data: PERSON_SAMPLE, loading: false, error: undefined });
+      const render = () => renderToStaticMarkup(<DashboardView personId="p1" />);
+      expect(render).not.toThrow();
+      expect(render()).toContain(SUBMIT_LABEL);
+    });
+
+    // 렌더만으로는 재조회가 일어나지 않는다 — 재조회는 제출 성공 시에만.
+    it('마운트만으로는 reload 를 호출하지 않는다 (분기 — 부수효과 0)', () => {
+      const reload = vi.fn();
+      useApiResourceMock.mockImplementation((path: string | null) => {
+        if (typeof path === 'string' && path.startsWith('/api/persons')) {
+          return { data: PERSON_SAMPLE, loading: false, error: undefined, reload };
+        }
+        return { ...IDLE, reload };
+      });
+      expect(() => renderToStaticMarkup(<DashboardView personId="p1" />)).not.toThrow();
+      expect(reload).not.toHaveBeenCalled();
+      expect(submitMock).not.toHaveBeenCalled();
+    });
+  });
+});
+
+// reviewer MINOR-1 (round 1) closure — §3 Nit-in-PR. 배선 자체(두 호출부의 reload 구조분해 +
+// 제출 완료 분기의 재조회 호출)는 jsdom 부재로 실행 경로가 test 에 안 걸린다. 같은 파일군이
+// 이미 쓰는 source 정적 대조 guard 관례(DashboardView.assessments-list-contract.test.ts)를
+// 승계해 호출 한 줄이 지워지면 CI 가 red 가 되도록 못박는다. 새 dependency 0.
+describe('DashboardView — 재조회 배선 source guard (T-1737, reviewer MINOR-1)', () => {
+  // 주석 안의 동일 문자열이 대조를 통과시키지 않도록 라인 주석을 제거한 소스로 본다.
+  const SOURCE = readFileSync(
+    new URL('./DashboardView.tsx', import.meta.url),
+    'utf-8',
+  )
+    .split('\n')
+    .filter((line) => !line.trim().startsWith('//') && !line.trim().startsWith('*'))
+    .join('\n');
+
+  // AC 1 — assessments 조회가 reload 를 구조분해한다(무-alias 관례 유지).
+  it('assessments 조회부가 reload 를 구조분해한다 (happy-path — 배선 1)', () => {
+    expect(SOURCE).toMatch(
+      /const \{ data, loading, error, reload \} = useApiResource<unknown\[\]>\(path\)/,
+    );
+  });
+
+  // AC 1 — summaries 조회가 trend prefix alias 로 reload 를 구조분해한다(상태 오염 차단).
+  it('summaries 조회부가 trendReload alias 로 구조분해한다 (happy-path — 배선 2)', () => {
+    expect(SOURCE).toMatch(/reload: trendReload,\s*\n\s*\} = useApiResource<SummaryRow\[\]>/);
+  });
+
+  // AC 2 — 제출 완료 분기가 두 재조회를 함께 넘겨 호출한다. 이 한 줄이 지워지면 fail 한다.
+  it('제출 완료 분기가 두 재조회를 넘겨 호출한다 (happy-path — 배선 3)', () => {
+    expect(SOURCE).toContain('reloadAfterPeriodEvaluation(notice, [reload, trendReload]);');
+  });
+
+  // 범위 게이트 — 나머지 3 개 조회(contributions · permission-denied · persons)는 diff 0 이라
+  // reload 를 구조분해하지 않는다. 무분별한 재조회 확산을 막는 negative 축이다.
+  it('나머지 3 개 조회는 reload 를 구조분해하지 않는다 (negative — 범위 확산 차단)', () => {
+    for (const alias of ['contributionReload', 'permissionDeniedReload', 'personsReload']) {
+      expect(SOURCE).not.toContain(alias);
+    }
+    // 재조회 호출은 제출 완료 분기 1 곳뿐이다(중복 배선·렌더 중 호출 차단).
+    expect(SOURCE.match(/reloadAfterPeriodEvaluation\(notice, \[/g)).toHaveLength(1);
   });
 });

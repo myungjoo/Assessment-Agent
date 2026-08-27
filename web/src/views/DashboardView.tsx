@@ -439,6 +439,56 @@ async function runPeriodEvaluation(
   }
 }
 
+/**
+ * 기간 평가 제출 결과가 "재조회할 만한 성공" 인지 판정한다(순수 · mutation 0 · throw 0 · react
+ * import 0). 성공 문구가 비어있지 않고 실패 문구가 비어있을 때만 true 다 — 결손·비객체·타입
+ * mismatch 는 성공으로 오인하지 않는다(불확실하면 재조회하지 않아 실패 후 표가 안 흔들린다).
+ */
+function shouldReloadAfterPeriodEvaluation(notice: unknown): boolean {
+  if (notice === null || typeof notice !== 'object') {
+    return false;
+  }
+  const source = notice as Record<string, unknown>;
+  if (typeof source.success !== 'string' || source.success.trim() === '') {
+    return false;
+  }
+  const error = source.error;
+  if (error === undefined || error === null) {
+    return true;
+  }
+  return typeof error === 'string' && error.trim() === '';
+}
+
+/**
+ * 재조회 수단 1 개를 안전하게 호출한다. 함수가 아닌 값(구 mock · 미주입 handle)이거나 호출이
+ * throw 해도 값으로 흡수해 컨테이너가 절대 throw 하지 않는다. 반환값은 실제 호출 여부.
+ */
+function invokeResourceReload(reload: unknown): boolean {
+  if (typeof reload !== 'function') {
+    return false;
+  }
+  try {
+    (reload as () => void)();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 제출 결과에 따라 재조회를 실행한다(부수효과는 주입된 reload 호출뿐) — 성공이면 순서대로 1 회씩,
+ * 아니면 0 회다. 반환값은 실제 호출 수라 spec 이 jsdom 없이 호출 횟수를 직접 단언할 수 있다.
+ */
+function reloadAfterPeriodEvaluation(notice: unknown, reloads: unknown[]): number {
+  if (!shouldReloadAfterPeriodEvaluation(notice)) {
+    return 0;
+  }
+  return reloads.reduce<number>(
+    (invoked, reload) => (invokeResourceReload(reload) ? invoked + 1 : invoked),
+    0,
+  );
+}
+
 // 대시보드 화면 컨테이너. useApiResource 로 GET /api/assessments 결과를 소유하고,
 // 정렬/필터/검색 상태를 useState 로 보유해 client-side 정렬/필터 후 presentational 에
 // props 로 내려보낸다.
@@ -485,7 +535,9 @@ function DashboardView({
   const path = buildAssessmentsPath(selectedPersonId, period);
   // 응답을 컨테이너가 특정 행 타입으로 단정하지 않는다(T-1727) — 매핑 책임은
   // assessmentRow.ts 의 deriveAssessmentDisplayRows 가 지며, 여기서는 원문을 그대로 받는다.
-  const { data, loading, error } = useApiResource<unknown[]>(path);
+  // reload 는 기간 평가 성공 직후의 명시적 재조회 수단(T-1737) — path 가 그대로여도 같은 조회를
+  // 1 회 다시 수행해 방금 요청한 평가 결과가 표에 반영된다.
+  const { data, loading, error, reload } = useApiResource<unknown[]>(path);
 
   // summaries(시계열) 조회 path — assessments 와 독립적으로 personId 가드를 받는다
   // (둘 다 null 가능). 두 번째 useApiResource 호출로 컨테이너가 시계열 상태를 소유한다.
@@ -495,6 +547,7 @@ function DashboardView({
     data: trendData,
     loading: trendLoading,
     error: trendError,
+    reload: trendReload,
   } = useApiResource<SummaryRow[]>(summariesPath);
 
   // contributions(평가 상세) 조회 path — 선택 row 가 없으면 null(조회 미수행, api.md 104
@@ -671,6 +724,9 @@ function DashboardView({
     void runPeriodEvaluation(request).then((notice) => {
       setPeriodNotice(notice);
       setPeriodSubmitting(false);
+      // 성공한 경우에만 결과 표(assessments)·추이(summaries)를 재조회한다(T-1737) — 실패·미상
+      // 응답은 호출 0 이고, reload 가 함수가 아닌 상태(구 mock)도 값으로 흡수된다.
+      reloadAfterPeriodEvaluation(notice, [reload, trendReload]);
     });
   };
 
@@ -856,6 +912,9 @@ export {
   derivePersonOptions,
   derivePeriodEvaluationNotice,
   runPeriodEvaluation,
+  shouldReloadAfterPeriodEvaluation,
+  invokeResourceReload,
+  reloadAfterPeriodEvaluation,
 };
 export type {
   DashboardViewProps,

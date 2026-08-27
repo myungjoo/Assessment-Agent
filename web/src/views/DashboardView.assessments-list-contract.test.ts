@@ -76,10 +76,12 @@ function extractPathQueryParams(path: string): string[] {
 // T-1727 이후 컨테이너는 응답을 특정 행 타입으로 단정하지 않으므로(<unknown[]>) 옆 타입 인자
 // (<EvaluationResultRow[]>)를 anchor 로 쓸 수 없다. 형제 조회(<SummaryRow[]>·<ContributionRow[]>·
 // <PermissionDeniedRecordRow[]>·persons 의 <unknown[]>)와 섞이지 않도록, assessments 조회만 갖는
-// 무-alias 구조분해(`const { data, loading, error } =`)를 anchor 로 슬라이스한다.
+// 무-alias 구조분해(`const { data, loading, error } =`)를 anchor 로 슬라이스한다. T-1737 이
+// 같은 호출부에 재조회 수단을 가산했으므로 꼬리의 `, reload` 는 선택적으로 허용한다(무-alias
+// 조건은 그대로 — 형제 조회는 전부 alias 를 쓰므로 anchor 의 유일성은 유지된다).
 function extractAssessmentsFireMethod(source: string): string | null {
   const matched =
-    /const \{ data, loading, error \} = useApiResource<unknown\[\]>\(\s*([^)]*)\)/.exec(
+    /const \{ data, loading, error(?:, reload)? \} = useApiResource<unknown\[\]>\(\s*([^)]*)\)/.exec(
       stripComments(source),
     );
   if (!matched) {
@@ -281,6 +283,27 @@ describe('DashboardView — 시계열 평가 결과 조회(GET /api/assessments)
     expect(extractHandlerMethods(fakeHandler).findByPerson).toBeUndefined();
     const drifted: BackendContract = { ...LIST_CONTRACT, route: extractControllerRoute(fakeController), method: extractHandlerMethods(fakeHandler).findByPerson?.method ?? null };
     expect(diffContract(assessmentsFire(), drifted)).toEqual(['backend 계약 추출 실패']);
+  });
+  it('구조분해 꼬리에 reload 가 있어도 같은 call site 로 인식한다 (분기 — T-1737 재조회 가산)', () => {
+    // T-1737 이 assessments 조회부에 재조회 수단을 가산했다 — anchor 가 그 꼬리를 허용하지
+    // 못하면 drift guard 가 "추출 실패" 로 오탐한다(호환성 회귀 게이트).
+    expect(
+      extractAssessmentsFireMethod(
+        'const { data, loading, error, reload } = useApiResource<unknown[]>(path);',
+      ),
+    ).toBe('GET');
+    // 꼬리가 붙어도 옵션 인자 override 판정 축은 그대로 살아 있다.
+    expect(
+      extractAssessmentsFireMethod(
+        "const { data, loading, error, reload } = useApiResource<unknown[]>(path, { method: 'POST' });",
+      ),
+    ).toBe('NON-GET(args=2)');
+    // 미지의 다른 꼬리는 여전히 anchor 로 인식하지 않는다(무분별 완화 차단).
+    expect(
+      extractAssessmentsFireMethod(
+        'const { data, loading, error, refetch } = useApiResource<unknown[]>(path);',
+      ),
+    ).toBeNull();
   });
   it('web call site 가 옵션 인자를 전달하면(단일 인자 아님) GET 추론이 깨져 method 불일치로 잡힌다 (negative — 발사 override drift)', () => {
     const overridden = extractAssessmentsFireMethod(
