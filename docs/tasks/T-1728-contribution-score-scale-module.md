@@ -2,8 +2,9 @@
 id: T-1728
 title: 실 contributionScore 스케일(0–3) 기반 점수 분포·요약 집계 순수 모듈 신설
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1358
 coversReq: [REQ-076]
 independentStream: p6-dashboard-actual-behavior
 dependsOn: [T-1724, T-1727]
@@ -66,3 +67,14 @@ planner 실측 (main `a2e643a2`): [DashboardView.tsx](../../web/src/views/Dashbo
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## Result
+
+- **DONE 2026-08-27T00:52:30Z** — PR [#1358](https://github.com/myungjoo/AA_S1/pull/1358) merge (main `9baee802`, round 1, CI pass).
+- 신규 2 파일 +444/-0 (`assessmentScoreScale.ts` +163 · colocated spec +281). 실 스케일 상수 `CONTRIBUTION_SCORE_MIN = 0` · `CONTRIBUTION_SCORE_MAX = 3` 을 backend 근거(`CONTRIBUTION_SCORE_BY_LEVEL` ordinal 평균) 주석과 함께 박제했다.
+- 폭 0.5 6 등분 `CONTRIBUTION_SCORE_BUCKET_EDGES` (정수 경계 1 · 2 가 ordinal 등급 경계와 일치, 마지막 구간만 상한 포함) + `deriveContributionScoreBuckets` (`null` · 비유한 값 제외, 범위 밖은 끝 bucket clamp, 대상 0 건이면 빈 배열) + `summarizeContributionScores` (`count` · `average` 소수 2 자리 · 0 건이면 `average` 는 `null` · `scoreMax`) export.
+- `AssessmentDisplayRow` **type-only import** 만이라 `react` · `components/*` · fetch import 0, throw 0 · 입력 mutation 0. `ScoreDistributionBucket` 구조 호환은 spec 에서 type-only 로만 검증 (api → components 역방향 의존 0).
+- spec 281 행 — happy 5 / error 2 / 분기 6 / negative 6 + drift guard 2 (구간이 `[0, 3]` 을 틈·겹침 없이 덮음 · `ScoreDistributionBucket` 구조 호환) 로 `0–100` 가정 회귀를 fail 로 드러낸다.
+- web vitest 79 파일 2379 test green · `pnpm build`(tsc) 통과 · 루트 `pnpm lint` · `test:cov` 13009 test green. `src/` diff 0 이라 backend coverage 불변.
+- 범위 불변 — `DashboardView.tsx` · `ScoreDistributionChart.tsx` · `assessmentRow.ts` · `assessmentRowOps.ts` · `src/` · `prisma/` · `package.json` diff **0 파일**, 새 dependency 0.
+- **크기 상한 초과 기록**: 총 444 LOC 로 §3 의 300 LOC 상한을 넘겼다. 초과분 전부가 R-112 강제 spec(281 행)이고 production 은 163 행 / 1 파일이라, 직전 동형 slice T-1726(411 LOC, PR #1356) 선례를 승계해 진행했다. 이 사실은 PR 본문과 reviewer comment 에 명시 박제돼 있다.
