@@ -2,12 +2,14 @@
 id: T-1744
 title: ServiceIdentityService 에 setPrimary 추가 — 소유 검사 404 + repository transaction 재사용
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 195
 estimatedFiles: 2
 created: 2026-08-27
+completed: 2026-08-27T22:59:27Z
+prNumber: 1374
 independentStream: service-identity-management-api
 dependsOn: [T-1739, T-1740, T-1741, T-1742, T-1743]
 touchesFiles:
