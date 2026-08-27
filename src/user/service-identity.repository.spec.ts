@@ -9,6 +9,7 @@
 //   - 각 메서드의 return 값이 PrismaService 의 return 값을 그대로 propagate 하는지.
 //   - Prisma 의 error code (P2025 / P2002) 가 catch 없이 그대로 throw 되는지.
 //   - create 의 isPrimary 분기 (미지정 / true 명시) 정합성.
+//   - update 의 갱신 축 drift guard (ADR-0058 §Decision 3 — `externalId` 단일).
 //   - setPrimary 의 `$transaction` 안 두 op 의 호출 인자 + return 값 분기 cover.
 //   - negative: Person 부재 시 빈 배열 / cross-person 검증 무 / empty externalId
 //     raw pass-through.
@@ -16,7 +17,10 @@ import type { ServiceIdentity } from "@prisma/client";
 
 import type { PrismaService } from "../persistence/prisma.service";
 
-import { ServiceIdentityRepository } from "./service-identity.repository";
+import {
+  ServiceIdentityRepository,
+  type ServiceIdentityUpdateInput,
+} from "./service-identity.repository";
 
 // ServiceIdentity fixture — 7 컬럼 (schema.prisma) 을 모두 채운 default row.
 // overrides 가 isPrimary / service 등을 분기 별 override 한다.
@@ -203,6 +207,158 @@ describe("ServiceIdentityRepository", () => {
       expect(serviceIdentityMock.create).toHaveBeenCalledWith({
         data: { personId: "person-1", service: "github.com", externalId: "" },
       });
+    });
+  });
+
+  // ------------------------------------------------------------------
+  // update — happy + error (P2025 / 연결 실패 propagate) + 호출 형태 분기
+  // (정상 문자열 / 빈 문자열 raw pass-through) + negative 5 종 + drift guard.
+  // 계약 정본: ADR-0058 §Decision 3 (갱신 축 = externalId 단일) ·
+  // §Decision 5 b 행 (P2025 → 404 변환은 service layer 책임).
+  // ------------------------------------------------------------------
+  describe("update()", () => {
+    // Happy path: id + externalId 로 delegate 를 정확히 1 회 호출하고 결과를 그대로 반환.
+    it("id 와 externalId 로 delegate 를 1 회 호출하고 결과를 그대로 반환한다", async () => {
+      const { prisma, serviceIdentityMock } = buildPrismaMock();
+      const fixture = buildServiceIdentityFixture({
+        id: "si-1",
+        externalId: "octocat-renamed",
+      });
+      serviceIdentityMock.update.mockResolvedValueOnce(fixture);
+
+      const repo = new ServiceIdentityRepository(prisma);
+      const result = await repo.update("si-1", {
+        externalId: "octocat-renamed",
+      });
+
+      expect(serviceIdentityMock.update).toHaveBeenCalledTimes(1);
+      expect(serviceIdentityMock.update).toHaveBeenCalledWith({
+        where: { id: "si-1" },
+        data: { externalId: "octocat-renamed" },
+      });
+      expect(result).toBe(fixture);
+    });
+
+    // Error path 1 (negative 1): row 부재 시 P2025 를 catch 없이 그대로 reject —
+    // 에러 객체 동일성 (toBe) 까지 검증해 wrapping / 재생성이 없음을 박제한다.
+    // HTTP 404 변환은 service layer 책임 (ADR-0058 §Decision 5 b 행).
+    it("존재하지 않는 id 면 Prisma P2025 를 wrapping 없이 동일 객체로 reject 한다", async () => {
+      const { prisma, serviceIdentityMock } = buildPrismaMock();
+      const p2025 = Object.assign(new Error("Record to update not found"), {
+        code: "P2025",
+      });
+      serviceIdentityMock.update.mockRejectedValueOnce(p2025);
+
+      const repo = new ServiceIdentityRepository(prisma);
+      await expect(
+        repo.update("missing-id", { externalId: "whatever" }),
+      ).rejects.toBe(p2025);
+    });
+
+    // Error path 2: P2025 외의 Prisma 오류 (예: 연결 실패) 도 그대로 propagate.
+    it("연결 실패 등 P2025 외 오류도 그대로 propagate 한다", async () => {
+      const { prisma, serviceIdentityMock } = buildPrismaMock();
+      const connectionError = Object.assign(
+        new Error("Can't reach database server"),
+        { code: "P1001" },
+      );
+      serviceIdentityMock.update.mockRejectedValueOnce(connectionError);
+
+      const repo = new ServiceIdentityRepository(prisma);
+      await expect(repo.update("si-1", { externalId: "octocat" })).rejects.toBe(
+        connectionError,
+      );
+    });
+
+    // 분기 cover (negative 2): 본 메서드는 조건 분기가 없으므로 호출 형태 분기를 cover 한다.
+    // 빈 문자열 externalId 도 repository 가 거부하지 않고 raw pass-through —
+    // 값 검증은 DTO (@IsNotEmpty) / service 책임이라는 경계 고정.
+    it("externalId 가 빈 문자열이어도 검증 없이 raw pass-through 한다", async () => {
+      const { prisma, serviceIdentityMock } = buildPrismaMock();
+      serviceIdentityMock.update.mockResolvedValueOnce(
+        buildServiceIdentityFixture({ externalId: "" }),
+      );
+
+      const repo = new ServiceIdentityRepository(prisma);
+      await repo.update("si-1", { externalId: "" });
+
+      expect(serviceIdentityMock.update).toHaveBeenCalledWith({
+        where: { id: "si-1" },
+        data: { externalId: "" },
+      });
+    });
+
+    // Negative 3: 다른 Person 소유 row 여도 소유 검증을 하지 않는다 — where 절에
+    // personId 조건이 섞이지 않음을 검증 (소유 검증은 후속 service slice 가
+    // findByPersonId 로 수행).
+    it("다른 Person 소유 row 여도 where 절에 personId 조건을 넣지 않는다", async () => {
+      const { prisma, serviceIdentityMock } = buildPrismaMock();
+      serviceIdentityMock.update.mockResolvedValueOnce(
+        buildServiceIdentityFixture({
+          id: "si-other-person",
+          personId: "person-OTHER",
+        }),
+      );
+
+      const repo = new ServiceIdentityRepository(prisma);
+      await repo.update("si-other-person", { externalId: "ext-1" });
+
+      const [callArg] = serviceIdentityMock.update.mock.calls[0] as [
+        { where: Record<string, unknown>; data: Record<string, unknown> },
+      ];
+      expect(Object.keys(callArg.where)).toEqual(["id"]);
+      expect(callArg.where).not.toHaveProperty("personId");
+    });
+
+    // Negative 4: $transaction 을 호출하지 않는다 — setPrimary 의 2 op transaction
+    // 경로를 오염시키지 않음 (ADR-0058 §Decision 3 의 "단일 update 우회 경로 금지").
+    it("$transaction 을 호출하지 않는다 (setPrimary 경로 오염 0)", async () => {
+      const { prisma, serviceIdentityMock, transactionMock } =
+        buildPrismaMock();
+      serviceIdentityMock.update.mockResolvedValueOnce(
+        buildServiceIdentityFixture(),
+      );
+
+      const repo = new ServiceIdentityRepository(prisma);
+      await repo.update("si-1", { externalId: "ext-1" });
+
+      expect(transactionMock).not.toHaveBeenCalled();
+    });
+
+    // Negative 5: 다른 delegate (create / delete / updateMany / findMany) 를
+    // 호출하지 않는다 — 추가 조회 · 재시도 로직 부재 박제.
+    it("create · delete · updateMany · findMany delegate 를 호출하지 않는다", async () => {
+      const { prisma, serviceIdentityMock } = buildPrismaMock();
+      serviceIdentityMock.update.mockResolvedValueOnce(
+        buildServiceIdentityFixture(),
+      );
+
+      const repo = new ServiceIdentityRepository(prisma);
+      await repo.update("si-1", { externalId: "ext-1" });
+
+      expect(serviceIdentityMock.create).not.toHaveBeenCalled();
+      expect(serviceIdentityMock.delete).not.toHaveBeenCalled();
+      expect(serviceIdentityMock.updateMany).not.toHaveBeenCalled();
+      expect(serviceIdentityMock.findMany).not.toHaveBeenCalled();
+    });
+
+    // Drift guard: ServiceIdentityUpdateInput 으로 조립한 payload 를 넘겼을 때
+    // delegate 의 data 가 externalId 키 하나만 갖는다. 금지 축 (service ·
+    // isPrimary · personId) 이 조용히 흘러들어가면 fail (ADR-0058 §Decision 3).
+    it("delegate 의 data 가 externalId 키 하나만 갖는다 (금지 축 drift guard)", async () => {
+      const { prisma, serviceIdentityMock } = buildPrismaMock();
+      serviceIdentityMock.update.mockResolvedValueOnce(
+        buildServiceIdentityFixture(),
+      );
+
+      const payload: ServiceIdentityUpdateInput = { externalId: "ext-1" };
+      const repo = new ServiceIdentityRepository(prisma);
+      await repo.update("si-1", payload);
+
+      const [callArg] = serviceIdentityMock.update.mock.calls[0] as [
+        { data: Record<string, unknown> },
+      ];
+      expect(Object.keys(callArg.data)).toEqual(["externalId"]);
     });
   });
 

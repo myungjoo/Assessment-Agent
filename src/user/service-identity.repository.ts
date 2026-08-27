@@ -1,6 +1,7 @@
-// ServiceIdentityRepository — ServiceIdentity entity 의 CRUD primitive 4 종을
+// ServiceIdentityRepository — ServiceIdentity entity 의 CRUD primitive 5 종을
 // PrismaService 위에 얇게 wrapping 한 repository. T-0035 acceptance C §86–90 의
-// 4 메서드 시그니처 박제 (findByPersonId / create / setPrimary / delete).
+// 4 메서드 시그니처 박제 (findByPersonId / create / setPrimary / delete) 에
+// T-1740 이 ADR-0058 §Decision 3 의 `update` 를 1 개 더 얹었다.
 //
 // 책임 경계:
 //   - 본 repository 는 도메인 invariant (REQ-024 의 service-layer 강제 — 1 Person
@@ -41,6 +42,17 @@ export interface ServiceIdentityCreateInput {
   isPrimary?: boolean;
 }
 
+// 본 repository 가 노출하는 update 메서드의 input shape (ADR-0058 §Decision 3).
+// 갱신 축은 `externalId` 하나뿐이며 금지 축 (`service` · `isPrimary` · `personId`) 은
+// 타입 수준에서 수용하지 않는다 — 여기에 필드를 더하는 순간 controller 의
+// forbidNonWhitelisted 400 게이트와 `setPrimary` transaction 우회 금지가 함께 뚫린다.
+// optional 이 아니라 required 인 이유: PATCH DTO 의 미전달 (undefined) 처리는 merge patch
+// semantic 상 service layer 가 "update 를 호출하지 않는다" 로 표현한다 — 빈 `data` 를
+// Prisma 로 흘려 no-op update 를 발생시키지 않는다.
+export interface ServiceIdentityUpdateInput {
+  externalId: string;
+}
+
 @Injectable()
 export class ServiceIdentityRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -56,6 +68,23 @@ export class ServiceIdentityRepository {
   // unique (`personId+service`) 위반 시 Prisma `P2002` throw — 본 layer catch X.
   async create(input: ServiceIdentityCreateInput): Promise<ServiceIdentity> {
     return this.prisma.serviceIdentity.create({ data: input });
+  }
+
+  // update — `externalId` 부분 갱신 primitive (ADR-0058 §Decision 3).
+  //   (a) row 부재 시 Prisma 가 던지는 `P2025` 를 catch 하지 않고 그대로 propagate 한다
+  //       (기존 delete / setPrimary 와 동일한 Prisma error 정책).
+  //   (b) 그 `P2025` 를 HTTP 404 (`NotFoundException`) 로 변환하는 책임은 service layer 다
+  //       (ADR-0058 §Decision 5 b 행) — 본 layer 는 변환하지 않는다.
+  //   (c) 갱신 축이 `externalId` 단일인 근거는 ADR-0058 §Decision 3 — `isPrimary` 는
+  //       `setPrimary` 의 2 op transaction 이 유일한 안전 경로이고, `service` 는
+  //       `@@unique([personId, service])` 구성 요소이자 수집 매칭 키라 갱신 대신
+  //       DELETE 후 POST 로 표현한다.
+  // 값 검증 (빈 문자열 등) 과 소유 검증 (personId 일치) 은 하지 않는다 — DTO / service 책임.
+  async update(
+    id: string,
+    input: ServiceIdentityUpdateInput,
+  ): Promise<ServiceIdentity> {
+    return this.prisma.serviceIdentity.update({ where: { id }, data: input });
   }
 
   // setPrimary — REQ-024 의 schema-level 표식 (1 row 의 `isPrimary=true`) 을
