@@ -2,7 +2,9 @@
 id: T-1734
 title: 기간 지정 평가 요청 실행·응답 정규화 순수 모듈 periodEvaluationSubmit 신설
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1364
+completedAt: 2026-08-27T12:55:49Z
 commitMode: pr
 coversReq: [REQ-077]
 estimatedDiff: 300
@@ -67,3 +69,14 @@ plannerNote: "P6 오너지시 PLAN 131행 ④ / REQ-077 slice 3 — POST 실행+
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 추가)
+
+---
+
+## 결과 요약 (2026-08-27T12:55:49Z DONE)
+
+- PR [#1364](https://github.com/myungjoo/Assessment-Agent/pull/1364) squash 머지 → main `6aa5bf90`. reviewer round 1 APPROVE, CI 2 job(기본 검사 · 배포 산출물 검증) 전부 pass 로 4-게이트 충족.
+- 신규 2 파일 +455/-0 — production `web/src/api/periodEvaluationSubmit.ts` 129 행, colocated spec 326 행. `submitPeriodEvaluation`(deps 주입 · 기본값 `apiClient.request`) · `normalizePeriodEvaluationResponse`(배열 / `assessmentId` 객체 / 미상 3 분기) · `toPeriodEvaluationFailureMessage`(0 · 400 · 401 · 403 · 404 · 5xx · 기타) 를 export 한다.
+- 무효 요청(`null` · body 부재 · 빈 path)은 전송 시도 없이 error outcome 으로 떨어뜨린다 — throw 0 · `react` import 0 · 직접 `fetch` 호출 0 · 입력 mutation 0.
+- R-112 4 종 전부 cover(신규 32 케이스 — happy 2 · error path 2 · 정규화/status 매핑 분기 각 1+ · negative 6 종). web vitest 82 파일 2467 test green, web build(tsc+vite) green, 루트 lint green, `test:cov` 453 suite / 13009 test green(`src/` diff 0 이라 backend coverage 불변).
+- **크기 상한 초과 기록**: 총 455 LOC 로 §3 의 300 LOC 상한 초과 — 초과분 326 은 전부 R-112 강제 spec 이고 production 은 129 행 1 파일(task `53 행` 사전 고지 ≤130 준수)이라 T-1726 / T-1728 선례를 승계했고 그 사실을 PR 본문 · reviewer comment 에 박제했다.
+- 범위 불변 — `DashboardView.tsx` · `evaluationPeriod.ts` · `src/` · `prisma/` · `package.json` diff **0 파일**, 새 dependency 0. DashboardView 배선은 후속 slice 4 로 남는다.
