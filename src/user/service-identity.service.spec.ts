@@ -1,5 +1,5 @@
 // ServiceIdentityService spec — T-1741 (findByPersonId) + T-1742 (create) + T-1743
-// (update) acceptance
+// (update) + T-1744 (setPrimary) acceptance
 // (R-112: happy / error / branch / negative 4 카테고리 + coverage line/function ≥ 80%).
 //
 // 본 spec 은 PersonRepository / ServiceIdentityRepository 를 Jest mock 으로 대체해
@@ -12,6 +12,8 @@
 //   - negative: 각 collaborator 의 throw propagate (변환 0) · 반환 배열 무가공 drift
 //     guard · soft-deleted (`active=false`) Person 도 404 아님 · 타 Person 소유 id 는
 //     403 이 아니라 404 이고 메시지에 소유자 정보가 새지 않음 (ADR-0058 §Decision 5 e).
+//   - setPrimary: 이미 primary 인 대상도 early return 없이 repository.setPrimary 1 회
+//     호출 (idempotent) · 2 op transaction 재구현 0 guard (repository.update 미호출).
 import { ConflictException, NotFoundException } from "@nestjs/common";
 import type { Person, ServiceIdentity } from "@prisma/client";
 
@@ -653,6 +655,242 @@ describe("ServiceIdentityService", () => {
       await h.service.update("person-1", "si-1", {});
 
       expect(h.identityUpdate).toHaveBeenCalledTimes(0);
+    });
+  });
+
+  describe("setPrimary — happy path", () => {
+    it("본인 소유 identity 를 지정하면 repository.setPrimary 결과를 가공 없이 반환한다", async () => {
+      const h = buildHarness();
+      const promoted = buildServiceIdentityFixture({ isPrimary: true });
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([
+        buildServiceIdentityFixture(),
+      ]);
+      h.identitySetPrimary.mockResolvedValue(promoted);
+
+      await expect(h.service.setPrimary("person-1", "si-1")).resolves.toBe(
+        promoted,
+      );
+    });
+
+    it("repository.setPrimary 를 (personId, identityId) 인자로 정확히 1 회 호출한다", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(
+        buildPersonFixture({ id: "person-9" }),
+      );
+      h.identityFindByPersonId.mockResolvedValue([
+        buildServiceIdentityFixture({ id: "si-7", personId: "person-9" }),
+      ]);
+      h.identitySetPrimary.mockResolvedValue(
+        buildServiceIdentityFixture({ id: "si-7", isPrimary: true }),
+      );
+
+      await h.service.setPrimary("person-9", "si-7");
+
+      expect(h.personFindById).toHaveBeenCalledTimes(1);
+      expect(h.personFindById).toHaveBeenCalledWith("person-9");
+      expect(h.identityFindByPersonId).toHaveBeenCalledTimes(1);
+      expect(h.identityFindByPersonId).toHaveBeenCalledWith("person-9");
+      expect(h.identitySetPrimary).toHaveBeenCalledTimes(1);
+      expect(h.identitySetPrimary).toHaveBeenCalledWith("person-9", "si-7");
+    });
+  });
+
+  describe("setPrimary — 분기 cover", () => {
+    it("(a) Person 부재면 NotFoundException 이고 ServiceIdentityRepository 는 미호출", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(null);
+
+      await expect(
+        h.service.setPrimary("ghost", "si-1"),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(h.identityFindByPersonId).not.toHaveBeenCalled();
+      expect(h.identitySetPrimary).not.toHaveBeenCalled();
+    });
+
+    it("(b) 소유 목록에 identityId 가 없으면 NotFoundException 이고 setPrimary 미호출", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([
+        buildServiceIdentityFixture({ id: "si-1" }),
+      ]);
+
+      await expect(
+        h.service.setPrimary("person-1", "si-none"),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(h.identitySetPrimary).not.toHaveBeenCalled();
+    });
+
+    it("(c) 대상이 이미 isPrimary=true 여도 early return 없이 setPrimary 를 1 회 호출한다 (idempotent)", async () => {
+      const h = buildHarness();
+      const already = buildServiceIdentityFixture({
+        id: "si-1",
+        isPrimary: true,
+      });
+      // 다른 row 가 잘못 primary 로 남은 상태 — early return 이 있으면 이 복구가 막힌다.
+      const strayPrimary = buildServiceIdentityFixture({
+        id: "si-2",
+        service: "gitlab.com",
+        isPrimary: true,
+      });
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([already, strayPrimary]);
+      h.identitySetPrimary.mockResolvedValue(already);
+
+      await expect(h.service.setPrimary("person-1", "si-1")).resolves.toBe(
+        already,
+      );
+      expect(h.identitySetPrimary).toHaveBeenCalledTimes(1);
+      expect(h.identitySetPrimary).toHaveBeenCalledWith("person-1", "si-1");
+    });
+
+    it("(d) 대상이 isPrimary=false 인 정상 승격 분기는 선검사 · 소유 조회 · setPrimary 를 각 1 회씩 탄다", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([
+        buildServiceIdentityFixture({ id: "si-0", isPrimary: true }),
+        buildServiceIdentityFixture({ id: "si-1", isPrimary: false }),
+      ]);
+      h.identitySetPrimary.mockResolvedValue(
+        buildServiceIdentityFixture({ id: "si-1", isPrimary: true }),
+      );
+
+      await h.service.setPrimary("person-1", "si-1");
+
+      expect(h.personFindById).toHaveBeenCalledTimes(1);
+      expect(h.identityFindByPersonId).toHaveBeenCalledTimes(1);
+      expect(h.identitySetPrimary).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("setPrimary — error path / negative cases", () => {
+    it("(i) Person 부재 예외 메시지는 personId 만 담는다", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(null);
+
+      await expect(h.service.setPrimary("ghost", "si-1")).rejects.toThrow(
+        "person not found: ghost",
+      );
+    });
+
+    it("(ii) repository.setPrimary 의 P2025 는 NotFoundException (404) 으로 변환된다", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([
+        buildServiceIdentityFixture(),
+      ]);
+      h.identitySetPrimary.mockRejectedValue(
+        Object.assign(new Error("record not found"), { code: "P2025" }),
+      );
+
+      const error = await h.service
+        .setPrimary("person-1", "si-1")
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(NotFoundException);
+      expect((error as NotFoundException).getStatus()).toBe(404);
+      expect((error as Error).message).toBe("service identity not found: si-1");
+    });
+
+    it("(iii) 타 Person 소유 id 는 403 이 아니라 404 이며 메시지에 존재 사실 · 소유자가 새지 않는다", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      // person-1 의 목록에는 si-other (person-2 소유) 가 없다.
+      h.identityFindByPersonId.mockResolvedValue([
+        buildServiceIdentityFixture({ id: "si-1" }),
+      ]);
+
+      const error = await h.service
+        .setPrimary("person-1", "si-other")
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(NotFoundException);
+      expect((error as NotFoundException).getStatus()).toBe(404);
+      const message = (error as Error).message;
+      expect(message).toBe("service identity not found: si-other");
+      expect(message).not.toContain("person-2");
+      expect(message).not.toContain("forbidden");
+      expect(h.identitySetPrimary).not.toHaveBeenCalled();
+    });
+
+    it("(iv) 해당 Person 의 identity 목록이 빈 배열이면 404 이고 setPrimary 미호출", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([]);
+
+      await expect(
+        h.service.setPrimary("person-1", "si-1"),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(h.identitySetPrimary).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["P2002", Object.assign(new Error("dup"), { code: "P2002" })],
+      ["code 없는 일반 Error", new Error("transaction failed")],
+    ])(
+      "(v) repository.setPrimary 의 %s 는 변환 없이 그대로 propagate 한다",
+      async (_label, boom) => {
+        const h = buildHarness();
+        h.personFindById.mockResolvedValue(buildPersonFixture());
+        h.identityFindByPersonId.mockResolvedValue([
+          buildServiceIdentityFixture(),
+        ]);
+        h.identitySetPrimary.mockRejectedValue(boom);
+
+        await expect(h.service.setPrimary("person-1", "si-1")).rejects.toBe(
+          boom,
+        );
+      },
+    );
+
+    it("(vi) PersonRepository.findById 자체의 throw 는 그대로 propagate 하고 이후 경로를 타지 않는다", async () => {
+      const h = buildHarness();
+      const boom = new Error("person lookup failed");
+      h.personFindById.mockRejectedValue(boom);
+
+      await expect(h.service.setPrimary("person-1", "si-1")).rejects.toBe(boom);
+      expect(h.identityFindByPersonId).not.toHaveBeenCalled();
+      expect(h.identitySetPrimary).not.toHaveBeenCalled();
+    });
+
+    it("(vii) findByPersonId 자체의 throw 는 그대로 propagate 하고 setPrimary 는 미호출", async () => {
+      const h = buildHarness();
+      const boom = new Error("identity lookup failed");
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockRejectedValue(boom);
+
+      await expect(h.service.setPrimary("person-1", "si-1")).rejects.toBe(boom);
+      expect(h.identitySetPrimary).not.toHaveBeenCalled();
+    });
+
+    it("(viii) soft-deleted Person (active=false) 도 row 가 존재하면 404 가 아니다", async () => {
+      const h = buildHarness();
+      const promoted = buildServiceIdentityFixture({ isPrimary: true });
+      h.personFindById.mockResolvedValue(buildPersonFixture({ active: false }));
+      h.identityFindByPersonId.mockResolvedValue([
+        buildServiceIdentityFixture(),
+      ]);
+      h.identitySetPrimary.mockResolvedValue(promoted);
+
+      await expect(h.service.setPrimary("person-1", "si-1")).resolves.toBe(
+        promoted,
+      );
+    });
+
+    it("(ix) transaction 재구현 0 drift guard — 본 경로에서 repository.update · create 는 호출되지 않는다", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([
+        buildServiceIdentityFixture(),
+      ]);
+      h.identitySetPrimary.mockResolvedValue(
+        buildServiceIdentityFixture({ isPrimary: true }),
+      );
+
+      await h.service.setPrimary("person-1", "si-1");
+
+      expect(h.identityUpdate).not.toHaveBeenCalled();
+      expect(h.identityCreate).not.toHaveBeenCalled();
     });
   });
 });
