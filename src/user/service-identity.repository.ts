@@ -24,8 +24,9 @@
 //   - create 가 unique constraint (`personId+service`) 위반 시 Prisma 의 `P2002`
 //     error 가 그대로 propagate — 호출자 (ServiceIdentityService) 가 BadRequest
 //     등으로 변환할 책임. 본 layer 에서 catch X.
-//   - delete / setPrimary 가 row 부재 시 Prisma 의 `P2025` (record not found)
-//     error 가 그대로 propagate.
+//   - delete / setPrimary / update 가 row 부재 시 Prisma 의 `P2025` (record not
+//     found) error 가 그대로 propagate. HTTP 404 변환은 service layer 책임
+//     (ADR-0058 §Decision 5 b 행).
 //   - `$transaction` 내부 op 중 하나가 throw 시 Prisma 가 자동으로 rollback +
 //     error 를 그대로 propagate.
 import { Injectable } from "@nestjs/common";
