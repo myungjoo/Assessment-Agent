@@ -27,9 +27,10 @@ import DashboardView, {
   pageRows,
 } from './DashboardView';
 import type { SummaryRow, ContributionRow } from './DashboardView';
-import type { EvaluationResultRow } from '../components/EvaluationResultTable';
 import type { PermissionDeniedRecordRow } from '../components/PermissionDeniedRecordList';
 import type { AssessmentDisplayRow } from '../api/assessmentRow';
+// T-1730 drift guard — 요약 지표의 만점이 모듈 상수와 같은 사실을 spec 이 직접 붙든다.
+import { CONTRIBUTION_SCORE_MAX } from '../api/assessmentScoreScale';
 
 function setResource<T>(state: ApiResourceState<T>) {
   useApiResourceMock.mockReturnValue(state);
@@ -132,12 +133,43 @@ const RAW_SAMPLE: unknown[] = [
   },
 ];
 
-// 옛 행 계약 fixture — deriveMetrics 순수 helper 검증 전용(요약 지표 이전은 slice 4b-2
-// 책임이라 본 slice 에서 그 helper 의 시그니처·본문·spec 블록은 그대로 둔다).
-const SAMPLE: EvaluationResultRow[] = [
-  { id: '1', subjectName: '김철수', metricLabel: '협업', score: 80 },
-  { id: '2', subjectName: '이영희', metricLabel: '리더십', score: 95 },
-  { id: '3', subjectName: '박민수', metricLabel: '협업', score: 60 },
+// 요약 지표 fixture — T-1730(slice 4b-2)부터 deriveMetrics 는 표시 행(AssessmentDisplayRow)
+// 을 직접 받는다. 점수는 실 contributionScore 스케일 [0, 3] 값(0.5 · 2 · 3)이라
+// 평균은 (0.5+2+3)/3 = 1.8333… → 소수 둘째 자리 반올림 1.83 이다.
+const METRIC_SAMPLE: AssessmentDisplayRow[] = [
+  {
+    id: '1',
+    personId: 'p1',
+    period: '2026-06',
+    scope: '팀',
+    periodStart: '2026-06-01',
+    difficulty: '중',
+    contributionScore: 0.5,
+    volume: 3,
+    narrative: '근거',
+  },
+  {
+    id: '2',
+    personId: 'p1',
+    period: '2026-07',
+    scope: '개인',
+    periodStart: '2026-07-01',
+    difficulty: '상',
+    contributionScore: 2,
+    volume: 7,
+    narrative: '근거',
+  },
+  {
+    id: '3',
+    personId: 'p1',
+    period: '2026-08',
+    scope: '팀',
+    periodStart: '2026-08-01',
+    difficulty: '하',
+    contributionScore: 3,
+    volume: 5,
+    narrative: '근거',
+  },
 ];
 
 describe('DashboardView — 컨테이너 렌더', () => {
@@ -237,10 +269,11 @@ describe('DashboardView — client-side 정렬/필터/요약 파생 (순수 함�
 
   // 요약 파생 — 평가 건수·평균 점수 집계 + 빈 배열이면 빈 목록.
   it('표시 row 로 평가 건수/평균 점수를 집계하고 빈 배열이면 빈 목록을 낸다 (요약 파생)', () => {
-    const metrics = deriveMetrics(SAMPLE);
+    const metrics = deriveMetrics(METRIC_SAMPLE);
     expect(metrics).toHaveLength(2);
-    expect(metrics[0]).toMatchObject({ id: 'count', value: 3 });
-    expect(metrics[1]).toMatchObject({ id: 'avg', value: 78.3 }); // (80+95+60)/3=78.33→78.3
+    expect(metrics[0]).toMatchObject({ id: 'count', value: 3, unit: '건' });
+    // (0.5+2+3)/3 = 1.8333… → 1.83, 만점은 모듈이 준 scoreMax 로 병기된다.
+    expect(metrics[1]).toMatchObject({ id: 'avg', value: '1.83 / 3', unit: '점' });
     // negative — 빈 배열이면 빈 목록(빈 상태 위임).
     expect(deriveMetrics([])).toEqual([]);
   });
@@ -1118,19 +1151,16 @@ describe('DashboardView — AssessmentDisplayRow 파이프라인 배선 (T-1727)
     ).toEqual([]);
   });
 
-  // negative (c) — contributionScore null 행은 요약 평균 집계에서 제외된다(분포 축의
+  // negative (c) — contributionScore null 행은 브리지 결과에서 제외된다(분포 축의
   // 같은 정책은 아래 실 스케일 분포 describe 가 렌더 수준에서 단언한다).
-  it('contributionScore=null 행을 집계에서 제외한다 (negative — 0 점 위장 금지)', () => {
+  it('contributionScore=null 행을 브리지 결과에서 제외한다 (negative — 0 점 위장 금지)', () => {
     const rows = [
-      displayRow({ id: '1', contributionScore: 60 }),
+      displayRow({ id: '1', contributionScore: 2 }),
       displayRow({ id: '2', contributionScore: null }),
     ];
     const legacy = toLegacyScoreRows(rows);
     expect(legacy).toHaveLength(1);
-    // 평균이 30(=60/2)으로 끌려 내려가지 않고 60 을 유지한다.
-    const metrics = deriveMetrics(legacy);
-    expect(metrics[0]).toMatchObject({ id: 'count', value: 1 });
-    expect(metrics[1]).toMatchObject({ id: 'avg', value: 60 });
+    expect(legacy[0]).toMatchObject({ id: '1', score: 2 });
   });
 
   // branch (c) — 헤더 클릭 정렬 전이: 같은 키 → 방향 토글 / 다른 키 → asc 전환.
@@ -1384,5 +1414,157 @@ describe('DashboardView — 점수 분포 실 스케일 배선 (T-1729)', () => 
     for (const legacyLabel of ['0–20', '20–40', '40–60', '60–80', '80–100']) {
       expect(html).not.toContain(legacyLabel);
     }
+  });
+});
+
+// T-1730 (REQ-076, PLAN 131 행 ③ slice 4b-2) — 요약 지표 카드가 임시 브리지를 거치지 않고
+// 실 contributionScore 스케일(0–3) 집계를 소비하며 만점을 화면에 드러내는지 검증한다.
+// 단언 대상은 순수 helper(deriveMetrics) 반환값 + 실제 렌더 markup 두 층이다.
+describe('DashboardView — 요약 지표 실 스케일 배선 (T-1730)', () => {
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — 실 스케일 행으로 평가 건수 + 만점 병기 평균이 나온다.
+  it('실 스케일 행에서 평가 건수와 만점 병기 평균을 낸다 (happy-path)', () => {
+    const metrics = deriveMetrics(METRIC_SAMPLE);
+    expect(metrics).toHaveLength(2);
+    expect(metrics[0]).toMatchObject({ id: 'count', label: '평가 건수', value: 3 });
+    expect(metrics[1]).toMatchObject({
+      id: 'avg',
+      label: '평균 점수',
+      value: '1.83 / 3',
+    });
+  });
+
+  // error path — 비배열 입력(null·undefined·문자열)에도 throw 0 + 빈 목록.
+  it('비배열 입력에서 throw 없이 빈 목록을 반환한다 (error path)', () => {
+    const call = (input: unknown) =>
+      deriveMetrics(input as unknown as AssessmentDisplayRow[]);
+    expect(() => call(null)).not.toThrow();
+    expect(call(null)).toEqual([]);
+    expect(call(undefined)).toEqual([]);
+    expect(call('boom')).toEqual([]);
+    expect(call(42)).toEqual([]);
+  });
+
+  // branch (a) — 빈 배열이면 카드 0 개(빈 상태는 컴포넌트 책임).
+  it('빈 배열이면 빈 목록을 낸다 (branch — 빈 입력)', () => {
+    expect(deriveMetrics([])).toEqual([]);
+  });
+
+  // branch (b) — 전 행 점수가 null 이면 평균 카드를 내지 않는다(0 점 위장 금지).
+  it('전 행 점수가 null 이면 평균 카드를 내지 않는다 (branch — 표본 0)', () => {
+    const metrics = deriveMetrics([
+      displayRow({ id: '1', contributionScore: null }),
+      displayRow({ id: '2', contributionScore: null }),
+    ]);
+    // 평가 건수는 표시 행 수 2 를 그대로 유지하고, 평균 카드만 사라진다.
+    expect(metrics).toHaveLength(1);
+    expect(metrics[0]).toMatchObject({ id: 'count', value: 2 });
+    expect(metrics.some((item) => item.id === 'avg')).toBe(false);
+  });
+
+  // branch (c) — 값 있음/없음 혼재 시 평균 분모는 값 보유 행 수다.
+  it('값 있음·없음 혼재면 평균 분모가 값 보유 행 수다 (branch — 혼재)', () => {
+    const metrics = deriveMetrics([
+      displayRow({ id: '1', contributionScore: 2 }),
+      displayRow({ id: '2', contributionScore: null }),
+      displayRow({ id: '3', contributionScore: 3 }),
+    ]);
+    // 평가 건수는 표시 행 3 건, 평균은 (2+3)/2 = 2.5 — null 이 0 으로 끌어내리지 않는다.
+    expect(metrics[0]).toMatchObject({ id: 'count', value: 3 });
+    expect(metrics[1]).toMatchObject({ id: 'avg', value: '2.5 / 3' });
+  });
+
+  // branch (d) — 정상 전량이면 두 분모가 같다.
+  it('정상 전량이면 평가 건수와 평균 분모가 같다 (branch — 전량 유효)', () => {
+    const metrics = deriveMetrics([
+      displayRow({ id: '1', contributionScore: 1 }),
+      displayRow({ id: '2', contributionScore: 2 }),
+    ]);
+    expect(metrics[0]).toMatchObject({ id: 'count', value: 2 });
+    expect(metrics[1]).toMatchObject({ id: 'avg', value: '1.5 / 3' });
+  });
+
+  // negative ① — 응답 미도착(undefined 전달)에서 빈 목록.
+  it('응답 미도착(undefined)이면 빈 목록을 낸다 (negative — 미도착)', () => {
+    expect(deriveMetrics(undefined as unknown as AssessmentDisplayRow[])).toEqual([]);
+  });
+
+  // negative ② — 값역 밖(-1 · 7)은 clamp 되어 평균이 값역 [0, 3] 을 벗어나지 않는다.
+  it('값역 밖 점수를 clamp 해 평균이 값역을 벗어나지 않는다 (negative — 값역 밖)', () => {
+    const metrics = deriveMetrics([
+      displayRow({ id: '1', contributionScore: -1 }),
+      displayRow({ id: '2', contributionScore: 7 }),
+    ]);
+    // -1 → 0, 7 → 3 이므로 평균은 1.5 다(원값 평균 3 이 아니다).
+    expect(metrics[1]).toMatchObject({ id: 'avg', value: '1.5 / 3' });
+    const onlyOver = deriveMetrics([displayRow({ id: '1', contributionScore: 7 })]);
+    expect(onlyOver[1]).toMatchObject({ value: `${CONTRIBUTION_SCORE_MAX} / 3` });
+  });
+
+  // negative ③ — 비유한 값(NaN · Infinity)은 집계에서 제외된다.
+  it('NaN·Infinity 행을 집계에서 제외한다 (negative — 비유한 값)', () => {
+    const metrics = deriveMetrics([
+      displayRow({ id: '1', contributionScore: Number.NaN }),
+      displayRow({ id: '2', contributionScore: Number.POSITIVE_INFINITY }),
+      displayRow({ id: '3', contributionScore: 2 }),
+    ]);
+    expect(metrics[0]).toMatchObject({ id: 'count', value: 3 });
+    // 비유한 값 2 건이 평균을 흔들지 않아 유효 1 건의 값 2 가 그대로 평균이다.
+    expect(metrics[1]).toMatchObject({ id: 'avg', value: '2 / 3' });
+    expect(JSON.stringify(metrics)).not.toContain('NaN');
+  });
+
+  // negative ④ — 비객체 row(null · 문자열 · 결손 객체)가 섞여도 throw 0.
+  it('비객체 row 가 섞여도 throw 없이 유효 행만 집계한다 (negative — 결손 row)', () => {
+    const rows = [
+      null,
+      'boom',
+      { id: 'only-id' },
+      displayRow({ id: '4', contributionScore: 1 }),
+    ] as unknown as AssessmentDisplayRow[];
+    expect(() => deriveMetrics(rows)).not.toThrow();
+    const metrics = deriveMetrics(rows);
+    expect(metrics[0]).toMatchObject({ id: 'count', value: 4 });
+    expect(metrics[1]).toMatchObject({ id: 'avg', value: '1 / 3' });
+  });
+
+  // drift guard — 만점은 CONTRIBUTION_SCORE_MAX(=3)에서만 온다. 100 점 만점으로
+  // 되돌리거나 scoreMax 를 하드코딩으로 바꾸면 본 test 가 fail 한다.
+  it('만점이 CONTRIBUTION_SCORE_MAX 이고 100 이 아니다 (drift guard — REQ-076 회귀 차단)', () => {
+    expect(CONTRIBUTION_SCORE_MAX).toBe(3);
+    const metrics = deriveMetrics(METRIC_SAMPLE);
+    const avgValue = String(metrics[1].value);
+    expect(avgValue).toContain(`/ ${CONTRIBUTION_SCORE_MAX}`);
+    expect(avgValue).not.toContain('100');
+    // 평균 자체도 실 스케일 상한을 넘지 않는다.
+    expect(Number(avgValue.split('/')[0])).toBeLessThanOrEqual(CONTRIBUTION_SCORE_MAX);
+  });
+
+  // 렌더 레벨 — 실제 DashboardView markup 의 요약 카드에 만점 표기가 나온다.
+  it('요약 카드에 만점 표기를 렌더한다 (렌더 레벨 — 만점 표면화)', () => {
+    setAssessments({ data: RAW_SAMPLE, loading: false, error: undefined });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    expect(html).toContain('평가 건수');
+    expect(html).toContain('평균 점수');
+    // RAW_SAMPLE 은 2.5 · 3 · 1.2 → 평균 2.2333… → 2.23, 만점 3 이 병기된다.
+    expect(html).toContain('2.23 / 3');
+  });
+
+  // 렌더 레벨 negative — 전 행 점수가 null 이면 평균 카드가 사라지고 건수만 남는다.
+  it('전 행 점수 null 이면 평균 점수 카드를 렌더하지 않는다 (렌더 레벨 — 0 점 위장 금지)', () => {
+    setAssessments({
+      data: [rawRow('1', null), rawRow('2', null)],
+      loading: false,
+      error: undefined,
+    });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    expect(html).toContain('평가 건수');
+    expect(html).not.toContain('평균 점수');
   });
 });

@@ -21,8 +21,9 @@ import DashboardFilterBar from '../components/DashboardFilterBar';
 import type { SortOption } from '../components/DashboardFilterBar';
 // T-1727 (REQ-075, PLAN 131 행 ②) slice 3b — 준비된 세 조각(매핑 helper·표 컴포넌트·정렬/검색
 // 순수 모듈)을 본 컨테이너가 실제로 소비하도록 배선한다. 옛 행 계약 EvaluationResultRow 는
-// 요약 지표·점수 분포의 임시 브리지(toLegacyScoreRows) 반환 타입으로만 남으므로 type-only
-// import 만 유지한다(EvaluationResultTable 파일 삭제·정리는 별도 slice — Out of Scope).
+// 임시 브리지(toLegacyScoreRows) 반환 타입으로만 남으므로 type-only import 만 유지한다.
+// T-1730 으로 그 브리지의 컨테이너 내 소비처는 0 이 되었고, 함수 정의·export·전용 spec 과
+// 이 type-only import 의 정리는 slice 4b-3 책임이다(Out of Scope).
 import AssessmentResultTable, {
   ASSESSMENT_TABLE_COLUMNS,
 } from '../components/AssessmentResultTable';
@@ -36,7 +37,11 @@ import type { AssessmentRowSortKey } from '../api/assessmentRowOps';
 // 스케일(0–3)로 교체한다. 직전 slice T-1728 이 신설한 순수 집계 모듈을 그대로 소비하며
 // (모듈 수정 0), 컨테이너가 갖고 있던 옛 0–100 가정 bucket 상수와 집계 helper 는 함께
 // 삭제한다 — 두 축이 공존하면 어느 쪽이 진짜 스케일인지 모호해지기 때문이다.
-import { deriveContributionScoreBuckets } from '../api/assessmentScoreScale';
+// T-1730 slice 4b-2 — 요약 지표(평가 건수·평균 점수)도 같은 모듈의 집계를 소비한다.
+import {
+  deriveContributionScoreBuckets,
+  summarizeContributionScores,
+} from '../api/assessmentScoreScale';
 import TrendTimeSeriesPanel from '../components/TrendTimeSeriesPanel';
 import type { TrendPoint } from '../components/TrendTimeSeriesPanel';
 import ScoreDistributionChart from '../components/ScoreDistributionChart';
@@ -284,23 +289,38 @@ function toLegacyScoreRows(rows: AssessmentDisplayRow[]): EvaluationResultRow[] 
 }
 
 // 표시할 row 로부터 요약 지표 카드 파생(순수 함수). 평가 건수·평균 점수 두 지표를
-// 집계한다(③a 핵심 요약 표면; 전기 대비 delta·서버 aggregation 은 ③b/후속). 빈 배열이면
-// 빈 목록을 반환해 MetricSummaryCards 가 빈 상태를 렌더하게 한다.
-function deriveMetrics(rows: EvaluationResultRow[]): MetricSummaryItem[] {
-  if (rows.length === 0) {
+// 집계한다(③a 핵심 요약 표면; 전기 대비 delta·서버 aggregation 은 후속).
+//
+// T-1730 (REQ-076, PLAN 131 행 ③) slice 4b-2 — 임시 브리지(toLegacyScoreRows) 경유
+// 자체 평균 계산을 걷어내고 T-1728 의 순수 모듈 `summarizeContributionScores` 소비로
+// 전환한다. 컨테이너는 평균을 다시 계산하지 않는다(집계 로직 single source).
+// 만점은 `summary.scoreMax`(= CONTRIBUTION_SCORE_MAX) 에서만 오며 숫자 3 을 여기에
+// 하드코딩하지 않는다 — 0–100 임의 가정으로 되돌아가는 회귀를 spec 의 drift guard 가
+// 잡을 수 있게 하기 위함이다. 평균 카드 문자열에 만점을 함께 드러내(예: `2.23 / 3 점`)
+// 사람이 100 점 만점으로 오독하지 않게 한다.
+//
+// 정책: 평가 건수는 **표시 행 수**(표에 보이는 건수와 일치), 평균은 **점수 보유 행**
+// 기준(모듈의 count) 이다 — 결손 점수를 0 으로 위장하지 않기 때문에 둘의 분모가 다를 수
+// 있다. 점수 보유 행이 0 건이면(average === null) 평균 카드를 아예 내지 않는다.
+// 비정상 입력(빈 배열·비배열·null·undefined)은 빈 목록으로 흡수하고 throw 하지 않는다.
+function deriveMetrics(rows: AssessmentDisplayRow[]): MetricSummaryItem[] {
+  if (!Array.isArray(rows) || rows.length === 0) {
     return [];
   }
-  const sum = rows.reduce((acc, row) => acc + row.score, 0);
-  const avg = sum / rows.length;
-  return [
+  const summary = summarizeContributionScores(rows);
+  const items: MetricSummaryItem[] = [
     { id: 'count', label: '평가 건수', value: rows.length, unit: '건' },
-    {
+  ];
+  // 평균 카드는 표본(점수 보유 행)이 있을 때만 — "평균 0 점" 과 "표본 없음" 은 다르다.
+  if (summary.average !== null) {
+    items.push({
       id: 'avg',
       label: '평균 점수',
-      value: Math.round(avg * 10) / 10,
+      value: `${summary.average} / ${summary.scoreMax}`,
       unit: '점',
-    },
-  ];
+    });
+  }
+  return items;
 }
 
 // 필터·정렬된 row 를 (page, pageSize) 로 slicing 하는 순수 helper(③b-3 페이지네이션).
@@ -477,12 +497,6 @@ function DashboardView({
     [data, searchTerm, sortKey, sortDirection],
   );
 
-  // 요약 지표·점수 분포용 옛 계약 행(임시 브리지) — REQ-076 slice 에서 제거된다.
-  const legacyScoreRows = useMemo(
-    () => toLegacyScoreRows(visibleRows),
-    [visibleRows],
-  );
-
   // 인원 선택 후보 파생(T-1723) — 응답 row 배열을 선택 컨트롤의 persons 형태로 매핑한다.
   // active 기반 후보 필터링은 컴포넌트(filterSelectablePersons) 책임이라 여기서 하지 않는다.
   const personOptions = useMemo(
@@ -490,11 +504,9 @@ function DashboardView({
     [personsData],
   );
 
-  // 요약 지표 파생 — 표시 row(필터/정렬 후) 기준 집계.
-  const metrics = useMemo(
-    () => deriveMetrics(legacyScoreRows),
-    [legacyScoreRows],
-  );
+  // 요약 지표 파생 — 표시 row(필터/정렬 후) 기준 집계. 옛 계약 브리지를 경유하지 않으므로
+  // 표시 행의 null 정책(값 없음 ≠ 0 점)이 요약까지 그대로 전달된다(T-1730).
+  const metrics = useMemo(() => deriveMetrics(visibleRows), [visibleRows]);
 
   // 유효 페이지 파생 — 필터/검색 변경으로 visibleRows 가 줄어 currentPage 가 전체 페이지
   // 수를 넘으면(예: 3페이지에 있던 중 검색으로 1페이지 분량만 남음) 마지막 페이지로 보수적
