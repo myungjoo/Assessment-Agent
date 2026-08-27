@@ -17,7 +17,6 @@ vi.mock('../api/useApiResource', () => ({
 
 import DashboardView, {
   buildAssessmentsPath,
-  toLegacyScoreRows,
   resolveHeaderSort,
   deriveMetrics,
   buildSummariesPath,
@@ -26,6 +25,8 @@ import DashboardView, {
   deriveContributionMetrics,
   pageRows,
 } from './DashboardView';
+// T-1731 drift guard — 제거한 임시 브리지가 export 로 되살아나지 않는지 모듈 전체를 읽는다.
+import * as DashboardViewModule from './DashboardView';
 import type { SummaryRow, ContributionRow } from './DashboardView';
 import type { PermissionDeniedRecordRow } from '../components/PermissionDeniedRecordList';
 import type { AssessmentDisplayRow } from '../api/assessmentRow';
@@ -1121,46 +1122,31 @@ describe('DashboardView — AssessmentDisplayRow 파이프라인 배선 (T-1727)
     vi.restoreAllMocks();
   });
 
-  // happy-path — 브리지 helper 가 표시 행을 옛 집계 계약으로 정상 매핑한다.
-  it('toLegacyScoreRows 가 표시 행을 집계용 옛 행으로 매핑한다 (happy-path)', () => {
-    const legacy = toLegacyScoreRows([
-      displayRow({ id: '1', period: '2026-06', scope: '팀', contributionScore: 80 }),
-      displayRow({ id: '2', period: '2026-07', scope: '개인', contributionScore: 0 }),
-    ]);
-    expect(legacy).toEqual([
-      { id: '1', subjectName: '2026-06', metricLabel: '팀', score: 80 },
-      // 0 점은 "값 없음" 이 아니므로 집계에 그대로 포함된다(제외 대상은 null 뿐).
-      { id: '2', subjectName: '2026-07', metricLabel: '개인', score: 0 },
-    ]);
-  });
-
-  // error path — 비정상 입력에도 빈 배열 + throw 0.
-  it('비정상 입력이면 빈 배열을 반환하고 throw 하지 않는다 (error path — 브리지 방어)', () => {
-    expect(() =>
-      toLegacyScoreRows(null as unknown as AssessmentDisplayRow[]),
-    ).not.toThrow();
-    expect(toLegacyScoreRows(null as unknown as AssessmentDisplayRow[])).toEqual([]);
-    expect(toLegacyScoreRows(undefined as unknown as AssessmentDisplayRow[])).toEqual([]);
-    expect(toLegacyScoreRows('boom' as unknown as AssessmentDisplayRow[])).toEqual([]);
-    // 배열 안의 비객체 원소·NaN 점수도 조용히 제외된다(throw 0).
+  // T-1731 (REQ-076 slice 4b-3) drift guard — 임시 브리지 toLegacyScoreRows 는 요약 지표
+  // (T-1730)·분포 축(T-1729)이 실 스케일 순수 모듈로 옮겨가며 소비처가 0 이 되어 정의·export·
+  // 전용 spec 을 함께 제거했다. 브리지가 되살아나거나 옛 행 계약 경유가 재도입되면 본 test 가
+  // fail 한다. 브리지가 지키던 계약(null·비유한 값 제외 = 0 점 위장 금지)은 위 두 describe 와
+  // assessmentScoreScale colocated spec 이 계속 단언한다.
+  it('toLegacyScoreRows 를 더 이상 export 하지 않는다 (drift guard — 임시 브리지 부활 차단)', () => {
+    const exportedNames = Object.keys(DashboardViewModule);
+    expect(exportedNames).not.toContain('toLegacyScoreRows');
     expect(
-      toLegacyScoreRows([
-        null as unknown as AssessmentDisplayRow,
-        displayRow({ contributionScore: Number.NaN }),
-      ]),
-    ).toEqual([]);
-  });
-
-  // negative (c) — contributionScore null 행은 브리지 결과에서 제외된다(분포 축의
-  // 같은 정책은 아래 실 스케일 분포 describe 가 렌더 수준에서 단언한다).
-  it('contributionScore=null 행을 브리지 결과에서 제외한다 (negative — 0 점 위장 금지)', () => {
-    const rows = [
-      displayRow({ id: '1', contributionScore: 2 }),
-      displayRow({ id: '2', contributionScore: null }),
-    ];
-    const legacy = toLegacyScoreRows(rows);
-    expect(legacy).toHaveLength(1);
-    expect(legacy[0]).toMatchObject({ id: '1', score: 2 });
+      (DashboardViewModule as Record<string, unknown>).toLegacyScoreRows,
+    ).toBeUndefined();
+    // 과잉 삭제 차단 — 남아야 하는 순수 helper export 는 그대로다.
+    for (const name of [
+      'buildAssessmentsPath',
+      'resolveHeaderSort',
+      'deriveMetrics',
+      'buildSummariesPath',
+      'deriveTrendPoints',
+      'buildContributionsPath',
+      'deriveContributionMetrics',
+      'pageRows',
+      'derivePersonOptions',
+    ]) {
+      expect(exportedNames).toContain(name);
+    }
   });
 
   // branch (c) — 헤더 클릭 정렬 전이: 같은 키 → 방향 토글 / 다른 키 → asc 전환.

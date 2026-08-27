@@ -20,15 +20,14 @@ import type { MetricSummaryItem } from '../components/MetricSummaryCards';
 import DashboardFilterBar from '../components/DashboardFilterBar';
 import type { SortOption } from '../components/DashboardFilterBar';
 // T-1727 (REQ-075, PLAN 131 행 ②) slice 3b — 준비된 세 조각(매핑 helper·표 컴포넌트·정렬/검색
-// 순수 모듈)을 본 컨테이너가 실제로 소비하도록 배선한다. 옛 행 계약 EvaluationResultRow 는
-// 임시 브리지(toLegacyScoreRows) 반환 타입으로만 남으므로 type-only import 만 유지한다.
-// T-1730 으로 그 브리지의 컨테이너 내 소비처는 0 이 되었고, 함수 정의·export·전용 spec 과
-// 이 type-only import 의 정리는 slice 4b-3 책임이다(Out of Scope).
+// 순수 모듈)을 본 컨테이너가 실제로 소비하도록 배선했다.
+// T-1731 (REQ-076, PLAN 131 행 ③) slice 4b-3 — 요약 지표와 점수 분포 축이 모두
+// `../api/assessmentScoreScale` 의 순수 모듈을 직접 소비하므로 옛 행 계약을 경유하는
+// 임시 브리지는 정의·export·type-only import·전용 spec 까지 모두 제거됐다(경유 0).
 import AssessmentResultTable, {
   ASSESSMENT_TABLE_COLUMNS,
 } from '../components/AssessmentResultTable';
 import type { AssessmentSortKey } from '../components/AssessmentResultTable';
-import type { EvaluationResultRow } from '../components/EvaluationResultTable';
 import { deriveAssessmentDisplayRows } from '../api/assessmentRow';
 import type { AssessmentDisplayRow } from '../api/assessmentRow';
 import { filterAssessmentRows, sortAssessmentRows } from '../api/assessmentRowOps';
@@ -255,44 +254,11 @@ function deriveTrendPoints(rows: SummaryRow[] | undefined): TrendPoint[] {
   });
 }
 
-// REQ-076 축 스케일 정합 slice 에서 제거될 임시 브리지(T-1727). 표시 행(AssessmentDisplayRow)
-// 을 요약 지표·점수 분포 helper 가 아직 기대하는 옛 행 계약(EvaluationResultRow)으로 얇게
-// 옮긴다 — 두 helper 의 시그니처·본문을 본 slice 에서 바꾸지 않기 위한 장치이며, 그 helper 가
-// 새 행 계약과 실 metricScore 스케일로 이전되는 시점에 이 함수와 함께 사라진다.
-//
-// contributionScore 가 null(값 없음)인 행은 **집계에서 제외** 한다 — 0 으로 채우면 평균이
-// 끌어내려지고 점수 분포의 첫 bucket 이 부풀어 "값 없음" 이 0 점으로 위장되기 때문이다.
-// rows 가 배열이 아니면(타입 우회 · 응답 미도착) 빈 배열을 반환하고 throw 하지 않는다.
-function toLegacyScoreRows(rows: AssessmentDisplayRow[]): EvaluationResultRow[] {
-  if (!Array.isArray(rows)) {
-    return [];
-  }
-  const legacy: EvaluationResultRow[] = [];
-  for (const row of rows) {
-    if (row === null || typeof row !== 'object') {
-      continue;
-    }
-    const score = row.contributionScore;
-    if (typeof score !== 'number' || !Number.isFinite(score)) {
-      continue;
-    }
-    // subjectName/metricLabel 은 집계 축이 아니라 두 helper 의 타입을 만족시키는 자리표시자다
-    // (평균·분포는 score 만 읽는다). 사람이 읽는 라벨은 표·상세 패널이 새 행에서 직접 낸다.
-    legacy.push({
-      id: row.id,
-      subjectName: row.period,
-      metricLabel: row.scope,
-      score,
-    });
-  }
-  return legacy;
-}
-
 // 표시할 row 로부터 요약 지표 카드 파생(순수 함수). 평가 건수·평균 점수 두 지표를
 // 집계한다(③a 핵심 요약 표면; 전기 대비 delta·서버 aggregation 은 후속).
 //
-// T-1730 (REQ-076, PLAN 131 행 ③) slice 4b-2 — 임시 브리지(toLegacyScoreRows) 경유
-// 자체 평균 계산을 걷어내고 T-1728 의 순수 모듈 `summarizeContributionScores` 소비로
+// T-1730 (REQ-076, PLAN 131 행 ③) slice 4b-2 — 임시 브리지 경유 자체 평균 계산을
+// 걷어내고 T-1728 의 순수 모듈 `summarizeContributionScores` 소비로
 // 전환한다. 컨테이너는 평균을 다시 계산하지 않는다(집계 로직 single source).
 // 만점은 `summary.scoreMax`(= CONTRIBUTION_SCORE_MAX) 에서만 오며 숫자 3 을 여기에
 // 하드코딩하지 않는다 — 0–100 임의 가정으로 되돌아가는 회귀를 spec 의 drift guard 가
@@ -768,7 +734,6 @@ function DashboardView({
 
 export {
   buildAssessmentsPath,
-  toLegacyScoreRows,
   resolveHeaderSort,
   deriveMetrics,
   buildSummariesPath,
