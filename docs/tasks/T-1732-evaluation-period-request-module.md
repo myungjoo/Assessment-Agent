@@ -2,7 +2,7 @@
 id: T-1732
 title: web 조회 기간 지정 request 순수 모듈 evaluationPeriod 신설
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-077]
 estimatedDiff: 265
@@ -34,7 +34,7 @@ plannerNote: PLAN 131 행 ④(REQ-077) 분해 slice 1 — 기간 지정 request 
 
 ## Acceptance Criteria
 
-- [ ] 신규 파일 `web/src/api/evaluationPeriod.ts` (**colocated spec 은 `web/src/api/evaluationPeriod.test.ts`**) 에 다음 surface 를 export 한다. 파일 머리 주석에 "계약 정본은 backend `PeriodBridgeDto` / api.md `104 행`" 을 명시한다.
+- [x] 신규 파일 `web/src/api/evaluationPeriod.ts` (**colocated spec 은 `web/src/api/evaluationPeriod.test.ts`**) 에 다음 surface 를 export 한다. 파일 머리 주석에 "계약 정본은 backend `PeriodBridgeDto` / api.md `104 행`" 을 명시한다.
   - `PERIOD_EVALUATION_PATH` — `'/api/assessment-evaluation/period'` 상수.
   - `EvaluationPeriodGranularity` — `'day' | 'week' | 'month'` union type.
   - `EVALUATION_PERIOD_OPTIONS` — `{ value, label }` readonly 배열(라벨은 한국어: 일간 / 주간 / 월간). 후속 select UI 의 option source.
@@ -42,19 +42,19 @@ plannerNote: PLAN 131 행 ④(REQ-077) 분해 slice 1 — 기간 지정 request 
   - `isEvaluationPeriodGranularity(value: unknown): value is EvaluationPeriodGranularity` — 허용 literal 3 종만 true.
   - `normalizePeriodStartInput(value: unknown): string | null` — `<input type="date">` 값(`YYYY-MM-DD`)을 trim 해 반환하고, 형식 위반 · 달력상 불가능한 날짜 · 비문자열 · 빈 문자열은 `null`.
   - `buildPeriodEvaluationRequest(input): { path, body } | null` — 유효 입력이면 요청 path 와 body 를, 하나라도 무효면 `null`.
-- [ ] `normalizePeriodStartInput` 은 **offset 산술을 하지 않는다** — `+09:00` 같은 offset 문자열을 프런트에서 조립하지 말고 날짜 문자열을 그대로 통과시킨다(KST 해석은 backend `parseKstPeriodInput` 책임). 이 근거를 주석 1~2 줄로 박제한다.
-- [ ] `buildPeriodEvaluationRequest` 의 body 는 **`personId` / `period` / `scope` / `periodStart` 4 키 + `reevaluate` 가 엄격히 `true` 일 때만 추가된 5 번째 키** 만 갖는다. 입력 객체에 정의 외 키가 섞여 있어도 body 로 새어나가지 않는다(backend `forbidNonWhitelisted` 400 사전 차단).
-- [ ] 순수성 유지 — `react` · `components/*` · `apiClient` · `fetch` import 0, throw 0, 입력 인자 mutation 0.
-- [ ] `web/src/api/evaluationPeriod.test.ts` (colocated) 에 R-112 4 종을 모두 담는다:
+- [x] `normalizePeriodStartInput` 은 **offset 산술을 하지 않는다** — `+09:00` 같은 offset 문자열을 프런트에서 조립하지 말고 날짜 문자열을 그대로 통과시킨다(KST 해석은 backend `parseKstPeriodInput` 책임). 이 근거를 주석 1~2 줄로 박제한다.
+- [x] `buildPeriodEvaluationRequest` 의 body 는 **`personId` / `period` / `scope` / `periodStart` 4 키 + `reevaluate` 가 엄격히 `true` 일 때만 추가된 5 번째 키** 만 갖는다. 입력 객체에 정의 외 키가 섞여 있어도 body 로 새어나가지 않는다(backend `forbidNonWhitelisted` 400 사전 차단).
+- [x] 순수성 유지 — `react` · `components/*` · `apiClient` · `fetch` import 0, throw 0, 입력 인자 mutation 0.
+- [x] `web/src/api/evaluationPeriod.test.ts` (colocated) 에 R-112 4 종을 모두 담는다:
   - **happy-path**: 각 public symbol 1+ — `isEvaluationPeriodGranularity('day'|'week'|'month')` true, `normalizePeriodStartInput('2026-08-01')` 통과, `buildPeriodEvaluationRequest` 가 정상 입력에서 기대 path·body 를 반환, `EVALUATION_PERIOD_OPTIONS` 가 3 종을 순서대로 담고 한국어 라벨을 가짐.
   - **error path**: 무효 입력에서 **throw 하지 않고** `null` 을 반환함을 단언(`expect(() => ...).not.toThrow()` 포함).
   - **분기 cover**: `reevaluate` 미지정 / `false` / `true` 3 분기 각 1+ (true 일 때만 body 에 키가 존재), `scope` 미지정(기본값 적용) / 명시 2 분기.
   - **negative cases 충분 cover — 각 1+**: (a) `personId` 가 빈 문자열/공백만, (b) `personId` 비문자열, (c) `period` 가 허용 밖(`'year'`), (d) `period` 대소문자 위반(`'DAY'`), (e) `periodStart` 달력상 불가능(`'2026-02-30'`), (f) `periodStart` zero-pad 누락(`'2026-8-1'`), (g) `periodStart` 빈 문자열, (h) `null` / `undefined` 입력, (i) 입력 객체의 정의 외 키가 body 로 새지 않음.
   - **drift guard 1+**: body 키 집합이 backend 계약 5 키를 벗어나지 않음을 `Object.keys` 로 단언(계약 확장 시 fail 로 드러남).
-- [ ] `pnpm --dir web test` (vitest) 전량 green — 신규 spec 포함.
-- [ ] `pnpm --dir web build` (tsc) green.
-- [ ] 루트 `pnpm lint` green, `pnpm test:cov` green (line ≥ 80% / function ≥ 80%). `src/` diff 0 이므로 backend coverage 는 불변이어야 한다.
-- [ ] 변경 파일 2 개 / diff ≤ 300 LOC 를 지킨다(초과 예상 시 spec 케이스를 합치지 말고 planner 에게 split 을 남긴다).
+- [x] `pnpm --dir web test` (vitest) 전량 green — 신규 spec 포함.
+- [x] `pnpm --dir web build` (tsc) green.
+- [x] 루트 `pnpm lint` green, `pnpm test:cov` green (line ≥ 80% / function ≥ 80%). `src/` diff 0 이므로 backend coverage 는 불변이어야 한다.
+- [x] 변경 파일 2 개 / diff ≤ 300 LOC 를 지킨다(초과 예상 시 spec 케이스를 합치지 말고 planner 에게 split 을 남긴다).
 
 ## Out of Scope
 
@@ -72,3 +72,11 @@ plannerNote: PLAN 131 행 ④(REQ-077) 분해 slice 1 — 기간 지정 request 
 
 - (후속 slice) `DashboardPeriodSelector` 컴포넌트 신설 — `EVALUATION_PERIOD_OPTIONS` + `<input type="date">` 소비, 순수 presentational.
 - (후속 slice) DashboardView 배선 + `POST /api/assessment-evaluation/period` 실 호출 · 응답 반영 · 실패 표시.
+
+## 완료 기록
+
+- **완료 시각**: 2026-08-27T09:53Z (cron fire `cron@akiha-b7e2ec4e-0937`)
+- **결과**: PR [#1362](https://github.com/myungjoo/Assessment-Agent/pull/1362) squash merge → main `053219e2`. 신규 2 파일 `+298/-0` (§3 상한 300 LOC / 5 파일 안).
+- **요약**: `web/src/api/evaluationPeriod.ts` 를 신설해 기간 지정 평가 요청 계약을 프런트 단일 지점에 박제했다. export surface 7 종 — `PERIOD_EVALUATION_PATH` · `EvaluationPeriodGranularity` · `EVALUATION_PERIOD_OPTIONS`(일간/주간/월간) · `DEFAULT_EVALUATION_SCOPE`(`'aggregate'`) · `isEvaluationPeriodGranularity` · `normalizePeriodStartInput` · `buildPeriodEvaluationRequest`. 파일 머리 주석에 계약 정본(backend `PeriodBridgeDto` / [api.md](../architecture/api.md) `104 행`)을 명시했다. `normalizePeriodStartInput` 은 **offset 산술 0** — `YYYY-MM-DD` 를 그대로 통과시키고(KST 해석은 backend `parseKstPeriodInput` 책임, 근거 주석 박제) 달력 round-trip 으로 `2026-02-30` 류 불가능 날짜를 거부한다. body 는 4 키 + `reevaluate` 가 엄격히 `true` 일 때만 5 번째 키이며 정의 외 키는 새지 않는다(backend `forbidNonWhitelisted` 400 사전 차단). `react` · `components/*` · `apiClient` · `fetch` import 0, throw 0, 입력 mutation 0 의 순수 모듈이다.
+- **test**: colocated spec `web/src/api/evaluationPeriod.test.ts` 에 신규 19 케이스 — happy(각 public symbol 1+) / error(무효 입력에서 throw 0 · `null` 반환) / 분기(`reevaluate` 미지정·false·true, `scope` 기본·명시) / negative (a)~(i) 9 종 / body 키 집합 drift guard. web vitest 80 파일 2421 test green, `pnpm --dir web build`(tsc) green, 루트 `pnpm lint` · `pnpm test:cov`(453 suite 13009 test) green. `src/` diff 0 이라 backend coverage 불변.
+- **review**: reviewer round 2/7 종결 후 §3.3 4-게이트 충족 — reviewer APPROVE comment 외부 존재 + PR CI 2 job(`기본 검사` · `배포 산출물 검증`) success + integrator 자체 점검 통과 → squash merge + branch delete.
