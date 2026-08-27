@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
@@ -497,5 +498,47 @@ describe('DashboardView — 기간 평가 성공 후 재조회 배선 (T-1737, R
       expect(reload).not.toHaveBeenCalled();
       expect(submitMock).not.toHaveBeenCalled();
     });
+  });
+});
+
+// reviewer MINOR-1 (round 1) closure — §3 Nit-in-PR. 배선 자체(두 호출부의 reload 구조분해 +
+// 제출 완료 분기의 재조회 호출)는 jsdom 부재로 실행 경로가 test 에 안 걸린다. 같은 파일군이
+// 이미 쓰는 source 정적 대조 guard 관례(DashboardView.assessments-list-contract.test.ts)를
+// 승계해 호출 한 줄이 지워지면 CI 가 red 가 되도록 못박는다. 새 dependency 0.
+describe('DashboardView — 재조회 배선 source guard (T-1737, reviewer MINOR-1)', () => {
+  // 주석 안의 동일 문자열이 대조를 통과시키지 않도록 라인 주석을 제거한 소스로 본다.
+  const SOURCE = readFileSync(
+    new URL('./DashboardView.tsx', import.meta.url),
+    'utf-8',
+  )
+    .split('\n')
+    .filter((line) => !line.trim().startsWith('//') && !line.trim().startsWith('*'))
+    .join('\n');
+
+  // AC 1 — assessments 조회가 reload 를 구조분해한다(무-alias 관례 유지).
+  it('assessments 조회부가 reload 를 구조분해한다 (happy-path — 배선 1)', () => {
+    expect(SOURCE).toMatch(
+      /const \{ data, loading, error, reload \} = useApiResource<unknown\[\]>\(path\)/,
+    );
+  });
+
+  // AC 1 — summaries 조회가 trend prefix alias 로 reload 를 구조분해한다(상태 오염 차단).
+  it('summaries 조회부가 trendReload alias 로 구조분해한다 (happy-path — 배선 2)', () => {
+    expect(SOURCE).toMatch(/reload: trendReload,\s*\n\s*\} = useApiResource<SummaryRow\[\]>/);
+  });
+
+  // AC 2 — 제출 완료 분기가 두 재조회를 함께 넘겨 호출한다. 이 한 줄이 지워지면 fail 한다.
+  it('제출 완료 분기가 두 재조회를 넘겨 호출한다 (happy-path — 배선 3)', () => {
+    expect(SOURCE).toContain('reloadAfterPeriodEvaluation(notice, [reload, trendReload]);');
+  });
+
+  // 범위 게이트 — 나머지 3 개 조회(contributions · permission-denied · persons)는 diff 0 이라
+  // reload 를 구조분해하지 않는다. 무분별한 재조회 확산을 막는 negative 축이다.
+  it('나머지 3 개 조회는 reload 를 구조분해하지 않는다 (negative — 범위 확산 차단)', () => {
+    for (const alias of ['contributionReload', 'permissionDeniedReload', 'personsReload']) {
+      expect(SOURCE).not.toContain(alias);
+    }
+    // 재조회 호출은 제출 완료 분기 1 곳뿐이다(중복 배선·렌더 중 호출 차단).
+    expect(SOURCE.match(/reloadAfterPeriodEvaluation\(notice, \[/g)).toHaveLength(1);
   });
 });
