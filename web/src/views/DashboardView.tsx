@@ -63,6 +63,14 @@ import type { PermissionDeniedRecordRow } from '../components/PermissionDeniedRe
 // 컴포넌트 파일 수정 0 — default import + named type 만.
 import DashboardPersonSelector from '../components/DashboardPersonSelector';
 import type { SelectablePerson } from '../components/DashboardPersonSelector';
+// T-1735 (REQ-077, PLAN 131 행 ④) slice 4 — 앞선 세 slice(요청 조립 계약 evaluationPeriod.ts ·
+// 선택 컨트롤 DashboardPeriodSelector · 실행/정규화 periodEvaluationSubmit.ts)를 본 컨테이너가
+// 처음으로 소비해 화면에서 실제 POST 가 나가는 지점까지 닫는다. 세 모듈 수정 0 · fetch 직접
+// 호출 0 · apiClient 직접 import 0(ADR-0041 Decision 1·3). 성공 후 결과 재조회는
+// useApiResource 의 reload 수단 신설을 동반하므로 slice 5 로 분리한다(본 slice 에서 diff 0).
+import DashboardPeriodSelector from '../components/DashboardPeriodSelector';
+import { submitPeriodEvaluation } from '../api/periodEvaluationSubmit';
+import type { PeriodEvaluationRequest } from '../api/evaluationPeriod';
 
 // 정렬 가능 컬럼 옵션 — 표 헤더(ASSESSMENT_TABLE_COLUMNS)에서 파생한다. 하드코딩하면 표
 // 컬럼이 바뀔 때 툴바 정렬 옵션만 옛 키로 남는 drift 가 생기므로, 단일 출처에서 {key,label}
@@ -367,6 +375,70 @@ function resolveHeaderSort(
   return { sortKey: nextKey, sortDirection: 'asc' };
 }
 
+// 기간 지정 평가 요청(T-1735) 결과 문구 — 성공/실패 두 축을 한 값으로 묶는다. 둘 다 빈
+// 문자열이면 "아직 아무 결과도 없음"(초기 상태)이다. 성공 문구는 role="status", 실패 문구는
+// 선택 컨트롤의 error prop 으로 흘러간다.
+interface PeriodEvaluationNotice {
+  success: string;
+  error: string;
+}
+
+const PERIOD_NOTICE_NONE: PeriodEvaluationNotice = { success: '', error: '' };
+// 사유가 비었거나 shape 판별이 안 될 때의 최종 fallback — "아무 일도 없었던 것처럼" 보이지 않게.
+const PERIOD_UNKNOWN_NOTICE = '평가 요청 결과를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.';
+const PERIOD_SUCCESS_TEXT = '기간 평가 요청을 완료했습니다';
+
+/**
+ * 제출 모듈의 outcome 을 화면 문구로 파생한다(순수 · 입력 mutation 0 · throw 0). 성공은
+ * 정규화 요약(건수형 / assessmentId 형 / 미상형)에 따라 세 갈래 한국어 문구가 되고, 실패는
+ * 모듈이 준 한국어 사유를 그대로 전달한다. outcome 이 null/undefined 이거나 알 수 없는
+ * shape 이면 성공으로 오인하지 않고 fallback 실패 문구로 흡수한다(오탐 성공 차단).
+ */
+function derivePeriodEvaluationNotice(outcome: unknown): PeriodEvaluationNotice {
+  if (outcome === null || typeof outcome !== 'object') {
+    return { success: '', error: PERIOD_UNKNOWN_NOTICE };
+  }
+  const source = outcome as Record<string, unknown>;
+  if (source.status === 'error') {
+    const message = typeof source.message === 'string' ? source.message.trim() : '';
+    return { success: '', error: message === '' ? PERIOD_UNKNOWN_NOTICE : message };
+  }
+  if (source.status !== 'ok') {
+    return { success: '', error: PERIOD_UNKNOWN_NOTICE };
+  }
+  // 건수형(User 분기 ephemeral 결과) — 배열 길이가 정규화된 경우.
+  if (typeof source.resultCount === 'number' && Number.isFinite(source.resultCount)) {
+    return { success: `${PERIOD_SUCCESS_TEXT} (평가 결과 ${source.resultCount}건).`, error: '' };
+  }
+  // assessmentId 형(Admin 분기 영속 결과) — created 가 boolean 일 때만 신규/기존을 덧붙인다.
+  if (typeof source.assessmentId === 'string' && source.assessmentId !== '') {
+    const createdSuffix =
+      source.created === true ? ', 신규 생성' : source.created === false ? ', 기존 결과 재사용' : '';
+    return {
+      success: `${PERIOD_SUCCESS_TEXT} (평가 ID ${source.assessmentId}${createdSuffix}).`,
+      error: '',
+    };
+  }
+  // 미상형 — 식별자·건수가 모두 없어도 성공은 성공이므로 건조한 완료 문구만 알린다.
+  return { success: `${PERIOD_SUCCESS_TEXT}.`, error: '' };
+}
+
+/**
+ * 기간 평가 요청 1 회를 실행해 화면 문구까지 파생한다. 제출 모듈은 throw 0 계약이지만 주입
+ * 구현이 reject 하는 경우까지 값으로 흡수해 컨테이너가 절대 throw 하지 않게 한다. submit 을
+ * 주입 가능하게 열어 두어 네트워크 없이 전 분기를 spec 이 cover 한다.
+ */
+async function runPeriodEvaluation(
+  request: PeriodEvaluationRequest,
+  submit: (target: PeriodEvaluationRequest) => Promise<unknown> = submitPeriodEvaluation,
+): Promise<PeriodEvaluationNotice> {
+  try {
+    return derivePeriodEvaluationNotice(await submit(request));
+  } catch {
+    return { success: '', error: PERIOD_UNKNOWN_NOTICE };
+  }
+}
+
 // 대시보드 화면 컨테이너. useApiResource 로 GET /api/assessments 결과를 소유하고,
 // 정렬/필터/검색 상태를 useState 로 보유해 client-side 정렬/필터 후 presentational 에
 // props 로 내려보낸다.
@@ -386,6 +458,14 @@ function DashboardView({
   // 받아 하위 호환을 유지하고(주입 시 종전과 동일 렌더), 이후 선택 변경은 컨테이너 state 가
   // 권위다. AppShell 이 무-prop 으로 마운트해도 사용자가 화면 안에서 대상을 고를 수 있다.
   const [selectedPersonId, setSelectedPersonId] = useState<string>(personId ?? '');
+
+  // T-1735 — 기간 지정 평가 요청 상태(controlled lift-up, 컨테이너 소유). 기간 종류·시작일은
+  // 미선택(빈 값)으로 시작하며, 진행 중 flag 와 성공/실패 문구는 제출 1 회의 수명만 갖는다.
+  const [evaluationPeriod, setEvaluationPeriod] = useState<string>('');
+  const [evaluationPeriodStart, setEvaluationPeriodStart] = useState<string>('');
+  const [periodSubmitting, setPeriodSubmitting] = useState<boolean>(false);
+  const [periodNotice, setPeriodNotice] =
+    useState<PeriodEvaluationNotice>(PERIOD_NOTICE_NONE);
 
   // 정렬/필터/검색 상태 — controlled lift-up(컨테이너 소유).
   const [sortKey, setSortKey] = useState<AssessmentRowSortKey>(initialSortKey);
@@ -576,6 +656,22 @@ function DashboardView({
     setSelectedPersonId(nextPersonId);
     setSelectedId('');
     setCurrentPage(1);
+    // 직전 대상의 평가 요청 결과 문구·진행 중 표시가 다음 대상 화면에 남으면 어느 대상의
+    // 결과인지 오인되므로 함께 초기화한다(T-1735). 기간/시작일 선택은 유지한다.
+    setPeriodSubmitting(false);
+    setPeriodNotice(PERIOD_NOTICE_NONE);
+  };
+
+  // 기간 지정 평가 요청 제출(T-1735) — 컨트롤이 조립해 올린 request 를 그대로 제출 모듈에
+  // 넘긴다(컨테이너의 request 재조립 0). 호출 전 진행 중 true + 이전 문구 clear, 완료 후
+  // 진행 중 false. runPeriodEvaluation 이 reject 를 값으로 흡수하므로 catch 분기가 없다.
+  const handlePeriodSubmit = (request: PeriodEvaluationRequest) => {
+    setPeriodSubmitting(true);
+    setPeriodNotice(PERIOD_NOTICE_NONE);
+    void runPeriodEvaluation(request).then((notice) => {
+      setPeriodNotice(notice);
+      setPeriodSubmitting(false);
+    });
   };
 
   // 선택 컨트롤 — 미선택 early-return 분기와 정상 분기 양쪽에 같은 element 를 렌더한다.
@@ -622,6 +718,22 @@ function DashboardView({
       {/* 평가 대상 인원 선택 컨트롤(T-1723) — 자료 영역 위에 두어 선택 변경 수단이 항상
           보이게 한다. 미선택 분기와 동일한 element 라 두 분기 모두에서 선택이 가능하다. */}
       {personSelector}
+      {/* 기간 지정 평가 요청 컨트롤(T-1735, REQ-077) — personId 가 선택된 본문 분기에만
+          마운트한다(미선택 분기에서는 대상 없는 요청이 조립 자체가 불가). 상태는 컨테이너가
+          소유하고 컴포넌트에는 값/콜백만 내려보낸다(컴포넌트 수정 0). 허용 literal 판정과
+          제출 가능 판정은 컨트롤이 계약 모듈에 위임하므로 여기서 재발명하지 않는다. */}
+      <DashboardPeriodSelector
+        personId={selectedPersonId}
+        period={evaluationPeriod}
+        periodStart={evaluationPeriodStart}
+        onChangePeriod={setEvaluationPeriod}
+        onChangePeriodStart={setEvaluationPeriodStart}
+        onSubmit={handlePeriodSubmit}
+        submitting={periodSubmitting}
+        error={periodNotice.error}
+      />
+      {/* 성공 문구 — 실패는 컨트롤의 error prop(alert)으로 가고 성공만 여기서 알린다. */}
+      {periodNotice.success ? <p role="status">{periodNotice.success}</p> : null}
       {/* 상단 요약 지표 — 파생 metrics/loading/error 를 props 로만 내려보낸다. */}
       <MetricSummaryCards metrics={metrics} loading={loading} error={error} />
       {/* 필터/정렬 툴바 — 검색/정렬 상태와 콜백을 props 로 배선한다. */}
@@ -742,6 +854,13 @@ export {
   deriveContributionMetrics,
   pageRows,
   derivePersonOptions,
+  derivePeriodEvaluationNotice,
+  runPeriodEvaluation,
 };
-export type { DashboardViewProps, SummaryRow, ContributionRow };
+export type {
+  DashboardViewProps,
+  SummaryRow,
+  ContributionRow,
+  PeriodEvaluationNotice,
+};
 export default DashboardView;
