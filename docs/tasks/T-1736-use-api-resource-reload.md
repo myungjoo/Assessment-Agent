@@ -2,7 +2,7 @@
 id: T-1736
 title: useApiResource 에 reload 재조회 계약 신설 (호출부 호환 유지)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-077]
 estimatedDiff: 250
@@ -68,3 +68,13 @@ plannerNote: "P6 오너 지시 PLAN 131 행 ④ / REQ-077 slice 5a — 제출 �
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 적는다)
+
+## 완료 기록
+
+- **Status: DONE** — 2026-08-27T14:58:39Z (squash merge)
+- PR [#1366](https://github.com/myungjoo/Assessment-Agent/pull/1366) → main `da246f58`
+- 결과: `useApiResource` 반환 타입을 `ApiResourceHandle<T>`(기존 `ApiResourceState<T>` 3 필드 + `reload`)로 **가산 확장**해 기존 5 개 호출부의 destructuring 을 그대로 통과시켰다. `useEffect` deps 를 `[path, reloadToken]` 두 축으로 넓히고, effect 본체를 `startResourceEffect` 로 분리해 jsdom 없이도 검증 가능하게 했다. `reload` 는 `useCallback` deps `[]` + 함수형 `setState` 라 신원이 안정적이다.
+- 규모: 2 파일 `+356/-36` — production 순증 **+38 LOC**(task 사전 고지 ≤60 준수), 초과분 283 행은 전부 R-112 강제 spec (`sizeExempt` 사전 정당화).
+- 검증: 신규 spec 17 케이스(happy 3 · error 2 · 분기 4 · negative 6 · 토큰/호환 2). web vitest 83 파일 2500 test · web build(tsc+vite) · 루트 lint · `test:cov` 453 suite 13009 test 전량 green. `src/` diff 0 이라 backend coverage 불변, 새 dependency 0.
+- reviewer round 1/7 APPROVE. reviewer nit(헤더 주석 책임 목록 drift)은 §3 Nit-in-PR closure 로 같은 PR 의 commit `81778b46` 에서 닫아 follow-up task 0.
+- **후속 slice 5b**: `DashboardView` 에서 기간 평가 제출 성공 시 `reload` 호출 배선(결과 표 실제 재조회).
