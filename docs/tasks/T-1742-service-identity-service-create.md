@@ -2,7 +2,7 @@
 id: T-1742
 title: ServiceIdentityService 에 create 추가 — 첫 row 자동 primary 승격 + P2002 409
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 235
@@ -119,3 +119,20 @@ cap (≤ 300 LOC) 을 확실히 넘는다. 본 slice 는 그중 **`create` 하�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 append)
+
+## 완료 기록
+
+- **완료 시각**: 2026-08-27T20:57:36Z (squash merge)
+- **결과**: `commitMode: pr` — PR [#1372](https://github.com/myungjoo/Assessment-Agent/pull/1372) → main `d9e9e4ce`.
+  `ServiceIdentityService.create` 1 메서드만 추가 (`update` · `delete` 재승격 · `setPrimary` 미노출).
+  Person 존재 선검사 후 부재면 404, 존재하면 `repository.create` 호출하고
+  `isPrimary` 미전달 + 기존 row 0 개일 때만 [ADR-0058](../decisions/ADR-0058-service-identity-management-api.md)
+  `§Decision 2` 대로 첫 row 를 자동 primary 로 승격한다 (`setPrimary` 재사용 —
+  `$transaction` · `updateMany` 재구현 0). `P2002` 는 `§Decision 5` (a) 대로
+  `ConflictException`(409) 로 변환하고 그 외 Prisma 오류는 원형 propagate.
+  2 파일 `+286/-13`, colocated spec 11 케이스 추가로 R-112 4 종 cover
+  (happy 1 · 분기 4 · negative 6). 대상 service stmt/branch/func/line 100%,
+  전체 456 suite / 13070 test green. reviewer round 1/7 APPROVE 후 4-게이트 충족
+  → squash 머지 + branch delete.
+- **reviewer 관찰 2 건 (finding 아님, 후속 slice 판단 대상)**: ① 승격 판정을 `count`
+  대신 전체 row fetch 로 수행 ② 선검사~create 사이 race. 둘 다 PR 코멘트에만 기록.
