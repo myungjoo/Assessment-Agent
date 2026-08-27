@@ -136,6 +136,13 @@ describe("CreateServiceIdentityDto", () => {
     );
   });
 
+  it("externalId 는 공백만이어도 통과한다 (계약 고정 — 형식 정규식 없음)", () => {
+    // ADR-0058 §Decision 6 은 externalId 에 형식 검증을 두지 않기로 했다(서비스별 ID
+    // 표기가 자유롭다). 그래서 @IsNotEmpty 가 trim 하지 않는 "   " 는 현재 통과한다.
+    // 나중에 @Matches 등이 조용히 추가되면 본 test 가 fail 해 계약 변경을 알린다.
+    expect(violations({ service: "GITHUB", externalId: "   " })).toEqual([]);
+  });
+
   it("externalId 정확히 255 자는 통과한다 (경계값)", () => {
     expect(
       violations({ service: "GITHUB", externalId: "a".repeat(255) }),

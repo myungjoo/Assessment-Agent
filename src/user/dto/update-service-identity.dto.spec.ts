@@ -71,8 +71,12 @@ describe("UpdateServiceIdentityDto", () => {
     );
   });
 
-  it("externalId 가 명시적 undefined 면 통과한다 (negative 대비 — 키 존재해도 값 없으면 skip)", () => {
+  it("externalId 키가 있어도 값이 undefined 면 통과한다 (분기 — @ValidateIf 의 undefined skip)", () => {
     expect(violations({ externalId: undefined })).toEqual([]);
+  });
+
+  it("externalId 는 공백만이어도 통과한다 (계약 고정 — create 와 동일하게 형식 정규식 없음)", () => {
+    expect(violations({ externalId: "   " })).toEqual([]);
   });
 
   // --------------------------------------------------------------------
