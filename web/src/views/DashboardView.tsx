@@ -32,10 +32,14 @@ import { deriveAssessmentDisplayRows } from '../api/assessmentRow';
 import type { AssessmentDisplayRow } from '../api/assessmentRow';
 import { filterAssessmentRows, sortAssessmentRows } from '../api/assessmentRowOps';
 import type { AssessmentRowSortKey } from '../api/assessmentRowOps';
+// T-1729 (REQ-076, PLAN 131 행 ③) slice 4b-1 — 점수 분포 축을 실 contributionScore
+// 스케일(0–3)로 교체한다. 직전 slice T-1728 이 신설한 순수 집계 모듈을 그대로 소비하며
+// (모듈 수정 0), 컨테이너가 갖고 있던 옛 0–100 가정 bucket 상수와 집계 helper 는 함께
+// 삭제한다 — 두 축이 공존하면 어느 쪽이 진짜 스케일인지 모호해지기 때문이다.
+import { deriveContributionScoreBuckets } from '../api/assessmentScoreScale';
 import TrendTimeSeriesPanel from '../components/TrendTimeSeriesPanel';
 import type { TrendPoint } from '../components/TrendTimeSeriesPanel';
 import ScoreDistributionChart from '../components/ScoreDistributionChart';
-import type { ScoreDistributionBucket } from '../components/ScoreDistributionChart';
 import EvaluationDetailPanel from '../components/EvaluationDetailPanel';
 import type { EvaluationMetricItem } from '../components/EvaluationDetailPanel';
 import DashboardPaginationControl from '../components/DashboardPaginationControl';
@@ -153,18 +157,6 @@ interface SummaryRow {
   score?: number;
 }
 
-// 점수 분포 bucket 경계 — [하한, 상한) 반열린 구간(상한 미포함)으로 정의하되, 마지막
-// bucket 만 상한 포함(만점 100 귀속). off-by-one 회피: score == 경계는 그 경계를 하한으로
-// 갖는 상위 bucket 에 귀속(예 score 80 → "80–100"), score 0 → 첫 bucket, score 100 →
-// 마지막 bucket. ADR-0040 §1 client-side(서버 aggregation 부재) — 경계는 컨테이너가 결정.
-const BUCKET_EDGES: { id: string; label: string; min: number; max: number }[] = [
-  { id: 'b0', label: '0–20', min: 0, max: 20 },
-  { id: 'b20', label: '20–40', min: 20, max: 40 },
-  { id: 'b40', label: '40–60', min: 40, max: 60 },
-  { id: 'b60', label: '60–80', min: 60, max: 80 },
-  { id: 'b80', label: '80–100', min: 80, max: 100 },
-];
-
 // personId/period → GET /api/summaries 조회 path 파생(순수 함수). personId 가 falsy 면
 // null 반환(조회 미수행 — api.md 109 의 personId 누락 400 회피). period 가 있으면 query 에
 // 병기한다. assessments path 와 동일한 조건부 조회 가드 규약을 따른다.
@@ -256,38 +248,6 @@ function deriveTrendPoints(rows: SummaryRow[] | undefined): TrendPoint[] {
     const value = typeof raw === 'number' && Number.isFinite(raw) ? raw : 0;
     return { label, value };
   });
-}
-
-// assessments row 의 score 를 점수 구간 bucket 으로 집계(순수 함수, client-side histogram).
-// 빈 배열이면 빈 bucket 목록 반환(차트가 빈 상태를 렌더). 경계 귀속: score 가 [min, max)
-// 에 들면 그 bucket, 마지막 bucket 만 상한 포함(만점 100). 0 미만/100 초과·NaN/Infinity 는
-// clamp 해 각각 첫/마지막 bucket 에 귀속(범위 밖 값도 분포에서 누락되지 않도록). 서버
-// aggregation 부재(ADR-0040 §1)이므로 경계 산정은 본 helper 가 책임진다.
-function deriveScoreBuckets(
-  rows: EvaluationResultRow[],
-): ScoreDistributionBucket[] {
-  if (rows.length === 0) {
-    return [];
-  }
-  const counts = BUCKET_EDGES.map(() => 0);
-  for (const row of rows) {
-    const score = Number.isFinite(row.score) ? row.score : 0;
-    // clamp 0–100 — 범위 밖 값은 가장 가까운 끝 bucket 에 귀속(누락 방지).
-    const clamped = Math.min(100, Math.max(0, score));
-    // 마지막 bucket 만 상한 포함(만점 100). 그 외는 [min, max) 반열린.
-    let idx = BUCKET_EDGES.findIndex(
-      (edge) => clamped >= edge.min && clamped < edge.max,
-    );
-    if (idx === -1) {
-      idx = BUCKET_EDGES.length - 1; // clamped === 100 → 마지막 bucket.
-    }
-    counts[idx] += 1;
-  }
-  return BUCKET_EDGES.map((edge, i) => ({
-    id: edge.id,
-    label: edge.label,
-    count: counts[i],
-  }));
 }
 
 // REQ-076 축 스케일 정합 slice 에서 제거될 임시 브리지(T-1727). 표시 행(AssessmentDisplayRow)
@@ -562,11 +522,13 @@ function DashboardView({
   // 시계열 포인트 파생 — summaries 조회 결과(trendData) 를 TrendPoint[] 로 매핑한다.
   const trendPoints = useMemo(() => deriveTrendPoints(trendData), [trendData]);
 
-  // 점수 분포 bucket 파생 — 이미 fetch 한 assessments row(visibleRows) 를 client-side
-  // histogram 으로 집계한다(새 endpoint 0). 분포는 표시 데이터에서 파생(ADR-0040 §1).
+  // 점수 분포 bucket 파생 — 이미 fetch 한 assessments 표시 행(visibleRows)을 실
+  // contributionScore 스케일(0–3, 폭 0.5 6 등분) 로 client-side 집계한다(새 endpoint 0,
+  // ADR-0040 §1 서버 aggregation 부재). 옛 행 계약 브리지(legacyScoreRows)를 경유하지
+  // 않으므로 표시 행의 null 정책(값 없음 ≠ 0 점)이 집계까지 그대로 전달된다.
   const scoreBuckets = useMemo(
-    () => deriveScoreBuckets(legacyScoreRows),
-    [legacyScoreRows],
+    () => deriveContributionScoreBuckets(visibleRows),
+    [visibleRows],
   );
 
   // 평가 상세 metric 파생 — contributions 조회 결과(contributionData) 를
@@ -799,7 +761,6 @@ export {
   deriveMetrics,
   buildSummariesPath,
   deriveTrendPoints,
-  deriveScoreBuckets,
   buildContributionsPath,
   deriveContributionMetrics,
   pageRows,

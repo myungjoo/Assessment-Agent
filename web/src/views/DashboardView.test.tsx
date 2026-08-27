@@ -22,7 +22,6 @@ import DashboardView, {
   deriveMetrics,
   buildSummariesPath,
   deriveTrendPoints,
-  deriveScoreBuckets,
   buildContributionsPath,
   deriveContributionMetrics,
   pageRows,
@@ -93,8 +92,10 @@ const TREND_SAMPLE: SummaryRow[] = [
 ];
 
 // T-1727 — backend `GET /api/assessments` 응답 형태의 raw 행 3 개. 컨테이너가 이 원문을
-// deriveAssessmentDisplayRows 로 매핑해 표에 렌더한다. contributionScore 는 80/95/60 으로
-// 두어 요약 평균·점수 분포 bucket 기대값이 아래 legacy fixture 와 같도록 맞춘다.
+// deriveAssessmentDisplayRows 로 매핑해 표에 렌더한다. contributionScore 는 실 스케일
+// [0, 3] 값(2.5 / 3 / 1.2)이다 — T-1729(REQ-076) 전에는 80/95/60 이라는 비현실 값이라
+// 실 데이터라면 전 행이 첫 bucket 에 몰렸을 왜곡을 spec 이 덮고 있었다. 세 값은 각각
+// `2.5–3`(2.5, 만점 3) 과 `1–1.5`(1.2) bucket 에 귀속돼 분포가 실제로 갈라진다.
 const RAW_SAMPLE: unknown[] = [
   {
     id: '1',
@@ -103,7 +104,7 @@ const RAW_SAMPLE: unknown[] = [
     scope: '팀',
     periodStart: '2026-06-01',
     difficulty: '중',
-    contributionScore: 80,
+    contributionScore: 2.5,
     volume: 12,
     narrative: '협업 근거 서술',
   },
@@ -114,7 +115,7 @@ const RAW_SAMPLE: unknown[] = [
     scope: '개인',
     periodStart: '2026-07-01',
     difficulty: '상',
-    contributionScore: 95,
+    contributionScore: 3,
     volume: 20,
     narrative: '리더십 근거 서술',
   },
@@ -125,14 +126,14 @@ const RAW_SAMPLE: unknown[] = [
     scope: '팀',
     periodStart: '2026-08-01',
     difficulty: '하',
-    contributionScore: 60,
+    contributionScore: 1.2,
     volume: 5,
     narrative: '협업 근거 서술',
   },
 ];
 
-// 옛 행 계약 fixture — deriveMetrics/deriveScoreBuckets 순수 helper 검증 전용(본 slice 에서
-// 두 helper 의 시그니처·본문은 불변이라 그 spec 블록도 그대로 둔다).
+// 옛 행 계약 fixture — deriveMetrics 순수 helper 검증 전용(요약 지표 이전은 slice 4b-2
+// 책임이라 본 slice 에서 그 helper 의 시그니처·본문·spec 블록은 그대로 둔다).
 const SAMPLE: EvaluationResultRow[] = [
   { id: '1', subjectName: '김철수', metricLabel: '협업', score: 80 },
   { id: '2', subjectName: '이영희', metricLabel: '리더십', score: 95 },
@@ -164,7 +165,7 @@ describe('DashboardView — 컨테이너 렌더', () => {
     expect(html).toContain('<td>중</td>');
     expect(html).toContain('<td>2026-07-01</td>');
     expect(html).toContain('<td>상</td>');
-    expect(html).toContain('<td>95</td>');
+    expect(html).toContain('<td>3</td>');
     expect(html).toContain('<td>12</td>');
   });
 
@@ -263,10 +264,13 @@ describe('DashboardView — 시계열/분포 패널 배선 (③b-1)', () => {
     // 시계열 패널 — 제목 + 시점 라벨 1+ 렌더.
     expect(html).toContain('점수 추이');
     expect(html).toContain('2026-06-01');
-    // 분포 차트 — 제목 + score(80/95/60) 가 60–80·80–100 bucket 으로 집계되어 렌더.
+    // 분포 차트 — 제목 + 실 스케일 라벨. contributionScore 2.5/3/1.2 가 각각
+    // `2.5–3`(2 건, 만점 3 은 마지막 bucket 상한 포함) 과 `1–1.5`(1 건) 로 집계된다.
     expect(html).toContain('점수 분포');
-    expect(html).toContain('80–100'); // score 95 → 마지막 bucket.
-    expect(html).toContain('60–80'); // score 60·80 → 60–80 bucket(80 은 80–100).
+    expect(html).toContain('2.5–3');
+    expect(html).toContain('1–1.5');
+    expect(html).toContain('aria-label="2.5–3: 2명"');
+    expect(html).toContain('aria-label="1–1.5: 1명"');
   });
 
   // error path — summaries 실패 시 시계열만 에러 + 추이 미렌더(분포는 영향 없음).
@@ -280,7 +284,7 @@ describe('DashboardView — 시계열/분포 패널 배선 (③b-1)', () => {
     expect(html).toContain('role="alert"');
     // 분포(assessments 정상)는 여전히 정상 렌더 — 오염 없음.
     expect(html).toContain('점수 분포');
-    expect(html).toContain('80–100');
+    expect(html).toContain('aria-label="2.5–3: 2명"');
   });
 
   // error path/조건부 조회 — personId 미선택 시 두 조회 모두 미수행 + 패널 미렌더.
@@ -317,7 +321,7 @@ describe('DashboardView — 시계열/분포 패널 배선 (③b-1)', () => {
     });
     const html = renderToStaticMarkup(<DashboardView personId="p1" />);
     expect(html).toContain('표시할 추이 데이터가 없습니다');
-    expect(html).toContain('80–100'); // 분포는 정상.
+    expect(html).toContain('aria-label="2.5–3: 2명"'); // 분포는 정상.
   });
 
   // flow/branch — 분포 빈 bucket(assessments 0 건) + 시계열은 populated.
@@ -380,46 +384,6 @@ describe('DashboardView — 시계열/분포 파생 (순수 함수)', () => {
     expect(pts[1]).toEqual({ label: 'wk2', value: 88 });
     expect(pts[2]).toEqual({ label: '2026-06-15', value: 0 });
     expect(pts[3]).toEqual({ label: '#4', value: 0 });
-  });
-
-  // deriveScoreBuckets — 빈 배열이면 빈 bucket, populated 면 5 구간 집계.
-  it('assessments row 를 점수 구간 bucket 으로 집계한다 (분포 파생)', () => {
-    expect(deriveScoreBuckets([])).toEqual([]);
-    const buckets = deriveScoreBuckets(SAMPLE); // score 80, 95, 60.
-    expect(buckets).toHaveLength(5);
-    const byId = Object.fromEntries(buckets.map((b) => [b.id, b.count]));
-    expect(byId.b60).toBe(1); // score 60 → 60–80.
-    expect(byId.b80).toBe(2); // score 80(경계) → 80–100, score 95 → 80–100.
-  });
-
-  // negative — bucket 경계값(score == 경계 / 0 / 만점 100) 의 귀속이 정확함(off-by-one).
-  it('bucket 경계값(경계/0/만점) 귀속이 정확하다 (negative — 경계 off-by-one)', () => {
-    const rows: EvaluationResultRow[] = [
-      { id: 'a', subjectName: 'x', metricLabel: 'm', score: 0 }, // → b0(0–20).
-      { id: 'b', subjectName: 'x', metricLabel: 'm', score: 20 }, // 경계 20 → b20.
-      { id: 'c', subjectName: 'x', metricLabel: 'm', score: 80 }, // 경계 80 → b80.
-      { id: 'd', subjectName: 'x', metricLabel: 'm', score: 100 }, // 만점 → b80(상한 포함).
-    ];
-    const byId = Object.fromEntries(
-      deriveScoreBuckets(rows).map((b) => [b.id, b.count]),
-    );
-    expect(byId.b0).toBe(1); // score 0.
-    expect(byId.b20).toBe(1); // score 20(경계는 상위 bucket).
-    expect(byId.b80).toBe(2); // score 80 경계 + 만점 100.
-  });
-
-  // negative — 범위 밖/NaN score 도 clamp 되어 분포에서 누락되지 않음.
-  it('범위 밖/NaN score 를 clamp 해 끝 bucket 에 귀속한다 (negative — clamp)', () => {
-    const rows: EvaluationResultRow[] = [
-      { id: 'a', subjectName: 'x', metricLabel: 'm', score: -5 }, // 음수 → 0 → b0.
-      { id: 'b', subjectName: 'x', metricLabel: 'm', score: 150 }, // 초과 → 100 → b80.
-      { id: 'c', subjectName: 'x', metricLabel: 'm', score: Number.NaN }, // NaN → 0 → b0.
-    ];
-    const byId = Object.fromEntries(
-      deriveScoreBuckets(rows).map((b) => [b.id, b.count]),
-    );
-    expect(byId.b0).toBe(2); // -5, NaN → 0.
-    expect(byId.b80).toBe(1); // 150 → 100.
   });
 });
 
@@ -546,7 +510,7 @@ describe('DashboardView — 평가 상세 패널 배선 (③b-2)', () => {
     // 테이블 row + 시계열 + 분포는 정상.
     expect(html).toContain('<table>');
     expect(html).toContain('2026-06-01');
-    expect(html).toContain('80–100');
+    expect(html).toContain('2.5–3');
   });
 });
 
@@ -1154,7 +1118,8 @@ describe('DashboardView — AssessmentDisplayRow 파이프라인 배선 (T-1727)
     ).toEqual([]);
   });
 
-  // negative (c) — contributionScore null 행은 요약 평균·점수 분포 집계에서 제외된다.
+  // negative (c) — contributionScore null 행은 요약 평균 집계에서 제외된다(분포 축의
+  // 같은 정책은 아래 실 스케일 분포 describe 가 렌더 수준에서 단언한다).
   it('contributionScore=null 행을 집계에서 제외한다 (negative — 0 점 위장 금지)', () => {
     const rows = [
       displayRow({ id: '1', contributionScore: 60 }),
@@ -1166,12 +1131,6 @@ describe('DashboardView — AssessmentDisplayRow 파이프라인 배선 (T-1727)
     const metrics = deriveMetrics(legacy);
     expect(metrics[0]).toMatchObject({ id: 'count', value: 1 });
     expect(metrics[1]).toMatchObject({ id: 'avg', value: 60 });
-    // 분포도 1 건만 집계 — 0 점 bucket(b0)이 부풀지 않는다.
-    const byId = Object.fromEntries(
-      deriveScoreBuckets(legacy).map((b) => [b.id, b.count]),
-    );
-    expect(byId.b60).toBe(1);
-    expect(byId.b0).toBe(0);
   });
 
   // branch (c) — 헤더 클릭 정렬 전이: 같은 키 → 방향 토글 / 다른 키 → asc 전환.
@@ -1271,5 +1230,159 @@ describe('DashboardView — AssessmentDisplayRow 파이프라인 배선 (T-1727)
     // 툴바 정렬 옵션도 표 헤더 6 키와 같은 집합이라 narrative 옵션이 없다.
     expect(html).not.toContain('value="narrative"');
     expect(html).not.toContain('value="personId"');
+  });
+});
+
+// T-1729 (REQ-076, PLAN 131 행 ③ slice 4b-1) — 점수 분포 축이 실 contributionScore
+// 스케일(0–3) 집계로 배선됐는지 렌더 수준에서 검증한다. 컨테이너에서 순수 helper 가
+// 사라졌으므로(집계는 assessmentScoreScale 모듈 책임) 단언 대상은 helper 반환값이 아니라
+// `ScoreDistributionChart` 가 실제로 그린 라벨·count(aria-label "구간: N명")다.
+// raw 행 1 개 helper — contributionScore 만 케이스별로 바꾼다.
+function rawRow(id: string, contributionScore: unknown): unknown {
+  return {
+    id,
+    personId: 'p1',
+    period: `2026-0${id}`,
+    scope: '팀',
+    periodStart: `2026-0${id}-01`,
+    difficulty: '중',
+    contributionScore,
+    volume: 3,
+    narrative: '근거 서술',
+  };
+}
+
+describe('DashboardView — 점수 분포 실 스케일 배선 (T-1729)', () => {
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — 실 스케일 6 구간 라벨이 모두 렌더되고 각 count 가 fixture 와 일치한다.
+  it('실 스케일(0–3) 6 구간 라벨과 fixture 기준 count 를 렌더한다 (happy-path)', () => {
+    setAssessments({ data: RAW_SAMPLE, loading: false, error: undefined });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    for (const label of ['0–0.5', '0.5–1', '1–1.5', '1.5–2', '2–2.5', '2.5–3']) {
+      expect(html).toContain(`<span>${label}</span>`);
+    }
+    // 2.5 와 만점 3 은 마지막 bucket(상한 포함), 1.2 는 `1–1.5`. 나머지는 0 건.
+    expect(html).toContain('aria-label="2.5–3: 2명"');
+    expect(html).toContain('aria-label="1–1.5: 1명"');
+    expect(html).toContain('aria-label="0–0.5: 0명"');
+    // 총합이 집계 대상 3 건과 일치한다(누락 0).
+    expect(html).toContain('총 3명');
+  });
+
+  // error path — assessments 조회 error 분기에서 분포가 throw 없이 에러를 렌더한다.
+  it('assessments 실패 시 분포가 throw 없이 에러를 렌더한다 (error path)', () => {
+    setAssessments({ data: undefined, loading: false, error: 'HTTP 500: dist boom' });
+    const render = () => renderToStaticMarkup(<DashboardView personId="p1" />);
+    expect(render).not.toThrow();
+    const html = render();
+    expect(html).toContain('role="alert"'); // 에러 상태 표면화.
+    expect(html).toContain('HTTP 500: dist boom');
+    // 에러 분기는 막대 목록을 그리지 않는다(부정확 표시 차단).
+    expect(html).not.toContain('<span>2.5–3</span>');
+  });
+
+  // branch (a) — personId 미선택이면 조회 미수행 + 분포 패널 자체가 미렌더.
+  it('personId 미선택이면 분포 패널을 렌더하지 않는다 (branch — 조회 미수행)', () => {
+    setAssessments(IDLE);
+    const html = renderToStaticMarkup(<DashboardView />);
+    expect(html).toContain('평가 대상을 선택하면');
+    expect(html).not.toContain('점수 분포');
+  });
+
+  // branch (b) — row 는 있으나 전 행 점수가 null 이면 빈 bucket 배열(막대 0 개).
+  it('전 행 contributionScore 가 null 이면 막대 0 개 빈 상태를 렌더한다 (branch — 빈 집계)', () => {
+    setAssessments({
+      data: [rawRow('1', null), rawRow('2', null)],
+      loading: false,
+      error: undefined,
+    });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    expect(html).toContain('표시할 분포 데이터가 없습니다');
+    // count 0 막대 6 개를 그리는 위장 표시가 아니라 진짜 빈 상태다.
+    expect(html).not.toContain('<span>0–0.5</span>');
+    expect(html).not.toContain('총 0명');
+  });
+
+  // branch (c) — 값 있는 행과 null 행이 섞이면 값 있는 행만 집계된다.
+  it('점수 있는 행만 집계하고 null 행은 제외한다 (branch — 혼재)', () => {
+    setAssessments({
+      data: [rawRow('1', 2.75), rawRow('2', null), rawRow('3', 0.25)],
+      loading: false,
+      error: undefined,
+    });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    expect(html).toContain('aria-label="2.5–3: 1명"');
+    expect(html).toContain('aria-label="0–0.5: 1명"');
+    // null 행이 0 점으로 위장돼 첫 bucket 을 2 건으로 부풀리지 않는다.
+    expect(html).toContain('총 2명');
+  });
+
+  // negative ① — data 미도착(undefined)이면 빈 상태(막대 0 개), throw 0.
+  it('data 미도착이면 분포가 빈 상태를 렌더한다 (negative — 응답 미도착)', () => {
+    setAssessments({ data: undefined, loading: false, error: undefined });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    expect(html).toContain('표시할 분포 데이터가 없습니다');
+  });
+
+  // negative ② — 비배열 data · 결손 row 혼입에도 throw 0 이고 정상 행만 집계된다.
+  it('비배열 data·결손 row 혼입에도 throw 없이 정상 행만 집계한다 (negative — 결손)', () => {
+    setAssessments({ data: 'boom' as unknown, loading: false, error: undefined });
+    expect(() => renderToStaticMarkup(<DashboardView personId="p1" />)).not.toThrow();
+    setAssessments({
+      data: [null, { id: 'only-id' }, rawRow('3', 1.75)],
+      loading: false,
+      error: undefined,
+    });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    expect(html).toContain('aria-label="1.5–2: 1명"');
+    // 결손 row 2 건은 점수가 없으므로 집계 대상이 아니다.
+    expect(html).toContain('총 1명');
+  });
+
+  // negative ③ — 범위 밖 값(음수·3 초과)은 끝 bucket 으로 귀속돼 분포에서 누락되지 않는다.
+  it('범위 밖 값을 끝 bucket 에 귀속시켜 누락 0 을 보장한다 (negative — clamp)', () => {
+    setAssessments({
+      data: [rawRow('1', -5), rawRow('2', 99), rawRow('3', 3)],
+      loading: false,
+      error: undefined,
+    });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    expect(html).toContain('aria-label="0–0.5: 1명"'); // -5 → 0.
+    expect(html).toContain('aria-label="2.5–3: 2명"'); // 99 → 3, 만점 3.
+    expect(html).toContain('총 3명'); // 누락 0.
+  });
+
+  // negative ④ — NaN·비수치 문자열 등 비유한 값 행이 첫 bucket 을 부풀리지 않는다.
+  it('NaN·비수치 문자열 행이 첫 bucket 을 부풀리지 않는다 (negative — 0 점 위장 금지)', () => {
+    setAssessments({
+      data: [
+        rawRow('1', Number.NaN),
+        rawRow('2', 'boom'),
+        rawRow('3', Number.POSITIVE_INFINITY),
+        rawRow('4', 2.2),
+      ],
+      loading: false,
+      error: undefined,
+    });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    expect(html).toContain('aria-label="0–0.5: 0명"');
+    expect(html).toContain('aria-label="2–2.5: 1명"');
+    expect(html).toContain('총 1명');
+    expect(html).not.toContain('NaN');
+  });
+
+  // drift guard — 옛 0–100 축 라벨이 렌더 결과에 남아있으면 fail 한다(회귀 차단).
+  it('옛 0–100 축 라벨을 렌더하지 않는다 (drift guard — REQ-076 회귀 차단)', () => {
+    setAssessments({ data: RAW_SAMPLE, loading: false, error: undefined });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    for (const legacyLabel of ['0–20', '20–40', '40–60', '60–80', '80–100']) {
+      expect(html).not.toContain(legacyLabel);
+    }
   });
 });
