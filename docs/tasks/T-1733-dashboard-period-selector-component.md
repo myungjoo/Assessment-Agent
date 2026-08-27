@@ -2,7 +2,9 @@
 id: T-1733
 title: 대시보드 기간 지정 선택 컴포넌트 DashboardPeriodSelector 신설
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1363
+completedAt: 2026-08-27T12:09:26Z
 commitMode: pr
 coversReq: [REQ-077]
 estimatedDiff: 290
