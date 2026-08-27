@@ -2,8 +2,9 @@
 // `apiClient.request` 위에 loading/error/data 상태 보유만 얹는 얇은 React hook 이다.
 // credentials 동반·401→refresh→retry 는 apiClient 가 이미 담당하므로 본 hook 은
 // (1) mount/`path` 변경 시 조건부 조회, (2) loading/error/data 상태 노출, (3) unmount/
-// 재요청 race 가드(stale 응답 무시) 세 가지 책임만 진다 (ADR-0041 Decision 3 loading/
-// error → props 경계). 새 dependency 0 — react hooks + apiClient.request 만 사용한다
+// 재요청 race 가드(stale 응답 무시), (4) 같은 `path` 의 명시적 수동 재조회 수단(`reload`,
+// T-1736) 네 가지 책임만 진다 (ADR-0041 Decision 3 loading/error → props 경계). polling/
+// interval 자동 갱신은 책임 밖. 새 dependency 0 — react hooks + apiClient.request 만 쓴다
 // (ADR-0040 §5 게이트). axios/react-query 미도입.
 //
 // 조건부 조회: `path === null`(또는 falsy) 이면 fetch 를 수행하지 않는다 — personId
