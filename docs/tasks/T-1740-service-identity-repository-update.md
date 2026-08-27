@@ -2,17 +2,19 @@
 id: T-1740
 title: ServiceIdentityRepository 에 update primitive 추가
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 160
 estimatedFiles: 2
 created: 2026-08-27
+completedAt: 2026-08-27T18:55:12Z
 independentStream: service-identity-api
 dependsOn: [T-1739]
 touchesFiles:
   - src/user/service-identity.repository.ts
   - src/user/service-identity.repository.spec.ts
+prNumber: 1370
 plannerNote: P5 오너 지시 PLAN 132 행 / ADR-0058 Follow-ups (a) 잔여 축 분해 — service 이전에 필요한 repository update primitive 만 절단
 ---
 
