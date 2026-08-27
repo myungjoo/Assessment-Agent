@@ -57,6 +57,7 @@ import { PersonController } from "./person.controller";
 import { PersonRepository } from "./person.repository";
 import { PersonService } from "./person.service";
 import { ServiceIdentityRepository } from "./service-identity.repository";
+import { ServiceIdentityService } from "./service-identity.service";
 import { SummaryController } from "./summary.controller";
 import { SummaryRepository } from "./summary.repository";
 import { SummaryService } from "./summary.service";
@@ -151,6 +152,12 @@ import { UserService } from "./user.service";
     // @@unique 부재 → P2002 변환 분기 없음 (ContributionService 와 동일).
     // immutable 이라 update/deactivate/reactivate 미박제.
     SummaryService,
+    // ServiceIdentityService — T-1741 추가. ServiceIdentityRepository 위 application
+    // service (ADR-0058 §Follow-ups (a) 의 골격 + 목록 조회 slice). PersonRepository
+    // 를 함께 inject 해 §Decision 5 (c) 의 Person 존재 선검사 → NotFoundException
+    // (404) 계약을 강제한다. create / update / delete / setPrimary 와 Prisma error
+    // 변환은 후속 slice.
+    ServiceIdentityService,
   ],
   exports: [
     PersonRepository,
@@ -185,6 +192,9 @@ import { UserService } from "./user.service";
     // SummaryService export (T-0116) — 후속 SummaryController / endpoint 가
     // 다른 module 에서 본 service 를 inject 가능하도록 노출.
     SummaryService,
+    // ServiceIdentityService export (T-1741) — 후속 ServiceIdentityController /
+    // endpoint 가 다른 module 에서 본 service 를 inject 가능하도록 노출.
+    ServiceIdentityService,
   ],
 })
 export class UserModule {}
