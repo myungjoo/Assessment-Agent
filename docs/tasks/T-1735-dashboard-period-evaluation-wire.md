@@ -2,12 +2,15 @@
 id: T-1735
 title: DashboardView 에 기간 지정 평가 요청 배선 (선택 상태 소유 + 컨트롤 마운트 + 실 제출)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-077]
 estimatedDiff: 340
 estimatedFiles: 2
 created: 2026-08-27
+completedAt: 2026-08-27T13:57:16Z
+prNumber: 1365
+mergeCommit: 90b5aa05
 independentStream: web-req077-period
 dependsOn: [T-1732, T-1733, T-1734]
 touchesFiles:
@@ -69,3 +72,9 @@ plannerNote: "P6 오너지시 PLAN 131행 ④ / REQ-077 slice 4 — T-1732~T-173
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 추가)
+
+## 결과 (2026-08-27 DONE)
+
+PR [#1365](https://github.com/myungjoo/Assessment-Agent/pull/1365) → main `90b5aa05` squash 머지. 2 파일 `+419/-1` — production 순증 119 LOC(사전 고지 ≤120 준수), 초과분 299 LOC 는 전부 신규 전용 spec(`sizeExempt` 근거대로). `DashboardView` 가 기간 선택 상태를 `useState` 로 소유하고 `personId` 선택 분기에서만 `DashboardPeriodSelector` 를 마운트하며, 제출은 `submitPeriodEvaluation` 경유로만 나간다(`fetch`·`apiClient` 직접 호출 0). 결과 문구 파생은 순수 함수 `derivePeriodEvaluationNotice` 로 분리 export(throw 0 · mutation 0). 신규 spec 17 케이스로 R-112 4 종 전부 cover(happy 2 · error path 2 · 마운트/성공·실패/응답형 분기 · negative 6 종 + 건수 경계값). web vitest 83 파일 2484 test · web build · 루트 lint · `test:cov` 453 suite 13009 test 전량 green(`src/` diff 0 이라 backend coverage 불변). reviewer round 2/7 종결 후 4-게이트 충족.
+
+**후속(slice 5)**: 제출 성공 후 결과 표 재조회 — `useApiResource` 가 `path` 변경만을 조회 trigger 로 삼아 별도 reload 수단이 없어 hook 계약 변경을 동반한다.
