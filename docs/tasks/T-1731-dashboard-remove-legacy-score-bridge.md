@@ -2,7 +2,7 @@
 id: T-1731
 title: DashboardView 임시 브리지 toLegacyScoreRows 정의·export·전용 spec 제거
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-076]
 estimatedDiff: 140
@@ -63,3 +63,11 @@ planner 가 본 fire 에서 `origin/main` (`dcd6df97`) 을 직접 확인한 결�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가)
+
+## 완료 기록
+
+- **완료 시각**: 2026-08-27T07:49Z (cron fire `cron@akiha-fa7ec4f8-0737`)
+- **결과**: PR [#1361](https://github.com/myungjoo/AA_S1/pull/1361) squash merge → main `66713120`. 2 파일 `+32/-81`.
+- **요약**: `web/src/views/DashboardView.tsx` 에서 임시 브리지 `toLegacyScoreRows` 함수 정의·브리지 설명 주석·하단 `export` 항목·반환 타입 전용이던 `EvaluationResultRow` type-only import 를 삭제했다(파일 내 두 식별자 참조 각 0 회). 남은 export 9 종(`buildAssessmentsPath` · `resolveHeaderSort` · `deriveMetrics` · `buildSummariesPath` · `deriveTrendPoints` · `buildContributionsPath` · `deriveContributionMetrics` · `pageRows` · `derivePersonOptions`)은 불변. 상단 주석의 "브리지는 slice 4b-3 이 정리한다" 예고는 **정리 완료 사실**(요약 지표·분포 축이 모두 `web/src/api/assessmentScoreScale.ts` 순수 모듈을 소비, 옛 행 계약 경유 0)로 갱신했고 새 예고는 만들지 않았다.
+- **test**: 브리지 전용 3 케이스와 상단 import 를 삭제하는 대신, 모듈 export surface 를 읽어 `toLegacyScoreRows` 가 **export 되지 않음**을 단언하는 drift guard 1 을 추가했다. 삭제로 cover 가 사라질 뻔한 negative 5 종(미도착 · 결손 `contributionScore=null` · 값역 밖 · 비유한 값 · 비객체 row)과 분기 3 종은 T-1729 · T-1730 describe 및 `assessmentScoreScale` colocated spec 에 각 1+ 로 잔존함을 확인했다. web 79 파일 2397 test · 루트 `pnpm lint` · `pnpm test:cov`(453 suite 13009 test) · `pnpm --dir web build`(tsc) 전량 green, `src/` diff 0 이라 backend coverage 불변.
+- **review**: reviewer APPROVE round 1/7 → §3.3 4-게이트 충족 후 squash merge + branch delete. Nit 1 건(`deriveMetrics` 위 주석 줄바꿈 폭)은 의미 손상 0 이라 추가 commit 없이 종결.
