@@ -2,7 +2,7 @@
 id: T-1741
 title: ServiceIdentityService 신설 — Person 존재 선검사 + 목록 조회
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 260
@@ -101,3 +101,13 @@ R-112 spec 포함 시 400 LOC 을 확실히 넘는다. 그래서 본 slice 는 *
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 append)
+
+---
+
+## 결과 (2026-08-27T19:56:40Z DONE)
+
+- **머지**: PR [#1371](https://github.com/myungjoo/Assessment-Agent/pull/1371) → main `38e5c9fe` (squash + branch delete), reviewer round 1/7 APPROVE.
+- **구현**: `ServiceIdentityService` 신설 — public 메서드 정확히 1 개 (`findByPersonId`). `PersonRepository.findById` 선검사 후 `null` 이면 `NotFoundException`, 존재 시 `ServiceIdentityRepository.findByPersonId` 결과를 **무가공 반환** (정렬 · 필터 · 매핑 0). `user.module.ts` providers/exports 에 등록 — 기존 배열 원소 · imports · controllers 변경 0. production `+62/-0` (2 파일).
+- **test**: colocated spec 신설로 R-112 4 종 전부 cover — happy 2 · 분기 3 (0 row · 2+ row · Person 부재) · negative 6 (두 repository throw 각각 propagate · 반환 배열 무변형 drift guard · soft-delete Person 은 404 아님 · 빈 personId). 신규 service coverage 100% (stmt/branch/func/line), 전체 456 suite / 13059 test green, `lint` · `build` 통과.
+- **Nit-in-PR closure**: round 1 reviewer nit 을 같은 PR 안에서 닫았다 — fixture 의 `as Person` 단언을 제거하고 `partId: null` 을 명시해 schema drift 가 compile error 로 드러나게 했다. follow-up task 0.
+- **Out of Scope 준수**: create / update / delete / setPrimary · controller · guard 배선 · e2e · `web/` · `prisma/` · `package.json` · 워크플로 diff 0. 완료 선언 0 — PLAN `132 행` 과 REQ status 는 불변.
