@@ -2,7 +2,7 @@
 id: T-1765
 title: web ServiceIdentityRowActions 삭제 · primary 지정 액션 컴포넌트 신설 (쓰기 축 3/3)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 285
@@ -67,3 +67,11 @@ REQ-078 Admin UI 축 / REQ-079 의 "이름 / email 만 입력 가능한 상태 �
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가)
+
+## 완료 기록
+
+- 완료 시각: 2026-08-28T19:59:00Z (PR [#1393](https://github.com/myungjoo/Assessment-Agent/pull/1393) squash `179046c2`, branch 삭제)
+- 결과: `web/src/components/ServiceIdentityRowActions.tsx` + colocated `.test.tsx` 2 파일 `+300/-0`. props-only controlled component 로 fetch · `useState` 0, row 타입은 `../api/serviceIdentity` 의 `ServiceIdentityRow` 재사용. `confirmingDelete` 로 삭제 버튼 ↔ 확인 문구(service · externalId 포함) + 확정 · 취소 전환(2 중 삭제 경로 차단), `isPrimary === true` 행은 primary 지정 버튼 disabled + 표식, `loading` 우선 전체 disable, primary 행 삭제 확인 시 자동 승격 안내 노출, `error` truthy 시 `role="alert"`.
+- 검증: spec 17 test 로 R-112 4 종(happy 2 / error path 2 + 경계 1 / 분기 8 / negative 5) 커버. web 88 파일 2671 test green, root 458 suite 13208 test green, `test:cov` threshold(line/function ≥ 80%) 유지. 새 dependency 0.
+- reviewer round 1 APPROVE 후 Low finding 2 건(button `name` 의도 주석 부재 · 확인 영역 `aria-label` 부재)을 [CLAUDE.md](../../CLAUDE.md) §3 Nit-in-PR closure 로 round 2 에서 같은 PR 안에 마감 — follow-up task 0. round 2 중 `aria-label` 초안이 `DELETE_TEXT` 를 부분 포함해 negative test 가 실제로 fail 했고 `삭제 확인 영역` 으로 교정했다.
+- 잔여 (후속 slice): `deleteServiceIdentity` · `setPrimaryServiceIdentity` 실 호출 · 상태 보유 · 목록 갱신 · AdminView 배선 · RBAC gating.
