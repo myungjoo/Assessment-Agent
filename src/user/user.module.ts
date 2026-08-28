@@ -26,7 +26,8 @@
 //                  PartController — `/api/parts` 5 endpoint 노출 (T-0046).
 //                  GroupController — `/api/groups` 7 endpoint 노출 (T-0055 CRUD 4 + T-0057 N:M 3).
 //                  ServiceIdentityController — `/api/persons/:personId/identities` 의
-//                  GET 목록 1 endpoint 노출 (T-1748, ADR-0058 §Follow-ups (b) 첫 절단).
+//                  GET 목록 · POST 생성 2 endpoint 노출 (T-1748 + T-1749, ADR-0058
+//                  §Follow-ups (b) 절단 chain — 잔여 3 route 는 후속 slice).
 //   - providers: PersonRepository, ServiceIdentityRepository, GroupRepository,
 //     PartRepository, PersonGroupMembershipRepository, PersonService, PartService,
 //     GroupService.
