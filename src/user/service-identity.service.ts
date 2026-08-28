@@ -1,7 +1,8 @@
 // ServiceIdentityService — ServiceIdentity 도메인 의 application service.
 // ADR-0058 §Follow-ups (a) 의 잔여 slice 중 **골격 + 목록 조회** (T-1741) · **create**
 // (T-1742) · **update 1 경로** (T-1743) · **setPrimary 1 경로** (T-1744) 에 이어
-// **delete 1 경로** (T-1746) 까지 담는다 (DTO 는 T-1739, repository 는 T-1740 이 마감).
+// **delete 1 경로** (T-1746) 와 그 **삭제 후 primary 재승격 배선** (T-1747) 까지 담는다
+// (DTO 는 T-1739, repository 는 T-1740, 재승격 선택 규칙은 T-1745 의 순수 모듈이 마감).
 //
 // 책임:
 //   - ADR-0058 §Decision 5 (c) 의 **Person 존재 선검사** 계약을 본 service 에 못 박는다.
@@ -16,15 +17,18 @@
 //   - ADR-0058 §Decision 3 의 **PATCH 는 `externalId` 단일 축 + 미전달 보존** (RFC-7396
 //     merge patch) 과 §Decision 5 (e) 의 **타 Person 소유 identity 는 403 이 아니라 404**.
 //
-// 책임 경계 (Out of Scope — T-1746 §Out of Scope 박제):
-//   - **delete 후 재승격은 본 slice 가 구현하지 않는다** (후속 T-1747 이 이어받는다).
-//     `delete` 는 3 단 404 + hard delete 까지만 담고, 잔여 row 중 다음 primary 를 고르는
-//     정렬 계약 (`createdAt` · `id` 오름차순 — T-1745 의 `selectNextPrimaryIdentity`) 은
-//     import 조차 하지 않는다. 근거: controller · route 가 아직 0 개라 본 service 의
-//     소비처가 없고, 따라서 "마지막 primary 를 지우면 primary 0" 이라는 중간 상태가
-//     외부로 노출되지 않는다 (T-1745 가 소비처 0 순수 모듈을 먼저 머지한 것과 같은 선례).
-//     어느 경로에서도 `setPrimary` 의 2 op transaction 을 재구현하지 않는다
+//   - ADR-0058 §Decision 2 마지막 항의 **delete 후 primary 재승격** — 지운 row 가 primary
+//     였고 잔여 row 가 1+ 이면 그중 하나를 반드시 새 primary 로 올려 "`N ≥ 1` 인데 primary
+//     0" 상태를 남기지 않는다 (REQ-024 의 1 인원 1 primary invariant 를 삭제 경로에서도
+//     성립시킴). 잔여 row 중 어느 것을 고르는지의 **정렬 계약** (`createdAt` 오름차순 ·
+//     동률이면 `id` 오름차순) 은 순수 모듈 `selectNextPrimaryIdentity` (T-1745) 에 위임하며
+//     본 service 안에서 재구현하지 않는다.
+//
+// 책임 경계 (Out of Scope):
+//   - 어느 경로에서도 `setPrimary` 의 2 op transaction 을 재구현하지 않는다
 //     (ADR-0058 §Decision 2 — repository 가 유일 경로).
+//   - 삭제 + 재승격을 하나의 `$transaction` 으로 묶는 원자성 강화는 본 service 밖이다 —
+//     현재는 controller · route 가 0 개라 두 op 사이 중간 상태가 외부로 노출되지 않는다.
 //   - `P2002` · `P2025` 외의 오류는 어느 경로에서도 삼키지 않고 그대로 propagate 한다.
 //   - controller · route · guard 배선 없음 (ADR-0058 §Follow-ups (b)).
 //   - 정렬 · 필터 · DTO 매핑 없음 — repository 의 "Prisma default 순서 유지" 주석 승계.
@@ -38,6 +42,7 @@ import type { ServiceIdentity } from "@prisma/client";
 import type { CreateServiceIdentityDto } from "./dto/create-service-identity.dto";
 import type { UpdateServiceIdentityDto } from "./dto/update-service-identity.dto";
 import { PersonRepository } from "./person.repository";
+import { selectNextPrimaryIdentity } from "./service-identity-primary-order";
 import { ServiceIdentityRepository } from "./service-identity.repository";
 
 // Prisma 의 error 식별 — `code` field 가 known request error 의 식별자. instanceof 대신
@@ -229,11 +234,22 @@ export class ServiceIdentityService {
   //       404 이며 **403 이 아니다** (ADR §Decision 5 e). 타 Person row 의 존재 사실도
   //       소유자 personId 도 메시지에 드러내지 않는다. findById 를 새로 추가하지 않고
   //       기존 findByPersonId primitive 를 재사용한다.
-  //   (3) repository.delete 결과 (삭제된 row) 를 가공 없이 반환. (2) 와 delete 사이에
-  //       row 가 사라져 Prisma 가 `P2025` 를 던지면 404 로 변환 (ADR §Decision 5 b),
-  //       그 외 오류는 삼키지 않고 원형 그대로 propagate.
-  //   (4) 대상이 `isPrimary === true` 여도 **재승격을 호출하지 않는다** — 헤더 "책임
-  //       경계" 참조 (후속 T-1747). 여기에 setPrimary 를 끼워 넣으면 경계가 무너진다.
+  //   (3) 삭제 자체가 실패하면 재승격 단계로 넘어가지 않는다. (2) 와 delete 사이에 row 가
+  //       사라져 Prisma 가 `P2025` 를 던지면 404 로 변환 (ADR §Decision 5 b), 그 외 오류는
+  //       삼키지 않고 원형 그대로 propagate.
+  //   (4) 재승격 발동 조건은 **삭제 대상이 primary 였을 때만** 이다 (ADR §Decision 2 마지막
+  //       항). 판정은 repository.delete 반환값이 아니라 (2) 에서 확보한 `owned` 스냅샷의
+  //       대상 row 로 한다 — 아래 잔여 목록도 같은 스냅샷에서 만들므로 두 판단의 기준 시점을
+  //       하나로 묶어야 "primary 였는데 잔여 목록엔 없다" 같은 어긋남이 생기지 않는다.
+  //   (5) 잔여 row 는 2 차 `findByPersonId` 없이 `owned` 에서 삭제된 id 만 제외해 만든다
+  //       (추가 DB 왕복 0). 선택은 순수 모듈 `selectNextPrimaryIdentity` 에 위임하며
+  //       (정렬 규칙 재구현 0), `null` 이면 승격 없이 종료한다 — 잔여 0 은 ADR §Decision 2
+  //       의 `N = 0` 정상 상태다. 아니면 repository.setPrimary 를 정확히 1 회 호출한다.
+  //   (6) 반환값은 **삭제된 row** 로 불변이다. 승격된 row 로 바꾸지 않는다 — DELETE 의
+  //       응답은 사라진 대상을 가리켜야 한다.
+  //   (7) 재승격 단계의 오류는 **변환 없이 그대로 propagate** 한다. 특히 `P2025` 를 404 로
+  //       바꾸지 않는다 — 삭제는 이미 성공했으므로 404 는 "DELETE 가 실패했다" 는 거짓
+  //       신호가 되고, 호출자가 재시도하면 실제로는 없는 row 를 다시 지우려 한다.
   async delete(personId: string, identityId: string): Promise<ServiceIdentity> {
     const person = await this.personRepository.findById(personId);
     if (person === null) {
@@ -241,12 +257,14 @@ export class ServiceIdentityService {
     }
 
     const owned = await this.serviceIdentityRepository.findByPersonId(personId);
-    if (!owned.some((row) => row.id === identityId)) {
+    const target = owned.find((row) => row.id === identityId);
+    if (target === undefined) {
       throw new NotFoundException(`service identity not found: ${identityId}`);
     }
 
+    let removed: ServiceIdentity;
     try {
-      return await this.serviceIdentityRepository.delete(identityId);
+      removed = await this.serviceIdentityRepository.delete(identityId);
     } catch (error) {
       if (getPrismaErrorCode(error) === "P2025") {
         throw new NotFoundException(
@@ -255,5 +273,16 @@ export class ServiceIdentityService {
       }
       throw error;
     }
+
+    if (target.isPrimary) {
+      const next = selectNextPrimaryIdentity(
+        owned.filter((row) => row.id !== identityId),
+      );
+      if (next !== null) {
+        await this.serviceIdentityRepository.setPrimary(personId, next.id);
+      }
+    }
+
+    return removed;
   }
 }

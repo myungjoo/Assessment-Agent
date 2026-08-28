@@ -1,5 +1,6 @@
 // ServiceIdentityService spec — T-1741 (findByPersonId) + T-1742 (create) + T-1743
-// (update) + T-1744 (setPrimary) + T-1746 (delete) acceptance
+// (update) + T-1744 (setPrimary) + T-1746 (delete) + T-1747 (delete 후 primary 재승격)
+// acceptance
 // (R-112: happy / error / branch / negative 4 카테고리 + coverage line/function ≥ 80%).
 //
 // 본 spec 은 PersonRepository / ServiceIdentityRepository 를 Jest mock 으로 대체해
@@ -15,8 +16,11 @@
 //   - setPrimary: 이미 primary 인 대상도 early return 없이 repository.setPrimary 1 회
 //     호출 (idempotent) · 2 op transaction 재구현 0 guard (repository.update 미호출).
 //   - delete: 3 단 404 (Person 부재 · 소유 목록 부재 · repository P2025) 각 1+ 와 삭제된
-//     row 무가공 반환. 그리고 **재승격 미구현 경계를 test 로 고정** — isPrimary=true 인
-//     row 를 지워도 repository.setPrimary 호출 0 회 (배선은 후속 T-1747).
+//     row 무가공 반환.
+//   - delete 후 재승격: 대상이 primary 였고 잔여 1+ 면 규칙상 첫 row 로 setPrimary 1 회 ·
+//     잔여 0 이면 0 회 · 대상이 primary 가 아니면 0 회 · 3 단 404 와 delete 실패 시에도
+//     0 회 (단락 보장) · 승격 단계 오류는 404 로 바뀌지 않고 그대로 propagate ·
+//     정렬 판단은 순수 모듈 위임 (createdAt · id 오름차순 위임 확인 1~2 케이스).
 import { ConflictException, NotFoundException } from "@nestjs/common";
 import type { Person, ServiceIdentity } from "@prisma/client";
 
@@ -999,24 +1003,94 @@ describe("ServiceIdentityService", () => {
       expect(h.identityDelete).toHaveBeenCalledTimes(1);
     });
 
-    it("(e) isPrimary=true 인 row 를 지워도 재승격을 호출하지 않는다 (본 slice 경계 고정 — 배선은 T-1747)", async () => {
+    it("(e) 대상이 primary 이고 잔여 1+ 이면 규칙상 첫 row 를 setPrimary 로 1 회 승격한다", async () => {
       const h = buildHarness();
       const primaryRow = buildServiceIdentityFixture({
         id: "si-1",
         isPrimary: true,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
       });
       h.personFindById.mockResolvedValue(buildPersonFixture());
-      // 재승격 배선이 생기면 잔여 row (si-2) 가 승격 대상이 될 구성.
+      // 잔여 2 row 중 createdAt 이 이른 si-3 이 승격 대상 (배열 순서와 무관함을 함께 고정).
       h.identityFindByPersonId.mockResolvedValue([
         primaryRow,
-        buildServiceIdentityFixture({ id: "si-2", service: "gitlab.com" }),
+        buildServiceIdentityFixture({
+          id: "si-2",
+          service: "gitlab.com",
+          createdAt: new Date("2026-03-01T00:00:00.000Z"),
+        }),
+        buildServiceIdentityFixture({
+          id: "si-3",
+          service: "jira",
+          createdAt: new Date("2026-02-01T00:00:00.000Z"),
+        }),
       ]);
       h.identityDelete.mockResolvedValue(primaryRow);
+      h.identitySetPrimary.mockResolvedValue(
+        buildServiceIdentityFixture({ id: "si-3", isPrimary: true }),
+      );
 
+      // 반환값은 승격된 row 가 아니라 **삭제된 row** 여야 한다.
       await expect(h.service.delete("person-1", "si-1")).resolves.toBe(
         primaryRow,
       );
-      expect(h.identitySetPrimary).toHaveBeenCalledTimes(0);
+      expect(h.identitySetPrimary).toHaveBeenCalledTimes(1);
+      expect(h.identitySetPrimary).toHaveBeenCalledWith("person-1", "si-3");
+      // 잔여 목록은 이미 가진 owned 에서 만든다 — 2 차 조회 왕복 0.
+      expect(h.identityFindByPersonId).toHaveBeenCalledTimes(1);
+    });
+
+    it("(f) 대상이 primary 인데 잔여가 0 이면 setPrimary 를 호출하지 않는다 (N = 0 정상 상태)", async () => {
+      const h = buildHarness();
+      const onlyRow = buildServiceIdentityFixture({
+        id: "si-1",
+        isPrimary: true,
+      });
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([onlyRow]);
+      h.identityDelete.mockResolvedValue(onlyRow);
+
+      await expect(h.service.delete("person-1", "si-1")).resolves.toBe(onlyRow);
+      expect(h.identitySetPrimary).not.toHaveBeenCalled();
+    });
+
+    it("(g) 대상이 primary 가 아니면 잔여가 있어도 setPrimary 를 호출하지 않는다", async () => {
+      const h = buildHarness();
+      const removed = buildServiceIdentityFixture({
+        id: "si-2",
+        service: "gitlab.com",
+      });
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([
+        buildServiceIdentityFixture({ id: "si-1", isPrimary: true }),
+        removed,
+      ]);
+      h.identityDelete.mockResolvedValue(removed);
+
+      await expect(h.service.delete("person-1", "si-2")).resolves.toBe(removed);
+      expect(h.identitySetPrimary).not.toHaveBeenCalled();
+    });
+
+    it("(h) primary 판정은 owned 스냅샷 기준이며 삭제 대상 자신은 잔여 후보에서 빠진다", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([
+        // createdAt 이 가장 이른 primary 대상 — 지워지므로 후보에서 빠져야 한다.
+        buildServiceIdentityFixture({ id: "si-1", isPrimary: true }),
+        buildServiceIdentityFixture({
+          id: "si-2",
+          service: "gitlab.com",
+          createdAt: new Date("2026-05-01T00:00:00.000Z"),
+        }),
+      ]);
+      // delete 반환값이 isPrimary=false 로 와도 스냅샷 기준이라 승격은 발동한다.
+      h.identityDelete.mockResolvedValue(
+        buildServiceIdentityFixture({ id: "si-1" }),
+      );
+
+      await h.service.delete("person-1", "si-1");
+
+      expect(h.identitySetPrimary).toHaveBeenCalledWith("person-1", "si-2");
     });
   });
 
@@ -1127,7 +1201,7 @@ describe("ServiceIdentityService", () => {
       expect(h.identityDelete).not.toHaveBeenCalled();
     });
 
-    it("(ix) drift guard — 본 경로에서 repository.update · create · setPrimary 는 호출되지 않는다", async () => {
+    it("(ix) drift guard — 본 경로에서 repository.update · create 는 호출되지 않는다 (비-primary 삭제라 setPrimary 도 0 회)", async () => {
       const h = buildHarness();
       const removed = buildServiceIdentityFixture();
       h.personFindById.mockResolvedValue(buildPersonFixture());
@@ -1139,6 +1213,141 @@ describe("ServiceIdentityService", () => {
       expect(h.identityUpdate).not.toHaveBeenCalled();
       expect(h.identityCreate).not.toHaveBeenCalled();
       expect(h.identitySetPrimary).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["P2025 (승격 대상 row 소멸)", { code: "P2025" }],
+      ["P2003 (FK 제약)", { code: "P2003" }],
+      ["code 없는 일반 Error", {}],
+    ])(
+      "(x) 재승격 단계 setPrimary 의 %s 는 404 로 변환되지 않고 그대로 propagate 한다",
+      async (_label, extra) => {
+        const h = buildHarness();
+        const boom = Object.assign(new Error("promote failed"), extra);
+        const primaryRow = buildServiceIdentityFixture({
+          id: "si-1",
+          isPrimary: true,
+        });
+        h.personFindById.mockResolvedValue(buildPersonFixture());
+        h.identityFindByPersonId.mockResolvedValue([
+          primaryRow,
+          buildServiceIdentityFixture({ id: "si-2", service: "gitlab.com" }),
+        ]);
+        h.identityDelete.mockResolvedValue(primaryRow);
+        h.identitySetPrimary.mockRejectedValue(boom);
+
+        const error = await h.service
+          .delete("person-1", "si-1")
+          .catch((caught: unknown) => caught);
+
+        // 삭제는 이미 성공했으므로 404 는 거짓 신호다 — 원형 그대로 올라와야 한다.
+        expect(error).toBe(boom);
+        expect(error).not.toBeInstanceOf(NotFoundException);
+      },
+    );
+
+    it.each([
+      ["Person 부재 404", "person-missing"],
+      ["소유 목록 부재 404", "not-owned"],
+      ["repository.delete 의 P2025 404", "delete-p2025"],
+      ["repository.delete 의 일반 Error", "delete-boom"],
+    ])(
+      "(xi) 단락 보장 — %s 인 경우 재승격 setPrimary 는 호출되지 않는다",
+      async (_label, mode) => {
+        const h = buildHarness();
+        const primaryRow = buildServiceIdentityFixture({
+          id: "si-1",
+          isPrimary: true,
+        });
+        h.personFindById.mockResolvedValue(
+          mode === "person-missing" ? null : buildPersonFixture(),
+        );
+        h.identityFindByPersonId.mockResolvedValue(
+          mode === "not-owned"
+            ? []
+            : [
+                primaryRow,
+                buildServiceIdentityFixture({
+                  id: "si-2",
+                  service: "gitlab.com",
+                }),
+              ],
+        );
+        h.identityDelete.mockRejectedValue(
+          mode === "delete-p2025"
+            ? Object.assign(new Error("record not found"), { code: "P2025" })
+            : new Error("delete failed"),
+        );
+
+        await expect(h.service.delete("person-1", "si-1")).rejects.toThrow();
+        expect(h.identitySetPrimary).not.toHaveBeenCalled();
+      },
+    );
+
+    it("(xii) 잔여 row 가 이미 다른 primary 를 갖고 있어도 정렬 규칙대로 결정적으로 고른다", async () => {
+      const h = buildHarness();
+      const primaryRow = buildServiceIdentityFixture({
+        id: "si-1",
+        isPrimary: true,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      });
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([
+        primaryRow,
+        // 잘못 primary 로 남은 늦은 row — isPrimary 는 선택에 영향을 주지 않는다.
+        buildServiceIdentityFixture({
+          id: "si-2",
+          service: "gitlab.com",
+          isPrimary: true,
+          createdAt: new Date("2026-04-01T00:00:00.000Z"),
+        }),
+        buildServiceIdentityFixture({
+          id: "si-3",
+          service: "jira",
+          createdAt: new Date("2026-02-01T00:00:00.000Z"),
+        }),
+      ]);
+      h.identityDelete.mockResolvedValue(primaryRow);
+      h.identitySetPrimary.mockResolvedValue(
+        buildServiceIdentityFixture({ id: "si-3", isPrimary: true }),
+      );
+
+      await h.service.delete("person-1", "si-1");
+
+      expect(h.identitySetPrimary).toHaveBeenCalledTimes(1);
+      expect(h.identitySetPrimary).toHaveBeenCalledWith("person-1", "si-3");
+    });
+
+    it("(xiii) createdAt 동률이면 id 오름차순 tie-break 을 순수 모듈에 위임한 결과가 그대로 쓰인다", async () => {
+      const h = buildHarness();
+      const sameMoment = new Date("2026-02-02T00:00:00.000Z");
+      const primaryRow = buildServiceIdentityFixture({
+        id: "si-1",
+        isPrimary: true,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      });
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([
+        primaryRow,
+        buildServiceIdentityFixture({
+          id: "si-9",
+          service: "gitlab.com",
+          createdAt: sameMoment,
+        }),
+        buildServiceIdentityFixture({
+          id: "si-4",
+          service: "jira",
+          createdAt: new Date(sameMoment.getTime()),
+        }),
+      ]);
+      h.identityDelete.mockResolvedValue(primaryRow);
+      h.identitySetPrimary.mockResolvedValue(
+        buildServiceIdentityFixture({ id: "si-4", isPrimary: true }),
+      );
+
+      await h.service.delete("person-1", "si-1");
+
+      expect(h.identitySetPrimary).toHaveBeenCalledWith("person-1", "si-4");
     });
   });
 });
