@@ -2,7 +2,7 @@
 id: T-1757
 title: Sync api.md with the shipped ServiceIdentity nested routes
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-078]
 independentStream: service-identity-backend
@@ -58,3 +58,18 @@ plannerNote: P5 / ADR-0058 §Follow-ups (e) 전반 — 머지 완료된 identiti
 `implementer`
 
 ## Follow-ups
+
+## 결과 (2026-08-28 완료)
+
+`Status: DONE` — main direct commit [`d333927c`](https://github.com/myungjoo/Assessment-Agent/commit/d333927c). [docs/architecture/api.md](../architecture/api.md) **1 파일** (`+28/-23`) 만 수정했고 코드 · 테스트 · 타 문서 변경은 0 이다.
+
+- `§ 5` UC-03 그룹에 nested 5 route 행을 신설했다 — `GET` (200 / User+) · `POST` (201 / Admin+) · `PATCH /:identityId` (200 / Admin+) · `DELETE /:identityId` (204 / Admin+) · `POST /:identityId/primary` (200 / Admin+). 각 행에 동작 요약 · 오류 계약 (Person 부재 404 · 타 Person 소유 **404** · `P2002` 409 · `P2025` 404 · DTO 위반 400) · 근거 pointer (ADR-0058 + 박제 task ID) 를 달았고, 표기 관례는 `86 행` nested sub-resource 선례와 `89 행` 오류 계약 밀도를 승계했다. `76 행` 그룹 헤더 prefix 열거에 `/api/persons/:personId/identities` 를 병기했다.
+- `§ 6` 실측 카운트 3 지점을 실코드 grep 으로 재집계했다 — 200 OK POST(action) `3→4` 종 · 201 총 `13→14` (`@Post` 기본값 `4→5`) · 204 총 `11→12` (`@Delete` `10→11` 전량). route 합계 `72→77` / shipped `67→72` (prefix 는 nested sub-resource 라 16 불변). `§ 7` `187 행` UC-03 cell 에 5 route 를 병기하고 계약 세부는 `§ 5` 로 위임했다.
+- 성공 status 와 권한 tier 는 [src/user/service-identity.controller.ts](../../src/user/service-identity.controller.ts) 실코드와 5 route 전량 대조해 어긋남 0 이다 (`@HttpCode(204)` delete · `@HttpCode(200)` primary · 나머지는 NestJS 기본값).
+- 삽입으로 밀린 api.md **자체** 행 좌표 pointer 17 곳을 `+5` 정정했고, 그 과정에서 `96` · `99 행` 의 `/period` pointer 에 남아 있던 기존 off-by-1 drift 도 실좌표 `109` 로 함께 교정했다.
+
+doc-only direct slice 라 R-110 tester 의무 · R-112 4 항목 · `pnpm test:cov` 는 [CLAUDE.md](../../CLAUDE.md) `§3.2` doc-only 면제 대상이다 (production code 0 LOC, 코드 분기 0). 본 slice 로 ADR-0058 `§Follow-ups (e)` 의 **api.md 축**이 닫혔다 — 잔여는 `requirements.md` REQ-078 · REQ-079 재판정 (`(d)` AdminView 실측 게이트) 과 `(d)` 편집 UI 다.
+
+## Follow-ups (완료 후 추가)
+
+- [docs/decisions/ADR-0058-service-identity-management-api.md](../decisions/ADR-0058-service-identity-management-api.md) 가 인용하는 api.md 행 좌표 (`86 행` · `166 행` · `168 행` · `77~81 행` · `80 행`) 가 본 삽입으로 `+5` 밀렸다 — "api.md 1 파일만" 제약 때문에 미갱신. 별도 direct slice 로 정정 필요.
