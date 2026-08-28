@@ -2,7 +2,7 @@
 id: T-1751
 title: Add the DELETE route to ServiceIdentityController
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-073]
 independentStream: service-identity-backend
@@ -14,6 +14,9 @@ touchesFiles:
 estimatedDiff: 240
 estimatedFiles: 3
 created: 2026-08-28
+completedAt: 2026-08-28T05:52:49Z
+prNumber: 1381
+mergeCommit: 07ee5562
 plannerNote: P5 / ADR-0058 §Follow-ups (b) 잔여 2 route 중 DELETE 삭제 1 개만 절단 — 300 LOC 상한
 ---
 
@@ -59,6 +62,21 @@ service `delete` (Person 선검사 404 · 소유 아님 404 · `P2025` → 404 �
 ## Suggested Sub-agents
 
 `implementer → tester`
+
+## Result (DONE)
+
+- **머지**: PR [#1381](https://github.com/myungjoo/Assessment-Agent/pull/1381) → main `07ee5562` (squash + branch delete).
+- **변경**: 3 파일 `+249/-28`. [service-identity.controller.ts](../../src/user/service-identity.controller.ts) 에
+  `@Delete(":identityId")` handler 1 개 추가 — `@HttpCode(204)` + `Promise<void>` 로 본문 없는 삭제를 노출하고
+  `service.delete(personId, identityId)` 로 1 회 순수 위임한다. guard 는 `@UseGuards(JwtAuthGuard, RolesGuard)`
+  순서 + `@Roles("Admin")`, controller 안 `try`/`catch` 0 이라 404 · 재승격 오류는 raw forward.
+  헤더 주석 3 곳을 4 route 기준으로 갱신했고 [user.module.ts](../../src/user/user.module.ts) 는 주석만 손대
+  `controllers`·`providers`·`exports` 배열 diff 0.
+- **test**: spec 에 DELETE 위임 7 케이스 + route metadata 5 케이스 추가로 R-112 4 종 cover — happy(인자 2 종 전달 ·
+  `undefined` resolve) / error path(`NotFoundException` · 일반 `Error` 동일 인스턴스 전파) / 분기(handler 분기 0
+  근거 주석 + metadata 축 4 종 대체 검증) / negative(빈 `identityId` 위임 · 단락 시 collaborator 0 회 · body 미노출 ·
+  기존 3 route 회귀 게이트). 대상 파일 line · branch · function 100%, 전체 458 suite / 13195 test green
+  (line 99.94% / function 100%). reviewer APPROVE round 1/7 + PR comment 외부 post + CI 2 job pass 로 4-게이트 충족.
 
 ## Follow-ups
 
