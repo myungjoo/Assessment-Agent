@@ -1,5 +1,5 @@
 // ServiceIdentityService spec — T-1741 (findByPersonId) + T-1742 (create) + T-1743
-// (update) + T-1744 (setPrimary) acceptance
+// (update) + T-1744 (setPrimary) + T-1746 (delete) acceptance
 // (R-112: happy / error / branch / negative 4 카테고리 + coverage line/function ≥ 80%).
 //
 // 본 spec 은 PersonRepository / ServiceIdentityRepository 를 Jest mock 으로 대체해
@@ -14,6 +14,9 @@
 //     403 이 아니라 404 이고 메시지에 소유자 정보가 새지 않음 (ADR-0058 §Decision 5 e).
 //   - setPrimary: 이미 primary 인 대상도 early return 없이 repository.setPrimary 1 회
 //     호출 (idempotent) · 2 op transaction 재구현 0 guard (repository.update 미호출).
+//   - delete: 3 단 404 (Person 부재 · 소유 목록 부재 · repository P2025) 각 1+ 와 삭제된
+//     row 무가공 반환. 그리고 **재승격 미구현 경계를 test 로 고정** — isPrimary=true 인
+//     row 를 지워도 repository.setPrimary 호출 0 회 (배선은 후속 T-1747).
 import { ConflictException, NotFoundException } from "@nestjs/common";
 import type { Person, ServiceIdentity } from "@prisma/client";
 
@@ -63,12 +66,14 @@ function buildHarness(): {
   identityCreate: jest.Mock;
   identityUpdate: jest.Mock;
   identitySetPrimary: jest.Mock;
+  identityDelete: jest.Mock;
 } {
   const personFindById = jest.fn();
   const identityFindByPersonId = jest.fn();
   const identityCreate = jest.fn();
   const identityUpdate = jest.fn();
   const identitySetPrimary = jest.fn();
+  const identityDelete = jest.fn();
   const personRepository = {
     findById: personFindById,
   } as unknown as PersonRepository;
@@ -77,6 +82,7 @@ function buildHarness(): {
     create: identityCreate,
     update: identityUpdate,
     setPrimary: identitySetPrimary,
+    delete: identityDelete,
   } as unknown as ServiceIdentityRepository;
 
   return {
@@ -89,6 +95,7 @@ function buildHarness(): {
     identityCreate,
     identityUpdate,
     identitySetPrimary,
+    identityDelete,
   };
 }
 
@@ -891,6 +898,247 @@ describe("ServiceIdentityService", () => {
 
       expect(h.identityUpdate).not.toHaveBeenCalled();
       expect(h.identityCreate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("delete — happy path", () => {
+    it("본인 소유 identity 를 지우면 삭제된 row 를 가공 없이 그대로 반환한다", async () => {
+      const h = buildHarness();
+      const removed = buildServiceIdentityFixture({ id: "si-1" });
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([removed]);
+      h.identityDelete.mockResolvedValue(removed);
+
+      await expect(h.service.delete("person-1", "si-1")).resolves.toBe(removed);
+    });
+
+    it("repository.delete 를 identityId 인자로 정확히 1 회 호출한다", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(
+        buildPersonFixture({ id: "person-9" }),
+      );
+      h.identityFindByPersonId.mockResolvedValue([
+        buildServiceIdentityFixture({ id: "si-7", personId: "person-9" }),
+      ]);
+      h.identityDelete.mockResolvedValue(
+        buildServiceIdentityFixture({ id: "si-7", personId: "person-9" }),
+      );
+
+      await h.service.delete("person-9", "si-7");
+
+      expect(h.personFindById).toHaveBeenCalledTimes(1);
+      expect(h.personFindById).toHaveBeenCalledWith("person-9");
+      expect(h.identityFindByPersonId).toHaveBeenCalledTimes(1);
+      expect(h.identityFindByPersonId).toHaveBeenCalledWith("person-9");
+      expect(h.identityDelete).toHaveBeenCalledTimes(1);
+      expect(h.identityDelete).toHaveBeenCalledWith("si-7");
+    });
+  });
+
+  describe("delete — 분기 cover", () => {
+    it("(a) Person 부재면 NotFoundException 이고 ServiceIdentityRepository 는 미호출", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(null);
+
+      await expect(h.service.delete("ghost", "si-1")).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(h.identityFindByPersonId).not.toHaveBeenCalled();
+      expect(h.identityDelete).not.toHaveBeenCalled();
+    });
+
+    it("(b) 소유 목록에 identityId 가 없으면 NotFoundException 이고 delete 미호출", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([
+        buildServiceIdentityFixture({ id: "si-1" }),
+      ]);
+
+      await expect(
+        h.service.delete("person-1", "si-none"),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(h.identityDelete).not.toHaveBeenCalled();
+    });
+
+    it("(c) 타 Person 소유 identity 는 403 이 아니라 404 이며 메시지에 소유자가 새지 않는다", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      // person-1 의 목록에는 si-other (person-2 소유) 가 없다.
+      h.identityFindByPersonId.mockResolvedValue([
+        buildServiceIdentityFixture({ id: "si-1" }),
+      ]);
+
+      const error = await h.service
+        .delete("person-1", "si-other")
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(NotFoundException);
+      expect((error as NotFoundException).getStatus()).toBe(404);
+      const message = (error as Error).message;
+      expect(message).toBe("service identity not found: si-other");
+      expect(message).not.toContain("person-2");
+      expect(message).not.toContain("forbidden");
+      expect(h.identityDelete).not.toHaveBeenCalled();
+    });
+
+    it("(d) 정상 삭제 분기는 선검사 · 소유 조회 · delete 를 각 1 회씩 탄다", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([
+        buildServiceIdentityFixture({ id: "si-0", isPrimary: true }),
+        buildServiceIdentityFixture({ id: "si-1" }),
+      ]);
+      h.identityDelete.mockResolvedValue(
+        buildServiceIdentityFixture({ id: "si-1" }),
+      );
+
+      await h.service.delete("person-1", "si-1");
+
+      expect(h.personFindById).toHaveBeenCalledTimes(1);
+      expect(h.identityFindByPersonId).toHaveBeenCalledTimes(1);
+      expect(h.identityDelete).toHaveBeenCalledTimes(1);
+    });
+
+    it("(e) isPrimary=true 인 row 를 지워도 재승격을 호출하지 않는다 (본 slice 경계 고정 — 배선은 T-1747)", async () => {
+      const h = buildHarness();
+      const primaryRow = buildServiceIdentityFixture({
+        id: "si-1",
+        isPrimary: true,
+      });
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      // 재승격 배선이 생기면 잔여 row (si-2) 가 승격 대상이 될 구성.
+      h.identityFindByPersonId.mockResolvedValue([
+        primaryRow,
+        buildServiceIdentityFixture({ id: "si-2", service: "gitlab.com" }),
+      ]);
+      h.identityDelete.mockResolvedValue(primaryRow);
+
+      await expect(h.service.delete("person-1", "si-1")).resolves.toBe(
+        primaryRow,
+      );
+      expect(h.identitySetPrimary).toHaveBeenCalledTimes(0);
+    });
+  });
+
+  describe("delete — error path / negative cases", () => {
+    it("(i) repository.delete 의 P2025 는 NotFoundException (404) 으로 변환된다", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([
+        buildServiceIdentityFixture(),
+      ]);
+      h.identityDelete.mockRejectedValue(
+        Object.assign(new Error("record not found"), { code: "P2025" }),
+      );
+
+      const error = await h.service
+        .delete("person-1", "si-1")
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(NotFoundException);
+      expect((error as NotFoundException).getStatus()).toBe(404);
+      expect((error as Error).message).toBe("service identity not found: si-1");
+    });
+
+    it.each([
+      ["P2003 (FK 제약)", Object.assign(new Error("fk"), { code: "P2003" })],
+      ["code 없는 일반 Error", new Error("delete failed")],
+    ])(
+      "(ii) repository.delete 의 %s 는 변환 없이 그대로 propagate 한다",
+      async (_label, boom) => {
+        const h = buildHarness();
+        h.personFindById.mockResolvedValue(buildPersonFixture());
+        h.identityFindByPersonId.mockResolvedValue([
+          buildServiceIdentityFixture(),
+        ]);
+        h.identityDelete.mockRejectedValue(boom);
+
+        await expect(h.service.delete("person-1", "si-1")).rejects.toBe(boom);
+      },
+    );
+
+    it("(iii) 문자열 throw 는 getPrismaErrorCode 가 code 를 못 뽑으므로 그대로 propagate 한다", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([
+        buildServiceIdentityFixture(),
+      ]);
+      // 문자열 자체는 object 가 아니므로 code 추출 불가 — 404 변환 대상이 아니다.
+      h.identityDelete.mockRejectedValue("P2025");
+
+      await expect(h.service.delete("person-1", "si-1")).rejects.toBe("P2025");
+    });
+
+    it("(iv) code 가 숫자인 오류 객체도 404 로 변환되지 않고 propagate 한다", async () => {
+      const h = buildHarness();
+      const boom = Object.assign(new Error("numeric code"), { code: 2025 });
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([
+        buildServiceIdentityFixture(),
+      ]);
+      h.identityDelete.mockRejectedValue(boom);
+
+      await expect(h.service.delete("person-1", "si-1")).rejects.toBe(boom);
+    });
+
+    it("(v) 빈 문자열 personId 는 Person 부재 경로로 404 이고 identity repository 미호출", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(null);
+
+      await expect(h.service.delete("", "si-1")).rejects.toThrow(
+        "person not found: ",
+      );
+      expect(h.personFindById).toHaveBeenCalledWith("");
+      expect(h.identityFindByPersonId).not.toHaveBeenCalled();
+      expect(h.identityDelete).not.toHaveBeenCalled();
+    });
+
+    it("(vi) 빈 문자열 identityId 는 소유 검사에서 404 이고 delete 미호출", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([
+        buildServiceIdentityFixture({ id: "si-1" }),
+      ]);
+
+      await expect(h.service.delete("person-1", "")).rejects.toThrow(
+        "service identity not found: ",
+      );
+      expect(h.identityDelete).not.toHaveBeenCalled();
+    });
+
+    it("(vii) identity 0 개인 Person 은 빈 목록이므로 404 이고 delete 미호출", async () => {
+      const h = buildHarness();
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([]);
+
+      await expect(h.service.delete("person-1", "si-1")).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(h.identityDelete).not.toHaveBeenCalled();
+    });
+
+    it("(viii) findByPersonId 자체의 throw 는 그대로 propagate 하고 delete 는 미호출", async () => {
+      const h = buildHarness();
+      const boom = new Error("identity lookup failed");
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockRejectedValue(boom);
+
+      await expect(h.service.delete("person-1", "si-1")).rejects.toBe(boom);
+      expect(h.identityDelete).not.toHaveBeenCalled();
+    });
+
+    it("(ix) drift guard — 본 경로에서 repository.update · create · setPrimary 는 호출되지 않는다", async () => {
+      const h = buildHarness();
+      const removed = buildServiceIdentityFixture();
+      h.personFindById.mockResolvedValue(buildPersonFixture());
+      h.identityFindByPersonId.mockResolvedValue([removed]);
+      h.identityDelete.mockResolvedValue(removed);
+
+      await h.service.delete("person-1", "si-1");
+
+      expect(h.identityUpdate).not.toHaveBeenCalled();
+      expect(h.identityCreate).not.toHaveBeenCalled();
+      expect(h.identitySetPrimary).not.toHaveBeenCalled();
     });
   });
 });
