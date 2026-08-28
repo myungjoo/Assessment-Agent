@@ -2,7 +2,7 @@
 id: T-1752
 title: Add the primary-designation route to ServiceIdentityController
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-024]
 independentStream: service-identity-backend
@@ -64,3 +64,10 @@ service `setPrimary` (Person 선검사 404 · 소유 아님 404 · 이미 primar
 ## Follow-ups
 
 (생성 시점 비어 있음)
+
+## 완료 기록
+
+- **완료 시각**: 2026-08-28T06:56:01Z (squash merge)
+- **PR**: [#1382](https://github.com/myungjoo/Assessment-Agent/pull/1382) — reviewer APPROVE round 1/7, 4-게이트 충족 후 squash merge + branch delete
+- **머지 commit**: `adf1658e`
+- **결과 요약**: `ServiceIdentityController` 에 `@Post(":identityId/primary")` handler 1 개를 추가해 `service.setPrimary` 로 순수 위임하고, `@HttpCode(200)` 을 명시해 POST 기본 201 을 덮었다. guard 는 `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles("Admin")`, controller 안 `try`/`catch` 0 이라 404 는 raw forward 다. 3 파일 `+256/-25`, controller line·branch·function 100%, 전체 458 suite / 13208 test green. [ADR-0058](../decisions/ADR-0058-service-identity-management-api.md) `§Decision 1` 의 5 route 가 전량 노출돼 `§Follow-ups (b)` 가 마감됐고, 잔여는 `(c)` e2e · `(d)` UI · `(e)` doc-sync 다.
