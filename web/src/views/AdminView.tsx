@@ -76,8 +76,11 @@ import ServiceIdentityList from '../components/ServiceIdentityList';
 // T-1767 — ADR-0058 §Follow-ups (d) 쓰기 축 1/3(추가 POST). 폼(T-1763)은 controlled
 // presentational 이라 입력 state·발사·재조회는 컨테이너 책임(ADR-0041 Decision 1).
 import ServiceIdentityAddForm from '../components/ServiceIdentityAddForm';
+// T-1768 — 쓰기 축 2/3(수정 PATCH). 폼(T-1764)도 controlled 이라 대상 선택·입력·발사는 컨테이너 책임.
+import ServiceIdentityEditForm from '../components/ServiceIdentityEditForm';
 import {
   createServiceIdentity,
+  updateServiceIdentity,
   serviceIdentityCollectionPath,
 } from '../api/serviceIdentity';
 import type { ServiceIdentityRow } from '../api/serviceIdentity';
@@ -532,6 +535,8 @@ interface AdminViewProps {
   // 초기 service identity 조회 대상 인원 id(선택, T-1766) — 정적 렌더 검증용 주입 affordance
   // (initialSelectedPartId 동형). 미주입 시 미선택 = 조회 idle(실사용 초기 상태 동일).
   initialSelectedIdentityPersonId?: string;
+  // 초기 수정 대상 identity id(선택, T-1768) — 정적 렌더 검증용 주입(미주입 시 폼 미마운트).
+  initialEditingIdentityId?: string;
 }
 
 // 등급 문자열 → Admin+ 여부 파생(순수 helper, ④h). backend role enum(api.md 71 —
@@ -1722,6 +1727,8 @@ async function runCreatePerson(
   }
 }
 
+// service identity 추가(POST) body 의 2 허용 축 묶음(T-1767) — client 의 createServiceIdentity
+// 시그니처와 같은 모양이라 컨테이너 입력값을 그대로 러너로 넘길 수 있다(T-1768 Nit 흡수).
 type ServiceIdentityInput = { service: string; externalId: string };
 
 // 추가 POST + state-전이 로직에 주입하는 deps(T-1767 — runCreatePerson 의 CreatePersonDeps 를
@@ -1779,6 +1786,59 @@ async function runCreateServiceIdentity(
     deps.setCreateError(deps.describeError(e));
   } finally {
     deps.setCreating(false);
+  }
+}
+// 수정 PATCH + state-전이 로직에 주입하는 deps(T-1768 — CreateServiceIdentityDeps 를 1:1 mirror).
+// 발사 primitive 가 client 의 updateServiceIdentity(기본 주입, 테스트는 mock)인 것은 item path
+// 조립과 body 화이트리스트(externalId 단일)가 그 함수 책임이기 때문이다(ADR-0058 §Decision 3 —
+// service·isPrimary 는 시그니처가 아예 받지 않는다).
+interface UpdateServiceIdentityDeps {
+  update: (
+    personId: string,
+    identityId: string,
+    input: { externalId: string },
+  ) => Promise<unknown>;
+  describeError: (e: unknown) => string;
+  // in-flight(true 면 미발사) + setter + 재조회 트리거 + 편집 접기.
+  updating: boolean;
+  setUpdating: (next: boolean) => void;
+  setUpdateError: (next: string | undefined) => void;
+  bumpRefresh: () => void;
+  endEdit: () => void;
+}
+// 수정 PATCH /api/persons/:personId/identities/:identityId(body `{ externalId }`) + state-전이를
+// 캡슐화한 순수 async 러너(T-1768 — runCreateServiceIdentity mirror).
+async function runUpdateServiceIdentity(
+  personId: string,
+  identityId: string,
+  input: { externalId: string },
+  deps: UpdateServiceIdentityDeps,
+): Promise<void> {
+  // 4 no-op 가드 — 미선택 personId / 미선택 identityId(깨진 item path 차단) / 입력 미완(400 확정
+  // 요청 사전 차단) / in-flight(이중 PATCH·경합). falsy·빈·공백뿐은 모두 미선택·미완으로 본다.
+  const targetPersonId = personId?.trim();
+  const targetIdentityId = identityId?.trim();
+  const filled = Boolean(input?.externalId?.trim());
+  if (!targetPersonId || !targetIdentityId || !filled || deps.updating) {
+    return;
+  }
+  deps.setUpdating(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리).
+  deps.setUpdateError(undefined);
+  try {
+    // PATCH — 전송값은 trim 하지 않은 원문이다. ServiceIdentityEditForm 의 "변경 0" 판정이
+    // 원문 비교라(앞뒤 공백만 다른 값도 변경), trim 해 보내면 폼 판정과 저장값이 어긋난다.
+    await deps.update(targetPersonId, targetIdentityId, {
+      externalId: input.externalId,
+    });
+    deps.bumpRefresh();
+    deps.endEdit();
+  } catch (e) {
+    // 실패 — 문구를 안전 표시(throw 없이). 400·404(부재/타 Person 소유)·401·5xx·네트워크 0 모두
+    // 동일 경로. 재조회도 편집 종료도 하지 않는다(입력 유지 — 재시도 편의).
+    deps.setUpdateError(deps.describeError(e));
+  } finally {
+    deps.setUpdating(false);
   }
 }
 
@@ -2879,6 +2939,7 @@ function AdminView({
   initialSelectedPartId = '',
   initialImportConfirmText,
   initialSelectedIdentityPersonId = '',
+  initialEditingIdentityId = '',
 }: AdminViewProps) {
   // 선택 그룹 상태 — controlled lift-up(컨테이너 소유). <select> 선택이 이 값을 갱신한다.
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
@@ -3027,6 +3088,60 @@ function AdminView({
       identityServiceInput,
       identityExternalIdInput,
       creatingServiceIdentity,
+    ],
+  );
+  // 수정 편집 state 4 개(T-1768) — 대상 id(빈 문자열이 미편집) · 입력 · in-flight · 실패 문구.
+  const [editingIdentityId, setEditingIdentityId] =
+    useState<string>(initialEditingIdentityId);
+  const [identityEditExternalIdInput, setIdentityEditExternalIdInput] =
+    useState<string>('');
+  const [updatingServiceIdentity, setUpdatingServiceIdentity] =
+    useState<boolean>(false);
+  const [updateServiceIdentityError, setUpdateServiceIdentityError] = useState<
+    string | undefined
+  >(undefined);
+  // 수정 대상 row 파생 — 목록에서 id 로 찾는다(새 fetch 0). 사라진 대상이면 폼이 자연히 접힌다.
+  const editingIdentity = useMemo(
+    () => serviceIdentities.find((row) => row.id === editingIdentityId),
+    [serviceIdentities, editingIdentityId],
+  );
+  // 수정 대상 선택 변경 — 대상 id 갱신 + 그 row 의 externalId 로 prefill + 직전 실패 문구 비움.
+  const handleEditTargetChange = (event: { target: { value: string } }) => {
+    const nextId = event.target.value;
+    setEditingIdentityId(nextId);
+    setIdentityEditExternalIdInput(
+      serviceIdentities.find((row) => row.id === nextId)?.externalId ?? '',
+    );
+    setUpdateServiceIdentityError(undefined);
+  };
+  const endServiceIdentityEdit = useCallback(() => {
+    setEditingIdentityId('');
+    setIdentityEditExternalIdInput('');
+    setUpdateServiceIdentityError(undefined);
+  }, []);
+  // 수정 실 mutation 핸들러 — 러너에 deps 주입해 호출만. 인원·대상·입력·in-flight 로 stale 방지.
+  const handleUpdateServiceIdentity = useCallback(
+    () =>
+      runUpdateServiceIdentity(
+        selectedIdentityPersonId,
+        editingIdentityId,
+        { externalId: identityEditExternalIdInput },
+        {
+          update: updateServiceIdentity,
+          describeError: toErrorMessage,
+          updating: updatingServiceIdentity,
+          setUpdating: setUpdatingServiceIdentity,
+          setUpdateError: setUpdateServiceIdentityError,
+          bumpRefresh: () => setServiceIdentitiesRefreshNonce((n) => n + 1),
+          endEdit: endServiceIdentityEdit,
+        },
+      ),
+    [
+      selectedIdentityPersonId,
+      editingIdentityId,
+      identityEditExternalIdInput,
+      updatingServiceIdentity,
+      endServiceIdentityEdit,
     ],
   );
 
@@ -5018,6 +5133,31 @@ function AdminView({
           loading={creatingServiceIdentity}
           error={createServiceIdentityError}
         />
+        {/* 수정 축(T-1768, ADR-0058 (d) 쓰기 2/3) — 대상 선택 시 prefill 후 PATCH 폼 마운트. */}
+        <select
+          aria-label="수정 대상 identity 선택"
+          value={editingIdentityId}
+          onChange={handleEditTargetChange}
+        >
+          <option value="">수정할 identity 를 선택하세요</option>
+          {serviceIdentities.map((identity) => (
+            <option key={identity.id} value={identity.id}>
+              {identity.service} / {identity.externalId}
+            </option>
+          ))}
+        </select>
+        {editingIdentity ? (
+          <ServiceIdentityEditForm
+            service={editingIdentity.service}
+            initialExternalId={editingIdentity.externalId}
+            externalId={identityEditExternalIdInput}
+            onExternalIdChange={setIdentityEditExternalIdInput}
+            onSubmit={handleUpdateServiceIdentity}
+            onCancel={endServiceIdentityEdit}
+            loading={updatingServiceIdentity}
+            error={updateServiceIdentityError}
+          />
+        ) : null}
       </section>
       {/* 그룹 관리(T-1146, REQ-028/REQ-049) — 그룹 생성 폼을 담는 별도 섹션. 그룹 목록은 기존 select
           조회부(useApiResource<GroupRow[]>)가 소유하므로 본 slice 는 생성 성공 시 groupsRefreshNonce
@@ -5258,6 +5398,7 @@ export {
   runCreateProvider,
   runCreatePerson,
   runCreateServiceIdentity,
+  runUpdateServiceIdentity,
   runCreateGroup,
   runCreatePart,
   runCreateUser,
