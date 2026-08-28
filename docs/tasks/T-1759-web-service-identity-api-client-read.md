@@ -2,7 +2,9 @@
 id: T-1759
 title: web ServiceIdentity API 클라이언트 읽기 축 신설 (GET 목록)
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1387
+completedAt: 2026-08-28T13:54:58Z
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 260
@@ -71,4 +73,6 @@ web/src` 무결과) 패널을 그리기 전에 backend 5 route 를 호출할 cli
 
 ## Follow-ups
 
-(작성 시 비어 있음 — sub-agent 가 관련 후속 작업을 발견하면 여기에 append)
+- 쓰기 축 client 4 route (POST 추가 · PATCH 수정 · DELETE 삭제 · POST primary 지정) 신설 — ADR-0058 `§Follow-ups (d)` 의 두 번째 web slice.
+- `ServiceIdentityList` 컴포넌트 신설 + AdminView 마운트 + RBAC gating 배선.
+- 위 두 축 shipped 후 `docs/requirements.md` REQ-078 을 IN_PROGRESS -> DONE 으로 재판정 (UI 축 게이트 해소).
