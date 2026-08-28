@@ -2,7 +2,7 @@
 id: T-1769
 title: AdminView 에 ServiceIdentity 삭제(DELETE) 순수 러너 runDeleteServiceIdentity 신설
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 195
@@ -70,3 +70,14 @@ plannerNote: "P6/PLAN 132 행 — ADR-0058 (d) 열한 번째 web slice: 삭제 �
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 적는다.)
+
+---
+
+## 완료 기록
+
+- **Status: DONE** — 2026-08-28T23:55Z (squash merge `07814aa4`, PR #1397)
+- reviewer round 2/7 APPROVE (round 1 APPROVE + Nit 1 건 → CLAUDE.md §3 Nit-in-PR closure 로 같은 PR round 2 에서 마감, follow-up task 0). 4-게이트 PASS (reviewer comment 외부 존재 · integrator 자체 점검 · PR CI 2 check green).
+- 결과: `web/src/views/AdminView.tsx` 에 `DeleteServiceIdentityDeps` + 모듈 레벨 순수 async 러너 `runDeleteServiceIdentity` 신설 (`runUpdateServiceIdentity` 1:1 mirror) — 발사 가드 3 종 → 진행 on + 직전 error 비움 → `remove` await → 성공 시 refresh bump + confirm 종료 / 실패 시 error 표면화 (throw 0) → finally 진행 off. body 입력이 없는 근거와 primary 자동 재승격이 backend 책임 ([ADR-0058](../decisions/ADR-0058-service-identity-management-api.md) `§Decision 2`) 이라는 근거를 주석으로 박제.
+- test: 신규 `web/src/views/AdminView.service-identity-delete.test.tsx` 18 test 로 R-112 4 종 전부 cover (happy 1 · 가드 7 · error path 3 · 비-ApiError reject 3 · finally 성공/실패 · trim · 재시도 시 error 비움 · 콜백 순서). web 92 파일 2741 test + 루트 458 스위트 13208 test green, `src/` 무변경이라 backend coverage 불변 (line/function ≥ 80% 유지).
+- 최종 diff 184 LOC / 2 파일 (cap 내).
+- **잔여 (Follow-ups 승계)**: primary 지정 (POST primary) 순수 러너 + `ServiceIdentityRowActions` 마운트 (필수 prop 4 종 동시 충족) → 그 후 `requirements.md` REQ-078 재판정.
