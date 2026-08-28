@@ -2,7 +2,10 @@
 id: T-1747
 title: Wire primary re-promotion into ServiceIdentityService.delete
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-28T01:56:03Z
+prNumber: 1377
+mergeCommit: b9ddecd9
 commitMode: pr
 coversReq: [REQ-024, REQ-078, REQ-079]
 independentStream: service-identity-backend
@@ -109,4 +112,17 @@ REQ-024 의 "1 인원 1 primary" invariant 를 삭제 경로에서도 성립시�
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- `src/user/service-identity-primary-order.ts` 헤더 주석의 "**소비처는 현재 0 이다.** 다음 slice 가 ...
+  배선한다" 단락이 본 slice 머지로 사실과 어긋난다 — 주석 1 단락 교체용 후속 slice 권고
+  (reviewer 가 PR #1377 에 MINOR 로 외화). 순수 모듈 변경 0 이라는 본 task `§Out of Scope` 때문에
+  본 PR 에서 손대지 않았다.
+
+## 결과 (2026-08-28)
+
+`Status: DONE` — PR [#1377](https://github.com/myungjoo/Assessment-Agent/pull/1377) 머지(squash `b9ddecd9`).
+`ServiceIdentityService.delete` 성공 직후에만 재승격 단계를 붙였다 — 삭제 대상이 primary 였을 때
+2 차 조회 없이 기존 `owned` 스냅샷에서 삭제 id 를 뺀 잔여를 `selectNextPrimaryIdentity`(T-1745) 에
+넘기고, 결과가 `null` 이 아니면 `repository.setPrimary` 를 정확히 1 회 호출한다. 반환값은 삭제된 row 로
+불변이고 승격 단계의 오류는 404 로 변환하지 않고 그대로 전파한다. 2 파일 `+262/-24`, 대상 service
+line/branch/function 100%, 전체 457 suite / 13145 test green. reviewer APPROVE(round 1/7) →
+PR comment 외부 post + CI 2/2 pass 로 4-게이트 충족 후 squash merge + branch delete.
