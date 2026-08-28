@@ -2,7 +2,7 @@
 id: T-1756
 title: Add e2e coverage for the ServiceIdentity set-primary route
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-024]
 independentStream: service-identity-backend
@@ -62,3 +62,9 @@ plannerNote: P5 / ADR-0058 §Follow-ups (c) e2e chain 의 마지막 slice — pr
 
 - ADR-0058 `§Follow-ups (e)` [docs/architecture/api.md](../architecture/api.md) · [docs/requirements.md](../requirements.md) doc-sync (`commitMode: direct`) — 본 slice 로 (c) 가 닫히면 (e) 가 다음 순번.
 - ADR-0058 `§Follow-ups (d)` AdminView 편집 UI (P6 frontend 소관).
+
+## 결과 (2026-08-28 완료)
+
+`Status: DONE` — PR [#1386](https://github.com/myungjoo/Assessment-Agent/pull/1386) squash merge (`6d347c77`). [test/e2e/service-identities.e2e-spec.ts](../../test/e2e/service-identities.e2e-spec.ts) 1 파일 (`+290/-10`) 만 수정했고 production code 변경은 0 이다. primary 지정 축 12 케이스 — happy 200 (201 아님 + 갱신 후 row 5 필드) · REQ-024 1-primary invariant 3 분기 (기존 primary unset + 대상 set · idempotent 재요청 · 잔여 배치 불변, 전부 DB 직접 조회) · `§Decision 5 b·e` 3 단 404 (Person 부재 · 타 Person 소유 · `P2025`, 각 envelope + 타 personId 누출 없음) · error path (404 후 primary 배치 불변) · negative 4 종 (401 · 403 + 배치 보존 · 비정상 path 파라미터 · body 무시 200). 기존 harness (`beforeAll` · `afterEach` · `seedPerson` · `seedIdentity` · `identityEndpointFor`) 를 전부 재사용해 중복 정의 0 이고, 새 helper 는 `primaryEndpointFor` 1 개뿐이다. reviewer APPROVE (round 1/7) → PR comment 외부 post → 4-게이트 충족 → squash merge + branch delete. CI e2e leg 에서 본 spec `PASS` (372 test) 실측. 본 slice 로 ADR-0058 `§Follow-ups (c)` e2e chain (5 route) 이 닫혔다 — 잔여는 `(e)` doc-sync 와 `(d)` UI.
+
+reviewer MINOR 2 건은 non-blocking 이며 CLAUDE.md §3 Nit-closure 4 종에 해당하지 않아 본 PR 에서 미변경 — ① `G.4 idempotent` 를 연속 2 회 POST 로 강화하는 안 (현 diff 가 300 LOC 상한에 정확히 걸려 cap 초과), ② `not.toBe(201)` / `not.toBe(403)` 중복 단언 (AC 가 명시 요구).
