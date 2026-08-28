@@ -171,12 +171,11 @@ describe('fetchServiceIdentities', () => {
 
   // error path — 5xx 도 status 보존 전파.
   it('500 응답 시 ApiError(500) 를 그대로 전파한다 (error path)', async () => {
-    fetchSpy.mockResolvedValueOnce(
-      mockResponse(500, 'boom', 'text/plain'),
-    );
-    await expect(fetchServiceIdentities('p1')).rejects.toMatchObject({
-      status: 500,
-    });
+    fetchSpy.mockResolvedValueOnce(mockResponse(500, 'boom', 'text/plain'));
+    const error = await fetchServiceIdentities('p1').catch((e: unknown) => e);
+    // status 필드를 가진 임의 객체가 아니라 ApiError 계약 자체가 전파돼야 한다.
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).status).toBe(500);
   });
 
   // error path · negative — 미인증 401 은 apiClient 의 refresh 1 회 재시도 후에도
@@ -188,16 +187,16 @@ describe('fetchServiceIdentities', () => {
     fetchSpy.mockResolvedValueOnce(
       mockResponse(401, 'unauthorized', 'text/plain'),
     );
-    await expect(fetchServiceIdentities('p1')).rejects.toMatchObject({
-      status: 401,
-    });
+    const error = await fetchServiceIdentities('p1').catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).status).toBe(401);
   });
 
   // error path · negative — fetch 자체가 reject(네트워크 실패) 하면 ApiError(0).
   it('네트워크 실패 시 ApiError(0) 를 전파한다 (error path · negative)', async () => {
     fetchSpy.mockRejectedValueOnce(new Error('network down'));
-    await expect(fetchServiceIdentities('p1')).rejects.toMatchObject({
-      status: 0,
-    });
+    const error = await fetchServiceIdentities('p1').catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).status).toBe(0);
   });
 });
