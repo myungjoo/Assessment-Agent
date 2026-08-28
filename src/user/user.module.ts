@@ -25,6 +25,8 @@
 //   - controllers: PersonController — `/api/persons` 5 endpoint 노출.
 //                  PartController — `/api/parts` 5 endpoint 노출 (T-0046).
 //                  GroupController — `/api/groups` 7 endpoint 노출 (T-0055 CRUD 4 + T-0057 N:M 3).
+//                  ServiceIdentityController — `/api/persons/:personId/identities` 의
+//                  GET 목록 1 endpoint 노출 (T-1748, ADR-0058 §Follow-ups (b) 첫 절단).
 //   - providers: PersonRepository, ServiceIdentityRepository, GroupRepository,
 //     PartRepository, PersonGroupMembershipRepository, PersonService, PartService,
 //     GroupService.
@@ -56,6 +58,7 @@ import { PersonGroupMembershipRepository } from "./person-group-membership.repos
 import { PersonController } from "./person.controller";
 import { PersonRepository } from "./person.repository";
 import { PersonService } from "./person.service";
+import { ServiceIdentityController } from "./service-identity.controller";
 import { ServiceIdentityRepository } from "./service-identity.repository";
 import { ServiceIdentityService } from "./service-identity.service";
 import { SummaryController } from "./summary.controller";
@@ -99,6 +102,12 @@ import { UserService } from "./user.service";
     // Summary 는 immutable (ADR-0006 §3) 이라 PATCH 부재 + `@@unique` 부재라 409 분기
     // 없음 (FK 위반 P2003 → 400). AuthGuard 미적용 (기존 controller 동일 정책).
     SummaryController,
+    // ServiceIdentityController — T-1748 추가. ADR-0058 §Follow-ups (b)(controller +
+    // RBAC 배선)의 첫 절단. `/api/persons/:personId/identities` 에 GET 목록 route
+    // 1 개만 노출 (나머지 4 route 는 후속 slice). ServiceIdentityService 는 T-1741
+    // 에서 이미 providers/exports 등록 — providers · exports 변경 0. guard stack 은
+    // AssessmentController 1:1 mirror (JwtAuthGuard + RolesGuard + @Roles("User")).
+    ServiceIdentityController,
   ],
   providers: [
     PersonRepository,
