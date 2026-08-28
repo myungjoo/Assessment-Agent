@@ -1,14 +1,17 @@
-// ServiceIdentity API 클라이언트 — 읽기 축(GET 목록, T-1759) + 쓰기 축 1/2(T-1760).
+// ServiceIdentity API 클라이언트 — 읽기 축(T-1759) + 쓰기 축 1/2(T-1760) + 2/2(T-1761).
 // [ADR-0058](../../../docs/decisions/ADR-0058-service-identity-management-api.md)
 // §Follow-ups (d) AdminView 편집 UI 의 전제 계층이다. 현재 web/src 에 ServiceIdentity
 // 를 다루는 코드가 0 건이라, 패널을 그리기 전에 backend 5 route 중 조회 1 개를 호출할
-// client 를 먼저 만든다. 남은 쓰기 2 route(DELETE 삭제 · POST primary 지정)는 후속 slice.
+// client 를 먼저 열었고(T-1759), 본 slice(T-1761)로 5 route 전량이 client 층에서
+// 완결됐다. 잔여는 `ServiceIdentityList` 패널 컴포넌트 신설 · AdminView 배선뿐이다.
 //
-// 계약 정본은 `docs/architecture/api.md` `82 행` 과 backend
-// `src/user/service-identity.controller.ts` `69`·`86 행` 이다:
+// 계약 정본은 `docs/architecture/api.md` `82`~`86 행` 과 backend
+// `src/user/service-identity.controller.ts` `69`·`86`·`127`·`151 행` 이다:
 //  - `GET .../identities` → 200 + raw `ServiceIdentity[]` (row 0 개면 빈 배열, 예외 아님)
 //  - `POST .../identities` → 201 + 생성 row (body 2 필드; 400 / 404 / 409)
 //  - `PATCH .../identities/:identityId` → 200 + 갱신 row (body 1 필드; 400 / 404)
+//  - `DELETE .../identities/:identityId` → 204 No Content (body 없음; 404 3 단)
+//  - `POST .../identities/:identityId/primary` → 200 + 승격 row (body 없음; 404 3 단)
 //  - Person 자체가 부재하면 service 선검사가 404(ADR-0058 §Decision 5 (c))
 //  - guard tier 는 조회 `User+` · 쓰기 `Admin+`(§Decision 4) — 인증 cookie 는 apiClient.
 //
@@ -16,7 +19,7 @@
 // 분기만 얹고, credentials 동반 · 401→refresh→재시도 · 비-2xx → `ApiError` 변환은
 // 전부 apiClient 책임으로 남긴다. 새 dependency 0(브라우저 표준 fetch + apiClient).
 
-import { ApiError, request } from './apiClient';
+import { ApiError, request, requestRaw } from './apiClient';
 
 // backend raw row 와 1:1 인 타입 — `prisma/schema.prisma` `257~274 행`.
 // `id`/`personId`/`service`/`externalId`/`isPrimary` 5 필드는 항상 오고,
@@ -157,6 +160,52 @@ export async function updateServiceIdentity(
       // 허용 축 1 개만 — 여분 키가 붙은 input 이 와도 전송 body 는 externalId 단일.
       body: JSON.stringify({ externalId: input.externalId }),
     },
+  );
+  return asRow(body);
+}
+
+/**
+ * `DELETE .../identities/:identityId` — identity hard delete (204 No Content).
+ *  - `personId`·`identityId` 중 하나라도 빈/공백뿐이면 **네트워크 호출 없이**
+ *    `ApiError(0)` (쓰기 축 `assertPathParam` 승계 — 읽기 축 빈 배열 반환과 다르다).
+ *  - 응답이 204 라 **body 를 파싱하지 않는다** — `request` 는 2xx body 를 무조건 파싱해
+ *    빈 본문을 의미 없는 값으로 되돌리므로, body 를 소비하지 않는 `requestRaw` 로
+ *    `void` 마감한다(api.md `85 행`).
+ *  - 삭제 대상이 primary 였을 때의 자동 재승격은 backend 책임(ADR-0058 §Decision 2).
+ *  - `404` 3 단(Person 부재 · 타 Person 소유 · `P2025`)·`401`·`5xx`·네트워크는 흡수하지
+ *    않고 `ApiError` 그대로 전파 — 사용자 표면화는 후속 패널 slice 책임.
+ */
+export async function deleteServiceIdentity(
+  personId: string,
+  identityId: string,
+): Promise<void> {
+  assertPathParam(personId, 'personId');
+  assertPathParam(identityId, 'identityId');
+  // 반환값을 버린다 — 204 의 빈 body 를 읽을 이유가 없다(위 주석 근거).
+  await requestRaw(serviceIdentityItemPath(personId, identityId), {
+    method: 'DELETE',
+  });
+}
+
+/**
+ * `POST .../identities/:identityId/primary` — 해당 identity 를 primary 로 승격
+ * (200 + 승격 row).
+ *  - `personId`·`identityId` 중 하나라도 빈/공백뿐이면 호출 없이 `ApiError(0)`.
+ *  - **body 를 보내지 않는다** — 대상이 path param 2 개로 완전 지정되는 action route 라
+ *    `Content-Type` 헤더도 `body` 옵션도 붙이지 않는다(api.md `86 행`).
+ *  - 이미 primary 인 row 에 재요청해도 결과가 같은 **idempotent**(unset+set 의 atomic
+ *    처리는 backend `$transaction` 책임) — client 는 중복 호출 방지 로직을 두지 않는다.
+ *  - `404` 3 단·`401`·`5xx`·네트워크는 흡수하지 않고 `ApiError` 그대로 전파.
+ */
+export async function setPrimaryServiceIdentity(
+  personId: string,
+  identityId: string,
+): Promise<ServiceIdentityRow> {
+  assertPathParam(personId, 'personId');
+  assertPathParam(identityId, 'identityId');
+  const body = await request<unknown>(
+    `${serviceIdentityItemPath(personId, identityId)}/primary`,
+    { method: 'POST' },
   );
   return asRow(body);
 }

@@ -1,16 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createServiceIdentity,
+  deleteServiceIdentity,
   fetchServiceIdentities,
   serviceIdentityCollectionPath,
   serviceIdentityItemPath,
+  setPrimaryServiceIdentity,
   updateServiceIdentity,
   type ServiceIdentityRow,
 } from './serviceIdentity';
 import { ApiError } from './apiClient';
 
 // R-112 — ServiceIdentity client 검증: 읽기 축(T-1759) + 쓰기 축 1/2(T-1760 —
-// createServiceIdentity · updateServiceIdentity · serviceIdentityItemPath).
+// createServiceIdentity · updateServiceIdentity · serviceIdentityItemPath)
+// + 쓰기 축 2/2(T-1761 — deleteServiceIdentity · setPrimaryServiceIdentity).
 // jsdom/@testing-library 미사용 — auth.test.ts 선례대로 전역 fetch 를 vi.fn 으로 mock 해
 // apiClient 경유 시나리오를 단언한다. 파일명은 .test.ts 고정 — root jest testRegex 와
 // 충돌 회피(scripts/check-spec-presence.sh 가 .test.ts 를 대응 spec 으로 인정).
@@ -401,6 +404,242 @@ describe('ServiceIdentity 쓰기 축', () => {
     it('배열 응답을 ApiError(0) 로 정상화한다 (분기 · negative)', async () => {
       fetchSpy.mockResolvedValueOnce(mockResponse(200, [ROW_B]));
       await expectApiError(updateServiceIdentity('p1', 'i1', UPDATE_INPUT), 0);
+    });
+  });
+});
+
+// 204 No Content 전용 mock — body 파서(json/text)를 spy 로 심어 "호출되지 않았음" 을
+// 단언할 수 있게 한다(delete 가 requestRaw 로 body 를 소비하지 않는다는 계약 검증).
+function mockNoContent() {
+  const json = vi.fn(async () => {
+    throw new Error('204 body 를 파싱하면 안 된다');
+  });
+  const text = vi.fn(async () => '');
+  return {
+    response: {
+      ok: true,
+      status: 204,
+      headers: { get: () => null },
+      json,
+      text,
+    },
+    json,
+    text,
+  };
+}
+
+describe('ServiceIdentity 쓰기 축 2/2 (DELETE · primary)', () => {
+  let fetchSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  describe('deleteServiceIdentity', () => {
+    it('204 응답에서 undefined 로 resolve 하고 DELETE·경로·body 미전송을 지킨다 (happy-path)', async () => {
+      fetchSpy.mockResolvedValueOnce(mockNoContent().response);
+      await expect(deleteServiceIdentity('p1', 'i1')).resolves.toBeUndefined();
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      const [path, init] = fetchSpy.mock.calls[0];
+      expect(path).toBe('/api/persons/p1/identities/i1');
+      expect(init.method).toBe('DELETE');
+      expect(init.body).toBeUndefined();
+      expect(init.headers).toBeUndefined();
+      expect(init.credentials).toBe('same-origin');
+    });
+
+    // 204 분기의 핵심 — requestRaw 를 쓰므로 body 파서가 한 번도 불리지 않아야 한다.
+    it('204 body 를 파싱하지 않는다 (분기)', async () => {
+      const nc = mockNoContent();
+      fetchSpy.mockResolvedValueOnce(nc.response);
+      await deleteServiceIdentity('p1', 'i1');
+      expect(nc.json).not.toHaveBeenCalled();
+      expect(nc.text).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['빈 personId', '', 'i1'],
+      ['공백뿐인 personId', '  \t ', 'i1'],
+      ['빈 identityId', 'p1', ''],
+      ['공백뿐인 identityId', 'p1', '  '],
+    ])(
+      '%s 는 fetch 없이 ApiError(0) 를 던진다 (분기 · negative)',
+      async (_label, personId, identityId) => {
+        await expectApiError(deleteServiceIdentity(personId, identityId), 0);
+        expect(fetchSpy).not.toHaveBeenCalled();
+      },
+    );
+
+    it('`/` 포함 두 param 을 encode 한 경로로 DELETE 한다 (negative)', async () => {
+      fetchSpy.mockResolvedValueOnce(mockNoContent().response);
+      await deleteServiceIdentity('a/b', 'i/1');
+      expect(fetchSpy.mock.calls[0][0]).toBe(
+        '/api/persons/a%2Fb/identities/i%2F1',
+      );
+    });
+
+    // 404 3 단(Person 부재 · 타 Person 소유 · P2025) + 401 + 409 + 500 — 흡수 없이 전파.
+    it.each([
+      ['404 Person 부재', 404],
+      ['404 타 Person 소유', 404],
+      ['401 미인증', 401],
+      ['409 예기치 못한 status', 409],
+      ['500 서버 오류', 500],
+    ])(
+      '%s 응답을 ApiError 로 status 보존해 전파한다 (error path · negative)',
+      async (_label, status) => {
+        fetchSpy
+          .mockResolvedValueOnce(mockResponse(status, 'err', 'text/plain'))
+          .mockResolvedValueOnce(mockResponse(status, 'err', 'text/plain'));
+        await expectApiError(deleteServiceIdentity('p1', 'i1'), status);
+      },
+    );
+
+    // 이미 지워진 row 에 재요청 — P2025 404 도 그대로 전파한다(멱등 흡수 금지).
+    it('삭제 재요청의 404 도 흡수 없이 전파한다 (negative)', async () => {
+      fetchSpy
+        .mockResolvedValueOnce(mockNoContent().response)
+        .mockResolvedValueOnce(mockResponse(404, 'gone', 'text/plain'));
+      await expect(deleteServiceIdentity('p1', 'i1')).resolves.toBeUndefined();
+      await expectApiError(deleteServiceIdentity('p1', 'i1'), 404);
+    });
+
+    it('네트워크 실패 시 ApiError(0) 를 전파한다 (error path · negative)', async () => {
+      fetchSpy.mockRejectedValueOnce(new Error('network down'));
+      await expectApiError(deleteServiceIdentity('p1', 'i1'), 0);
+    });
+  });
+
+  describe('setPrimaryServiceIdentity', () => {
+    it('200 응답 row 를 반환하고 POST·/primary 경로·body 미전송을 지킨다 (happy-path)', async () => {
+      fetchSpy.mockResolvedValueOnce(mockResponse(200, ROW_A));
+      await expect(setPrimaryServiceIdentity('p1', 'i1')).resolves.toEqual(
+        ROW_A,
+      );
+      const [path, init] = fetchSpy.mock.calls[0];
+      expect(path).toBe('/api/persons/p1/identities/i1/primary');
+      expect(init.method).toBe('POST');
+      expect(init.body).toBeUndefined();
+      expect(init.headers).toBeUndefined();
+    });
+
+    // idempotent 계약 — 같은 row 에 두 번 호출해도 client 가 막지 않고 같은 결과.
+    it('이미 primary 인 row 에 재요청해도 같은 row 를 돌려준다 (분기 · idempotent)', async () => {
+      fetchSpy
+        .mockResolvedValueOnce(mockResponse(200, ROW_A))
+        .mockResolvedValueOnce(mockResponse(200, ROW_A));
+      await expect(setPrimaryServiceIdentity('p1', 'i1')).resolves.toEqual(
+        ROW_A,
+      );
+      await expect(setPrimaryServiceIdentity('p1', 'i1')).resolves.toEqual(
+        ROW_A,
+      );
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([
+      ['빈 personId', '', 'i1'],
+      ['공백뿐인 personId', ' ', 'i1'],
+      ['빈 identityId', 'p1', ''],
+      ['공백뿐인 identityId', 'p1', '  \t '],
+    ])(
+      '%s 는 fetch 없이 ApiError(0) 를 던진다 (분기 · negative)',
+      async (_label, personId, identityId) => {
+        await expectApiError(setPrimaryServiceIdentity(personId, identityId), 0);
+        expect(fetchSpy).not.toHaveBeenCalled();
+      },
+    );
+
+    // encode 된 identityId 뒤에 `/primary` 가 붙는지까지 — action suffix 는 encode 대상 아님.
+    it('`/` 포함 두 param 을 encode 하고 뒤에 /primary 를 붙인다 (negative)', async () => {
+      fetchSpy.mockResolvedValueOnce(mockResponse(200, ROW_A));
+      await setPrimaryServiceIdentity('a/b', 'i/1');
+      expect(fetchSpy.mock.calls[0][0]).toBe(
+        '/api/persons/a%2Fb/identities/i%2F1/primary',
+      );
+    });
+
+    it.each([[404], [409], [500]])(
+      '%i 응답을 ApiError 로 status 보존해 전파한다 (error path · negative)',
+      async (status) => {
+        fetchSpy.mockResolvedValueOnce(
+          mockResponse(status, 'err', 'text/plain'),
+        );
+        await expectApiError(setPrimaryServiceIdentity('p1', 'i1'), status);
+      },
+    );
+
+    it('401 + refresh 실패 시 ApiError(401) 를 전파한다 (error path · negative)', async () => {
+      fetchSpy
+        .mockResolvedValueOnce(mockResponse(401, 'no', 'text/plain'))
+        .mockResolvedValueOnce(mockResponse(401, 'no', 'text/plain'));
+      await expectApiError(setPrimaryServiceIdentity('p1', 'i1'), 401);
+    });
+
+    it('네트워크 실패 시 ApiError(0) 를 전파한다 (error path · negative)', async () => {
+      fetchSpy.mockRejectedValueOnce(new Error('network down'));
+      await expectApiError(setPrimaryServiceIdentity('p1', 'i1'), 0);
+    });
+
+    it.each([
+      ['null', null, 'application/json'],
+      ['배열', [ROW_A], 'application/json'],
+      ['문자열(비 JSON)', 'promoted', 'text/plain'],
+    ])(
+      '%s 응답을 ApiError(0) 로 정상화한다 (분기 · negative)',
+      async (_label, body, contentType) => {
+        fetchSpy.mockResolvedValueOnce(
+          mockResponse(200, body, contentType as string),
+        );
+        await expectApiError(setPrimaryServiceIdentity('p1', 'i1'), 0);
+      },
+    );
+  });
+
+  // 회귀 게이트 — 신규 2 함수가 공용 helper(assertPathParam · asRow ·
+  // serviceIdentityItemPath)를 재사용해도 기존 3 함수의 계약은 그대로다.
+  describe('기존 3 함수 회귀 게이트', () => {
+    it('fetch·create·update 의 경로·method·body 계약이 불변이다 (회귀)', async () => {
+      fetchSpy
+        .mockResolvedValueOnce(mockResponse(200, [ROW_A, ROW_B]))
+        .mockResolvedValueOnce(mockResponse(201, ROW_A))
+        .mockResolvedValueOnce(mockResponse(200, ROW_B));
+
+      await expect(fetchServiceIdentities('p1')).resolves.toEqual([
+        ROW_A,
+        ROW_B,
+      ]);
+      expect(fetchSpy.mock.calls[0][0]).toBe('/api/persons/p1/identities');
+      expect(fetchSpy.mock.calls[0][1]?.method).toBeUndefined();
+
+      await expect(createServiceIdentity('p1', CREATE_INPUT)).resolves.toEqual(
+        ROW_A,
+      );
+      expect(fetchSpy.mock.calls[1][0]).toBe('/api/persons/p1/identities');
+      expect(fetchSpy.mock.calls[1][1].method).toBe('POST');
+      expect(JSON.parse(fetchSpy.mock.calls[1][1].body as string)).toEqual(
+        CREATE_INPUT,
+      );
+
+      await expect(
+        updateServiceIdentity('p1', 'i1', UPDATE_INPUT),
+      ).resolves.toEqual(ROW_B);
+      expect(fetchSpy.mock.calls[2][0]).toBe('/api/persons/p1/identities/i1');
+      expect(fetchSpy.mock.calls[2][1].method).toBe('PATCH');
+      expect(JSON.parse(fetchSpy.mock.calls[2][1].body as string)).toEqual(
+        UPDATE_INPUT,
+      );
+    });
+
+    // 빈 personId 조기 반환(읽기 축) 정책도 그대로 — 쓰기 축의 ApiError 와 다르다.
+    it('fetchServiceIdentities 의 빈 personId 조기 반환이 유지된다 (회귀 · negative)', async () => {
+      await expect(fetchServiceIdentities('  ')).resolves.toEqual([]);
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
   });
 });
