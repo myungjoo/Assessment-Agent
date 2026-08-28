@@ -1,22 +1,22 @@
-// ServiceIdentity API 클라이언트 — 읽기 축(GET 목록) 1 개만 여는 slice (T-1759).
+// ServiceIdentity API 클라이언트 — 읽기 축(GET 목록, T-1759) + 쓰기 축 1/2(T-1760).
 // [ADR-0058](../../../docs/decisions/ADR-0058-service-identity-management-api.md)
 // §Follow-ups (d) AdminView 편집 UI 의 전제 계층이다. 현재 web/src 에 ServiceIdentity
 // 를 다루는 코드가 0 건이라, 패널을 그리기 전에 backend 5 route 중 조회 1 개를 호출할
-// client 를 먼저 만든다. 쓰기 축(POST 추가 · PATCH 수정 · DELETE 삭제 · POST primary)
-// 은 후속 slice 책임이다.
+// client 를 먼저 만든다. 남은 쓰기 2 route(DELETE 삭제 · POST primary 지정)는 후속 slice.
 //
 // 계약 정본은 `docs/architecture/api.md` `82 행` 과 backend
 // `src/user/service-identity.controller.ts` `69`·`86 행` 이다:
-//  - `GET /api/persons/:personId/identities` → 200 + raw `ServiceIdentity[]`
-//  - row 0 개면 200 + 빈 배열(예외 아님)
+//  - `GET .../identities` → 200 + raw `ServiceIdentity[]` (row 0 개면 빈 배열, 예외 아님)
+//  - `POST .../identities` → 201 + 생성 row (body 2 필드; 400 / 404 / 409)
+//  - `PATCH .../identities/:identityId` → 200 + 갱신 row (body 1 필드; 400 / 404)
 //  - Person 자체가 부재하면 service 선검사가 404(ADR-0058 §Decision 5 (c))
-//  - guard tier 는 `User+`(§Decision 4) — 인증 cookie 는 apiClient 가 동반한다.
+//  - guard tier 는 조회 `User+` · 쓰기 `Admin+`(§Decision 4) — 인증 cookie 는 apiClient.
 //
 // auth.ts 선례를 승계한 얇은 per-resource helper — apiClient(request) 위에 비즈니스
 // 분기만 얹고, credentials 동반 · 401→refresh→재시도 · 비-2xx → `ApiError` 변환은
 // 전부 apiClient 책임으로 남긴다. 새 dependency 0(브라우저 표준 fetch + apiClient).
 
-import { request } from './apiClient';
+import { ApiError, request } from './apiClient';
 
 // backend raw row 와 1:1 인 타입 — `prisma/schema.prisma` `257~274 행`.
 // `id`/`personId`/`service`/`externalId`/`isPrimary` 5 필드는 항상 오고,
@@ -74,4 +74,89 @@ export async function fetchServiceIdentities(
     return [];
   }
   return body as ServiceIdentityRow[];
+}
+
+/**
+ * identity 단건 경로(PATCH · 후속 DELETE 공용) — 컬렉션 경로에 id 하나를 덧붙인다.
+ * 두 path param **모두** encode 한다(한쪽에 `/` 가 섞이면 다른 route 로 새거나 404).
+ */
+export function serviceIdentityItemPath(
+  personId: string,
+  identityId: string,
+): string {
+  const base = serviceIdentityCollectionPath(personId);
+  return `${base}/${encodeURIComponent(identityId)}`;
+}
+
+// 쓰기 축 공통 — 필수 path param 이 비면 네트워크 호출 없이 오류로 표면화한다(읽기 축의
+// "빈 배열 조기 반환" 과 정책이 다르다 — 쓰기가 조용히 성공한 척하면 호출측이 반영됐다고
+// 오인한다). status 0 은 apiClient 의 네트워크 실패 규약(서버에 닿지 않음)과 같은 축이다.
+function assertPathParam(value: string, name: string): void {
+  if (value.trim() === '') {
+    throw new ApiError(0, `${name} 가 비어 있어 요청을 보내지 않았습니다`);
+  }
+}
+
+// 쓰기 응답 정상화 — 계약상 단건 row 객체여야 한다. 빈 값으로 흡수하면 호출측이 없는 row 를
+// 다루게 되므로 `ApiError(0)` 로 정상화한다(`typeof null === 'object'` 라 null 도 배제).
+// 필드 검증은 하지 않는다 — raw row 를 그대로 주는 backend 계약이 정본이다.
+function asRow(body: unknown): ServiceIdentityRow {
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+    throw new ApiError(0, '서버 응답이 identity row 객체가 아닙니다');
+  }
+  return body as ServiceIdentityRow;
+}
+
+/**
+ * `POST /api/persons/:personId/identities` — identity 1 개 추가(201 + 생성 row).
+ *  - `personId` 가 빈/공백뿐이면 **네트워크 호출 없이** `ApiError(0)`.
+ *  - body 는 `service`·`externalId` **2 필드만** 재구성해 보낸다 — backend DTO 가
+ *    `forbidNonWhitelisted` 라 `isPrimary` 등 여분 키는 그 자체로 400(api.md `83 행`).
+ *  - `400`·`404`(Person 부재)·`409`(`@@unique([personId, service])` 중복)·`401`·`5xx`·
+ *    네트워크는 흡수하지 않고 `ApiError` 전파(표면화는 후속 패널 slice 책임).
+ *  - 첫 row 자동 primary 승격은 backend service 책임(ADR-0058 §Decision 2).
+ */
+export async function createServiceIdentity(
+  personId: string,
+  input: { service: string; externalId: string },
+): Promise<ServiceIdentityRow> {
+  assertPathParam(personId, 'personId');
+  const body = await request<unknown>(serviceIdentityCollectionPath(personId), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    // 허용 축 2 개만 명시 재구성 — forbidNonWhitelisted 대비.
+    body: JSON.stringify({
+      service: input.service,
+      externalId: input.externalId,
+    }),
+  });
+  return asRow(body);
+}
+
+/**
+ * `PATCH .../identities/:identityId` — 부분 갱신(200 + 갱신 row).
+ *  - `personId`·`identityId` 중 하나라도 빈/공백뿐이면 호출 없이 `ApiError(0)`.
+ *  - 허용 축은 `externalId` **단일** — `service`·`isPrimary` 는 시그니처가 받지 않아
+ *    컴파일 단계에서 봉쇄된다(ADR-0058 §Decision 3 — service 갱신은 DELETE 후 POST 로,
+ *    primary 전이는 전용 route 의 transaction 으로만 표현한다).
+ *  - `400`(DTO 위반·`null`)·`404`(부재 **또는 타 Person 소유**)·`401`·`5xx`·네트워크는
+ *    그대로 전파. 타 Person row 를 404 로 감추는 것도 backend 정책(api.md `84 행`).
+ */
+export async function updateServiceIdentity(
+  personId: string,
+  identityId: string,
+  input: { externalId: string },
+): Promise<ServiceIdentityRow> {
+  assertPathParam(personId, 'personId');
+  assertPathParam(identityId, 'identityId');
+  const body = await request<unknown>(
+    serviceIdentityItemPath(personId, identityId),
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      // 허용 축 1 개만 — 여분 키가 붙은 input 이 와도 전송 body 는 externalId 단일.
+      body: JSON.stringify({ externalId: input.externalId }),
+    },
+  );
+  return asRow(body);
 }
