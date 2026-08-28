@@ -2,7 +2,7 @@
 id: T-1764
 title: web ServiceIdentityEditForm externalId 수정 전용 폼 컴포넌트 신설 (쓰기 축 2/3)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 275
@@ -68,3 +68,10 @@ REQ-078 Admin UI 축 / REQ-079 의 "이름 / email 만 입력 가능한 상태 �
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가)
+
+## 완료 기록
+
+- 완료 시각: 2026-08-28T18:54:19Z (squash merge)
+- PR: [#1392](https://github.com/myungjoo/Assessment-Agent/pull/1392) — squash `e087da4f`, feature branch 삭제 완료
+- 결과: `web/src/components/ServiceIdentityEditForm.tsx` + colocated spec 2 파일 신설 (`+300/-0`). props-only controlled presentational component 로 내부 fetch · `useState` 0 이고 `updateServiceIdentity` 를 호출하지 않는다. `service` 는 읽기 전용 텍스트(ADR-0058 `§Decision 3`), `isPrimary` 입력 축 부재(`§Decision 2`), hint id 는 add 폼과 독립.
+- 검증: spec 18 개로 R-112 4 종 전부 cover (happy 1 · error path 3 · 분기 8 · negative 6). web 2654 test + 루트 13208 test 전량 green, backend 회귀 0. PR CI 2 job pass, reviewer APPROVE round 1/7 (comment 5456452240) → 4-게이트 PASS.
