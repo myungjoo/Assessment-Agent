@@ -2,7 +2,9 @@
 id: T-1761
 title: web ServiceIdentity API 클라이언트 쓰기 축 2/2 신설 (DELETE 삭제 · primary 지정)
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1389
+completed: 2026-08-28
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 260
@@ -71,3 +73,12 @@ primary 지정 action POST 2 개다. 본 slice 가 그 2 개를 덮어 **client 
 `implementer → tester`
 
 ## Follow-ups
+
+---
+
+## 결과 (2026-08-28 완료)
+
+- **DONE** — PR [#1389](https://github.com/myungjoo/Assessment-Agent/pull/1389) squash 머지 → main `86b1759a`. 2 파일 +294/-6.
+- `deleteServiceIdentity`(204 무 body → `requestRaw` 로 파서 미호출 · void 마감) · `setPrimaryServiceIdentity`(body/Content-Type 미전송 · `asRow` 정상화 · idempotent) 추가로 ServiceIdentity client 5 route 마감. `assertPathParam` · `asRow` · `serviceIdentityItemPath` 재사용으로 복제 0, 새 dependency 0.
+- 신규 24 케이스로 R-112 4 종 전부 cover + 기존 3 함수 회귀 게이트 2. web 84 파일 2597 test + 루트 458 스위트 13208 test green(line/function ≥ 80% 유지).
+- reviewer round 1 APPROVE → 남은 Nit 을 CLAUDE.md §3 Nit-in-PR closure 로 round 2 에서 닫고 재-APPROVE, 4-게이트 PASS 후 머지.
