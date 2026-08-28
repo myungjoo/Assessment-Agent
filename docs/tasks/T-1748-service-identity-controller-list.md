@@ -2,8 +2,9 @@
 id: T-1748
 title: Add ServiceIdentityController with the GET list route and guard stack
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1378
 coversReq: [REQ-078, REQ-073]
 independentStream: service-identity-backend
 dependsOn: [T-1741, T-1747]
@@ -15,6 +16,8 @@ touchesFiles:
 estimatedDiff: 275
 estimatedFiles: 4
 created: 2026-08-28
+completed: 2026-08-28T02:59:12Z
+mergeCommit: bfb186b8
 plannerNote: P5 / PLAN 132 행 오너 지시 chain — ADR-0058 §Follow-ups (b) controller 배선의 첫 slice (GET 1 route 만)
 ---
 
