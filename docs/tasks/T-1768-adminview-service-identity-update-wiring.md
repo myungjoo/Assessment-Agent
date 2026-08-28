@@ -2,7 +2,7 @@
 id: T-1768
 title: AdminView 에 ServiceIdentity 수정(PATCH) 축 배선 (runUpdateServiceIdentity 러너 + 수정 대상 select + ServiceIdentityEditForm 마운트)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 285
@@ -10,6 +10,8 @@ estimatedFiles: 2
 created: 2026-08-29
 independentStream: service-identity-web
 dependsOn: [T-1767]
+prNumber: 1396
+completedAt: 2026-08-28T23:03:56Z
 touchesFiles:
   - web/src/views/AdminView.tsx
   - web/src/views/AdminView.service-identity-update.test.tsx
@@ -76,3 +78,17 @@ plannerNote: "P6/PLAN 132 행 — ADR-0058 (d) 열 번째 web slice: 쓰기 축 
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 적는다.)
+
+## 결과 요약 (2026-08-28 완료)
+
+- **DONE** — PR [#1396](https://github.com/myungjoo/Assessment-Agent/pull/1396) squash 머지 `4173f57b`, feature branch 삭제. reviewer APPROVE(round 1/7) → 4-게이트 PASS → CI green.
+- 변경: `web/src/views/AdminView.tsx` + 신규 `web/src/views/AdminView.service-identity-update.test.tsx` (2 파일 `+300/-0` — cap 정확히 충족). 컴포넌트 · api client · 기존 3 spec 수정 0, 새 dependency 0.
+- `runUpdateServiceIdentity` 순수 러너 + `UpdateServiceIdentityDeps` + 4 no-op 가드(personId · identityId · externalId · updating) + 성공 시 `bumpRefresh`/`endEdit` · 실패 시 문구만(throw 0) · finally 진행 off. `externalId` 는 폼의 변경 0 판정과 맞추려 원문 그대로 전송(근거 주석 동반).
+- 편집 state 4 개 + `editingIdentity` 파생(새 fetch 0) + 수정 대상 `<select>`(aria-label) prefill + `ServiceIdentityEditForm` 조건부 마운트. T-1767 reviewer Nit(`ServiceIdentityInput` 설명 주석)도 흡수.
+- test: web vitest 91 파일 2723 test green, 루트 jest 458 suite 13208 test green (line 99.94% · function 100%). R-112 4 종 — happy 2 · error 5(400 · 404 · network · 문자열 · null) · 가드/컨테이너 분기 8 · negative(원문 전송 · 재시도 error 선-비움 · 공백뿐 입력) 커버.
+
+## Follow-ups (완료 시점 추가)
+
+- 조회 인원 변경 시 `editingIdentityId` 잔존 — 파생(`editingIdentity`)이 흡수해 현재는 무해하나, 삭제/primary 축 slice 에서 공통 helper 로 정리 권장 (reviewer Nit).
+- 목록 행 인라인 편집 UX 는 PLAN `133 행` 별건 — 본 slice 는 select 기반 편집만.
+- ADR-0058 `§Follow-ups (d)` 잔여: 삭제/primary 축 배선 · RBAC gating · REQ-078/079 재판정.
