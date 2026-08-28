@@ -2,7 +2,9 @@
 id: T-1749
 title: Add the POST create route to ServiceIdentityController
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 1379
+completedAt: 2026-08-28T03:56:06Z
 commitMode: pr
 coversReq: [REQ-078, REQ-073]
 independentStream: service-identity-backend
@@ -108,3 +110,18 @@ repository)는 T-1739~T-1747 로 마감됐고, `§Follow-ups (b)`(controller + R
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 요약 (2026-08-28 완료)
+
+PR [#1379](https://github.com/myungjoo/Assessment-Agent/pull/1379) squash merge → main `7599474e`.
+`ServiceIdentityController` 에 POST 생성 route 1 개를 배선했다 — handler 는
+`service.create(personId, dto)` 로 1 회 위임하고 반환값을 무가공 전달하며, `@HttpCode` 를 붙이지 않아
+NestJS 기본 201 을 그대로 쓴다. RBAC 는 `@UseGuards(JwtAuthGuard, RolesGuard)` 순서 + `@Roles("Admin")`
+(GET 목록의 `"User"` tier 와 독립). `user.module.ts` 는 헤더 주석 문구만 갱신해
+`controllers`/`providers`/`exports` 배열 diff 0. spec 에 POST describe 2 개 · 신규 13 케이스를 더해
+R-112 4 종을 덮었다 — happy(위임 1 회 + 인자 일치 + 반환 참조 동일) / error path(409 · 404 · 일반 `Error`
+동일 인스턴스 전파) / 분기(handler 코드 분기 부재를 metadata 4 축으로 대체 — POST method · `@HttpCode`
+미부착 · Roles tier 독립 · guard 순서) / negative(빈 `personId` 통과 · 단락 시 collaborator 0 회 ·
+DTO 키 집합 불변). 3 파일 `+245/-24`, controller line·branch·function 100%,
+전체 458 suite / 13170 test green. reviewer APPROVE(round 1/7) → PR comment 외부 post + CI 2 job pass 로
+4-게이트 충족.
