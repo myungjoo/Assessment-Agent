@@ -2,7 +2,7 @@
 id: T-1754
 title: Add e2e coverage for the ServiceIdentity update (PATCH) route
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-024]
 independentStream: service-identity-backend
@@ -63,3 +63,10 @@ plannerNote: P5 / ADR-0058 §Follow-ups (c) e2e chain 2 번째 slice — PATCH �
 
 - ADR-0058 `§Follow-ups (c)` 의 **삭제 · primary 지정 축** e2e slice (`§Decision 2` 재승격을 DB 상태로 검증) — 본 slice 가 끝나면 (c) 의 마지막 잔여.
 - ADR-0058 `§Follow-ups (e)` [docs/architecture/api.md](../architecture/api.md) · [docs/requirements.md](../requirements.md) doc-sync (`commitMode: direct`).
+
+## 완료 기록
+
+- **Status: DONE** — 완료 2026-08-28T08:56Z (cron fire `cron@aa-local-cd99a1e5-129509`).
+- PR [#1384](https://github.com/myungjoo/Assessment-Agent/pull/1384) → main `37ba5959` (squash merge + branch delete).
+- 결과: `test/e2e/service-identities.e2e-spec.ts` 1 파일 `+255/-11`. T-1753 harness 를 nested describe 로 재사용해 중복 정의 0, `identityEndpointFor` · `seedIdentity` helper 2 개 추가. PATCH 축 12 케이스(happy 1 · 분기 4 · error path 1 · negative 6)로 R-112 4 종 cover — 금지 축 400 4 종(`isPrimary` · `service` · 명시적 `null` · 비허용 키), 3 단 404 3 종(Person 부재 · 타 Person 소유 · `P2025`), 빈 body 보존 semantic 을 DB 잔여 상태까지 확인. production code 무변경.
+- 검증: 로컬 lint · build · test(458 suite / 13208) · test:cov green, CI e2e leg 에서 본 spec PASS 실측(348 케이스). reviewer APPROVE(round 1/7) → PR comment 외부 post, Nit 1 은 round 2 `cb0139f8` 로 PR 내 closure. 4-게이트 충족 후 머지.
