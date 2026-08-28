@@ -1,14 +1,14 @@
-// ServiceIdentityController spec — T-1748(GET) + T-1749(POST) acceptance 박제.
+// ServiceIdentityController spec — T-1748(GET) + T-1749(POST) + T-1750(PATCH) acceptance 박제.
 //
-// route 2 개(GET 목록 · POST 생성) 모두 순수 위임 handler 라 spec 도 그 분량에 맞춰 좁게
+// route 3 개(GET 목록 · POST 생성 · PATCH 수정) 모두 순수 위임 handler 라 spec 도 그 분량에 맞춰 좁게
 // 간다 (assessment.controller.spec 을 통째로 베끼지 않고 metadata 검증 관례만 승계).
 // 구성: (1) 위임 동작 — mock service 로 happy / error / negative, (2) metadata 박제 —
 // route method · guard stack 순서 · @Roles tier · @HttpCode 미부착 · controller-scope
 // ValidationPipe 옵션 3 종.
 //
-// R-112 분기 축 메모: GET · POST handler 어느 쪽에도 **조건 분기가 없다**(순수 위임) —
-// 코드 분기 test 는 해당 없음이며, 분기 축은 metadata 케이스(route method · @HttpCode
-// 미부착 · @Roles tier 독립 · guard 순서)로 대체한다.
+// R-112 분기 축 메모: GET · POST · PATCH handler 어느 쪽에도 **조건 분기가 없다**(순수
+// 위임) — 코드 분기 test 는 해당 없음이며, 분기 축은 metadata 케이스(route method · path
+// param 축 · @HttpCode 미부착 · @Roles tier 독립 · guard 순서)로 대체한다.
 import {
   ConflictException,
   NotFoundException,
@@ -22,6 +22,7 @@ import { ROLES_METADATA_KEY } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 
 import type { CreateServiceIdentityDto } from "./dto/create-service-identity.dto";
+import { UpdateServiceIdentityDto } from "./dto/update-service-identity.dto";
 import { ServiceIdentityController } from "./service-identity.controller";
 import type { ServiceIdentityService } from "./service-identity.service";
 
@@ -280,6 +281,141 @@ describe("ServiceIdentityController.create (POST 위임 동작)", () => {
   });
 });
 
+describe("ServiceIdentityController.update (PATCH 위임 동작)", () => {
+  let serviceMock: ReturnType<typeof buildServiceMock>;
+  let controller: ServiceIdentityController;
+
+  beforeEach(() => {
+    serviceMock = buildServiceMock();
+    controller = new ServiceIdentityController(
+      serviceMock as unknown as ServiceIdentityService,
+    );
+  });
+
+  // happy path — (personId, identityId, dto) 3 인자를 순서대로 그대로 위임하고 갱신
+  // row 를 동일 참조로 반환한다.
+  it("PATCH 수정: service.update 에 (personId, identityId, dto) 를 그대로 전달하고 반환 row 를 가공 없이 돌려준다", async () => {
+    const dto: UpdateServiceIdentityDto = { externalId: "octocat-fixed" };
+    const updated = buildIdentityFixture({ externalId: "octocat-fixed" });
+    serviceMock.update.mockResolvedValue(updated);
+
+    const result = await controller.update("person-1", "identity-1", dto);
+
+    // 동일 참조 — 복제 · envelope · 필드 추가 0.
+    expect(result).toBe(updated);
+    expect(serviceMock.update).toHaveBeenCalledTimes(1);
+    expect(serviceMock.update).toHaveBeenCalledWith(
+      "person-1",
+      "identity-1",
+      dto,
+    );
+    // dto 객체 자체도 controller 가 변형하지 않는다.
+    expect(dto).toEqual({ externalId: "octocat-fixed" });
+  });
+
+  // error path 1 — 3 단 404(Person 부재 · 소유 아님 · P2025) 중 어느 것이든 동일
+  // NotFoundException 인스턴스로 전파된다.
+  it("PATCH 수정: service 의 NotFoundException(404) 을 동일 인스턴스로 그대로 전파한다", async () => {
+    const error = new NotFoundException(
+      "service identity not found: identity-x",
+    );
+    serviceMock.update.mockRejectedValue(error);
+
+    await expect(
+      controller.update("person-1", "identity-x", { externalId: "x" }),
+    ).rejects.toBe(error);
+    expect(serviceMock.update).toHaveBeenCalledWith("person-1", "identity-x", {
+      externalId: "x",
+    });
+  });
+
+  // error path 2 — HttpException 이 아닌 일반 Error 도 raw forward (try/catch 없음).
+  it("PATCH 수정: 일반 Error 도 변환 없이 동일 인스턴스로 전파한다", async () => {
+    const error = new Error("db down");
+    serviceMock.update.mockRejectedValue(error);
+
+    await expect(
+      controller.update("person-1", "identity-1", { externalId: "x" }),
+    ).rejects.toBe(error);
+  });
+
+  // negative (a) — 빈 문자열 identityId 도 controller 가 차단 · 가공하지 않고 위임.
+  it("negative: 빈 문자열 identityId 도 가공·차단 없이 service.update 로 전달한다", async () => {
+    serviceMock.update.mockResolvedValue(buildIdentityFixture());
+
+    await controller.update("person-1", "", { externalId: "x" });
+
+    expect(serviceMock.update).toHaveBeenCalledWith("person-1", "", {
+      externalId: "x",
+    });
+  });
+
+  // negative (b) — throw 시 단락되어 다른 collaborator 호출 0 회.
+  it("negative: service.update 가 throw 하면 단락되어 다른 collaborator 호출 0 회", async () => {
+    serviceMock.update.mockRejectedValue(new NotFoundException("nope"));
+
+    await expect(
+      controller.update("person-1", "identity-1", {}),
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(serviceMock.findByPersonId).not.toHaveBeenCalled();
+    expect(serviceMock.create).not.toHaveBeenCalled();
+    expect(serviceMock.setPrimary).not.toHaveBeenCalled();
+    expect(serviceMock.remove).not.toHaveBeenCalled();
+  });
+
+  // negative (c) — 갱신 축은 externalId 1 개뿐. DTO 의 키 집합이 그 이상으로 늘어나면
+  // (= isPrimary · service 노출) 이 test 가 깨진다 (§Decision 3 의 금지 축 게이트).
+  it("negative: UpdateServiceIdentityDto 의 갱신 축이 externalId 1 개로 불변이다 (isPrimary·service 미노출)", () => {
+    const dto = new UpdateServiceIdentityDto();
+    dto.externalId = "octocat";
+
+    expect(Object.keys(dto)).toEqual(["externalId"]);
+    expect(dto).not.toHaveProperty("isPrimary");
+    expect(dto).not.toHaveProperty("service");
+  });
+
+  // negative (d) — 미전달 body({}) 도 controller 가 기본값 주입 없이 그대로 위임한다.
+  // 보존 semantic 은 service 책임이므로 controller 가 400 으로 막지도 않는다.
+  it("negative: 빈 body({}) 도 기본값 주입 없이 그대로 위임한다 (보존 semantic 은 service 책임)", async () => {
+    const current = buildIdentityFixture();
+    serviceMock.update.mockResolvedValue(current);
+
+    const result = await controller.update("person-1", "identity-1", {});
+
+    expect(serviceMock.update).toHaveBeenCalledWith(
+      "person-1",
+      "identity-1",
+      {},
+    );
+    expect(result).toBe(current);
+  });
+
+  // negative (e) — 성공 경로에서도 update 외 collaborator 호출 0 회.
+  it("negative: PATCH 성공 경로에서 update 외 다른 collaborator 호출 0 회", async () => {
+    serviceMock.update.mockResolvedValue(buildIdentityFixture());
+
+    await controller.update("person-1", "identity-1", { externalId: "x" });
+
+    expect(serviceMock.findByPersonId).not.toHaveBeenCalled();
+    expect(serviceMock.create).not.toHaveBeenCalled();
+    expect(serviceMock.setPrimary).not.toHaveBeenCalled();
+    expect(serviceMock.remove).not.toHaveBeenCalled();
+  });
+
+  // negative (f) — 응답을 envelope 로 감싸거나 필드를 덧붙이지 않는다.
+  it("negative: PATCH 응답을 감싸거나 필드를 덧붙이지 않는다 (반환 객체 키 집합 불변)", async () => {
+    const updated = buildIdentityFixture({ isPrimary: false });
+    const keysBefore = Object.keys(updated).sort();
+    serviceMock.update.mockResolvedValue(updated);
+
+    const result = await controller.update("person-1", "identity-1", {});
+
+    expect(Object.keys(result).sort()).toEqual(keysBefore);
+    expect(result).not.toHaveProperty("data");
+  });
+});
+
 describe("ServiceIdentityController (route · guard · pipe metadata)", () => {
   // base path — ADR-0058 §Decision 1 의 nested route shape 고정.
   it("base path 가 api/persons/:personId/identities 이다", () => {
@@ -385,5 +521,63 @@ describe("ServiceIdentityController (route · guard · pipe metadata)", () => {
     expect(pipes[0]?.validatorOptions?.whitelist).toBe(true);
     expect(pipes[0]?.validatorOptions?.forbidNonWhitelisted).toBe(true);
     expect(pipes[0]?.isTransformEnabled).toBe(true);
+  });
+
+  // 분기 축 (g) — PATCH handler 의 route method + path param 축 (":identityId").
+  it("update handler 의 route method 가 PATCH 이고 path 가 :identityId 이다", () => {
+    expect(
+      Reflect.getMetadata("method", ServiceIdentityController.prototype.update),
+    ).toBe(RequestMethod.PATCH);
+    expect(
+      Reflect.getMetadata("path", ServiceIdentityController.prototype.update),
+    ).toBe(":identityId");
+    // negative — 다른 두 route 의 method 를 덮어쓰지 않았다.
+    expect(
+      Reflect.getMetadata("method", ServiceIdentityController.prototype.create),
+    ).toBe(RequestMethod.POST);
+    expect(
+      Reflect.getMetadata(
+        "method",
+        ServiceIdentityController.prototype.findByPersonId,
+      ),
+    ).toBe(RequestMethod.GET);
+  });
+
+  // 분기 축 (h) — @HttpCode 미부착 = NestJS PATCH 기본값 200 유지 (§Decision 1 PATCH 행).
+  it("update handler 에 @HttpCode 가 부착돼 있지 않다 (기본 200 OK 유지)", () => {
+    const httpCode = Reflect.getMetadata(
+      "__httpCode__",
+      ServiceIdentityController.prototype.update,
+    ) as number | undefined;
+
+    expect(httpCode).toBeUndefined();
+  });
+
+  // 분기 축 (i) — 편집 tier 라 Admin. GET 의 "User" tier 와 다르다 (§Decision 4).
+  it("update handler 에 Roles(Admin) 이 박혀 있고 GET 의 User tier 와 다르다", () => {
+    const reflector = new Reflector();
+
+    expect(
+      reflector.get<string[]>(
+        ROLES_METADATA_KEY,
+        ServiceIdentityController.prototype.update,
+      ),
+    ).toEqual(["Admin"]);
+    expect(
+      reflector.get<string[]>(
+        ROLES_METADATA_KEY,
+        ServiceIdentityController.prototype.findByPersonId,
+      ),
+    ).toEqual(["User"]);
+  });
+
+  // 분기 축 (j) — guard stack 이 GET · POST 와 동일 순서 (JwtAuthGuard → RolesGuard).
+  it("update handler 에 @UseGuards(JwtAuthGuard, RolesGuard) 가 같은 순서로 부착돼 있다", () => {
+    const guards = Reflect.getMetadata(
+      "__guards__",
+      ServiceIdentityController.prototype.update,
+    ) as unknown[];
+
+    expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
   });
 });
