@@ -1,6 +1,7 @@
-// service-identities.e2e-spec.ts — `GET/POST /api/persons/:personId/identities` 의
-// HTTP + guard stack + ValidationPipe + 실 PostgreSQL round-trip e2e
-// (ADR-0058 §Follow-ups (c) e2e chain 의 1 번째 slice, T-1753).
+// service-identities.e2e-spec.ts — `GET/POST /api/persons/:personId/identities` 와
+// `PATCH /api/persons/:personId/identities/:identityId` 의 HTTP + guard stack +
+// ValidationPipe + 실 PostgreSQL round-trip e2e
+// (ADR-0058 §Follow-ups (c) e2e chain 의 1 번째 slice T-1753 + 2 번째 slice T-1754).
 //
 // 책임 (smoke 대 e2e 책임 경계):
 //   - 본 spec 은 **실 DB · 실 guard · 실 ValidationPipe 를 통과하는 HTTP 계약** 의
@@ -11,13 +12,26 @@
 //     실제 Postgres constraint 위에서 성립하는지는 본 spec 만이 발화한다.
 //
 // slice 경계 (§Follow-ups (c) 절단):
-//   - 본 slice 는 **GET 목록 · POST 생성 두 축만** 덮는다. `PATCH` · `DELETE` ·
-//     primary 지정 3 route 의 e2e 는 **후속 slice** 소관이며, 그 slice 는 본 파일이
-//     지불한 harness (인증 actor seed · truncate · re-seed · Person seed helper) 를
-//     그대로 재사용한다. 5 route 를 한 commit 에 담으면 CLAUDE.md §3 의 300 LOC 상한을
-//     확실히 넘기므로 미리 케이스를 추가하지 않는다.
+//   - 1 번째 slice (T-1753) 가 **GET 목록 · POST 생성** 두 축을, 2 번째 slice (T-1754)
+//     가 **PATCH 수정** 축을 덮는다. 남은 축은 `DELETE` 삭제 · primary 지정 **2 route**
+//     뿐이며 그 e2e 는 **마지막 slice** 소관이다. 그 slice 도 본 파일이 지불한 harness
+//     (인증 actor seed · truncate · re-seed · Person seed helper) 를 그대로 재사용한다.
+//     5 route 를 한 commit 에 담으면 CLAUDE.md §3 의 300 LOC 상한을 확실히 넘기므로
+//     미리 케이스를 추가하지 않는다.
 //   - production code 변경 0 — controller · service · repository · DTO 는 T-1739 ~
 //     T-1752 에서 완결됐다.
+//
+// PATCH 축이 지는 계약 (T-1754 가 고정하는 지점):
+//   - **금지 축 400 게이트** (§Decision 3) — `UpdateServiceIdentityDto` 는 `externalId?`
+//     단일 필드라 `isPrimary` · `service` 는 화이트리스트 밖이고 controller-scope
+//     ValidationPipe 의 `forbidNonWhitelisted` 가 400 을 낸다. 명시적 `null` 도
+//     `@ValidateIf((_o, v) => v !== undefined)` 가 skip 하지 않아 400 이다.
+//   - **3 단 404 가 403 이 아닌 이유** (§Decision 5 b · e) — Person 부재 · 타 Person 소유
+//     identity · `P2025` 세 경로가 **전부 404** 다. 타 Person 소유 건에 403 을 주면 "그
+//     id 의 row 가 존재한다" 는 사실이 응답만으로 새어 나가므로, 존재 여부 자체를 숨기는
+//     404 로 통일한다 (소유자 personId 도 메시지에 넣지 않는다).
+//   - **미전달 보존 분기** (§Decision 3 + service `externalId === undefined` 단락) —
+//     빈 body `{}` 는 repository 미호출로 현재 row 를 그대로 반환하는 200 이다.
 //
 // 실 DB 전략 (ADR-0004 §Decision — user-instance-access.e2e 동일):
 //   - mock override 없음. `createAuthenticatedE2EApp` 이 AppModule 부트스트랩 + actor
@@ -33,8 +47,13 @@
 // R-113 cover:
 //   - test/jest-e2e.json 의 testRegex `.*\.e2e-spec\.ts$` 가 본 파일을 자동 picking
 //     하므로 설정 파일 수정 0 으로 CI 의 e2e leg 에 편입된다.
-//   - 11 test = happy 2 (GET 목록 · POST 생성) + 분기 3 (자동 승격 2 분기 · 빈 목록) +
-//     error path 1 (미존재 personId 404) + negative 5 (401 · 403 · 409 · 400 두 종).
+//   - 23 test = 목록·생성 축 11 + PATCH 수정 축 12.
+//   - 목록·생성 축 11 = happy 2 (GET 목록 · POST 생성) + 분기 3 (자동 승격 2 분기 ·
+//     빈 목록) + error path 1 (미존재 personId 404) + negative 5 (401 · 403 · 409 ·
+//     400 두 종).
+//   - PATCH 수정 축 12 = happy 1 (200 + DB 실 반영) + 분기 4 (빈 body 보존 · 3 단 404
+//     각 1) + error path 1 (404 시 대상 row 의 externalId 보존) + negative 6 (401 ·
+//     403 · isPrimary 400 · service 400 · null 400 · 빈 문자열 400).
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
@@ -51,6 +70,10 @@ import { truncateAll } from "../helpers/db-truncate";
 const endpointFor = (personId: string): string =>
   `/api/persons/${personId}/identities`;
 
+// 단일 identity path builder — PATCH/DELETE/primary 축이 쓰는 `:identityId` 까지 치환.
+const identityEndpointFor = (personId: string, identityId: string): string =>
+  `${endpointFor(personId)}/${identityId}`;
+
 // actor email — afterEach truncate + re-seed 로 격리되므로 충돌 0.
 const ADMIN_EMAIL = "si-admin-actor@e2e.test";
 const USER_EMAIL = "si-user-actor@e2e.test";
@@ -64,7 +87,7 @@ const IDENTITY_FIELDS = [
   "isPrimary",
 ];
 
-describe("E2E: GET/POST /api/persons/:personId/identities 목록·생성 계약 (T-1753)", () => {
+describe("E2E: /api/persons/:personId/identities 목록·생성·수정 계약 (T-1753/T-1754)", () => {
   let ctx: AuthenticatedE2EContext;
   let app: INestApplication;
   let prisma: PrismaService;
@@ -284,5 +307,225 @@ describe("E2E: GET/POST /api/persons/:personId/identities 목록·생성 계약 
 
     expect(response.status).toBe(400);
     expect(response.body).toHaveProperty("statusCode", 400);
+  });
+
+  // -- E. PATCH 수정 축 (T-1754) -------------------------------------------------
+  //
+  // 위 harness (beforeAll actor seed · afterEach truncate + re-seed · afterAll close ·
+  // seedPerson) 를 그대로 상속하는 nested describe 다 — 중복 정의 0.
+  describe("PATCH /:identityId — 수정 계약 (T-1754)", () => {
+    // PATCH 대상 identity 1 row seed. PATCH 는 항상 기존 row 를 전제로 하므로 각
+    // test 의 arrange 가 이 helper 로 시작한다 (afterEach truncate 로 매번 소멸).
+    const seedIdentity = async (
+      personId: string,
+      externalId = "octo",
+    ): Promise<string> => {
+      const row = await prisma.serviceIdentity.create({
+        data: { personId, service: "github", externalId, isPrimary: true },
+      });
+      return row.id;
+    };
+
+    // E.1 happy — 200 + 갱신된 row 응답, DB 직접 조회로 실 반영 확인 (R-112 #1).
+    it("PATCH — Admin 이 externalId 를 바꾸면 200 + 갱신 row 응답 + DB 실 반영 (happy)", async () => {
+      const personId = await seedPerson();
+      const identityId = await seedIdentity(personId);
+
+      const response = await request(app.getHttpServer())
+        .patch(identityEndpointFor(personId, identityId))
+        .set("Cookie", adminCookie)
+        .send({ externalId: "octo-renamed" });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({
+        id: identityId,
+        personId,
+        service: "github",
+        externalId: "octo-renamed",
+      });
+
+      const row = await prisma.serviceIdentity.findUnique({
+        where: { id: identityId },
+      });
+      expect(row?.externalId).toBe("octo-renamed");
+    });
+
+    // E.2 분기 — 빈 body `{}` 는 service 의 `externalId === undefined` 단락을 타고
+    // repository 미호출로 현재 row 를 그대로 반환한다 (§Decision 3 보존 semantic).
+    it("PATCH — 빈 body 는 200 이고 externalId·isPrimary·service 가 모두 보존 (미전달 분기)", async () => {
+      const personId = await seedPerson();
+      const identityId = await seedIdentity(personId);
+
+      const response = await request(app.getHttpServer())
+        .patch(identityEndpointFor(personId, identityId))
+        .set("Cookie", adminCookie)
+        .send({});
+
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({
+        id: identityId,
+        externalId: "octo",
+      });
+
+      const row = await prisma.serviceIdentity.findUnique({
+        where: { id: identityId },
+      });
+      expect(row?.externalId).toBe("octo");
+      expect(row?.isPrimary).toBe(true);
+      expect(row?.service).toBe("github");
+    });
+
+    // E.3 3 단 404 ① — Person 선검사 단계에서 404 (§Decision 5 c).
+    it("PATCH — 미존재 personId 는 404 (3 단 404 ①)", async () => {
+      const personId = await seedPerson();
+      const identityId = await seedIdentity(personId);
+
+      await request(app.getHttpServer())
+        .patch(identityEndpointFor("nonexistent-person-id", identityId))
+        .set("Cookie", adminCookie)
+        .send({ externalId: "octo-renamed" })
+        .expect(404);
+    });
+
+    // E.4 3 단 404 ② — 타 Person 소유 identity 는 **403 이 아니라 404** (§Decision 5 e).
+    // row 의 존재 사실 자체를 숨겨야 하므로 소유 위반을 권한 오류로 표현하지 않는다.
+    it("PATCH — 타 Person 소유 identity 는 403 이 아니라 404 (3 단 404 ②)", async () => {
+      const personId = await seedPerson();
+      // 두 번째 Person 은 email @unique 때문에 seedPerson 재사용이 불가해 inline seed.
+      const other = await prisma.person.create({
+        data: { fullName: "타 인원", email: "si-other@e2e.test" },
+      });
+      const foreignId = await seedIdentity(other.id, "foreign");
+
+      const response = await request(app.getHttpServer())
+        .patch(identityEndpointFor(personId, foreignId))
+        .set("Cookie", adminCookie)
+        .send({ externalId: "hijacked" });
+
+      expect(response.status).toBe(404);
+      expect(response.status).not.toBe(403);
+    });
+
+    // E.5 3 단 404 ③ — Person 은 있고 identityId 만 미존재. envelope 검증도 여기서.
+    it("PATCH — 존재하는 Person + 미존재 identityId 는 404 이고 envelope 에 statusCode·message 포함 (3 단 404 ③)", async () => {
+      const personId = await seedPerson();
+      await seedIdentity(personId);
+
+      const response = await request(app.getHttpServer())
+        .patch(identityEndpointFor(personId, "nonexistent-identity-id"))
+        .set("Cookie", adminCookie)
+        .send({ externalId: "octo-renamed" });
+
+      expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty("statusCode", 404);
+      expect(response.body).toHaveProperty("message");
+    });
+
+    // E.6 error path — 404 로 끝난 요청은 DB 를 건드리지 않는다. E.4 의 타 Person 소유
+    // 케이스에서 대상 row 의 externalId 가 보존됐는지 직접 조회로 확인 (R-112 #2).
+    it("PATCH — 타 Person 소유 404 후 대상 row 의 externalId 는 보존 (error path)", async () => {
+      const personId = await seedPerson();
+      const other = await prisma.person.create({
+        data: { fullName: "타 인원", email: "si-other@e2e.test" },
+      });
+      const foreignId = await seedIdentity(other.id, "foreign");
+
+      await request(app.getHttpServer())
+        .patch(identityEndpointFor(personId, foreignId))
+        .set("Cookie", adminCookie)
+        .send({ externalId: "hijacked" })
+        .expect(404);
+
+      const row = await prisma.serviceIdentity.findUnique({
+        where: { id: foreignId },
+      });
+      expect(row?.externalId).toBe("foreign");
+    });
+
+    // E.7 negative ① — 인증 쿠키 없으면 JwtAuthGuard 가 401.
+    it("PATCH — 인증 쿠키 없으면 401 (negative)", async () => {
+      const personId = await seedPerson();
+      const identityId = await seedIdentity(personId);
+
+      await request(app.getHttpServer())
+        .patch(identityEndpointFor(personId, identityId))
+        .send({ externalId: "octo-renamed" })
+        .expect(401);
+    });
+
+    // E.8 negative ② — User role 은 편집 tier (Admin+) 미달이라 RolesGuard 가 403.
+    it("PATCH — User role 은 편집 tier 미달이라 403 (negative)", async () => {
+      const personId = await seedPerson();
+      const identityId = await seedIdentity(personId);
+
+      await request(app.getHttpServer())
+        .patch(identityEndpointFor(personId, identityId))
+        .set("Cookie", userCookie)
+        .send({ externalId: "octo-renamed" })
+        .expect(403);
+    });
+
+    // E.9 negative ③ — 금지 축 `isPrimary` 는 DTO 필드가 없어 forbidNonWhitelisted 400.
+    // 차단 후 DB 가 그대로인지도 함께 확인한다.
+    it("PATCH — 금지 축 isPrimary 는 400 이고 DB 무변경 (forbidNonWhitelisted, negative)", async () => {
+      const personId = await seedPerson();
+      const identityId = await seedIdentity(personId);
+
+      const response = await request(app.getHttpServer())
+        .patch(identityEndpointFor(personId, identityId))
+        .set("Cookie", adminCookie)
+        .send({ isPrimary: false });
+
+      expect(response.status).toBe(400);
+      const row = await prisma.serviceIdentity.findUnique({
+        where: { id: identityId },
+      });
+      expect(row?.isPrimary).toBe(true);
+    });
+
+    // E.10 negative ④ — 금지 축 `service` 도 같은 400 게이트 (§Decision 3).
+    it("PATCH — 금지 축 service 는 400 (forbidNonWhitelisted, negative)", async () => {
+      const personId = await seedPerson();
+      const identityId = await seedIdentity(personId);
+
+      const response = await request(app.getHttpServer())
+        .patch(identityEndpointFor(personId, identityId))
+        .set("Cookie", adminCookie)
+        .send({ service: "jira" });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty("statusCode", 400);
+    });
+
+    // E.11 negative ⑤ — 명시적 `null` 은 @ValidateIf 가 skip 하지 않아 @IsString 위반 400.
+    it("PATCH — externalId: null 은 skip 되지 않고 400 (@ValidateIf, negative)", async () => {
+      const personId = await seedPerson();
+      const identityId = await seedIdentity(personId);
+
+      const response = await request(app.getHttpServer())
+        .patch(identityEndpointFor(personId, identityId))
+        .set("Cookie", adminCookie)
+        .send({ externalId: null });
+
+      expect(response.status).toBe(400);
+      const row = await prisma.serviceIdentity.findUnique({
+        where: { id: identityId },
+      });
+      expect(row?.externalId).toBe("octo");
+    });
+
+    // E.12 negative ⑥ — 빈 문자열은 @IsNotEmpty 위반 400 (경계값).
+    it("PATCH — externalId 빈 문자열은 400 (@IsNotEmpty, negative)", async () => {
+      const personId = await seedPerson();
+      const identityId = await seedIdentity(personId);
+
+      const response = await request(app.getHttpServer())
+        .patch(identityEndpointFor(personId, identityId))
+        .set("Cookie", adminCookie)
+        .send({ externalId: "" });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty("statusCode", 400);
+    });
   });
 });
