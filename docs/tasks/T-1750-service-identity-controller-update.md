@@ -1,0 +1,95 @@
+---
+id: T-1750
+title: Add the PATCH update route to ServiceIdentityController
+phase: P5
+status: PENDING
+commitMode: pr
+coversReq: [REQ-078, REQ-073]
+independentStream: service-identity-backend
+dependsOn: [T-1749]
+touchesFiles:
+  - src/user/service-identity.controller.ts
+  - src/user/service-identity.controller.spec.ts
+  - src/user/user.module.ts
+estimatedDiff: 240
+estimatedFiles: 3
+created: 2026-08-28
+plannerNote: P5 / PLAN 132 행 오너 지시 chain — ADR-0058 §Follow-ups (b) 잔여 3 route 중 PATCH 수정 1 개만 절단
+---
+
+# T-1750 — ServiceIdentityController 에 PATCH 수정 route 1 개 배선
+
+## Why
+
+[PLAN.md](../PLAN.md) `132 행` 오너 지시(인원별 ServiceIdentity 관리 API·UI, R-182~R-183) chain 에서
+[ADR-0058](../decisions/ADR-0058-service-identity-management-api.md) `§Follow-ups (a)`(DTO · service ·
+repository)는 T-1739~T-1747 로 마감됐고, `§Follow-ups (b)`(controller + RBAC 배선)는
+[T-1748](T-1748-service-identity-controller-list.md)(GET 목록) · [T-1749](T-1749-service-identity-controller-create.md)(POST 생성)
+까지 진행돼 **PATCH 수정 · DELETE 삭제 · primary 지정 3 route 가 미노출**이다. 그래서 등록한 서비스 ID 의
+오타를 UI 에서 고칠 HTTP 경로가 아직 0 이다.
+
+본 slice 는 그 잔여 3 route 중 **PATCH 수정 1 개만** 가져간다. 직전 controller slice 실적이 route 1 개당
+`+245/-24` ~ `+300/-1`(handler + spec) 이라 2 route 이상을 한 commit 에 담으면
+[CLAUDE.md](../../CLAUDE.md) §3 의 300 LOC 상한을 확실히 넘기 때문이다. service 쪽
+`ServiceIdentityService.update`(3 단 404 · 미전달 보존 no-op · `P2025` → 404)는
+[T-1743](T-1743-service-identity-service-update.md) 이 이미 박제했으므로 본 task 는 **HTTP 노출만** 한다.
+
+## Required Reading
+
+- [docs/decisions/ADR-0058-service-identity-management-api.md](../decisions/ADR-0058-service-identity-management-api.md)
+  — `§Decision 1`(route 표의 PATCH 행 · 성공 200), `§Decision 3`(갱신 축은 `externalId` 단일 · `isPrimary`
+  와 `service` 금지 · RFC-7396 미전달 보존), `§Decision 4`(RBAC — 편집은 Admin+),
+  `§Decision 5`(오류 계약 · controller 는 추가 변환 0 raw forward)
+- [src/user/service-identity.controller.ts](../../src/user/service-identity.controller.ts) — 확장 대상.
+  헤더 주석의 route 목록 · 책임 경계 · controller-scope `ValidationPipe` 3 옵션 설정
+- [src/user/service-identity.controller.spec.ts](../../src/user/service-identity.controller.spec.ts) —
+  colocated spec. fixture · service mock · guard/metadata 검증 관례를 그대로 재사용한다
+- [src/user/service-identity.service.ts](../../src/user/service-identity.service.ts) `136~182 행` —
+  `update(personId, identityId, dto)` 시그니처와 오류 계약(404 3 단 · `P2025` → 404 · 그 외 propagate)
+- [src/user/dto/update-service-identity.dto.ts](../../src/user/dto/update-service-identity.dto.ts) —
+  body DTO(`externalId?` 단일 축, `@ValidateIf` 로 null 400)
+- [src/user/person.controller.ts](../../src/user/person.controller.ts) `76~95 행` — 기존 `@Patch(":id")`
+  route 의 param + body DTO + `@Roles("Admin")` 배선 관례(mirror 대상)
+- [src/user/user.module.ts](../../src/user/user.module.ts) `24~31 행` — 헤더 주석의 endpoint 목록
+  (본 task 에서 문구만 갱신, `controllers`·`providers`·`exports` 배열 diff 0)
+
+## Acceptance Criteria
+
+- [ ] `ServiceIdentityController` 에 `@Patch(":identityId")` handler 1 개 추가 — path param
+      `personId` · `identityId`, body `UpdateServiceIdentityDto`, `service.update(personId, identityId, dto)`
+      로 1 회 위임 후 반환값 무가공 전달. 성공 status 는 NestJS 기본 200 이므로 `@HttpCode` 미부착.
+- [ ] guard stack 은 `@UseGuards(JwtAuthGuard, RolesGuard)` 동일 순서 + `@Roles("Admin")`(편집 tier,
+      ADR-0058 §Decision 4). controller 안 `try`/`catch` 0 — 오류는 raw forward.
+- [ ] **happy-path unit test 1+** — 유효 body 로 호출 시 `service.update` 가 정확히 1 회, 인자
+      (`personId`·`identityId`·dto) 가 일치하고 반환 참조가 그대로 전달되는지 검증.
+- [ ] **error path unit test 1+** — service 가 `NotFoundException`(404) 을 던질 때 controller 가
+      변환 없이 **동일 인스턴스**를 전파하는지, 일반 `Error` 도 동일하게 전파하는지 각 1+ 검증.
+- [ ] **분기 cover** — handler 자체에 코드 분기가 없으면 그 근거를 주석으로 명시하고, guard/route
+      metadata 축(HTTP method · path param · `@Roles` tier 가 GET 의 `"User"` 와 다름 · guard 순서 ·
+      `@HttpCode` 미부착)으로 각 1+ test 를 대체 배치한다.
+- [ ] **negative cases 충분 cover** — 최소 4 종: (a) 빈 `identityId` 도 controller 가 가공 없이
+      위임, (b) service throw 시 단락되어 다른 collaborator 호출 0 회, (c) `UpdateServiceIdentityDto`
+      키 집합이 `externalId` 1 개로 불변(= `isPrimary`·`service` 미노출), (d) 미전달 body(`{}`)도
+      controller 가 그대로 위임(보존 semantic 은 service 책임).
+- [ ] `pnpm lint && pnpm build && pnpm test` 전량 green.
+- [ ] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%) — 신규 handler 는 line·function 100%.
+- [ ] `src/user/user.module.ts` 헤더 주석의 endpoint 목록을 "GET · POST · PATCH 3 endpoint (잔여
+      2 route 는 후속 slice)" 로 갱신. 배열 diff 0.
+- [ ] 변경 파일 ≤ 3 개, diff ≤ 300 LOC.
+
+## Out of Scope
+
+- DELETE 삭제 route · primary 지정 action POST route 배선 (각각 후속 slice).
+- `ServiceIdentityService` · `ServiceIdentityRepository` · DTO 의 로직 변경 (헤더 주석 외 diff 0).
+- e2e / smoke spec 신설 (ADR-0058 §Follow-ups (c)).
+- `docs/architecture/api.md` · `docs/requirements.md` doc-sync (§Follow-ups (e)) 및 완료 표기.
+- `web/` 편집 UI (§Follow-ups (d)) · `prisma/` · `package.json` · `.github/workflows/` 변경.
+- 응답 envelope · pagination · 정렬 query param 도입.
+
+## Suggested Sub-agents
+
+`implementer → tester`
+
+## Follow-ups
+
+(없음 — 작업 중 발견 시 여기에 추가)
