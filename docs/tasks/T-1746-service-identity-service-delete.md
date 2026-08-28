@@ -2,7 +2,7 @@
 id: T-1746
 title: Add ServiceIdentityService.delete with three-stage 404 (no re-promotion yet)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 independentStream: service-identity-backend
@@ -61,3 +61,11 @@ plannerNote: PLAN 132 행 / ADR-0058 Follow-ups (a) 잔여 delete 를 3 단 404 
 ## Follow-ups
 
 - (생성 시점 비어 있음)
+
+## 결과 (2026-08-28)
+
+- **Status: DONE** — `pr` mode, PR #1376 → main squash `5d48c308` (reviewer APPROVE round 1/7, 4-게이트 충족).
+- 변경: `src/user/service-identity.service.ts` · `src/user/service-identity.service.spec.ts` 2 파일 `+298/-8`.
+- `delete(personId, identityId)` 1 개만 추가 — 3 단 404(Person 선검사 → 소유 검사 → `P2025` 변환)를 `setPrimary` 와 동일 순서로 구현했고, `P2025` 판정은 기존 file-private `getPrismaErrorCode` 재사용이라 새 helper · module · dependency 0. 삭제된 row 는 무가공 반환.
+- spec 에 `delete` describe 3 종 16 케이스 추가 — happy / error path(`P2025` → 404, `P2003` · 일반 `Error` propagate) / 3 단 분기 각 1+ / negative(빈 `personId` · 빈 `identityId` · 빈 목록 · code 추출 불가 2 종 · 단락 시 호출 0 회). 대상 파일 coverage 100%, 전체 457 suite / 13133 test green.
+- 재승격 배선(T-1745 의 `selectNextPrimaryIdentity` 소비)은 예정대로 미구현 — 후속 T-1747 로 승계. 현재 controller · route 배선이 0 이라 중간 상태가 외부로 노출되지 않는다.
