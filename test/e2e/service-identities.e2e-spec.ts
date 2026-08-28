@@ -1,8 +1,9 @@
 // service-identities.e2e-spec.ts — `GET/POST /api/persons/:personId/identities` 와
-// `PATCH/DELETE /api/persons/:personId/identities/:identityId` 의 HTTP + guard stack +
+// `PATCH/DELETE /api/persons/:personId/identities/:identityId` 와
+// `POST /api/persons/:personId/identities/:identityId/primary` 의 HTTP + guard stack +
 // ValidationPipe + 실 PostgreSQL round-trip e2e
 // (ADR-0058 §Follow-ups (c) e2e chain 의 1 번째 slice T-1753 + 2 번째 slice T-1754 +
-//  3 번째 slice T-1755).
+//  3 번째 slice T-1755 + 4 번째이자 **마지막** slice T-1756).
 //
 // 책임 (smoke 대 e2e 책임 경계):
 //   - 본 spec 은 **실 DB · 실 guard · 실 ValidationPipe 를 통과하는 HTTP 계약** 의
@@ -14,12 +15,13 @@
 //
 // slice 경계 (§Follow-ups (c) 절단):
 //   - 1 번째 slice (T-1753) 가 **GET 목록 · POST 생성** 두 축을, 2 번째 slice (T-1754)
-//     가 **PATCH 수정** 축을, 3 번째 slice (T-1755) 가 **DELETE 삭제** 축을 덮는다.
-//     남은 축은 **primary 지정 1 route** (`POST /:identityId/primary`) 뿐이며 그 e2e 는
-//     **마지막 slice** 소관이다. 그 slice 도 본 파일이 지불한 harness (인증 actor seed ·
-//     truncate · re-seed · Person seed helper · identity seed helper) 를 그대로
-//     재사용한다. 5 route 를 한 commit 에 담으면 CLAUDE.md §3 의 300 LOC 상한을 확실히
-//     넘기므로 미리 케이스를 추가하지 않는다.
+//     가 **PATCH 수정** 축을, 3 번째 slice (T-1755) 가 **DELETE 삭제** 축을, 4 번째
+//     slice (T-1756) 가 마지막 축인 **primary 지정** (`POST /:identityId/primary`) 을
+//     덮는다. 이로써 §Decision 1 route 표의 **5 route e2e chain 이 완결** 되고
+//     §Follow-ups (c) 는 닫힌다 (남는 조각은 (e) doc-sync · (d) AdminView UI 로 본 파일
+//     밖). 네 slice 모두 1 번째 slice 가 지불한 harness (인증 actor seed · truncate ·
+//     re-seed · Person seed helper · identity seed helper) 를 그대로 재사용했다 —
+//     5 route 를 한 commit 에 담으면 CLAUDE.md §3 의 300 LOC 상한을 넘기기 때문이다.
 //   - production code 변경 0 — controller · service · repository · DTO 는 T-1739 ~
 //     T-1752 에서 완결됐다.
 //
@@ -50,6 +52,25 @@
 //     전부 404 이고, 실패한 DELETE 는 DB 를 전혀 건드리지 않는다. 같은 id 로 두 번째
 //     DELETE 는 소유 검사에서 걸려 404 — **멱등이 아니다**.
 //
+// primary 지정 축이 지는 계약 (T-1756 이 고정하는 지점):
+//   - **`@Post` 인데 200** (§Decision 1 primary 행) — 새 row 를 만들지 않는 action POST
+//     라 NestJS 기본값 201 이 거짓 신호이고 controller 가 `@HttpCode(200)` 을 명시한다.
+//     이 데코레이터가 빠져도 unit spec 은 metadata 로만 볼 뿐 실 status 를 발화시키지
+//     못하므로, happy 케이스가 200 과 **201 아님** 을 함께 못 박는다.
+//   - **1-primary invariant** (REQ-024 · §Decision 2) — repository 의
+//     `$transaction([updateMany(unset), update(set)])` 이 "기존 primary 내리기 + 대상
+//     올리기" 를 원자 처리하는데, 응답 body 는 두 번째 op 의 결과 row **하나뿐** 이라
+//     unset 이 누락돼 primary 가 2 개가 돼도 응답은 성공과 똑같아 보인다. 성립 여부는
+//     **DB 잔여 배치를 직접 조회** 해야만 발화하므로 (mock service 를 쓰는 unit spec ·
+//     smoke 로는 불가능) 본 축의 분기 케이스는 전부 재조회를 assert 로 삼는다.
+//   - **idempotent** (§Decision 1 primary 행 · service 주석 (3)) — 이미 primary 인 row
+//     에 재요청해도 early return 없이 재승격하므로 200 이고 DB 배치도 같다 (멱등이
+//     **아닌** DELETE 축과 정확히 대비).
+//   - **3 단 404 + 반쪽 상태 금지** (§Decision 5 b · e) — Person 부재 · 타 Person 소유 ·
+//     `P2025` 가 전부 404 이고, 실패한 요청이 unset 만 남겨 primary 0 개가 되면 안 된다.
+//   - **body 무시** — `@Body()` 를 쓰지 않아 어떤 body 를 실어 보내도 결과가 같다
+//     (bind 된 body 가 없어 controller-scope `forbidNonWhitelisted` 도 발동 안 함).
+//
 // 실 DB 전략 (ADR-0004 §Decision — user-instance-access.e2e 동일):
 //   - mock override 없음. `createAuthenticatedE2EApp` 이 AppModule 부트스트랩 + actor
 //     User seed + token 발급을 하고 PrismaService 가 실 connection 을 연다.
@@ -64,7 +85,8 @@
 // R-113 cover:
 //   - test/jest-e2e.json 의 testRegex `.*\.e2e-spec\.ts$` 가 본 파일을 자동 picking
 //     하므로 설정 파일 수정 0 으로 CI 의 e2e leg 에 편입된다.
-//   - 35 test = 목록·생성 축 11 + PATCH 수정 축 12 + DELETE 삭제 축 12.
+//   - 47 test = 목록·생성 축 11 + PATCH 수정 축 12 + DELETE 삭제 축 12 + primary 지정
+//     축 12.
 //   - 목록·생성 축 11 = happy 2 (GET 목록 · POST 생성) + 분기 3 (자동 승격 2 분기 ·
 //     빈 목록) + error path 1 (미존재 personId 404) + negative 5 (401 · 403 · 409 ·
 //     400 두 종).
@@ -74,6 +96,9 @@
 //   - DELETE 삭제 축 12 = happy 1 (204 + 빈 body + DB row 소멸) + 분기 6 (재승격 3 분기 ·
 //     3 단 404 각 1) + error path 1 (404 후 대상 row · primary 배치 보존) + negative 4
 //     (401 · 403 + row 보존 · 두 번째 DELETE 404 · 비정상 path 파라미터 404).
+//   - primary 지정 축 12 = happy 1 (200 + 201 아님 + 5 필드) + 분기 6 (1-primary
+//     invariant 2 분기 · idempotent · 3 단 404 각 1) + error path 1 (404 후 primary
+//     배치 불변) + negative 4 (401 · 403 + 배치 보존 · 비정상 param · body 무시 200).
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
@@ -94,6 +119,10 @@ const endpointFor = (personId: string): string =>
 const identityEndpointFor = (personId: string, identityId: string): string =>
   `${endpointFor(personId)}/${identityId}`;
 
+// primary 지정 action path builder — 단일 identity path 에 `/primary` 만 덧붙인다 (T-1756).
+const primaryEndpointFor = (personId: string, identityId: string): string =>
+  `${identityEndpointFor(personId, identityId)}/primary`;
+
 // actor email — afterEach truncate + re-seed 로 격리되므로 충돌 0.
 const ADMIN_EMAIL = "si-admin-actor@e2e.test";
 const USER_EMAIL = "si-user-actor@e2e.test";
@@ -107,7 +136,7 @@ const IDENTITY_FIELDS = [
   "isPrimary",
 ];
 
-describe("E2E: /api/persons/:personId/identities 목록·생성·수정·삭제 계약 (T-1753/T-1754/T-1755)", () => {
+describe("E2E: /api/persons/:personId/identities 목록·생성·수정·삭제·primary 지정 계약 (T-1753/T-1754/T-1755/T-1756)", () => {
   let ctx: AuthenticatedE2EContext;
   let app: INestApplication;
   let prisma: PrismaService;
@@ -794,6 +823,257 @@ describe("E2E: /api/persons/:personId/identities 목록·생성·수정·삭제 
         .set("Cookie", adminCookie);
       expect(malformed.status).toBe(404);
       expect(malformed.status).toBeLessThan(500);
+    });
+  });
+
+  // -- G. primary 지정 축 (T-1756) -----------------------------------------------
+  //
+  // 위 harness (actor seed · truncate + re-seed · seedPerson · seedIdentity ·
+  // identityEndpointFor) 를 그대로 상속하는 nested describe — 중복 정의 0.
+  describe("POST /:identityId/primary — primary 지정 계약 (T-1756)", () => {
+    // 해당 Person 의 `isPrimary=true` row 수 — 1-primary invariant 의 직접 관측 지점.
+    const countPrimary = (personId: string): Promise<number> =>
+      prisma.serviceIdentity.count({ where: { personId, isPrimary: true } });
+
+    // G.1 happy — 200 (201 아님) + 갱신 후 row 5 필드 응답 (R-112 #1).
+    it("primary — Admin 이 지정하면 201 이 아니라 200 이고 갱신 후 row 5 필드를 반환 (happy)", async () => {
+      const personId = await seedPerson();
+      const target = await seedIdentity(personId, "octo.j", {
+        service: "jira",
+        isPrimary: false,
+      });
+
+      const response = await request(app.getHttpServer())
+        .post(primaryEndpointFor(personId, target))
+        .set("Cookie", adminCookie);
+
+      // action POST 라 201 이 거짓 신호 — `@HttpCode(200)` 누락 회귀를 여기서 잡는다.
+      expect(response.status).toBe(200);
+      expect(response.status).not.toBe(201);
+      IDENTITY_FIELDS.forEach((f) => expect(response.body).toHaveProperty(f));
+      expect(response.body.id).toBe(target);
+      expect(response.body.personId).toBe(personId);
+      expect(response.body.isPrimary).toBe(true);
+    });
+
+    // G.2 invariant 분기 ① — 기존 primary 가 내려가고 대상만 올라간다 (REQ-024).
+    it("primary — 기존 primary 가 false 로 내려가고 대상만 true 이며 primary 는 정확히 1 (분기 ①)", async () => {
+      const personId = await seedPerson();
+      const previous = await seedIdentity(personId, "octo");
+      const target = await seedIdentity(personId, "octo.j", {
+        service: "jira",
+        isPrimary: false,
+      });
+
+      await request(app.getHttpServer())
+        .post(primaryEndpointFor(personId, target))
+        .set("Cookie", adminCookie)
+        .expect(200);
+
+      const rows = await prisma.serviceIdentity.findMany({
+        where: { personId },
+      });
+      expect(rows.find((row) => row.id === previous)?.isPrimary).toBe(false);
+      expect(rows.find((row) => row.id === target)?.isPrimary).toBe(true);
+      await expect(countPrimary(personId)).resolves.toBe(1);
+    });
+
+    // G.3 invariant 분기 ② — row 3 개여도 unset 이 전부에 걸려 결과는 정확히 1 primary.
+    it("primary — row 3 개 중 비-primary 를 지정해도 결과가 정확히 1 primary (분기 ②)", async () => {
+      const personId = await seedPerson();
+      const previous = await seedIdentity(personId, "octo");
+      const untouched = await seedIdentity(personId, "octo.s", {
+        service: "slack",
+        isPrimary: false,
+      });
+      const target = await seedIdentity(personId, "octo.j", {
+        service: "jira",
+        isPrimary: false,
+      });
+
+      await request(app.getHttpServer())
+        .post(primaryEndpointFor(personId, target))
+        .set("Cookie", adminCookie)
+        .expect(200);
+
+      const rows = await prisma.serviceIdentity.findMany({
+        where: { personId },
+      });
+      expect(rows).toHaveLength(3);
+      expect(rows.find((row) => row.id === target)?.isPrimary).toBe(true);
+      expect(rows.find((row) => row.id === previous)?.isPrimary).toBe(false);
+      expect(rows.find((row) => row.id === untouched)?.isPrimary).toBe(false);
+      await expect(countPrimary(personId)).resolves.toBe(1);
+    });
+
+    // G.4 invariant 분기 ③ — idempotent. 이미 primary 인 row 재요청도 200 + 배치 동일.
+    it("primary — 이미 primary 인 row 에 재요청해도 200 이고 DB 배치가 동일 (분기 ③ idempotent)", async () => {
+      const personId = await seedPerson();
+      const primary = await seedIdentity(personId, "octo");
+      const secondary = await seedIdentity(personId, "octo.j", {
+        service: "jira",
+        isPrimary: false,
+      });
+
+      const response = await request(app.getHttpServer())
+        .post(primaryEndpointFor(personId, primary))
+        .set("Cookie", adminCookie);
+
+      expect(response.status).toBe(200);
+      expect(response.body.id).toBe(primary);
+      expect(response.body.isPrimary).toBe(true);
+
+      const rows = await prisma.serviceIdentity.findMany({
+        where: { personId },
+      });
+      expect(rows.find((row) => row.id === primary)?.isPrimary).toBe(true);
+      expect(rows.find((row) => row.id === secondary)?.isPrimary).toBe(false);
+      await expect(countPrimary(personId)).resolves.toBe(1);
+    });
+
+    // G.5 3 단 404 ① — Person 선검사 단계에서 404 (§Decision 5 c).
+    it("primary — 미존재 personId 는 404 (3 단 404 ①)", async () => {
+      const personId = await seedPerson();
+      const identityId = await seedIdentity(personId);
+
+      await request(app.getHttpServer())
+        .post(primaryEndpointFor("nonexistent-person-id", identityId))
+        .set("Cookie", adminCookie)
+        .expect(404);
+    });
+
+    // G.6 3 단 404 ② — 타 Person 소유 identity 는 **403 이 아니라 404** (§Decision 5 e).
+    it("primary — 타 Person 소유 identity 는 403 이 아니라 404 이고 타 personId 가 새지 않음 (3 단 404 ②)", async () => {
+      const personId = await seedPerson();
+      const other = await prisma.person.create({
+        data: { fullName: "타 인원", email: "si-other@e2e.test" },
+      });
+      const foreignId = await seedIdentity(other.id, "foreign");
+
+      const response = await request(app.getHttpServer())
+        .post(primaryEndpointFor(personId, foreignId))
+        .set("Cookie", adminCookie);
+
+      expect(response.status).toBe(404);
+      expect(response.status).not.toBe(403);
+      // 404 로 감춘 이상 응답 어디에도 타 Person 의 id 가 새면 안 된다 (§Decision 5 e).
+      expect(JSON.stringify(response.body)).not.toContain(other.id);
+    });
+
+    // G.7 3 단 404 ③ — Person 은 있고 identityId 만 미존재. envelope 검증도 여기서.
+    it("primary — 존재하는 Person + 미존재 identityId 는 404 이고 envelope 에 statusCode·message 포함 (3 단 404 ③)", async () => {
+      const personId = await seedPerson();
+      await seedIdentity(personId);
+
+      const response = await request(app.getHttpServer())
+        .post(primaryEndpointFor(personId, "nonexistent-identity-id"))
+        .set("Cookie", adminCookie);
+
+      expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty("statusCode", 404);
+      expect(response.body).toHaveProperty("message");
+    });
+
+    // G.8 error path — 404 요청이 unset 만 남긴 반쪽 상태를 만들지 않음 (R-112 #2).
+    it("primary — 미존재 identityId 404 후 대상 Person 의 primary 배치가 호출 전과 동일 (error path)", async () => {
+      const personId = await seedPerson();
+      const primary = await seedIdentity(personId, "octo");
+      const secondary = await seedIdentity(personId, "octo.j", {
+        service: "jira",
+        isPrimary: false,
+      });
+
+      await request(app.getHttpServer())
+        .post(primaryEndpointFor(personId, "nonexistent-identity-id"))
+        .set("Cookie", adminCookie)
+        .expect(404);
+
+      const rows = await prisma.serviceIdentity.findMany({
+        where: { personId },
+      });
+      expect(rows).toHaveLength(2);
+      expect(rows.find((row) => row.id === primary)?.isPrimary).toBe(true);
+      expect(rows.find((row) => row.id === secondary)?.isPrimary).toBe(false);
+      await expect(countPrimary(personId)).resolves.toBe(1);
+    });
+
+    // G.9 negative ① — 인증 쿠키 없으면 JwtAuthGuard 가 401.
+    it("primary — 인증 쿠키 없으면 401 (negative)", async () => {
+      const personId = await seedPerson();
+      const identityId = await seedIdentity(personId, "octo.j", {
+        service: "jira",
+        isPrimary: false,
+      });
+
+      await request(app.getHttpServer())
+        .post(primaryEndpointFor(personId, identityId))
+        .expect(401);
+    });
+
+    // G.10 negative ② — User role 은 편집 tier 미달 403, guard 단계라 배치 보존 (§Decision 4).
+    it("primary — User role 은 편집 tier 미달이라 403 이고 primary 배치 보존 (negative)", async () => {
+      const personId = await seedPerson();
+      const primary = await seedIdentity(personId, "octo");
+      const target = await seedIdentity(personId, "octo.j", {
+        service: "jira",
+        isPrimary: false,
+      });
+
+      await request(app.getHttpServer())
+        .post(primaryEndpointFor(personId, target))
+        .set("Cookie", userCookie)
+        .expect(403);
+
+      const rows = await prisma.serviceIdentity.findMany({
+        where: { personId },
+      });
+      expect(rows.find((row) => row.id === primary)?.isPrimary).toBe(true);
+      expect(rows.find((row) => row.id === target)?.isPrimary).toBe(false);
+      await expect(countPrimary(personId)).resolves.toBe(1);
+    });
+
+    // G.11 negative ③ — 비정상 path 파라미터는 404 계열이어야 하고 5xx 로 새면 안 된다.
+    it("primary — 빈 문자열·형식 이상 identityId 는 404 계열이고 5xx 가 아님 (negative)", async () => {
+      const personId = await seedPerson();
+      await seedIdentity(personId);
+
+      const empty = await request(app.getHttpServer())
+        .post(primaryEndpointFor(personId, ""))
+        .set("Cookie", adminCookie);
+      expect(empty.status).toBe(404);
+      expect(empty.status).toBeLessThan(500);
+
+      const malformed = await request(app.getHttpServer())
+        .post(primaryEndpointFor(personId, encodeURIComponent("not-a-cuid #1")))
+        .set("Cookie", adminCookie);
+      expect(malformed.status).toBe(404);
+      expect(malformed.status).toBeLessThan(500);
+    });
+
+    // G.12 negative ④ — body 를 실어 보내도 route 가 읽지 않으므로 결과가 달라지지 않는다.
+    it("primary — body 를 실어 보내도 무시되고 200 + 대상이 primary (negative)", async () => {
+      const personId = await seedPerson();
+      const previous = await seedIdentity(personId, "octo");
+      const target = await seedIdentity(personId, "octo.j", {
+        service: "jira",
+        isPrimary: false,
+      });
+
+      const response = await request(app.getHttpServer())
+        .post(primaryEndpointFor(personId, target))
+        .set("Cookie", adminCookie)
+        .send({ isPrimary: false });
+
+      // body 의 `isPrimary: false` 가 반영되면 안 된다 (400 도 아니고 무시가 정답).
+      expect(response.status).toBe(200);
+      expect(response.body.isPrimary).toBe(true);
+
+      const rows = await prisma.serviceIdentity.findMany({
+        where: { personId },
+      });
+      expect(rows.find((row) => row.id === target)?.isPrimary).toBe(true);
+      expect(rows.find((row) => row.id === previous)?.isPrimary).toBe(false);
+      await expect(countPrimary(personId)).resolves.toBe(1);
     });
   });
 });
