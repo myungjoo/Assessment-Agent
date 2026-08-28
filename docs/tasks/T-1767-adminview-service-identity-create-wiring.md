@@ -2,7 +2,7 @@
 id: T-1767
 title: AdminView 에 ServiceIdentity 추가(POST) 축 배선 (runCreateServiceIdentity 러너 + ServiceIdentityAddForm 마운트 + 재조회 nonce)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 280
@@ -13,6 +13,7 @@ dependsOn: [T-1766]
 touchesFiles:
   - web/src/views/AdminView.tsx
   - web/src/views/AdminView.service-identity-create.test.tsx
+prNumber: 1395
 plannerNote: "P6/PLAN 132 행 — ADR-0058 (d) 아홉 번째 web slice: T-1766 읽기 축 뒤 쓰기 축 3 겹 중 추가(POST) 1 겹만 절단"
 ---
 
@@ -70,6 +71,17 @@ REQ-078 / REQ-079 의 status 재판정은 쓰기 축 3 겹이 모두 마운트�
 
 `implementer → tester`
 
-## Follow-ups
+## 실행 결과
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가)
+- **DONE** (2026-08-28T22:10Z) — `commitMode: pr`, PR [#1395](https://github.com/myungjoo/Assessment-Agent/pull/1395) squash `5dd598e1`, reviewer APPROVE round 1/7, 4-게이트 PASS 후 머지 + branch 삭제.
+- 변경 2 파일 `+300` : `web/src/views/AdminView.tsx` (`+134/-4` — `runCreateServiceIdentity` + `CreateServiceIdentityDeps` 신설, `serviceIdentitiesPath` 에 재조회 nonce 전달, `ServiceIdentityAddForm` 마운트, test-only export) · 신규 `web/src/views/AdminView.service-identity-create.test.tsx`.
+- 러너는 `runCreatePerson` 을 1:1 mirror 해 throw 0 — 3 발사 가드(미선택 인원 · 빈 입력 · in-flight)와 성공/실패 전이(실패 시 nonce·입력 무변경)를 모두 흡수한다.
+- R-112 4 종 cover: happy(인자·호출 횟수·전이 순서·trim) / error path(Error · 문자열 · null reject 흡수) / 분기(7 no-op 가드 · nonce 0 base) / negative(재시도 시 직전 error 선비움). web 90 files 2706 test + 루트 458 suite 13208 test green, line 99.94% · function 100%.
+- reviewer Nit 1 건(`type ServiceIdentityInput` 설명 주석 부재)은 주석 1 줄 추가 시 insertions 301 로 cap 을 넘어 본 PR 에서 유지 — 후속 slice 에서 흡수한다.
+
+## Follow-ups (실행 결과 반영)
+
+- 쓰기 축 잔여 2 겹 — 수정(PATCH) 축 배선(`ServiceIdentityEditForm` 마운트) · 삭제/primary 축 배선(`ServiceIdentityRowActions` 마운트).
+- `type ServiceIdentityInput` 설명 주석 1 줄(reviewer Nit) — 다음 AdminView slice 에 동승.
+- 인원 관리 섹션 RBAC gating (PLAN `133 행`, R-187 ~ R-191).
+- `docs/requirements.md` REQ-078 · REQ-079 status 재판정 + ADR-0058 `§Follow-ups (d)` 완료 표기 doc-sync.
