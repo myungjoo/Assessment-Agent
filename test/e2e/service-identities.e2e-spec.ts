@@ -403,7 +403,8 @@ describe("E2E: /api/persons/:personId/identities 목록·생성·수정 계약 (
         .send({ externalId: "hijacked" });
 
       expect(response.status).toBe(404);
-      expect(response.status).not.toBe(403);
+      // 404 로 감춘 이상 응답 어디에도 타 Person 의 id 가 새면 안 된다 (§Decision 5 e).
+      expect(JSON.stringify(response.body)).not.toContain(other.id);
     });
 
     // E.5 3 단 404 ③ — Person 은 있고 identityId 만 미존재. envelope 검증도 여기서.
