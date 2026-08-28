@@ -1,10 +1,9 @@
 // ADR-0058 §Follow-ups (d) 편집 UI 의 쓰기 축 3/3 — identity 행 1 개의 편집 · 삭제 · primary
 // 지정 액션 버튼 축이다. 본 컴포넌트는 `deleteServiceIdentity` · `setPrimaryServiceIdentity`
 // 등 client 함수를 호출하지 않는다 — 실제 호출 · 상태 보유 · 목록 재조회 · AdminView 배선은
-// 후속 배선 slice 책임이라, 여기서는 어떤 버튼이 언제 사용 가능한지의 판정만 담는다. 직전
-// 겹(ServiceIdentityAddForm · ServiceIdentityEditForm) 의 props-only controlled component
-// convention(내부 useState · fetch 0, loading 우선 disable, role="alert" 에러 영역, 문구
-// 상수 export, named + default export)을 그대로 승계한다.
+// 후속 배선 slice 책임이라, 여기서는 어떤 버튼이 언제 사용 가능한지의 판정만 담는다. 직전 겹
+// (ServiceIdentityAddForm · EditForm) 의 props-only controlled convention(내부 useState · fetch
+// 0, loading 우선 disable, role="alert" 에러 영역, 문구 상수 export, 양쪽 export)을 승계한다.
 
 // row 타입은 재선언하지 않고 client 계약을 그대로 재사용한다 — 같은 형태를 두 곳에 정의하면
 // 한쪽만 갱신되는 drift 가 생긴다(ServiceIdentityList 선례 승계).
@@ -53,8 +52,10 @@ interface ServiceIdentityRowActionsProps {
   error?: string;
 }
 
-// identity 행의 액션 버튼 묶음. 분기는 (1) loading 우선 disable, (2) confirmingDelete 로
-// 삭제 버튼 ↔ 확인 문구 + 확정 · 취소 전환, (3) isPrimary 로 표식 · primary 버튼 게이팅 셋이다.
+// identity 행의 액션 버튼 묶음. 분기는 (1) loading 우선 disable, (2) confirmingDelete 로 삭제
+// 버튼 ↔ 확인 문구 + 확정 · 취소 전환, (3) isPrimary 로 표식 · primary 게이팅 셋이다. 각 button
+// 의 name 은 버튼 식별자(정적 렌더 검증 hook 겸용)일 뿐 form 제출 키가 아니다 — 이 컴포넌트는
+// form 자체를 두지 않고 모든 버튼이 type="button" 이라 제출이 일어나지 않는다.
 function ServiceIdentityRowActions({
   identity,
   onEdit,
@@ -83,16 +84,14 @@ function ServiceIdentityRowActions({
       <span>{identity.service}</span>
       <span>{identity.externalId}</span>
       {/* primary 표식은 해당 행에만 — 버튼 라벨에도 'primary' 가 들어가므로 표식은 별도 span 이다. */}
-      {identity.isPrimary === true ? (
-        <span className="primary-badge">{PRIMARY_BADGE_TEXT}</span>
-      ) : null}
+      {identity.isPrimary === true ? <span className="primary-badge">{PRIMARY_BADGE_TEXT}</span> : null}
 
       <button type="button" name="edit" onClick={onEdit} disabled={busy}>
         {EDIT_TEXT}
       </button>
 
       {confirming ? (
-        <div role="group">
+        <div role="group" aria-label="삭제 확인 영역">
           <p>{buildDeleteConfirmText(identity.service, identity.externalId)}</p>
           {/* 자동 승격 안내는 primary 행을 지울 때만 의미가 있다. */}
           {identity.isPrimary === true ? <p>{PRIMARY_DELETE_HINT_TEXT}</p> : null}

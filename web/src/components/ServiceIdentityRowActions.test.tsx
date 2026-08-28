@@ -106,6 +106,8 @@ describe('ServiceIdentityRowActions', () => {
     expect(hasButton(html, 'delete-cancel')).toBe(true);
     expect(html).toContain(DELETE_CONFIRM_TEXT);
     expect(html).toContain(DELETE_CANCEL_TEXT);
+    // 확인 영역에 접근 가능한 이름이 붙어 스크린리더에서도 무엇을 확인하는지 드러난다.
+    expect(html).toContain('<div role="group" aria-label="삭제 확인 영역">');
   });
 
   it('confirmingDelete 미전달이면 확인 문구 · 확정 · 취소가 없다(분기)', () => {
