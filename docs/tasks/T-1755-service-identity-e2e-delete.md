@@ -2,7 +2,7 @@
 id: T-1755
 title: Add e2e coverage for the ServiceIdentity delete (DELETE) route
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-024]
 independentStream: service-identity-backend
@@ -62,3 +62,7 @@ plannerNote: P5 / ADR-0058 §Follow-ups (c) e2e chain 3 번째 slice — DELETE 
 
 - ADR-0058 `§Follow-ups (c)` 의 **primary 지정 축** e2e slice — 본 slice 가 끝나면 (c) 의 마지막 잔여.
 - ADR-0058 `§Follow-ups (e)` [docs/architecture/api.md](../architecture/api.md) · [docs/requirements.md](../requirements.md) doc-sync (`commitMode: direct`).
+
+## 결과 (2026-08-28 완료)
+
+`Status: DONE` — PR [#1385](https://github.com/myungjoo/Assessment-Agent/pull/1385) squash merge (`78fadabd`). [test/e2e/service-identities.e2e-spec.ts](../../test/e2e/service-identities.e2e-spec.ts) 1 파일 (`+287/-20`) 만 수정했고 production code 변경은 0 이다. DELETE 축 12 케이스 — happy 204 (빈 body + row 소멸 DB 확인) · `§Decision 2` 재승격 3 분기 (잔여 2 개 중 `createdAt` 최선두 승격 · 잔여 0 무승격 · 비-primary 삭제 무동작, 전부 DB 잔여 상태 조회) · `§Decision 5 b·e` 3 단 404 (Person 부재 · 타 Person 소유 · `P2025`) · negative (401 · 403 + 보존 확인 · 재삭제 404 · 비정상 path 파라미터). PATCH describe 의 `seedIdentity` 를 공용 scope 로 hoist 해 helper 중복 정의 0 을 유지했다. reviewer APPROVE (round 1/7) → PR comment 외부 post → 4-게이트 충족 → squash merge + branch delete. 458 suite / 13208 test green, CI e2e leg 에서 본 spec `PASS` (359 케이스) 실측.
