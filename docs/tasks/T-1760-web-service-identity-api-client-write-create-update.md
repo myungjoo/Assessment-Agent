@@ -2,7 +2,7 @@
 id: T-1760
 title: web ServiceIdentity API 클라이언트 쓰기 축 1/2 신설 (POST 추가 · PATCH 수정)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 230
@@ -75,3 +75,19 @@ DELETE 삭제 · POST primary 지정) 가 필요하다. 4 개를 한 commit 에 
 - 쓰기 축 2/2 client — `deleteServiceIdentity`(204 무 body) · `setPrimaryServiceIdentity`(200 + 승격 row) 신설.
 - `ServiceIdentityList` 컴포넌트 신설 + AdminView 마운트 + RBAC gating 배선 (ADR-0058 `§Follow-ups (d)` 본체).
 - 위 축들이 shipped 되면 `docs/requirements.md` REQ-078 을 IN_PROGRESS -> DONE 으로 재판정.
+
+---
+
+## 완료 기록
+
+- **완료 시각**: 2026-08-28T15:02Z
+- **결과**: PR [#1388](https://github.com/myungjoo/Assessment-Agent/pull/1388) squash 머지 → main `a56b7a5b`.
+  `web/src/api/serviceIdentity.ts` 에 `serviceIdentityItemPath` · `createServiceIdentity`(POST 201) ·
+  `updateServiceIdentity`(PATCH 200) 3 심볼을 추가하고, 쓰기 공통 helper(`assertPathParam` · `asRow`)로
+  조기 오류 · 응답 정상화 분기를 접었다. 2 파일 `+297/-8`, 새 dependency 0.
+- **test**: colocated spec 42 케이스로 R-112 4 종 전부 cover — happy(POST/PATCH) · error path
+  (400 · 404 · 409 · 401 · 500 · 네트워크) · 분기(빈/공백 param 은 fetch 0 회 · 비객체 응답 정상화) ·
+  negative(두 param encode 2 축 · 여분 body 필드 배제). web 2566 test · 루트 13208 test 전량 green.
+- **review**: reviewer APPROVE round 1 (PR comment 외부 존재), 4-게이트 PASS.
+- **잔여**: 쓰기 축 2/2 (DELETE 삭제 · primary 지정 2 route) 와 `ServiceIdentityList` 패널 컴포넌트 +
+  AdminView 배선은 후속 slice.
