@@ -1,17 +1,18 @@
 // ServiceIdentityController spec — T-1748(GET) + T-1749(POST) + T-1750(PATCH) +
-// T-1751(DELETE) acceptance 박제.
+// T-1751(DELETE) + T-1752(primary 지정) acceptance 박제.
 //
-// route 4 개(GET 목록 · POST 생성 · PATCH 수정 · DELETE 삭제) 모두 순수 위임 handler 라 spec 도 그 분량에 맞춰 좁게
-// 간다 (assessment.controller.spec 을 통째로 베끼지 않고 metadata 검증 관례만 승계).
+// route 5 개(GET 목록 · POST 생성 · PATCH 수정 · DELETE 삭제 · primary 지정) 모두 순수
+// 위임 handler 라 spec 도 그 분량에 맞춰 좁게 간다 (assessment.controller.spec 을 통째로
+// 베끼지 않고 metadata 검증 관례만 승계).
 // 구성: (1) 위임 동작 — mock service 로 happy / error / negative, (2) metadata 박제 —
-// route method · guard stack 순서 · @Roles tier · @HttpCode 미부착 · controller-scope
+// route method · guard stack 순서 · @Roles tier · @HttpCode 부착/미부착 · controller-scope
 // ValidationPipe 옵션 3 종.
 //
-// R-112 분기 축 메모: GET · POST · PATCH · DELETE handler 어느 쪽에도 **조건 분기가
-// 없다**(순수 위임) — 코드 분기 test 는 해당 없음이며, 분기 축은 metadata 케이스(route
-// method · path param 축 · @HttpCode 부착/미부착 · @Roles tier 독립 · guard 순서)로
-// 대체한다. DELETE 만 `@HttpCode(204)` 가 부착돼 있고 나머지 3 route 는 NestJS 기본
-// status 를 쓰므로 미부착이다.
+// R-112 분기 축 메모: GET · POST · PATCH · DELETE · primary 지정 handler 어느 쪽에도
+// **조건 분기가 없다**(순수 위임) — 코드 분기 test 는 해당 없음이며, 분기 축은 metadata
+// 케이스(route method · path param 축 · @HttpCode 부착/미부착 · @Roles tier 독립 · guard
+// 순서)로 대체한다. `@HttpCode` 는 DELETE(204) 와 primary 지정(200) 2 route 에만 부착돼
+// 있고 나머지 3 route 는 NestJS 기본 status 를 쓰므로 미부착이다.
 import {
   ConflictException,
   NotFoundException,
@@ -514,6 +515,102 @@ describe("ServiceIdentityController.remove (DELETE 위임 동작)", () => {
     expect(serviceMock.update).not.toHaveBeenCalled();
     expect(serviceMock.setPrimary).not.toHaveBeenCalled();
   });
+
+  // happy path — 승격된 row 를 무가공(동일 참조) 반환하고 path param 2 종을 그대로 전달.
+  it("primary 지정: service.setPrimary 를 1 회 호출하고 승격된 row 를 동일 참조로 반환한다", async () => {
+    const promoted = buildIdentityFixture({
+      id: "identity-2",
+      isPrimary: true,
+    });
+    serviceMock.setPrimary.mockResolvedValue(promoted);
+
+    const result = await controller.setPrimary("person-1", "identity-2");
+
+    // 동일 참조 — 복제 · 필드 가공 0.
+    expect(result).toBe(promoted);
+    expect(serviceMock.setPrimary).toHaveBeenCalledTimes(1);
+    expect(serviceMock.setPrimary).toHaveBeenCalledWith(
+      "person-1",
+      "identity-2",
+    );
+  });
+
+  // error path 1 — 3 단 404(Person 부재 · 소유 아님 · P2025) 중 무엇이든 동일
+  // NotFoundException 인스턴스로 전파된다 (변환 0).
+  it("primary 지정: service 의 NotFoundException(404) 을 동일 인스턴스로 그대로 전파한다", async () => {
+    const error = new NotFoundException(
+      "service identity not found: identity-x",
+    );
+    serviceMock.setPrimary.mockRejectedValue(error);
+
+    await expect(controller.setPrimary("person-1", "identity-x")).rejects.toBe(
+      error,
+    );
+    expect(serviceMock.setPrimary).toHaveBeenCalledWith(
+      "person-1",
+      "identity-x",
+    );
+  });
+
+  // error path 2 — HttpException 이 아닌 일반 Error 도 raw forward (try/catch 없음).
+  it("primary 지정: 일반 Error 도 변환 없이 동일 인스턴스로 전파한다", async () => {
+    const error = new Error("transaction aborted");
+    serviceMock.setPrimary.mockRejectedValue(error);
+
+    await expect(controller.setPrimary("person-1", "identity-1")).rejects.toBe(
+      error,
+    );
+  });
+
+  // negative (a) — 빈 문자열 identityId 도 controller 가 차단 · 가공하지 않고 위임.
+  it("negative: 빈 문자열 identityId 도 가공·차단 없이 service.setPrimary 로 전달한다", async () => {
+    serviceMock.setPrimary.mockResolvedValue(buildIdentityFixture());
+
+    await controller.setPrimary("person-1", "");
+
+    expect(serviceMock.setPrimary).toHaveBeenCalledWith("person-1", "");
+  });
+
+  // negative (b) — idempotent. 이미 isPrimary=true 인 row 를 재요청해도 controller 가
+  // early return 으로 단락하지 않고 매번 그대로 위임한다 (ADR-0058 §Decision 1 primary 행).
+  it("negative: 이미 primary 인 row 재요청도 early return 없이 매번 위임한다 (idempotent)", async () => {
+    const alreadyPrimary = buildIdentityFixture({ isPrimary: true });
+    serviceMock.setPrimary.mockResolvedValue(alreadyPrimary);
+
+    const first = await controller.setPrimary("person-1", "identity-1");
+    const second = await controller.setPrimary("person-1", "identity-1");
+
+    expect(serviceMock.setPrimary).toHaveBeenCalledTimes(2);
+    expect(first).toBe(alreadyPrimary);
+    expect(second).toBe(alreadyPrimary);
+  });
+
+  // negative (c) — throw 시 단락되어 다른 collaborator 호출 0 회.
+  it("negative: service.setPrimary 가 throw 하면 단락되어 다른 collaborator 호출 0 회", async () => {
+    serviceMock.setPrimary.mockRejectedValue(new NotFoundException("nope"));
+
+    await expect(
+      controller.setPrimary("person-1", "identity-1"),
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(serviceMock.findByPersonId).not.toHaveBeenCalled();
+    expect(serviceMock.create).not.toHaveBeenCalled();
+    expect(serviceMock.update).not.toHaveBeenCalled();
+    expect(serviceMock.delete).not.toHaveBeenCalled();
+  });
+
+  // negative (d) — 성공 경로에서도 setPrimary 외 collaborator 호출 0 회. 기존 primary
+  // unset 은 repository transaction 책임이라 controller 가 update 를 부르지 않는다.
+  it("negative: primary 지정 성공 경로에서 setPrimary 외 collaborator 호출 0 회", async () => {
+    serviceMock.setPrimary.mockResolvedValue(buildIdentityFixture());
+
+    await controller.setPrimary("person-1", "identity-1");
+
+    expect(serviceMock.findByPersonId).not.toHaveBeenCalled();
+    expect(serviceMock.create).not.toHaveBeenCalled();
+    expect(serviceMock.update).not.toHaveBeenCalled();
+    expect(serviceMock.delete).not.toHaveBeenCalled();
+  });
 });
 
 describe("ServiceIdentityController (route · guard · pipe metadata)", () => {
@@ -771,5 +868,107 @@ describe("ServiceIdentityController (route · guard · pipe metadata)", () => {
         ServiceIdentityController.prototype.update,
       ),
     ).toEqual([JwtAuthGuard, RolesGuard]);
+  });
+
+  // 분기 축 (o) — primary 지정 handler 의 route method(POST) + path(":identityId/primary").
+  it("setPrimary handler 의 route method 가 POST 이고 path 가 :identityId/primary 이다", () => {
+    expect(
+      Reflect.getMetadata(
+        "method",
+        ServiceIdentityController.prototype.setPrimary,
+      ),
+    ).toBe(RequestMethod.POST);
+    expect(
+      Reflect.getMetadata(
+        "path",
+        ServiceIdentityController.prototype.setPrimary,
+      ),
+    ).toBe(":identityId/primary");
+  });
+
+  // negative — 같은 POST method 를 쓰는 두 route(create · setPrimary) 의 path metadata 가
+  // 서로 다르다. 본 배선이 기존 create 의 `@Post()` path 를 덮어쓰지 않았음을 고정한다.
+  it("negative: 두 POST route(create · setPrimary) 의 path metadata 가 서로 다르다", () => {
+    const createPath = Reflect.getMetadata(
+      "path",
+      ServiceIdentityController.prototype.create,
+    ) as string;
+    const setPrimaryPath = Reflect.getMetadata(
+      "path",
+      ServiceIdentityController.prototype.setPrimary,
+    ) as string;
+
+    expect(createPath).toBe("/");
+    expect(setPrimaryPath).toBe(":identityId/primary");
+    expect(createPath).not.toBe(setPrimaryPath);
+  });
+
+  // 분기 축 (p) — POST 기본값 201 을 덮는 `@HttpCode(200)` 명시 부착 (§Decision 1 primary
+  // 행 — 새 row 를 만들지 않으므로 201 아님). negative 로 create 의 미부착과 DELETE 의
+  // 204 가 그대로임을 함께 고정한다.
+  it("setPrimary handler 에 @HttpCode(200) 이 명시 부착돼 있다 (POST 기본 201 을 덮음)", () => {
+    expect(
+      Reflect.getMetadata(
+        "__httpCode__",
+        ServiceIdentityController.prototype.setPrimary,
+      ),
+    ).toBe(200);
+    expect(
+      Reflect.getMetadata(
+        "__httpCode__",
+        ServiceIdentityController.prototype.create,
+      ),
+    ).toBeUndefined();
+    expect(
+      Reflect.getMetadata(
+        "__httpCode__",
+        ServiceIdentityController.prototype.remove,
+      ),
+    ).toBe(204);
+  });
+
+  // 분기 축 (q) — 편집 tier 라 Admin. GET 의 "User" tier 와 독립 (§Decision 4).
+  it("setPrimary handler 에 Roles(Admin) 이 박혀 있고 GET 의 User tier 와 독립이다", () => {
+    const reflector = new Reflector();
+
+    expect(
+      reflector.get<string[]>(
+        ROLES_METADATA_KEY,
+        ServiceIdentityController.prototype.setPrimary,
+      ),
+    ).toEqual(["Admin"]);
+    expect(
+      reflector.get<string[]>(
+        ROLES_METADATA_KEY,
+        ServiceIdentityController.prototype.findByPersonId,
+      ),
+    ).toEqual(["User"]);
+  });
+
+  // 분기 축 (r) — guard stack 이 나머지 4 route 와 동일 순서 (JwtAuthGuard → RolesGuard).
+  it("setPrimary handler 에 @UseGuards(JwtAuthGuard, RolesGuard) 가 같은 순서로 부착돼 있다", () => {
+    const guards = Reflect.getMetadata(
+      "__guards__",
+      ServiceIdentityController.prototype.setPrimary,
+    ) as unknown[];
+
+    expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
+  });
+
+  // negative — primary 배선이 기존 GET · PATCH · DELETE 3 route 의 method metadata 를
+  // 회귀시키지 않았다 (create 의 POST 는 위 path 케이스에서 별도 고정).
+  it("negative: primary 배선이 GET · PATCH · DELETE 의 route method 를 회귀시키지 않는다", () => {
+    expect(
+      Reflect.getMetadata(
+        "method",
+        ServiceIdentityController.prototype.findByPersonId,
+      ),
+    ).toBe(RequestMethod.GET);
+    expect(
+      Reflect.getMetadata("method", ServiceIdentityController.prototype.update),
+    ).toBe(RequestMethod.PATCH);
+    expect(
+      Reflect.getMetadata("method", ServiceIdentityController.prototype.remove),
+    ).toBe(RequestMethod.DELETE);
   });
 });
