@@ -2,7 +2,7 @@
 id: T-1753
 title: Add e2e coverage for ServiceIdentity list and create routes
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-024]
 independentStream: service-identity-backend
@@ -12,6 +12,9 @@ touchesFiles:
 estimatedDiff: 290
 estimatedFiles: 1
 created: 2026-08-28
+completedAt: 2026-08-28T08:00:09Z
+prNumber: 1383
+mergeCommit: 644bba3f
 plannerNote: P5 / ADR-0058 §Follow-ups (c) e2e chain 의 1 번째 slice — GET 목록 + POST 생성(자동 승격) 계약 고정
 ---
 
@@ -62,4 +65,5 @@ plannerNote: P5 / ADR-0058 §Follow-ups (c) e2e chain 의 1 번째 slice — GET
 
 ## Follow-ups
 
-(생성 시점 비어 있음)
+- ADR-0058 `§Follow-ups (c)` 의 **수정 · 삭제 · primary 지정 축** e2e slice — 본 slice 가 harness scaffolding(actor 2 종 seed · truncate 후 `reseedAuthenticatedActors`)을 이미 지불했으므로 케이스 추가만 남는다.
+- ADR-0058 `§Follow-ups (e)` [docs/architecture/api.md](../architecture/api.md) · [docs/requirements.md](../requirements.md) doc-sync (`commitMode: direct`).
