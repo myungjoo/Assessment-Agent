@@ -2,7 +2,7 @@
 id: T-1766
 title: AdminView 에 인원별 ServiceIdentity 목록 읽기 축 배선 (path builder + useApiResource + ServiceIdentityList)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 240
@@ -67,3 +67,17 @@ REQ-078 / REQ-079 의 status 재판정은 **쓰기 축까지 마운트된 뒤** 
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가)
+
+## 결과
+
+- **DONE** (2026-08-28T21:02Z) — `commitMode: pr`, PR [#1394](https://github.com/myungjoo/Assessment-Agent/pull/1394) squash `b5088c2e`, reviewer APPROVE round 1/7, 4-게이트 PASS 후 머지 + branch 삭제.
+- 변경 2 파일 `+300/-0`: `web/src/views/AdminView.tsx` (조건부 path builder `buildServiceIdentitiesPath` + 조회 대상 인원 `<select>` + `useMemo`/`useApiResource` 조건부 조회 + `ServiceIdentityList` 마운트) · 신규 `web/src/views/AdminView.service-identity-wiring.test.tsx` (spec 20 개).
+- builder 는 client 의 `serviceIdentityCollectionPath` 를 base 로 호출해 계약 drift 를 막고, 미선택(빈·공백)이면 `null` 로 조회 idle. 응답 비배열은 빈 배열로 방어.
+- R-112 4 종(happy / error path / 분기 / negative 충분) 전부 cover. web 89 files 2691 test + 루트 458 suite 13208 test green, coverage threshold 유지.
+- 기존 `AdminView.test.tsx` (9827 행) 무수정 — Out of Scope 준수. 초기 구현이 362 LOC 였으나 R-112 필수 케이스는 보존한 채 주석·중복 case 를 축약해 cap(300 LOC) 안에 맞췄다.
+
+## Follow-ups (실행 결과 반영)
+
+- 쓰기 축 마운트 slice — `ServiceIdentityAddForm` · `ServiceIdentityEditForm` · `ServiceIdentityRowActions` 를 AdminView 에 붙이고 mutation handler 배선.
+- 인원 관리 섹션 RBAC gating (PLAN `133 행`, R-187 ~ R-191).
+- `docs/requirements.md` REQ-078 · REQ-079 status 재판정 + ADR-0058 `§Follow-ups (d)` 완료 표기 doc-sync.
