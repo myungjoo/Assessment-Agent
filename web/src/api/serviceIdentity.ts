@@ -2,8 +2,8 @@
 // [ADR-0058](../../../docs/decisions/ADR-0058-service-identity-management-api.md)
 // §Follow-ups (d) AdminView 편집 UI 의 전제 계층이다. 현재 web/src 에 ServiceIdentity
 // 를 다루는 코드가 0 건이라, 패널을 그리기 전에 backend 5 route 중 조회 1 개를 호출할
-// client 를 먼저 만든다. 본 slice(T-1761)로 backend 5 route 전량이 client 층에서
-// 완결됐고, 잔여는 `ServiceIdentityList` 패널 컴포넌트 신설 · AdminView 배선뿐이다.
+// client 를 먼저 열었고(T-1759), 본 slice(T-1761)로 5 route 전량이 client 층에서
+// 완결됐다. 잔여는 `ServiceIdentityList` 패널 컴포넌트 신설 · AdminView 배선뿐이다.
 //
 // 계약 정본은 `docs/architecture/api.md` `82`~`86 행` 과 backend
 // `src/user/service-identity.controller.ts` `69`·`86`·`127`·`151 행` 이다:
