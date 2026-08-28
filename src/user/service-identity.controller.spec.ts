@@ -1,14 +1,17 @@
-// ServiceIdentityController spec — T-1748(GET) + T-1749(POST) + T-1750(PATCH) acceptance 박제.
+// ServiceIdentityController spec — T-1748(GET) + T-1749(POST) + T-1750(PATCH) +
+// T-1751(DELETE) acceptance 박제.
 //
-// route 3 개(GET 목록 · POST 생성 · PATCH 수정) 모두 순수 위임 handler 라 spec 도 그 분량에 맞춰 좁게
+// route 4 개(GET 목록 · POST 생성 · PATCH 수정 · DELETE 삭제) 모두 순수 위임 handler 라 spec 도 그 분량에 맞춰 좁게
 // 간다 (assessment.controller.spec 을 통째로 베끼지 않고 metadata 검증 관례만 승계).
 // 구성: (1) 위임 동작 — mock service 로 happy / error / negative, (2) metadata 박제 —
 // route method · guard stack 순서 · @Roles tier · @HttpCode 미부착 · controller-scope
 // ValidationPipe 옵션 3 종.
 //
-// R-112 분기 축 메모: GET · POST · PATCH handler 어느 쪽에도 **조건 분기가 없다**(순수
-// 위임) — 코드 분기 test 는 해당 없음이며, 분기 축은 metadata 케이스(route method · path
-// param 축 · @HttpCode 미부착 · @Roles tier 독립 · guard 순서)로 대체한다.
+// R-112 분기 축 메모: GET · POST · PATCH · DELETE handler 어느 쪽에도 **조건 분기가
+// 없다**(순수 위임) — 코드 분기 test 는 해당 없음이며, 분기 축은 metadata 케이스(route
+// method · path param 축 · @HttpCode 부착/미부착 · @Roles tier 독립 · guard 순서)로
+// 대체한다. DELETE 만 `@HttpCode(204)` 가 부착돼 있고 나머지 3 route 는 NestJS 기본
+// status 를 쓰므로 미부착이다.
 import {
   ConflictException,
   NotFoundException,
@@ -50,7 +53,7 @@ function buildServiceMock() {
     create: jest.fn(),
     update: jest.fn(),
     setPrimary: jest.fn(),
-    remove: jest.fn(),
+    delete: jest.fn(),
   };
 }
 
@@ -134,7 +137,7 @@ describe("ServiceIdentityController (위임 동작)", () => {
     expect(serviceMock.create).not.toHaveBeenCalled();
     expect(serviceMock.update).not.toHaveBeenCalled();
     expect(serviceMock.setPrimary).not.toHaveBeenCalled();
-    expect(serviceMock.remove).not.toHaveBeenCalled();
+    expect(serviceMock.delete).not.toHaveBeenCalled();
   });
 
   // negative — 성공 경로에서도 findByPersonId 외 collaborator 를 부르지 않는다.
@@ -146,7 +149,7 @@ describe("ServiceIdentityController (위임 동작)", () => {
     expect(serviceMock.create).not.toHaveBeenCalled();
     expect(serviceMock.update).not.toHaveBeenCalled();
     expect(serviceMock.setPrimary).not.toHaveBeenCalled();
-    expect(serviceMock.remove).not.toHaveBeenCalled();
+    expect(serviceMock.delete).not.toHaveBeenCalled();
   });
 });
 
@@ -253,7 +256,7 @@ describe("ServiceIdentityController.create (POST 위임 동작)", () => {
     expect(serviceMock.findByPersonId).not.toHaveBeenCalled();
     expect(serviceMock.update).not.toHaveBeenCalled();
     expect(serviceMock.setPrimary).not.toHaveBeenCalled();
-    expect(serviceMock.remove).not.toHaveBeenCalled();
+    expect(serviceMock.delete).not.toHaveBeenCalled();
   });
 
   it("negative: POST 실패 경로에서도 create 외 다른 collaborator 호출 0 회", async () => {
@@ -361,7 +364,7 @@ describe("ServiceIdentityController.update (PATCH 위임 동작)", () => {
     expect(serviceMock.findByPersonId).not.toHaveBeenCalled();
     expect(serviceMock.create).not.toHaveBeenCalled();
     expect(serviceMock.setPrimary).not.toHaveBeenCalled();
-    expect(serviceMock.remove).not.toHaveBeenCalled();
+    expect(serviceMock.delete).not.toHaveBeenCalled();
   });
 
   // negative (c) — 갱신 축은 externalId 1 개뿐. DTO 의 키 집합이 그 이상으로 늘어나면
@@ -400,7 +403,7 @@ describe("ServiceIdentityController.update (PATCH 위임 동작)", () => {
     expect(serviceMock.findByPersonId).not.toHaveBeenCalled();
     expect(serviceMock.create).not.toHaveBeenCalled();
     expect(serviceMock.setPrimary).not.toHaveBeenCalled();
-    expect(serviceMock.remove).not.toHaveBeenCalled();
+    expect(serviceMock.delete).not.toHaveBeenCalled();
   });
 
   // negative (f) — 응답을 envelope 로 감싸거나 필드를 덧붙이지 않는다.
@@ -413,6 +416,103 @@ describe("ServiceIdentityController.update (PATCH 위임 동작)", () => {
 
     expect(Object.keys(result).sort()).toEqual(keysBefore);
     expect(result).not.toHaveProperty("data");
+  });
+});
+
+describe("ServiceIdentityController.remove (DELETE 위임 동작)", () => {
+  let serviceMock: ReturnType<typeof buildServiceMock>;
+  let controller: ServiceIdentityController;
+
+  beforeEach(() => {
+    serviceMock = buildServiceMock();
+    controller = new ServiceIdentityController(
+      serviceMock as unknown as ServiceIdentityService,
+    );
+  });
+
+  // happy path — (personId, identityId) 2 인자를 순서대로 그대로 위임하고 handler 는
+  // undefined 로 resolve 한다 (204 No Content — body 없음).
+  it("DELETE 삭제: service.delete 에 (personId, identityId) 를 그대로 전달하고 undefined 로 resolve 한다", async () => {
+    serviceMock.delete.mockResolvedValue(buildIdentityFixture());
+
+    const result = await controller.remove("person-1", "identity-1");
+
+    expect(result).toBeUndefined();
+    expect(serviceMock.delete).toHaveBeenCalledTimes(1);
+    expect(serviceMock.delete).toHaveBeenCalledWith("person-1", "identity-1");
+  });
+
+  // error path 1 — 3 단 404(Person 부재 · 소유 아님 · P2025) 중 무엇이든 동일
+  // NotFoundException 인스턴스로 전파된다 (변환 0).
+  it("DELETE 삭제: service 의 NotFoundException(404) 을 동일 인스턴스로 그대로 전파한다", async () => {
+    const error = new NotFoundException(
+      "service identity not found: identity-x",
+    );
+    serviceMock.delete.mockRejectedValue(error);
+
+    await expect(controller.remove("person-1", "identity-x")).rejects.toBe(
+      error,
+    );
+    expect(serviceMock.delete).toHaveBeenCalledWith("person-1", "identity-x");
+  });
+
+  // error path 2 — HttpException 이 아닌 일반 Error 도 raw forward (try/catch 없음).
+  // 재승격 단계에서 나는 오류가 이 경로로 그대로 올라온다 (§Decision 2 (7)).
+  it("DELETE 삭제: 일반 Error(재승격 단계 오류 포함) 도 변환 없이 동일 인스턴스로 전파한다", async () => {
+    const error = new Error("setPrimary failed");
+    serviceMock.delete.mockRejectedValue(error);
+
+    await expect(controller.remove("person-1", "identity-1")).rejects.toBe(
+      error,
+    );
+  });
+
+  // negative (a) — 빈 문자열 identityId 도 controller 가 차단 · 가공하지 않고 위임.
+  it("negative: 빈 문자열 identityId 도 가공·차단 없이 service.delete 로 전달한다", async () => {
+    serviceMock.delete.mockResolvedValue(buildIdentityFixture());
+
+    await controller.remove("person-1", "");
+
+    expect(serviceMock.delete).toHaveBeenCalledWith("person-1", "");
+  });
+
+  // negative (b) — 삭제 성공 시 service 가 돌려준 삭제 row 를 응답 body 로 노출하지
+  // 않는다 (§Decision 1 DELETE 행 "body 없음").
+  it("negative: service 가 삭제 row 를 반환해도 응답으로 노출하지 않는다 (undefined)", async () => {
+    const removed = buildIdentityFixture({ isPrimary: true });
+    serviceMock.delete.mockResolvedValue(removed);
+
+    const result = await controller.remove("person-1", "identity-1");
+
+    expect(result).toBeUndefined();
+    expect(result).not.toBe(removed);
+  });
+
+  // negative (c) — throw 시 단락되어 다른 collaborator 호출 0 회.
+  it("negative: service.delete 가 throw 하면 단락되어 다른 collaborator 호출 0 회", async () => {
+    serviceMock.delete.mockRejectedValue(new NotFoundException("nope"));
+
+    await expect(
+      controller.remove("person-1", "identity-1"),
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(serviceMock.findByPersonId).not.toHaveBeenCalled();
+    expect(serviceMock.create).not.toHaveBeenCalled();
+    expect(serviceMock.update).not.toHaveBeenCalled();
+    expect(serviceMock.setPrimary).not.toHaveBeenCalled();
+  });
+
+  // negative (d) — 성공 경로에서도 delete 외 collaborator 호출 0 회. 특히 재승격은
+  // service 책임이므로 controller 가 setPrimary 를 직접 부르지 않는다.
+  it("negative: DELETE 성공 경로에서 delete 외 다른 collaborator 호출 0 회 (재승격 재구현 없음)", async () => {
+    serviceMock.delete.mockResolvedValue(buildIdentityFixture());
+
+    await controller.remove("person-1", "identity-1");
+
+    expect(serviceMock.findByPersonId).not.toHaveBeenCalled();
+    expect(serviceMock.create).not.toHaveBeenCalled();
+    expect(serviceMock.update).not.toHaveBeenCalled();
+    expect(serviceMock.setPrimary).not.toHaveBeenCalled();
   });
 });
 
@@ -579,5 +679,97 @@ describe("ServiceIdentityController (route · guard · pipe metadata)", () => {
     ) as unknown[];
 
     expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
+  });
+
+  // 분기 축 (k) — DELETE handler 의 route method + path param 축 (":identityId").
+  it("remove handler 의 route method 가 DELETE 이고 path 가 :identityId 이다", () => {
+    expect(
+      Reflect.getMetadata("method", ServiceIdentityController.prototype.remove),
+    ).toBe(RequestMethod.DELETE);
+    expect(
+      Reflect.getMetadata("path", ServiceIdentityController.prototype.remove),
+    ).toBe(":identityId");
+  });
+
+  // negative — DELETE 배선이 기존 GET · POST · PATCH 3 route 의 method metadata 를
+  // 덮어쓰지 않았다 (회귀 게이트).
+  it("negative: DELETE 배선이 GET · POST · PATCH 의 route method 를 회귀시키지 않는다", () => {
+    expect(
+      Reflect.getMetadata(
+        "method",
+        ServiceIdentityController.prototype.findByPersonId,
+      ),
+    ).toBe(RequestMethod.GET);
+    expect(
+      Reflect.getMetadata("method", ServiceIdentityController.prototype.create),
+    ).toBe(RequestMethod.POST);
+    expect(
+      Reflect.getMetadata("method", ServiceIdentityController.prototype.update),
+    ).toBe(RequestMethod.PATCH);
+  });
+
+  // 분기 축 (l) — DELETE 만 @HttpCode(204) 부착 (§Decision 1 DELETE 행 "body 없음").
+  // negative 로 나머지 3 route 의 미부착(기본 status 유지)을 함께 고정한다.
+  it("remove handler 에만 @HttpCode(204) 가 부착돼 있다 (나머지 3 route 는 미부착)", () => {
+    expect(
+      Reflect.getMetadata(
+        "__httpCode__",
+        ServiceIdentityController.prototype.remove,
+      ),
+    ).toBe(204);
+    expect(
+      Reflect.getMetadata(
+        "__httpCode__",
+        ServiceIdentityController.prototype.findByPersonId,
+      ),
+    ).toBeUndefined();
+    expect(
+      Reflect.getMetadata(
+        "__httpCode__",
+        ServiceIdentityController.prototype.create,
+      ),
+    ).toBeUndefined();
+    expect(
+      Reflect.getMetadata(
+        "__httpCode__",
+        ServiceIdentityController.prototype.update,
+      ),
+    ).toBeUndefined();
+  });
+
+  // 분기 축 (m) — 편집 tier 라 Admin. GET 의 "User" tier 와 독립 (§Decision 4).
+  it('remove handler 에 @Roles("Admin") 이 박혀 있고 GET 의 "User" tier 와 독립이다', () => {
+    const reflector = new Reflector();
+
+    expect(
+      reflector.get<string[]>(
+        ROLES_METADATA_KEY,
+        ServiceIdentityController.prototype.remove,
+      ),
+    ).toEqual(["Admin"]);
+    // negative — DELETE 배선이 GET 의 tier 를 덮어쓰지 않았다.
+    expect(
+      reflector.get<string[]>(
+        ROLES_METADATA_KEY,
+        ServiceIdentityController.prototype.findByPersonId,
+      ),
+    ).toEqual(["User"]);
+  });
+
+  // 분기 축 (n) — guard stack 이 나머지 3 route 와 동일 순서 (JwtAuthGuard → RolesGuard).
+  it("remove handler 에 @UseGuards(JwtAuthGuard, RolesGuard) 가 같은 순서로 부착돼 있다", () => {
+    const guards = Reflect.getMetadata(
+      "__guards__",
+      ServiceIdentityController.prototype.remove,
+    ) as unknown[];
+
+    expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
+    // negative — 기존 PATCH route 의 guard 순서도 회귀하지 않았다.
+    expect(
+      Reflect.getMetadata(
+        "__guards__",
+        ServiceIdentityController.prototype.update,
+      ),
+    ).toEqual([JwtAuthGuard, RolesGuard]);
   });
 });
