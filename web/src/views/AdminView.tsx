@@ -73,7 +73,13 @@ import type { PersonRow } from '../components/PersonList';
 // T-1766 — ADR-0058 §Follow-ups (d) 여덟 번째 web slice(읽기 축). ServiceIdentityList(T-1762)는
 // 수정 0 으로 default import 만(ADR-0041 Decision 1), row 타입·path 는 client 계약 재사용.
 import ServiceIdentityList from '../components/ServiceIdentityList';
-import { serviceIdentityCollectionPath } from '../api/serviceIdentity';
+// T-1767 — ADR-0058 §Follow-ups (d) 쓰기 축 1/3(추가 POST). 폼(T-1763)은 controlled
+// presentational 이라 입력 state·발사·재조회는 컨테이너 책임(ADR-0041 Decision 1).
+import ServiceIdentityAddForm from '../components/ServiceIdentityAddForm';
+import {
+  createServiceIdentity,
+  serviceIdentityCollectionPath,
+} from '../api/serviceIdentity';
 import type { ServiceIdentityRow } from '../api/serviceIdentity';
 // 그룹 목록 마운트 대상(T-1148, T-1147 presentational) — default export 만 가져온다. GroupList 도
 // 자체 GroupRow 를 named export 하지만 여기서는 import 하지 않고 AdminView 로컬 GroupRow(L327)를
@@ -1716,6 +1722,66 @@ async function runCreatePerson(
   }
 }
 
+type ServiceIdentityInput = { service: string; externalId: string };
+
+// 추가 POST + state-전이 로직에 주입하는 deps(T-1767 — runCreatePerson 의 CreatePersonDeps 를
+// 1:1 mirror. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). 발사 primitive 가 apiClient.request
+// 가 아니라 client 의 createServiceIdentity(기본 주입, 테스트는 mock)인 것은 path 조립과 body
+// 화이트리스트(forbidNonWhitelisted 대비)가 그 함수 책임이기 때문이다(ADR-0058 §Decision 1).
+interface CreateServiceIdentityDeps {
+  create: (personId: string, input: ServiceIdentityInput) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 create in-flight 여부 — true 면 미발사(이중 POST·경합 가드).
+  creating: boolean;
+  setCreating: (next: boolean) => void;
+  setCreateError: (next: string | undefined) => void;
+  // 목록 재조회 트리거(serviceIdentitiesRefreshNonce +1) / 성공 후 2 입력 초기화.
+  bumpRefresh: () => void;
+  resetInput: () => void;
+}
+
+// 추가 POST /api/persons/:personId/identities(body `{ service, externalId }`) + state-전이를
+// 캡슐화한 순수 async 러너(T-1767 — runCreatePerson mirror). 3 no-op 가드(미선택 personId /
+// 입력 미완 / in-flight) 뒤, 진행 on + 직전 error 비움 → POST → 성공(목록 재조회 + 입력 초기화)
+// / 실패(문구 표면화 — throw 없이) → 진행 off(공통).
+async function runCreateServiceIdentity(
+  personId: string,
+  input: ServiceIdentityInput,
+  deps: CreateServiceIdentityDeps,
+): Promise<void> {
+  // 인원 미선택 방어 — falsy·빈·공백뿐 personId 는 미발사(깨진 path·불필요 요청 회피).
+  const targetPersonId = personId?.trim();
+  if (!targetPersonId) {
+    return;
+  }
+  // 필수 2 필드 방어 — 하나라도 비면 미발사(400 확정 요청을 네트워크 전에 차단).
+  const service = input?.service?.trim();
+  const externalId = input?.externalId?.trim();
+  if (!service || !externalId) {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 create 미완 중이면 미발사(이중 POST·state 경합 차단).
+  if (deps.creating) {
+    return;
+  }
+  deps.setCreating(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리).
+  deps.setCreateError(undefined);
+  try {
+    // POST — 201 Created. 응답은 소비하지 않고 재조회로 권위 목록을 받는다(낙관 추가 없음).
+    await deps.create(targetPersonId, { service, externalId });
+    deps.bumpRefresh();
+    deps.resetInput();
+  } catch (e) {
+    // 실패 — 문구를 안전 표시(throw 없이). 400·404·409 중복·401·5xx·네트워크 0 모두 동일 경로.
+    // 재조회 nonce·입력은 건드리지 않는다(목록·입력 유지 — 재시도 편의).
+    deps.setCreateError(deps.describeError(e));
+  } finally {
+    deps.setCreating(false);
+  }
+}
+
 // 그룹 생성 POST + state-전이 로직에 주입하는 deps(T-1146 — runCreatePerson 의 CreatePersonDeps 를
 // mirror. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). 컨테이너의 handleCreateGroup 은 이 러너에
 // 현재 입력 name·in-flight 여부(creating)·상태 setter·재조회 트리거·입력 초기화를 주입해 호출만 한다.
@@ -2890,11 +2956,20 @@ function AdminView({
     setSelectedIdentityPersonId(event.target.value);
   };
 
+  // 목록 재조회 nonce(T-1767) — 추가 성공 시 +1 해 조회 path 를 바꿔 권위 재조회를 낸다.
+  const [serviceIdentitiesRefreshNonce, setServiceIdentitiesRefreshNonce] =
+    useState<number>(0);
+
   // 선택 인원의 identity 조회 path — 선택 변경 시 path 가 달라져 자동 refetch 하고 이전 인원의
-  // 목록은 잔존하지 않는다(hook 이 path 변경마다 state 초기화). 재조회 nonce 는 쓰기 축 slice 몫.
+  // 목록은 잔존하지 않는다. nonce 를 함께 넘겨 추가 성공 후에도 다시 조회한다(T-1767 — 실패
+  // 시에는 bump 하지 않아 목록이 그대로 유지된다).
   const serviceIdentitiesPath = useMemo(
-    () => buildServiceIdentitiesPath(selectedIdentityPersonId || undefined),
-    [selectedIdentityPersonId],
+    () =>
+      buildServiceIdentitiesPath(
+        selectedIdentityPersonId || undefined,
+        serviceIdentitiesRefreshNonce,
+      ),
+    [selectedIdentityPersonId, serviceIdentitiesRefreshNonce],
   );
 
   // 선택 인원의 service identity 조회 — loading/error 는 컨테이너가 받아 ServiceIdentityList 의
@@ -2911,6 +2986,48 @@ function AdminView({
   const serviceIdentities = useMemo(
     () => (Array.isArray(serviceIdentityData) ? serviceIdentityData : []),
     [serviceIdentityData],
+  );
+
+  // 추가 2 controlled input(T-1767) — 성공 후 둘 다 빈 값으로 되돌린다.
+  const [identityServiceInput, setIdentityServiceInput] = useState<string>('');
+  const [identityExternalIdInput, setIdentityExternalIdInput] =
+    useState<string>('');
+  // 추가 in-flight 플래그(폼 loading + 동시 재호출 가드 겸용)와 실패 문구(폼 하단 안전 표시).
+  const [creatingServiceIdentity, setCreatingServiceIdentity] =
+    useState<boolean>(false);
+  const [createServiceIdentityError, setCreateServiceIdentityError] = useState<
+    string | undefined
+  >(undefined);
+
+  // 추가 실 mutation 핸들러(T-1767) — 러너에 deps 주입해 호출만 한다. 입력값·in-flight·선택
+  // 인원을 deps 배열에 포함해 stale 없이 최신 값으로 발사한다.
+  const handleCreateServiceIdentity = useCallback(
+    () =>
+      runCreateServiceIdentity(
+        selectedIdentityPersonId,
+        {
+          service: identityServiceInput,
+          externalId: identityExternalIdInput,
+        },
+        {
+          create: createServiceIdentity,
+          describeError: toErrorMessage,
+          creating: creatingServiceIdentity,
+          setCreating: setCreatingServiceIdentity,
+          setCreateError: setCreateServiceIdentityError,
+          bumpRefresh: () => setServiceIdentitiesRefreshNonce((n) => n + 1),
+          resetInput: () => {
+            setIdentityServiceInput('');
+            setIdentityExternalIdInput('');
+          },
+        },
+      ),
+    [
+      selectedIdentityPersonId,
+      identityServiceInput,
+      identityExternalIdInput,
+      creatingServiceIdentity,
+    ],
   );
 
   // 인원 생성 2 controlled input 상태(T-1143) — 컨테이너 소유. "추가" 클릭 시 handleCreatePerson
@@ -4889,6 +5006,18 @@ function AdminView({
           loading={serviceIdentityLoading}
           error={serviceIdentityError}
         />
+        {/* service identity 추가 폼(T-1767, ADR-0058 §Follow-ups (d) 쓰기 축 1/3) — 위 조회
+            <select> 로 고른 인원에게 POST /api/persons/:personId/identities 를 발사한다. 입력값·
+            진행·실패 문구는 컨테이너가 내려보내고, 성공 시 nonce bump 로 위 목록이 재조회된다. */}
+        <ServiceIdentityAddForm
+          service={identityServiceInput}
+          externalId={identityExternalIdInput}
+          onServiceChange={setIdentityServiceInput}
+          onExternalIdChange={setIdentityExternalIdInput}
+          onSubmit={handleCreateServiceIdentity}
+          loading={creatingServiceIdentity}
+          error={createServiceIdentityError}
+        />
       </section>
       {/* 그룹 관리(T-1146, REQ-028/REQ-049) — 그룹 생성 폼을 담는 별도 섹션. 그룹 목록은 기존 select
           조회부(useApiResource<GroupRow[]>)가 소유하므로 본 slice 는 생성 성공 시 groupsRefreshNonce
@@ -5128,6 +5257,7 @@ export {
   runAdd,
   runCreateProvider,
   runCreatePerson,
+  runCreateServiceIdentity,
   runCreateGroup,
   runCreatePart,
   runCreateUser,
