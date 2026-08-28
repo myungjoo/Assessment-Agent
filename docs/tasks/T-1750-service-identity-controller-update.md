@@ -2,7 +2,7 @@
 id: T-1750
 title: Add the PATCH update route to ServiceIdentityController
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-073]
 independentStream: service-identity-backend
@@ -14,6 +14,9 @@ touchesFiles:
 estimatedDiff: 240
 estimatedFiles: 3
 created: 2026-08-28
+completedAt: 2026-08-28T04:53:16Z
+prNumber: 1380
+mergeCommit: be71f725
 plannerNote: P5 / PLAN 132 행 오너 지시 chain — ADR-0058 §Follow-ups (b) 잔여 3 route 중 PATCH 수정 1 개만 절단
 ---
 
@@ -55,27 +58,27 @@ repository)는 T-1739~T-1747 로 마감됐고, `§Follow-ups (b)`(controller + R
 
 ## Acceptance Criteria
 
-- [ ] `ServiceIdentityController` 에 `@Patch(":identityId")` handler 1 개 추가 — path param
+- [x] `ServiceIdentityController` 에 `@Patch(":identityId")` handler 1 개 추가 — path param
       `personId` · `identityId`, body `UpdateServiceIdentityDto`, `service.update(personId, identityId, dto)`
       로 1 회 위임 후 반환값 무가공 전달. 성공 status 는 NestJS 기본 200 이므로 `@HttpCode` 미부착.
-- [ ] guard stack 은 `@UseGuards(JwtAuthGuard, RolesGuard)` 동일 순서 + `@Roles("Admin")`(편집 tier,
+- [x] guard stack 은 `@UseGuards(JwtAuthGuard, RolesGuard)` 동일 순서 + `@Roles("Admin")`(편집 tier,
       ADR-0058 §Decision 4). controller 안 `try`/`catch` 0 — 오류는 raw forward.
-- [ ] **happy-path unit test 1+** — 유효 body 로 호출 시 `service.update` 가 정확히 1 회, 인자
+- [x] **happy-path unit test 1+** — 유효 body 로 호출 시 `service.update` 가 정확히 1 회, 인자
       (`personId`·`identityId`·dto) 가 일치하고 반환 참조가 그대로 전달되는지 검증.
-- [ ] **error path unit test 1+** — service 가 `NotFoundException`(404) 을 던질 때 controller 가
+- [x] **error path unit test 1+** — service 가 `NotFoundException`(404) 을 던질 때 controller 가
       변환 없이 **동일 인스턴스**를 전파하는지, 일반 `Error` 도 동일하게 전파하는지 각 1+ 검증.
-- [ ] **분기 cover** — handler 자체에 코드 분기가 없으면 그 근거를 주석으로 명시하고, guard/route
+- [x] **분기 cover** — handler 자체에 코드 분기가 없으면 그 근거를 주석으로 명시하고, guard/route
       metadata 축(HTTP method · path param · `@Roles` tier 가 GET 의 `"User"` 와 다름 · guard 순서 ·
       `@HttpCode` 미부착)으로 각 1+ test 를 대체 배치한다.
-- [ ] **negative cases 충분 cover** — 최소 4 종: (a) 빈 `identityId` 도 controller 가 가공 없이
+- [x] **negative cases 충분 cover** — 최소 4 종: (a) 빈 `identityId` 도 controller 가 가공 없이
       위임, (b) service throw 시 단락되어 다른 collaborator 호출 0 회, (c) `UpdateServiceIdentityDto`
       키 집합이 `externalId` 1 개로 불변(= `isPrimary`·`service` 미노출), (d) 미전달 body(`{}`)도
       controller 가 그대로 위임(보존 semantic 은 service 책임).
-- [ ] `pnpm lint && pnpm build && pnpm test` 전량 green.
-- [ ] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%) — 신규 handler 는 line·function 100%.
-- [ ] `src/user/user.module.ts` 헤더 주석의 endpoint 목록을 "GET · POST · PATCH 3 endpoint (잔여
+- [x] `pnpm lint && pnpm build && pnpm test` 전량 green.
+- [x] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%) — 신규 handler 는 line·function 100%.
+- [x] `src/user/user.module.ts` 헤더 주석의 endpoint 목록을 "GET · POST · PATCH 3 endpoint (잔여
       2 route 는 후속 slice)" 로 갱신. 배열 diff 0.
-- [ ] 변경 파일 ≤ 3 개, diff ≤ 300 LOC.
+- [x] 변경 파일 ≤ 3 개, diff ≤ 300 LOC.
 
 ## Out of Scope
 
@@ -90,6 +93,27 @@ repository)는 T-1739~T-1747 로 마감됐고, `§Follow-ups (b)`(controller + R
 
 `implementer → tester`
 
+
+
+## Result (DONE)
+
+PR [#1380](https://github.com/myungjoo/Assessment-Agent/pull/1380) squash merge → main `be71f725` (2026-08-28T04:53:16Z).
+`ServiceIdentityController` 에 `@Patch(":identityId")` handler 1 개를 추가해 `service.update(personId, identityId, dto)`
+로 1 회 위임하고 반환값을 무가공 전달한다 — `@HttpCode` 미부착이라 NestJS 기본 200, guard 는
+`@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles("Admin")`(편집 tier), controller 안 `try`/`catch` 0 이라
+`NotFoundException` · 일반 `Error` 모두 동일 인스턴스로 raw forward 된다. `user.module.ts` 는 헤더 주석
+endpoint 목록만 3 route 기준으로 갱신해 배열 diff 0. 3 파일 `+243/-17`.
+
+spec 은 PATCH 위임 9 케이스 + route/guard metadata 4 케이스를 더해 R-112 4 종을 덮었다 — happy(인자 3 종
+일치 + 반환 동일 참조) / error path(404 · 일반 `Error` 전파) / 분기(handler 분기 0 근거 주석 + metadata 축
+4 케이스 대체) / negative 6 종(빈 `identityId` 위임 · throw 단락 시 collaborator 0 회 · DTO 키 집합 불변 ·
+빈 body 위임 등). 대상 파일 line · branch · function 100%, 전체 458 suite / 13183 test green
+(line 99.94% / function 100%). reviewer APPROVE round 1/7 + PR comment 외부 post + CI 2 job pass 로
+4-게이트 충족.
+
 ## Follow-ups
 
-(없음 — 작업 중 발견 시 여기에 추가)
+- `src/user/service-identity.service.ts` `33~35 행` 헤더 주석이 "GET 1 개만 노출 / POST · PATCH · DELETE ·
+  primary 4 route 미배선" 으로 T-1749 시점부터 drift 중 — 잔여 2 route(DELETE 삭제 · primary 지정) slice 에서
+  일괄 정정 권고.
+
