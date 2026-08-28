@@ -70,6 +70,11 @@ import type { ReEvaluationWindow } from '../components/ReEvaluationTriggerPanel'
 // 내려보낸다(T-1140 DashboardView 마운트 패턴 mirror — 읽기 전용, mutation/nonce 불요).
 import PersonList from '../components/PersonList';
 import type { PersonRow } from '../components/PersonList';
+// T-1766 — ADR-0058 §Follow-ups (d) 여덟 번째 web slice(읽기 축). ServiceIdentityList(T-1762)는
+// 수정 0 으로 default import 만(ADR-0041 Decision 1), row 타입·path 는 client 계약 재사용.
+import ServiceIdentityList from '../components/ServiceIdentityList';
+import { serviceIdentityCollectionPath } from '../api/serviceIdentity';
+import type { ServiceIdentityRow } from '../api/serviceIdentity';
 // 그룹 목록 마운트 대상(T-1148, T-1147 presentational) — default export 만 가져온다. GroupList 도
 // 자체 GroupRow 를 named export 하지만 여기서는 import 하지 않고 AdminView 로컬 GroupRow(L327)를
 // 그대로 props 로 넘긴다(구조적 타입 호환 — 중복 식별자·이름 충돌 회피, task Required Reading).
@@ -518,6 +523,9 @@ interface AdminViewProps {
   // 위한 초기값 주입 affordance(initialScheduleBusy 동형). 미주입 시 undefined 라 확인 단계에
   // 진입하지 않는다 — 즉 실제 사용 경로의 초기 상태와 완전히 동일하다(회귀 0).
   initialImportConfirmText?: string;
+  // 초기 service identity 조회 대상 인원 id(선택, T-1766) — 정적 렌더 검증용 주입 affordance
+  // (initialSelectedPartId 동형). 미주입 시 미선택 = 조회 idle(실사용 초기 상태 동일).
+  initialSelectedIdentityPersonId?: string;
 }
 
 // 등급 문자열 → Admin+ 여부 파생(순수 helper, ④h). backend role enum(api.md 71 —
@@ -824,6 +832,26 @@ function buildPartPersonsPath(
     return null;
   }
   const base = `/api/parts/${encodeURIComponent(selectedPartId)}/persons`;
+  if (refreshNonce <= 0) {
+    return base;
+  }
+  return `${base}?_r=${refreshNonce}`;
+}
+
+// 선택 인원의 service identity 목록 조회 path 빌더(순수 helper, T-1766 — buildPartPersonsPath
+// 동형) — GET /api/persons/:personId/identities(ADR-0058 §Decision 1). 미선택(falsy·빈 문자열·
+// 공백뿐)이면 null 을 반환해 조건부 조회 idle 을 유발한다 — `/api/persons//identities` 같은 깨진
+// path 발사 차단. base 는 client 의 serviceIdentityCollectionPath 로 얻는다(경로 재조립 시 계약
+// drift — encodeURIComponent 안전 인코딩도 그 함수 책임). nonce 0 이하(초기·음수)면 base 를,
+// 1+ 면 `?_r=<nonce>` 를 붙여 재조회를 낸다(쓰기 축 slice 자리 — backend 는 @Query 미수신, 무시).
+function buildServiceIdentitiesPath(
+  selectedPersonId: string | undefined,
+  refreshNonce = 0,
+): string | null {
+  if (!selectedPersonId || selectedPersonId.trim() === '') {
+    return null;
+  }
+  const base = serviceIdentityCollectionPath(selectedPersonId);
   if (refreshNonce <= 0) {
     return base;
   }
@@ -2784,6 +2812,7 @@ function AdminView({
   initialReevalSubmitting = false,
   initialSelectedPartId = '',
   initialImportConfirmText,
+  initialSelectedIdentityPersonId = '',
 }: AdminViewProps) {
   // 선택 그룹 상태 — controlled lift-up(컨테이너 소유). <select> 선택이 이 값을 갱신한다.
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
@@ -2847,6 +2876,42 @@ function AdminView({
     loading: personLoading,
     error: personError,
   } = useApiResource<PersonRow[]>(personsPath);
+
+  // service identity 읽기 축 배선(T-1766) — 조회 대상 인원 상태(controlled lift-up, 컨테이너
+  // 소유). 인원 관리 섹션 전용 <select> 가 이 값을 갱신한다. 재평가 패널의 selectedPersonId 를
+  // 재사용하지 않는 것은 두 화면의 선택이 서로를 덮으면 안 되기 때문이다(각 화면 독립 소유).
+  const [selectedIdentityPersonId, setSelectedIdentityPersonId] =
+    useState<string>(initialSelectedIdentityPersonId);
+
+  // 조회 대상 인원 변경 — 빈 값 선택 시 미선택으로 되돌아가 조회가 idle 로 떨어진다.
+  const handleIdentityPersonChange = (event: {
+    target: { value: string };
+  }) => {
+    setSelectedIdentityPersonId(event.target.value);
+  };
+
+  // 선택 인원의 identity 조회 path — 선택 변경 시 path 가 달라져 자동 refetch 하고 이전 인원의
+  // 목록은 잔존하지 않는다(hook 이 path 변경마다 state 초기화). 재조회 nonce 는 쓰기 축 slice 몫.
+  const serviceIdentitiesPath = useMemo(
+    () => buildServiceIdentitiesPath(selectedIdentityPersonId || undefined),
+    [selectedIdentityPersonId],
+  );
+
+  // 선택 인원의 service identity 조회 — loading/error 는 컨테이너가 받아 ServiceIdentityList 의
+  // 대응 props 로 내려보낸다(ADR-0041 Decision 1). 404/403/5xx/네트워크 실패는 hook 의 사람-친화
+  // 문구(toErrorMessage 경로)로 안전 표시된다(throw 없음).
+  const {
+    data: serviceIdentityData,
+    loading: serviceIdentityLoading,
+    error: serviceIdentityError,
+  } = useApiResource<ServiceIdentityRow[]>(serviceIdentitiesPath);
+
+  // 표시용 identity 목록 — 비정상 payload(객체·null·문자열)이거나 미조회/진행 중/실패로
+  // undefined 여도 빈 배열로 방어한다(partPersons 선례 — undefined.length 로 깨지지 않도록).
+  const serviceIdentities = useMemo(
+    () => (Array.isArray(serviceIdentityData) ? serviceIdentityData : []),
+    [serviceIdentityData],
+  );
 
   // 인원 생성 2 controlled input 상태(T-1143) — 컨테이너 소유. "추가" 클릭 시 handleCreatePerson
   // 이 POST body 의 2 필드(fullName/email)로 공급하고, 성공 후 모두 빈 값으로 되돌린다(연속 생성
@@ -4803,6 +4868,27 @@ function AdminView({
           onDelete={handleDeletePerson}
           onEdit={handleEditPerson}
         />
+        {/* 인원별 service identity 목록(T-1766, ADR-0058 §Follow-ups (d) 읽기 축) — 전용
+            <select> 로 인원을 고르면 GET /api/persons/:personId/identities 를 조건부 조회해
+            ServiceIdentityList 에 내려보낸다. 옵션은 이미 조회 중인 personData 파생이라 새
+            fetch 0(비정상 payload 는 빈 배열 방어). 쓰기 축 배선은 후속 slice 책임. */}
+        <select
+          aria-label="service identity 조회 인원 선택"
+          value={selectedIdentityPersonId}
+          onChange={handleIdentityPersonChange}
+        >
+          <option value="">{NO_PERSON_SELECTION_LABEL}</option>
+          {(Array.isArray(personData) ? personData : []).map((person) => (
+            <option key={person.id} value={person.id}>
+              {person.fullName}
+            </option>
+          ))}
+        </select>
+        <ServiceIdentityList
+          identities={serviceIdentities}
+          loading={serviceIdentityLoading}
+          error={serviceIdentityError}
+        />
       </section>
       {/* 그룹 관리(T-1146, REQ-028/REQ-049) — 그룹 생성 폼을 담는 별도 섹션. 그룹 목록은 기존 select
           조회부(useApiResource<GroupRow[]>)가 소유하므로 본 slice 는 생성 성공 시 groupsRefreshNonce
@@ -5020,6 +5106,7 @@ export {
   buildPartsPath,
   buildUsersPath,
   buildPartPersonsPath,
+  buildServiceIdentitiesPath,
   buildExportInput,
   runAdminExportJob,
   mergeMapping,
