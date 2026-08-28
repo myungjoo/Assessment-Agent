@@ -1,14 +1,14 @@
 // ServiceIdentityService — ServiceIdentity 도메인 의 application service.
 // ADR-0058 §Follow-ups (a) 의 잔여 slice 중 **골격 + 목록 조회** (T-1741) · **create**
-// (T-1742) · **update 1 경로** (T-1743) 에 이어 **setPrimary 1 경로** (T-1744) 까지
-// 담는다 (DTO 는 T-1739, repository 는 T-1740 이 마감).
+// (T-1742) · **update 1 경로** (T-1743) · **setPrimary 1 경로** (T-1744) 에 이어
+// **delete 1 경로** (T-1746) 까지 담는다 (DTO 는 T-1739, repository 는 T-1740 이 마감).
 //
 // 책임:
 //   - ADR-0058 §Decision 5 (c) 의 **Person 존재 선검사** 계약을 본 service 에 못 박는다.
 //     nested route (`/api/persons/:personId/service-identities`) 는 상위 resource 인
 //     Person 이 부재하면 하위 collection 이 빈 배열 200 을 주는 대신 404 여야 한다 —
 //     "부재한 상위 resource 가 200 을 주면 경로 의미가 깨진다" 는 ADR 근거 그대로다.
-//   - update / setPrimary route 가 본 선검사를 재사용하며, 후속 delete route 도 같다.
+//   - update / setPrimary / delete route 가 모두 본 선검사를 재사용한다.
 //   - ADR-0058 §Decision 2 의 **첫 row 자동 primary 승격** — 판정 기준은 **생성 직전 시점의
 //     기존 row 수 0 개**. 승격 누락은 `N ≥ 1` 인데 primary 0 인 조용한 수집 0 건으로 이어진다.
 //   - ADR-0058 §Decision 5 (a) 의 `P2002` → `ConflictException` (409) 변환, (b) 의
@@ -16,10 +16,15 @@
 //   - ADR-0058 §Decision 3 의 **PATCH 는 `externalId` 단일 축 + 미전달 보존** (RFC-7396
 //     merge patch) 과 §Decision 5 (e) 의 **타 Person 소유 identity 는 403 이 아니라 404**.
 //
-// 책임 경계 (Out of Scope — T-1744 §Out of Scope 박제):
-//   - delete 후 재승격 (잔여 row `createdAt` · `id` 오름차순 첫 row 자동 승격) 은 public
-//     메서드로 노출하지 않는다 (후속 slice). 어느 경로에서도 `setPrimary` 의 2 op
-//     transaction 을 재구현하지 않는다 (ADR-0058 §Decision 2 — repository 가 유일 경로).
+// 책임 경계 (Out of Scope — T-1746 §Out of Scope 박제):
+//   - **delete 후 재승격은 본 slice 가 구현하지 않는다** (후속 T-1747 이 이어받는다).
+//     `delete` 는 3 단 404 + hard delete 까지만 담고, 잔여 row 중 다음 primary 를 고르는
+//     정렬 계약 (`createdAt` · `id` 오름차순 — T-1745 의 `selectNextPrimaryIdentity`) 은
+//     import 조차 하지 않는다. 근거: controller · route 가 아직 0 개라 본 service 의
+//     소비처가 없고, 따라서 "마지막 primary 를 지우면 primary 0" 이라는 중간 상태가
+//     외부로 노출되지 않는다 (T-1745 가 소비처 0 순수 모듈을 먼저 머지한 것과 같은 선례).
+//     어느 경로에서도 `setPrimary` 의 2 op transaction 을 재구현하지 않는다
+//     (ADR-0058 §Decision 2 — repository 가 유일 경로).
 //   - `P2002` · `P2025` 외의 오류는 어느 경로에서도 삼키지 않고 그대로 propagate 한다.
 //   - controller · route · guard 배선 없음 (ADR-0058 §Follow-ups (b)).
 //   - 정렬 · 필터 · DTO 매핑 없음 — repository 의 "Prisma default 순서 유지" 주석 승계.
@@ -205,6 +210,43 @@ export class ServiceIdentityService {
         personId,
         identityId,
       );
+    } catch (error) {
+      if (getPrismaErrorCode(error) === "P2025") {
+        throw new NotFoundException(
+          `service identity not found: ${identityId}`,
+        );
+      }
+      throw error;
+    }
+  }
+
+  // delete — 해당 Person 소유 identity 1 개를 hard delete (ADR-0058 §Decision 1 의
+  // DELETE `/api/persons/:personId/identities/:identityId` backend).
+  //
+  //   (1) 선검사: findByPersonId / create / update / setPrimary 와 **동일한** Person 존재
+  //       계약 (ADR §Decision 5 c). 부재면 404 이고 ServiceIdentityRepository 는 미호출.
+  //   (2) 소유 검사: update / setPrimary 와 같은 3 단 패턴 — 목록에 identityId 가 없으면
+  //       404 이며 **403 이 아니다** (ADR §Decision 5 e). 타 Person row 의 존재 사실도
+  //       소유자 personId 도 메시지에 드러내지 않는다. findById 를 새로 추가하지 않고
+  //       기존 findByPersonId primitive 를 재사용한다.
+  //   (3) repository.delete 결과 (삭제된 row) 를 가공 없이 반환. (2) 와 delete 사이에
+  //       row 가 사라져 Prisma 가 `P2025` 를 던지면 404 로 변환 (ADR §Decision 5 b),
+  //       그 외 오류는 삼키지 않고 원형 그대로 propagate.
+  //   (4) 대상이 `isPrimary === true` 여도 **재승격을 호출하지 않는다** — 헤더 "책임
+  //       경계" 참조 (후속 T-1747). 여기에 setPrimary 를 끼워 넣으면 경계가 무너진다.
+  async delete(personId: string, identityId: string): Promise<ServiceIdentity> {
+    const person = await this.personRepository.findById(personId);
+    if (person === null) {
+      throw new NotFoundException(`person not found: ${personId}`);
+    }
+
+    const owned = await this.serviceIdentityRepository.findByPersonId(personId);
+    if (!owned.some((row) => row.id === identityId)) {
+      throw new NotFoundException(`service identity not found: ${identityId}`);
+    }
+
+    try {
+      return await this.serviceIdentityRepository.delete(identityId);
     } catch (error) {
       if (getPrismaErrorCode(error) === "P2025") {
         throw new NotFoundException(
