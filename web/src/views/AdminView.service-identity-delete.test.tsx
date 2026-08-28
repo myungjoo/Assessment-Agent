@@ -111,6 +111,16 @@ describe('runDeleteServiceIdentity (T-1769 삭제 축 러너)', () => {
     expect(mocks.setDeleting).toHaveBeenLastCalledWith(false);
   });
 
+  // 분기 cover — 성공 분기의 콜백 순서. 재조회 트리거가 확인 단계 접기보다 먼저여야, 확인 UI 가
+  // 먼저 닫혀 목록이 아직 옛 행을 보여주는 빈 구간이 생기지 않는다(reviewer N1).
+  it('성공 분기에서 bumpRefresh 를 endConfirm 보다 먼저 호출한다', async () => {
+    const { deps, mocks } = makeDeps();
+    await run('p1', 'i1', deps);
+    const [refreshAt] = mocks.bumpRefresh.mock.invocationCallOrder;
+    const [confirmAt] = mocks.endConfirm.mock.invocationCallOrder;
+    expect(refreshAt).toBeLessThan(confirmAt);
+  });
+
   // negative — 실패 직후 같은 대상으로 재시도하면 직전 error 가 먼저 비워진다.
   it('실패 후 같은 대상으로 재시도하면 직전 error 를 먼저 비운다', async () => {
     const { deps, mocks, order } = makeDeps({ reject: { status: 500 } });
