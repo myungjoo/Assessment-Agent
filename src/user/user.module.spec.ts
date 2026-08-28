@@ -87,6 +87,8 @@ import { PersonGroupMembershipRepository } from "./person-group-membership.repos
 // eslint-disable-next-line import/first
 import { PersonRepository } from "./person.repository";
 // eslint-disable-next-line import/first
+import { ServiceIdentityController } from "./service-identity.controller";
+// eslint-disable-next-line import/first
 import { UserController } from "./user.controller";
 // eslint-disable-next-line import/first
 import { UserModule } from "./user.module";
@@ -299,6 +301,24 @@ describe("UserModule", () => {
     const controller = moduleRef.get(UserController);
     expect(controller).toBeDefined();
     expect(controller).toBeInstanceOf(UserController);
+
+    await moduleRef.close();
+  });
+
+  // T-1748: ServiceIdentityController 가 controllers 배열에 등록되어 resolve 된다.
+  // ADR-0058 §Follow-ups (b) 의 첫 절단 — `/api/persons/:personId/identities` 의 GET
+  // 목록 route 배선. controller instance 획득은 provider chain (ServiceIdentityService
+  // + PersonRepository + ServiceIdentityRepository + guard) 이 모두 resolve 됐다는
+  // 의미다. ServiceIdentityService 는 T-1741 에서 이미 등록 — providers · exports
+  // 배열 변경 0.
+  it("compile 시 ServiceIdentityController 가 controllers 에 등록되어 resolve 된다 (T-1748)", async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, UserModule],
+    }).compile();
+
+    const controller = moduleRef.get(ServiceIdentityController);
+    expect(controller).toBeDefined();
+    expect(controller).toBeInstanceOf(ServiceIdentityController);
 
     await moduleRef.close();
   });

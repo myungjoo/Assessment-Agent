@@ -30,7 +30,9 @@
 //   - 삭제 + 재승격을 하나의 `$transaction` 으로 묶는 원자성 강화는 본 service 밖이다 —
 //     현재는 controller · route 가 0 개라 두 op 사이 중간 상태가 외부로 노출되지 않는다.
 //   - `P2002` · `P2025` 외의 오류는 어느 경로에서도 삼키지 않고 그대로 propagate 한다.
-//   - controller · route · guard 배선 없음 (ADR-0058 §Follow-ups (b)).
+//   - controller · route 는 T-1748 이 GET 목록 1 개만 노출했다 (ADR-0058 §Follow-ups
+//     (b) 의 첫 절단 — `ServiceIdentityController` + guard stack). POST · PATCH ·
+//     DELETE · primary 지정 4 route 는 여전히 미배선이라 후속 slice 소관이다.
 //   - 정렬 · 필터 · DTO 매핑 없음 — repository 의 "Prisma default 순서 유지" 주석 승계.
 import {
   ConflictException,
