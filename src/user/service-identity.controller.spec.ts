@@ -18,19 +18,21 @@ import { RolesGuard } from "../auth/roles.guard";
 import { ServiceIdentityController } from "./service-identity.controller";
 import type { ServiceIdentityService } from "./service-identity.service";
 
-// ServiceIdentity fixture — schema.prisma 의 6 컬럼 default 채움.
+// ServiceIdentity fixture — schema.prisma 의 7 컬럼 default 채움 (type 단언 없이 전
+// 컬럼을 채워 schema drift 를 컴파일로 잡는다 — service.spec 의 fixture 와 같은 형태).
 function buildIdentityFixture(
   overrides: Partial<ServiceIdentity> = {},
 ): ServiceIdentity {
   return {
     id: "identity-1",
     personId: "person-1",
-    service: "GITHUB",
+    service: "github.com",
     externalId: "octocat",
     isPrimary: true,
     createdAt: new Date("2026-08-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-08-01T00:00:00.000Z"),
     ...overrides,
-  } as ServiceIdentity;
+  };
 }
 
 // service mock — 5 메서드를 모두 깔아두고 findByPersonId 외 호출 0 을 negative 로 고정.
@@ -61,7 +63,7 @@ describe("ServiceIdentityController (위임 동작)", () => {
       buildIdentityFixture(),
       buildIdentityFixture({
         id: "identity-2",
-        service: "GHE",
+        service: "ghe.example.com",
         externalId: "octocat-ghe",
         isPrimary: false,
       }),
