@@ -1,13 +1,19 @@
-// ServiceIdentityController spec — T-1748 acceptance 박제.
+// ServiceIdentityController spec — T-1748(GET) + T-1749(POST) acceptance 박제.
 //
-// route 1 개(GET 목록) + 순수 위임 handler 라 spec 도 그 분량에 맞춰 좁게 간다
-// (assessment.controller.spec 을 통째로 베끼지 않고 metadata 검증 관례만 승계).
+// route 2 개(GET 목록 · POST 생성) 모두 순수 위임 handler 라 spec 도 그 분량에 맞춰 좁게
+// 간다 (assessment.controller.spec 을 통째로 베끼지 않고 metadata 검증 관례만 승계).
 // 구성: (1) 위임 동작 — mock service 로 happy / error / negative, (2) metadata 박제 —
-// guard stack 순서 · @Roles("User") · controller-scope ValidationPipe 옵션 3 종.
+// route method · guard stack 순서 · @Roles tier · @HttpCode 미부착 · controller-scope
+// ValidationPipe 옵션 3 종.
 //
-// R-112 분기 축 메모: GET handler 에는 **조건 분기가 없다**(순수 위임) — 코드 분기
-// test 는 해당 없음이며, 분기 축은 guard tier metadata 2 케이스로 대체한다.
-import { NotFoundException } from "@nestjs/common";
+// R-112 분기 축 메모: GET · POST handler 어느 쪽에도 **조건 분기가 없다**(순수 위임) —
+// 코드 분기 test 는 해당 없음이며, 분기 축은 metadata 케이스(route method · @HttpCode
+// 미부착 · @Roles tier 독립 · guard 순서)로 대체한다.
+import {
+  ConflictException,
+  NotFoundException,
+  RequestMethod,
+} from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import type { ServiceIdentity } from "@prisma/client";
 
@@ -15,6 +21,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ROLES_METADATA_KEY } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 
+import type { CreateServiceIdentityDto } from "./dto/create-service-identity.dto";
 import { ServiceIdentityController } from "./service-identity.controller";
 import type { ServiceIdentityService } from "./service-identity.service";
 
@@ -142,6 +149,137 @@ describe("ServiceIdentityController (위임 동작)", () => {
   });
 });
 
+// CreateServiceIdentityDto fixture — body 2 필드뿐 (§Decision 2 — `isPrimary` 없음).
+function buildCreateDto(
+  overrides: Partial<CreateServiceIdentityDto> = {},
+): CreateServiceIdentityDto {
+  return { service: "github.com", externalId: "octocat", ...overrides };
+}
+
+describe("ServiceIdentityController.create (POST 위임 동작)", () => {
+  let serviceMock: ReturnType<typeof buildServiceMock>;
+  let controller: ServiceIdentityController;
+
+  beforeEach(() => {
+    serviceMock = buildServiceMock();
+    controller = new ServiceIdentityController(
+      serviceMock as unknown as ServiceIdentityService,
+    );
+  });
+
+  // happy path — (personId, dto) 를 그대로 위임하고 생성 row 를 동일 참조로 반환.
+  it("POST 생성: service.create 에 (personId, dto) 를 그대로 전달하고 반환 row 를 가공 없이 돌려준다", async () => {
+    const dto = buildCreateDto();
+    const created = buildIdentityFixture();
+    serviceMock.create.mockResolvedValue(created);
+
+    const result = await controller.create("person-1", dto);
+
+    // 동일 참조 — 복제 · envelope · 필드 추가 0.
+    expect(result).toBe(created);
+    expect(serviceMock.create).toHaveBeenCalledTimes(1);
+    expect(serviceMock.create).toHaveBeenCalledWith("person-1", dto);
+    // dto 객체 자체도 controller 가 변형하지 않는다.
+    expect(dto).toEqual({ service: "github.com", externalId: "octocat" });
+  });
+
+  // error path 1 — `P2002` 변환 결과인 ConflictException(409) 을 동일 인스턴스로 전파.
+  it("POST 생성: service 의 ConflictException(409) 을 동일 인스턴스로 그대로 전파한다", async () => {
+    const error = new ConflictException(
+      "service identity already exists: person-1/github.com",
+    );
+    serviceMock.create.mockRejectedValue(error);
+
+    await expect(controller.create("person-1", buildCreateDto())).rejects.toBe(
+      error,
+    );
+  });
+
+  // error path 2 — Person 부재의 NotFoundException(404) 도 변환 없이 전파.
+  it("POST 생성: service 의 NotFoundException(404) 을 동일 인스턴스로 그대로 전파한다", async () => {
+    const error = new NotFoundException("person not found: missing-person");
+    serviceMock.create.mockRejectedValue(error);
+
+    await expect(
+      controller.create("missing-person", buildCreateDto()),
+    ).rejects.toBe(error);
+    expect(serviceMock.create).toHaveBeenCalledWith(
+      "missing-person",
+      expect.any(Object),
+    );
+  });
+
+  // error path 3 — HttpException 이 아닌 일반 Error 도 raw forward (try/catch 없음).
+  it("POST 생성: 일반 Error 도 상태 변형 없이 그대로 전파한다", async () => {
+    const error = new Error("db down");
+    serviceMock.create.mockRejectedValue(error);
+
+    await expect(controller.create("person-1", buildCreateDto())).rejects.toBe(
+      error,
+    );
+  });
+
+  // negative (i) — 빈 문자열 personId 도 controller 가 차단·가공하지 않고 위임한다
+  // (검증 책임은 service 선검사 · ValidationPipe).
+  it("negative: 빈 문자열 personId 도 가공·차단 없이 service.create 로 전달한다", async () => {
+    serviceMock.create.mockResolvedValue(buildIdentityFixture());
+
+    await controller.create("", buildCreateDto());
+
+    expect(serviceMock.create).toHaveBeenCalledWith("", expect.any(Object));
+  });
+
+  // negative (ii) — throw 시 단락되어 반환값이 만들어지지 않는다.
+  it("negative: service.create 가 throw 하면 단락되어 반환값이 만들어지지 않는다", async () => {
+    serviceMock.create.mockRejectedValue(new ConflictException("dup"));
+
+    let returned: unknown = "sentinel";
+    await expect(
+      (async () => {
+        returned = await controller.create("person-1", buildCreateDto());
+      })(),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    expect(returned).toBe("sentinel");
+  });
+
+  // negative (iii) — POST 는 create 외 collaborator 를 부르지 않는다 (성공 · 실패 공통).
+  it("negative: POST 성공 경로에서 create 외 다른 collaborator 호출 0 회", async () => {
+    serviceMock.create.mockResolvedValue(buildIdentityFixture());
+
+    await controller.create("person-1", buildCreateDto());
+
+    expect(serviceMock.findByPersonId).not.toHaveBeenCalled();
+    expect(serviceMock.update).not.toHaveBeenCalled();
+    expect(serviceMock.setPrimary).not.toHaveBeenCalled();
+    expect(serviceMock.remove).not.toHaveBeenCalled();
+  });
+
+  it("negative: POST 실패 경로에서도 create 외 다른 collaborator 호출 0 회", async () => {
+    serviceMock.create.mockRejectedValue(new Error("boom"));
+
+    await expect(
+      controller.create("person-1", buildCreateDto()),
+    ).rejects.toThrow("boom");
+
+    expect(serviceMock.findByPersonId).not.toHaveBeenCalled();
+    expect(serviceMock.setPrimary).not.toHaveBeenCalled();
+  });
+
+  // negative (iv) — 응답을 envelope 로 감싸거나 필드를 덧붙이지 않는다 (키 집합 불변).
+  it("negative: 응답을 감싸거나 필드를 덧붙이지 않는다 (반환 객체 키 집합 불변)", async () => {
+    const created = buildIdentityFixture({ isPrimary: false });
+    const keysBefore = Object.keys(created).sort();
+    serviceMock.create.mockResolvedValue(created);
+
+    const result = await controller.create("person-1", buildCreateDto());
+
+    expect(Object.keys(result).sort()).toEqual(keysBefore);
+    expect(result).not.toHaveProperty("data");
+    expect(result).not.toHaveProperty("meta");
+  });
+});
+
 describe("ServiceIdentityController (route · guard · pipe metadata)", () => {
   // base path — ADR-0058 §Decision 1 의 nested route shape 고정.
   it("base path 가 api/persons/:personId/identities 이다", () => {
@@ -169,6 +307,62 @@ describe("ServiceIdentityController (route · guard · pipe metadata)", () => {
     const guards = Reflect.getMetadata(
       "__guards__",
       ServiceIdentityController.prototype.findByPersonId,
+    ) as unknown[];
+
+    expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
+  });
+
+  // 분기 축 (c) — POST handler 의 route method 가 RequestMethod.POST 로 박혀 있다.
+  it("create handler 의 route method 가 POST 이다", () => {
+    const method = Reflect.getMetadata(
+      "method",
+      ServiceIdentityController.prototype.create,
+    ) as number | undefined;
+
+    expect(method).toBe(RequestMethod.POST);
+    // negative — GET handler 와 독립. 같은 controller 의 두 route 가 섞이지 않는다.
+    expect(
+      Reflect.getMetadata(
+        "method",
+        ServiceIdentityController.prototype.findByPersonId,
+      ),
+    ).toBe(RequestMethod.GET);
+  });
+
+  // 분기 축 (d) — @HttpCode 미부착 = NestJS POST 기본값 201 유지 (§Decision 1 POST 행).
+  it("create handler 에 @HttpCode 가 부착돼 있지 않다 (기본 201 Created 유지)", () => {
+    const httpCode = Reflect.getMetadata(
+      "__httpCode__",
+      ServiceIdentityController.prototype.create,
+    ) as number | undefined;
+
+    expect(httpCode).toBeUndefined();
+  });
+
+  // 분기 축 (e) — 편집 tier 는 Admin. GET 의 "User" 와 독립적으로 박제됨 (§Decision 4).
+  it('create handler 에 @Roles("Admin") 이 박혀 있고 GET 의 "User" tier 와 독립이다', () => {
+    const reflector = new Reflector();
+
+    expect(
+      reflector.get<string[]>(
+        ROLES_METADATA_KEY,
+        ServiceIdentityController.prototype.create,
+      ),
+    ).toEqual(["Admin"]);
+    // negative — POST 배선이 GET 의 tier 를 덮어쓰지 않았다.
+    expect(
+      reflector.get<string[]>(
+        ROLES_METADATA_KEY,
+        ServiceIdentityController.prototype.findByPersonId,
+      ),
+    ).toEqual(["User"]);
+  });
+
+  // 분기 축 (f) — guard stack 이 GET 과 동일 순서 (JwtAuthGuard → RolesGuard).
+  it("create handler 에 @UseGuards(JwtAuthGuard, RolesGuard) 가 GET 과 같은 순서로 부착돼 있다", () => {
+    const guards = Reflect.getMetadata(
+      "__guards__",
+      ServiceIdentityController.prototype.create,
     ) as unknown[];
 
     expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
