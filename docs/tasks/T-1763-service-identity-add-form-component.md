@@ -2,12 +2,15 @@
 id: T-1763
 title: web ServiceIdentityAddForm 추가 전용 폼 컴포넌트 신설 (쓰기 축 1/2)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-08-28T17:53:43Z
+prNumber: 1391
+mergeCommit: 1ca0e3f7
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 285
 estimatedFiles: 2
-created: 2026-08-29
+created: 2026-08-28
 independentStream: service-identity-web
 dependsOn: [T-1762]
 touchesFiles:
