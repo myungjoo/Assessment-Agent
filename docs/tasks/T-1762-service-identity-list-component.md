@@ -2,7 +2,9 @@
 id: T-1762
 title: web ServiceIdentityList 표시 전용 목록 컴포넌트 신설 (읽기 축)
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-08-28T16:56:14Z
+prNumber: 1390
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 270
@@ -63,3 +65,7 @@ plannerNote: "P6/PLAN 132 행 — ADR-0058 (d) 네 번째 web slice: 편집·배
 ## Follow-ups
 
 (생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-28)
+
+**DONE** — PR [#1390](https://github.com/myungjoo/Assessment-Agent/pull/1390) squash 머지 `478b0d52`. `web/src/components/ServiceIdentityList.tsx` + colocated spec 2 파일 `+295/-0`, 새 dependency 0. row 타입은 `../api/serviceIdentity` 의 `ServiceIdentityRow` 를 재사용해 재선언 drift 를 차단했고, 분기 순서를 `loading → error → empty → populated` 로 고정했다. spec 18 개(happy 3 · error 2 · 4 분기 + 우선순위 · negative 8 종)로 R-112 4 종을 덮었으며 web 2615 test + 루트 13208 test 전량 green, `test:cov` threshold 유지. reviewer APPROVE(round 1/7) → PR comment 외부 post → 4-게이트 PASS 후 squash 머지 + branch 삭제.
