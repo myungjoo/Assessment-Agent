@@ -484,9 +484,15 @@ describe('ServiceIdentity 쓰기 축 2/2 (DELETE · primary)', () => {
     });
 
     // 404 3 단(Person 부재 · 타 Person 소유 · P2025) + 401 + 409 + 500 — 흡수 없이 전파.
-    it.each([[404], [401], [409], [500]])(
-      '%i 응답을 ApiError 로 status 보존해 전파한다 (error path · negative)',
-      async (status) => {
+    it.each([
+      ['404 Person 부재', 404],
+      ['404 타 Person 소유', 404],
+      ['401 미인증', 401],
+      ['409 예기치 못한 status', 409],
+      ['500 서버 오류', 500],
+    ])(
+      '%s 응답을 ApiError 로 status 보존해 전파한다 (error path · negative)',
+      async (_label, status) => {
         fetchSpy
           .mockResolvedValueOnce(mockResponse(status, 'err', 'text/plain'))
           .mockResolvedValueOnce(mockResponse(status, 'err', 'text/plain'));
