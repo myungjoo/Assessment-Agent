@@ -2,7 +2,7 @@
 id: T-1758
 title: Re-judge REQ-078 / REQ-079 status against the shipped ServiceIdentity API
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-078, REQ-079]
 independentStream: service-identity-backend
@@ -33,13 +33,13 @@ REQ-078 은 "조회·추가·수정·삭제 API **와** Admin UI 제공" 이라�
 
 ## Acceptance Criteria
 
-- [ ] `docs/requirements.md` 의 REQ-078 행 상태가 `PLANNED` → `IN_PROGRESS` 로 갱신되고, 괄호 근거에 **API 축 shipped / Admin UI 축 미shipped** 두 축이 각각 명시된다.
-- [ ] REQ-078 근거 문장이 **실코드 좌표**를 인용한다 — 최소 `src/user/service-identity.controller.ts` 의 `@Controller("api/persons/:personId/identities")` 와 5 route(`@Get()` · `@Post()` · `@Patch(":identityId")` · `@Delete(":identityId")` · `@Post(":identityId/primary")`). 인용한 decorator 문자열은 `grep -n '@\(Get\|Post\|Patch\|Delete\|Controller\)(' src/user/service-identity.controller.ts` 결과와 문자 단위로 일치해야 한다.
-- [ ] REQ-078 의 "구현 위치 (phase/task)" 컬럼에 shipped chain 의 task ID 가 comma 로 추가된다 (최소 `T-1739`(ADR) · 서비스/DTO 축 · controller 축 · e2e 축 대표 ID 를 포함하고, 남은 UI 축은 `P6 (PLAN 132 행)` 로 유지).
-- [ ] REQ-079 행은 상태 `PLANNED` 를 **유지**하되, 근거로 "ADR-0058 §Follow-ups (d) AdminView 편집 UI 미shipped" 가 병기된다 (상태 토큰 자체는 바꾸지 않는다).
-- [ ] 표의 7 컬럼 schema 가 깨지지 않는다 — `awk -F'|' 'NR>0 && /^\| REQ-07[89] /{print NF}' docs/requirements.md` 가 두 행 모두 다른 REQ 행과 동일한 필드 수를 출력한다.
-- [ ] `git diff --stat` 결과가 `docs/requirements.md` 1 파일이며 diff ≤ 300 LOC.
-- [ ] 상태 enum 은 `docs/requirements.md` `9 행` 이 정의한 5 값(`PLANNED` / `IN_PROGRESS` / `DONE` / `BLOCKED` / `SUPERSEDED`) 밖의 새 토큰을 만들지 않는다.
+- [x] `docs/requirements.md` 의 REQ-078 행 상태가 `PLANNED` → `IN_PROGRESS` 로 갱신되고, 괄호 근거에 **API 축 shipped / Admin UI 축 미shipped** 두 축이 각각 명시된다.
+- [x] REQ-078 근거 문장이 **실코드 좌표**를 인용한다 — 최소 `src/user/service-identity.controller.ts` 의 `@Controller("api/persons/:personId/identities")` 와 5 route(`@Get()` · `@Post()` · `@Patch(":identityId")` · `@Delete(":identityId")` · `@Post(":identityId/primary")`). 인용한 decorator 문자열은 `grep -n '@\(Get\|Post\|Patch\|Delete\|Controller\)(' src/user/service-identity.controller.ts` 결과와 문자 단위로 일치해야 한다.
+- [x] REQ-078 의 "구현 위치 (phase/task)" 컬럼에 shipped chain 의 task ID 가 comma 로 추가된다 (최소 `T-1739`(ADR) · 서비스/DTO 축 · controller 축 · e2e 축 대표 ID 를 포함하고, 남은 UI 축은 `P6 (PLAN 132 행)` 로 유지).
+- [x] REQ-079 행은 상태 `PLANNED` 를 **유지**하되, 근거로 "ADR-0058 §Follow-ups (d) AdminView 편집 UI 미shipped" 가 병기된다 (상태 토큰 자체는 바꾸지 않는다).
+- [x] 표의 7 컬럼 schema 가 깨지지 않는다 — `awk -F'|' 'NR>0 && /^\| REQ-07[89] /{print NF}' docs/requirements.md` 가 두 행 모두 다른 REQ 행과 동일한 필드 수를 출력한다.
+- [x] `git diff --stat` 결과가 `docs/requirements.md` 1 파일이며 diff ≤ 300 LOC.
+- [x] 상태 enum 은 `docs/requirements.md` `9 행` 이 정의한 5 값(`PLANNED` / `IN_PROGRESS` / `DONE` / `BLOCKED` / `SUPERSEDED`) 밖의 새 토큰을 만들지 않는다.
 
 > 본 task 는 `commitMode: direct` 인 **doc-only** slice 라 코드 변경 0 이다 — CLAUDE.md §3.2 R-110 의 tester 의무는 direct-mode doc-only commit 면제 조항에 해당하며, R-112 4 항목(happy-path / error path / 분기 / negative)은 **추가되는 production symbol 이 0 이라 적용 대상 없음**. 대신 위 grep / awk 검증 항목이 문서 정합의 기계 검증을 대신한다.
 
@@ -58,4 +58,12 @@ REQ-078 은 "조회·추가·수정·삭제 API **와** Admin UI 제공" 이라�
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 적는다.)
+- ADR-0058 `§Status` · `§Follow-ups` 의 완료 표기는 본 slice 범위 밖(Out of Scope)이라 손대지 않았다 — `(a)~(c)` · `(e)` 가 모두 머지된 지금 `(d)` 만 남았으므로, `(d)` shipped 후 ADR 완료 표기 + REQ-078 `DONE` 승격 + REQ-079 재판정을 한 slice 로 묶는 후속 task 가 필요하다.
+- `docs/PLAN.md` `132 행` 오너 지시 bullet 은 UI 축 미shipped 라 `[ ]` 유지가 맞지만, API 축이 머지된 사실을 bullet 하위 메모로 남길지는 별도 판단이 필요하다(본 slice 는 Out of Scope 로 두었다).
+- REQ-078 의 "검증 위치" 컬럼은 `unit + e2e` 를 유지했다 — Admin UI 축이 shipped 되면 web spec 축(`web/src/**/*.spec.tsx`)을 검증 위치에 추가할지 함께 판단해야 한다.
+
+## 완료 기록
+
+- 완료: 2026-08-28 (commitMode `direct`, doc-only).
+- 결과: `docs/requirements.md` `97 행` REQ-078 을 `PLANNED` → `IN_PROGRESS` 로 재판정(API 축 shipped / Admin UI 축 미shipped 축별 근거 병기, 구현 위치에 T-1738 ~ T-1757 chain 추가), `98 행` REQ-079 는 `PLANNED` 유지 + 미shipped 근거 병기. 2 행 교체(+2/-2), 1 파일.
+- 기계 검증: `grep -n '@\(Get\|Post\|Patch\|Delete\|Controller\)(' src/user/service-identity.controller.ts` 6 개 decorator 문자열이 문서 인용과 `grep -F` 문자 단위 일치, `awk -F'|' '/^\| REQ-07[89] /{print NF}'` 두 행 모두 `9`(다른 REQ 행과 동일), 상태 enum 5 값 밖 새 토큰 0.
