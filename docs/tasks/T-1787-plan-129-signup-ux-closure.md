@@ -2,7 +2,7 @@
 id: T-1787
 title: PLAN 129 행 계정 생성 UX 오너 지시 bullet 마커 승격 (R-158~R-160 closure)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-067, REQ-068, REQ-069]
 estimatedDiff: 25
