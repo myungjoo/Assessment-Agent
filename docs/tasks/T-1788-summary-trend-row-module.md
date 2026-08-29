@@ -2,7 +2,7 @@
 id: T-1788
 title: 시계열 요약 표시 row 순수 모듈 summaryRow 신설 (backend Summary 계약 정합)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-075]
 independentStream: web-dashboard-display-contract
@@ -39,20 +39,20 @@ plannerNote: cap-bend pre-justified — P6 PLAN 131 행 ② 표시 계약 정합
 
 ## Acceptance Criteria
 
-- [ ] `web/src/api/summaryRow.ts` 신설. 최소 다음을 named export 한다.
-  - [ ] `SummaryDisplayRow` 타입 — `id` · `period` · `periodStart` · `label`(표시용 시점) · `value: number | null`(metricScore) · `narrative` 를 갖는다. 값 결손은 `0` 으로 위장하지 않고 `null` 로 남긴다 (요약 카드 축의 "표본 없음 ≠ 평균 0" 정책 승계).
-  - [ ] `toSummaryDisplayRow(raw: unknown): SummaryDisplayRow | null` — 객체가 아니거나 `id` 가 빈 문자열/비문자열이면 `null`.
-  - [ ] `deriveSummaryDisplayRows(raw: unknown): SummaryDisplayRow[]` — 비배열 입력은 빈 배열로 흡수하고, `null` 매핑 row 는 제외한다 (throw 금지).
-- [ ] `metricScore` 는 [assessmentRow.ts](../../web/src/api/assessmentRow.ts) 의 `parseNumericField` 를 **import 해서** 해석한다 (숫자 · `"2.5"` 문자열 Decimal 모두 흡수). 파싱 로직을 새로 복제하지 않는다.
-- [ ] 시점 라벨은 `periodStart` 에서 파생한다 — ISO 문자열의 날짜 부분(`YYYY-MM-DD`) 을 라벨로 쓰고, `periodStart` 가 없거나 형식이 어긋나면 원문 → `period` 순으로 fallback 하며 마지막에도 없으면 빈 문자열이 아니라 결정적 fallback 라벨을 준다. `period` 종류값(`daily` 등) 을 시점 라벨로 **우선** 채택하지 않는다.
-- [ ] colocated spec `web/src/api/summaryRow.test.ts` 신설. R-112 4 종을 모두 덮는다.
-  - [ ] happy-path 1+ — 실제 `GET /api/summaries` 응답 형태(`metricScore` Decimal 문자열 + `periodStart` ISO) 배열이 `TrendPoint` 로 그대로 쓸 수 있는 라벨 · 값으로 매핑됨.
-  - [ ] error path 1+ — `metricScore` 누락 · `null` · `"abc"` 같은 비수치 문자열 · `NaN` 에서 throw 없이 `value === null`.
-  - [ ] 분기별 1+ — `id` 누락/빈 문자열 → `null`, `periodStart` 유효/무효/부재 3 분기, `narrative` 부재 fallback, 배열/비배열 분기.
-  - [ ] negative cases 충분 cover — `null` · `undefined` · 문자열 · 숫자 원소, 빈 배열, 원소가 객체 아님, 알 수 없는 추가 필드 존재, 옛 계약(`value` · `score` 만 있는 row) 이 값 0 으로 위장되지 않음(= `null`) 각 1+.
-- [ ] `pnpm --dir web test` (또는 repo 규약 명령) 로 web spec 전량 green.
-- [ ] 루트 `pnpm lint && pnpm build && pnpm test` green, `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%).
-- [ ] 새 외부 dependency 0 · backend 파일 변경 0.
+- [x] `web/src/api/summaryRow.ts` 신설. 최소 다음을 named export 한다.
+  - [x] `SummaryDisplayRow` 타입 — `id` · `period` · `periodStart` · `label`(표시용 시점) · `value: number | null`(metricScore) · `narrative` 를 갖는다. 값 결손은 `0` 으로 위장하지 않고 `null` 로 남긴다 (요약 카드 축의 "표본 없음 ≠ 평균 0" 정책 승계).
+  - [x] `toSummaryDisplayRow(raw: unknown): SummaryDisplayRow | null` — 객체가 아니거나 `id` 가 빈 문자열/비문자열이면 `null`.
+  - [x] `deriveSummaryDisplayRows(raw: unknown): SummaryDisplayRow[]` — 비배열 입력은 빈 배열로 흡수하고, `null` 매핑 row 는 제외한다 (throw 금지).
+- [x] `metricScore` 는 [assessmentRow.ts](../../web/src/api/assessmentRow.ts) 의 `parseNumericField` 를 **import 해서** 해석한다 (숫자 · `"2.5"` 문자열 Decimal 모두 흡수). 파싱 로직을 새로 복제하지 않는다.
+- [x] 시점 라벨은 `periodStart` 에서 파생한다 — ISO 문자열의 날짜 부분(`YYYY-MM-DD`) 을 라벨로 쓰고, `periodStart` 가 없거나 형식이 어긋나면 원문 → `period` 순으로 fallback 하며 마지막에도 없으면 빈 문자열이 아니라 결정적 fallback 라벨을 준다. `period` 종류값(`daily` 등) 을 시점 라벨로 **우선** 채택하지 않는다.
+- [x] colocated spec `web/src/api/summaryRow.test.ts` 신설. R-112 4 종을 모두 덮는다.
+  - [x] happy-path 1+ — 실제 `GET /api/summaries` 응답 형태(`metricScore` Decimal 문자열 + `periodStart` ISO) 배열이 `TrendPoint` 로 그대로 쓸 수 있는 라벨 · 값으로 매핑됨.
+  - [x] error path 1+ — `metricScore` 누락 · `null` · `"abc"` 같은 비수치 문자열 · `NaN` 에서 throw 없이 `value === null`.
+  - [x] 분기별 1+ — `id` 누락/빈 문자열 → `null`, `periodStart` 유효/무효/부재 3 분기, `narrative` 부재 fallback, 배열/비배열 분기.
+  - [x] negative cases 충분 cover — `null` · `undefined` · 문자열 · 숫자 원소, 빈 배열, 원소가 객체 아님, 알 수 없는 추가 필드 존재, 옛 계약(`value` · `score` 만 있는 row) 이 값 0 으로 위장되지 않음(= `null`) 각 1+.
+- [x] `pnpm --dir web test` (또는 repo 규약 명령) 로 web spec 전량 green.
+- [x] 루트 `pnpm lint && pnpm build && pnpm test` green, `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%).
+- [x] 새 외부 dependency 0 · backend 파일 변경 0.
 
 ## Out of Scope
 
@@ -72,3 +72,12 @@ plannerNote: cap-bend pre-justified — P6 PLAN 131 행 ② 표시 계약 정합
 - (a) `DashboardView` 배선 slice — 로컬 `SummaryRow`/`deriveTrendPoints` 를 신모듈 소비로 교체하고, `value === null` row 의 표시 정책(제외 vs 표기) 을 컨테이너 spec 으로 고정.
 - (b) 상세 패널 축 정합 slice — `ContributionRow` 를 backend `Contribution{contributionScore · difficulty · volume · sourceRef}` 계약으로 재설계 (현재 `metricLabel`/`score`/`rationale` 후보가 실 응답에 없어 "지표 미상 · 0 점" 렌더).
 - (c) 위 (a)(b) 종료 후 [docs/requirements.md](../requirements.md) `93~96 행` REQ-074~077 재판정 + [PLAN.md](../PLAN.md) `131 행` 마커 승격 (T-1786/T-1787 패턴).
+
+## Result (2026-08-29 완료)
+
+- **DONE** — PR [#1410](https://github.com/myungjoo/Assessment-Agent/pull/1410) squash merge `e117638a`. reviewer round 1/7 `VERDICT: APPROVE`, PR comment 외부 post 확인, PR CI `c3c2324d` success → 4-게이트 PASS.
+- 신설 파일 2 개: `web/src/api/summaryRow.ts` (`SummaryDisplayRow` · `toSummaryDisplayRow` · `deriveSummaryDisplayRows`) + colocated spec `web/src/api/summaryRow.test.ts` (+434/-0).
+- `metricScore` 는 [assessmentRow.ts](../../web/src/api/assessmentRow.ts) 의 `parseNumericField` 를 import 재사용해 Decimal-as-string 을 흡수했다 (로직 복제 0). 라벨은 `periodStart` ISO 날짜 → 원문 → `period` → 결정적 fallback 순으로 파생해 period 종류값이 시점 라벨로 새는 경로를 막았고, 값 결손은 0 위장 없이 `null` 로 남긴다.
+- R-112 4 종 41 케이스 cover — web vitest 103 파일 / 2948 test green, 루트 lint · build · test(458 suite / 13208 test) · test:cov(line 99.94% · function 100%) green. 새 외부 dependency 0, backend 파일 변경 0.
+- Out of Scope 는 그대로 남는다 — `DashboardView` 배선은 Follow-up (a), 상세 패널 `ContributionRow` 정합은 (b), REQ-074~077 재판정 + PLAN `131 행` 마커 승격은 (c).
+
