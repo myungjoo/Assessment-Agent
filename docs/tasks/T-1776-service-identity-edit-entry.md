@@ -2,7 +2,7 @@
 id: T-1776
 title: AdminView 에 ServiceIdentity 행 편집 진입 helper beginServiceIdentityEdit 신설
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 200
