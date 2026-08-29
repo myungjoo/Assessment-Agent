@@ -2,7 +2,7 @@
 id: T-1771
 title: AdminView 에 ServiceIdentityRowActions 행별 플래그 순수 파생 helper deriveServiceIdentityRowActionsFlags 신설
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 240
@@ -62,3 +62,9 @@ plannerNote: "P6/PLAN 132 행 — ADR-0058 (d) 열세 번째 web slice: RowActio
 `implementer → tester`
 
 ## Follow-ups
+
+## 완료 기록
+
+- 완료: 2026-08-29T01:55:03Z (PR [#1399](https://github.com/myungjoo/Assessment-Agent/pull/1399) squash `d5ed711e`)
+- 결과: `web/src/views/AdminView.tsx` 에 `deriveServiceIdentityRowActionsFlags` + 인터페이스 2 개 신설, colocated spec 1 개 추가 (2 파일 `+183/-0`). 판정 규칙 (a)~(d) + trim 정규화 + "(a) 결함 / (b) 그래서" 2 문단 주석을 `deriveInstanceAccessFormFlags`(T-1168) 형식으로 박제. 컨테이너 본문·JSX 무수정. reviewer APPROVE(round 1/7) → 4-게이트 PASS.
+- test: 신규 spec 25 test — happy 1 · error path 3 · 분기 진리표 10 · negative 11. web 94 files / 2785 test green, 루트 lint · web build(tsc --noEmit + vite) green, CI 2 job 전량 pass.
