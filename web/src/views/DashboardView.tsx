@@ -41,6 +41,12 @@ import {
   deriveContributionScoreBuckets,
   summarizeContributionScores,
 } from '../api/assessmentScoreScale';
+// T-1789 (REQ-075, PLAN 131 행 ②) 시계열 축 배선 — 직전 slice T-1788 이 신설한 순수
+// 매핑 모듈을 본 컨테이너가 실제로 소비한다(모듈 수정 0). 컨테이너-로컬 `SummaryRow` ·
+// `deriveTrendPoints` 는 backend 실 필드(metricScore · periodStart · narrative)를 몰라
+// 모든 포인트를 값 0 · 종류값 라벨로 렌더했으므로 정의·export 를 함께 걷어냈다.
+import { deriveSummaryDisplayRows } from '../api/summaryRow';
+import type { SummaryDisplayRow } from '../api/summaryRow';
 import TrendTimeSeriesPanel from '../components/TrendTimeSeriesPanel';
 import type { TrendPoint } from '../components/TrendTimeSeriesPanel';
 import ScoreDistributionChart from '../components/ScoreDistributionChart';
@@ -156,19 +162,6 @@ function buildAssessmentsPath(
   return `/api/assessments?${params.toString()}`;
 }
 
-// 시계열 요약 row 의 frontend-local 최소 타입 — backend DTO 전수 공유는 Out of Scope
-// (③b-2/후속 별도 결정). 본 slice 는 시점 라벨(period) + 값(value/score) 두 필드만
-// 보수적으로 매핑한다. 모든 필드를 선택적으로 두어 누락/비정상 row 도 throw 없이 받는다
-// (api.md 109: GET /api/summaries 응답 = 일/주/월 시계열 요약 row 배열).
-interface SummaryRow {
-  // 시점 라벨 후보 — period(예 "2026-06-01") 우선, 없으면 label 을 시점 표식으로 쓴다.
-  period?: string;
-  label?: string;
-  // 값 후보 — value 우선, 없으면 score 를 시계열 값으로 매핑한다(둘 다 누락/NaN 이면 0).
-  value?: number;
-  score?: number;
-}
-
 // personId/period → GET /api/summaries 조회 path 파생(순수 함수). personId 가 falsy 면
 // null 반환(조회 미수행 — api.md 109 의 personId 누락 400 회피). period 가 있으면 query 에
 // 병기한다. assessments path 와 동일한 조건부 조회 가드 규약을 따른다.
@@ -247,19 +240,30 @@ function deriveContributionMetrics(
   });
 }
 
-// summary row 배열 → TrendPoint[] 파생(순수 함수). data 미도착(undefined)이면 빈 배열로
-// 간주한다. label 은 period → label 순으로 첫 truthy 값을, 값은 value → score 순으로 첫
-// 유한수를 취한다(누락/NaN 이면 0 으로 fallback — 비정상 row 도 throw 없이 0 포인트로 표시).
-function deriveTrendPoints(rows: SummaryRow[] | undefined): TrendPoint[] {
+// 시계열 표시 행 배열 → TrendPoint[] 파생(순수 함수, T-1789). 매핑 자체는 이미
+// summaryRow.ts 가 끝냈으므로 본 helper 는 **표시 계층 정책**만 담는다 — 두 축의 이름
+// (label · value)이 TrendPoint 계약과 같아 별도 rename 이 없다.
+//
+// 정책: `value === null`(metricScore 결손·비수치) 행은 포인트에서 **제외** 한다. 표본이
+// 없다는 사실을 0 점으로 위장하면 추이선이 바닥으로 꺾여 "성과 급락" 으로 오독되기
+// 때문이다(T-1727 toLegacyScoreRows · T-1730 집계 정책 승계 — 값 없음 ≠ 0 점).
+// 비배열 입력(null · undefined · 객체 등 타입 우회 값)도 throw 없이 빈 배열로 흡수한다.
+function toTrendPoints(rows: SummaryDisplayRow[]): TrendPoint[] {
   if (!Array.isArray(rows)) {
     return [];
   }
-  return rows.map((row, index) => {
-    const label = row.period ?? row.label ?? `#${index + 1}`;
-    const raw = row.value ?? row.score;
-    const value = typeof raw === 'number' && Number.isFinite(raw) ? raw : 0;
-    return { label, value };
-  });
+  const points: TrendPoint[] = [];
+  for (const row of rows) {
+    if (row === null || typeof row !== 'object') {
+      continue;
+    }
+    const { label, value } = row;
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      continue;
+    }
+    points.push({ label: typeof label === 'string' ? label : '', value });
+  }
+  return points;
 }
 
 // 표시할 row 로부터 요약 지표 카드 파생(순수 함수). 평가 건수·평균 점수 두 지표를
@@ -542,13 +546,16 @@ function DashboardView({
   // summaries(시계열) 조회 path — assessments 와 독립적으로 personId 가드를 받는다
   // (둘 다 null 가능). 두 번째 useApiResource 호출로 컨테이너가 시계열 상태를 소유한다.
   // 변수명에 trend prefix 를 붙여 assessments 의 loading/error 와 섞이지 않게 분리한다.
+  // 응답을 컨테이너가 특정 행 타입으로 단정하지 않는다(T-1727 근거를 시계열 축에 승계,
+  // T-1789) — 매핑 책임은 summaryRow.ts 의 deriveSummaryDisplayRows 가 지며 여기서는
+  // 원문을 그대로 받는다. alias 구조분해는 형제 조회와의 상태 분리를 위해 유지한다.
   const summariesPath = buildSummariesPath(selectedPersonId, period);
   const {
     data: trendData,
     loading: trendLoading,
     error: trendError,
     reload: trendReload,
-  } = useApiResource<SummaryRow[]>(summariesPath);
+  } = useApiResource<unknown[]>(summariesPath);
 
   // contributions(평가 상세) 조회 path — 선택 row 가 없으면 null(조회 미수행, api.md 104
   // 의 assessmentId 누락 400 회피). selectedId 변경이 곧 path 변경 → 재조회. 세 번째
@@ -630,8 +637,11 @@ function DashboardView({
     [visibleRows, effectivePage, effectivePageSize],
   );
 
-  // 시계열 포인트 파생 — summaries 조회 결과(trendData) 를 TrendPoint[] 로 매핑한다.
-  const trendPoints = useMemo(() => deriveTrendPoints(trendData), [trendData]);
+  // 시계열 표시 행 파생 — summaries 조회 원문(trendData)을 순수 모듈이 매핑한다(T-1789).
+  const trendRows = useMemo(() => deriveSummaryDisplayRows(trendData), [trendData]);
+
+  // 시계열 포인트 파생 — 표시 행에 표시 계층 정책(값 결손 행 제외)만 적용한다.
+  const trendPoints = useMemo(() => toTrendPoints(trendRows), [trendRows]);
 
   // 점수 분포 bucket 파생 — 이미 fetch 한 assessments 표시 행(visibleRows)을 실
   // contributionScore 스케일(0–3, 폭 0.5 6 등분) 로 client-side 집계한다(새 endpoint 0,
@@ -905,7 +915,7 @@ export {
   resolveHeaderSort,
   deriveMetrics,
   buildSummariesPath,
-  deriveTrendPoints,
+  toTrendPoints,
   buildContributionsPath,
   deriveContributionMetrics,
   pageRows,
@@ -918,7 +928,6 @@ export {
 };
 export type {
   DashboardViewProps,
-  SummaryRow,
   ContributionRow,
   PeriodEvaluationNotice,
 };

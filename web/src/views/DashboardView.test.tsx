@@ -20,14 +20,18 @@ import DashboardView, {
   resolveHeaderSort,
   deriveMetrics,
   buildSummariesPath,
-  deriveTrendPoints,
+  toTrendPoints,
   buildContributionsPath,
   deriveContributionMetrics,
   pageRows,
 } from './DashboardView';
 // T-1731 drift guard — 제거한 임시 브리지가 export 로 되살아나지 않는지 모듈 전체를 읽는다.
 import * as DashboardViewModule from './DashboardView';
-import type { SummaryRow, ContributionRow } from './DashboardView';
+import type { ContributionRow } from './DashboardView';
+// T-1789 — 시계열 표시 행 계약은 컨테이너가 아니라 순수 모듈이 소유한다(컨테이너-로컬
+// SummaryRow 는 철거). toTrendPoints 의 입력 타입을 그 단일 출처에서 가져온다.
+import type { SummaryDisplayRow } from '../api/summaryRow';
+import { FALLBACK_TREND_LABEL } from '../api/summaryRow';
 import type { PermissionDeniedRecordRow } from '../components/PermissionDeniedRecordList';
 import type { AssessmentDisplayRow } from '../api/assessmentRow';
 // T-1730 drift guard — 요약 지표의 만점이 모듈 상수와 같은 사실을 spec 이 직접 붙든다.
@@ -87,10 +91,32 @@ const CONTRIBUTION_SAMPLE: ContributionRow[] = [
   { id: 'm2', metricLabel: '협업', score: 7, maxScore: 10, rationale: '리뷰 활발' },
 ];
 
-const TREND_SAMPLE: SummaryRow[] = [
-  { period: '2026-06-01', value: 70 },
-  { period: '2026-06-08', value: 82 },
-  { period: '2026-06-15', value: 75 },
+// T-1789 — backend `GET /api/summaries` 응답 형태의 raw 행 3 개. prisma `model Summary` 의
+// 실제 필드는 `metricScore`(Decimal — JSON 직렬화 후 문자열로 도착) · `periodStart`(ISO) ·
+// `narrative` 이고, `period` 는 시점이 아니라 granularity 종류값("daily")이다. 옛 컨테이너-로컬
+// 계약(`period` 라벨 + `value` 값)으로는 전 포인트가 값 0 · 라벨 "daily" 로 렌더됐다.
+const TREND_SAMPLE: unknown[] = [
+  {
+    id: 's1',
+    period: 'daily',
+    periodStart: '2026-06-01T00:00:00.000Z',
+    metricScore: '70',
+    narrative: '첫 주 요약',
+  },
+  {
+    id: 's2',
+    period: 'daily',
+    periodStart: '2026-06-08T00:00:00.000Z',
+    metricScore: 82,
+    narrative: '둘째 주 요약',
+  },
+  {
+    id: 's3',
+    period: 'daily',
+    periodStart: '2026-06-15T00:00:00.000Z',
+    metricScore: '75.5',
+    narrative: '셋째 주 요약',
+  },
 ];
 
 // T-1727 — backend `GET /api/assessments` 응답 형태의 raw 행 3 개. 컨테이너가 이 원문을
@@ -395,29 +421,205 @@ describe('DashboardView — 시계열/분포 파생 (순수 함수)', () => {
     expect(buildSummariesPath('', '2026Q2')).toBeNull();
   });
 
-  // deriveTrendPoints — period/value 매핑 + data 미도착 시 빈 배열.
-  it('summary row 를 TrendPoint 로 매핑하고 미도착이면 빈 배열을 낸다 (시계열 파생)', () => {
-    const pts = deriveTrendPoints(TREND_SAMPLE);
-    expect(pts).toHaveLength(3);
-    expect(pts[0]).toEqual({ label: '2026-06-01', value: 70 });
-    // data 미도착(undefined) → 빈 배열(빈 상태 위임).
-    expect(deriveTrendPoints(undefined)).toEqual([]);
-    expect(deriveTrendPoints([])).toEqual([]);
+  // toTrendPoints happy-path — 표시 행을 그대로 포인트로 옮긴다(두 축 이름이 같다).
+  it('시계열 표시 행을 TrendPoint 로 옮기고 빈 입력이면 빈 배열을 낸다 (시계열 파생)', () => {
+    const rows: SummaryDisplayRow[] = [
+      { id: 's1', period: 'daily', periodStart: '2026-06-01', label: '2026-06-01', value: 70, narrative: '' },
+      { id: 's2', period: 'daily', periodStart: '2026-06-08', label: '2026-06-08', value: 82.5, narrative: '' },
+    ];
+    expect(toTrendPoints(rows)).toEqual([
+      { label: '2026-06-01', value: 70 },
+      { label: '2026-06-08', value: 82.5 },
+    ]);
+    expect(toTrendPoints([])).toEqual([]);
   });
 
-  // negative — 비정상/누락 필드(value 누락·NaN·label fallback) 의 안전 fallback.
-  it('비정상/누락 필드를 안전하게 fallback 한다 (negative — value 누락·NaN·label)', () => {
-    const rows: SummaryRow[] = [
-      { period: '2026-06-01' }, // value/score 누락 → 0.
-      { label: 'wk2', score: 88 }, // period 없음 → label, value 없음 → score.
-      { period: '2026-06-15', value: Number.NaN }, // NaN → 0 fallback.
-      {}, // 전 필드 누락 → label "#4", value 0.
+  // branch (c) — value === null 행만 제외하고 나머지 순서·값은 그대로 유지한다.
+  it('value=null 행만 포인트에서 제외하고 나머지는 유지한다 (branch — 값 결손 제외)', () => {
+    const rows: SummaryDisplayRow[] = [
+      { id: 's1', period: 'daily', periodStart: '2026-06-01', label: '2026-06-01', value: 70, narrative: '' },
+      { id: 's2', period: 'daily', periodStart: '2026-06-08', label: '2026-06-08', value: null, narrative: '' },
+      { id: 's3', period: 'daily', periodStart: '2026-06-15', label: '2026-06-15', value: 0, narrative: '' },
     ];
-    const pts = deriveTrendPoints(rows);
-    expect(pts[0]).toEqual({ label: '2026-06-01', value: 0 });
-    expect(pts[1]).toEqual({ label: 'wk2', value: 88 });
-    expect(pts[2]).toEqual({ label: '2026-06-15', value: 0 });
-    expect(pts[3]).toEqual({ label: '#4', value: 0 });
+    // 표본 없음(null)은 빠지고, 진짜 0 점(value === 0)은 남는다 — 둘을 섞지 않는다.
+    expect(toTrendPoints(rows)).toEqual([
+      { label: '2026-06-01', value: 70 },
+      { label: '2026-06-15', value: 0 },
+    ]);
+  });
+
+  // negative — 타입 우회 비정상 입력(비배열·원소 결손·비유한수)도 throw 없이 흡수한다.
+  it('비정상 입력을 throw 없이 빈/부분 배열로 흡수한다 (negative — 타입 우회 입력)', () => {
+    expect(() => toTrendPoints(null as never)).not.toThrow();
+    expect(toTrendPoints(null as never)).toEqual([]);
+    expect(toTrendPoints(undefined as never)).toEqual([]);
+    expect(toTrendPoints('rows' as never)).toEqual([]);
+    expect(toTrendPoints({ 0: { label: 'a', value: 1 } } as never)).toEqual([]);
+    const dirty = [
+      null,
+      { label: 'nan', value: Number.NaN },
+      { label: 'inf', value: Number.POSITIVE_INFINITY },
+      { label: 'str', value: '9' },
+      { value: 3 },
+      { label: '2026-06-01', value: 12 },
+    ] as never as SummaryDisplayRow[];
+    // 유한수 value 를 가진 두 행만 남고, label 결손은 빈 문자열로 흡수된다(throw 0).
+    expect(toTrendPoints(dirty)).toEqual([
+      { label: '', value: 3 },
+      { label: '2026-06-01', value: 12 },
+    ]);
+  });
+});
+
+// T-1789 — 컨테이너가 backend 실 응답을 순수 모듈로 매핑해 시계열에 렌더하는지 검증한다.
+// 옛 컨테이너-로컬 계약에서는 전 포인트가 값 0 · 라벨 "daily" 로 찍혔다.
+describe('DashboardView — 시계열 축 실데이터 배선 (T-1789)', () => {
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // 시계열 패널 markup 만 잘라낸다 — 다른 패널의 문자열이 단언에 섞이지 않게 한다.
+  function trendSection(html: string): string {
+    const start = html.indexOf('<section aria-label="점수 추이"');
+    if (start < 0) {
+      return '';
+    }
+    const end = html.indexOf('</section>', start);
+    return html.slice(start, end < 0 ? undefined : end);
+  }
+
+  function renderTrend(summaries: unknown, loading = false, error?: string): string {
+    setResources({
+      assessments: { data: RAW_SAMPLE, loading: false, error: undefined },
+      summaries: { data: summaries as never, loading, error },
+    });
+    return trendSection(renderToStaticMarkup(<DashboardView personId="p1" />));
+  }
+
+  // happy-path — backend 실응답(metricScore 문자열 + periodStart ISO)이 날짜 라벨 + 실제 값으로 렌더된다.
+  it('backend 실응답을 날짜 라벨과 0 이 아닌 값으로 렌더한다 (happy-path — 실데이터)', () => {
+    const trend = renderTrend(TREND_SAMPLE);
+    expect(trend).toContain('<td>2026-06-01</td>');
+    expect(trend).toContain('<td>2026-06-15</td>');
+    // 값 축 — Decimal 문자열("70"·"75.5")과 숫자(82) 모두 실제 값으로 렌더된다.
+    expect(trend).toContain('<td>70</td>');
+    expect(trend).toContain('<td>82</td>');
+    expect(trend).toContain('<td>75.5</td>');
+    // 회귀 차단 — granularity 종류값이 시점 라벨로 새거나 값이 0 으로 찍히지 않는다(옛 계약의 증상).
+    expect(trend).not.toContain('<td>daily</td>');
+    expect(trend).not.toContain('<td>0</td>');
+  });
+
+  // branch (d) — periodStart 유효/무효 라벨 분기가 화면 라벨로 이어진다.
+  it('periodStart 유효/무효에 따라 화면 시점 라벨이 갈린다 (branch — 라벨 파생)', () => {
+    const trend = renderTrend([
+      { id: 'a', period: 'daily', periodStart: '2026-06-01T09:00:00.000Z', metricScore: 1 },
+      { id: 'b', period: 'weekly', periodStart: '', metricScore: 2 }, // periodStart 결손 → period 로 fallback.
+      { id: 'c', metricScore: 3 }, // 시점 단서 전무 → 결정적 fallback 라벨.
+    ]);
+    expect(trend).toContain('<td>2026-06-01</td>');
+    expect(trend).toContain('<td>weekly</td>');
+    expect(trend).toContain('<td>' + FALLBACK_TREND_LABEL + '</td>');
+  });
+
+  // branch (a) — trendLoading=true 면 진행 표시만(포인트 미렌더).
+  it('시계열 loading 이면 진행 표시만 렌더한다 (branch — trend loading)', () => {
+    setResources({
+      assessments: { data: RAW_SAMPLE, loading: false, error: undefined },
+      summaries: { data: TREND_SAMPLE as never, loading: true, error: undefined },
+    });
+    const html = renderToStaticMarkup(<DashboardView personId="p1" />);
+    expect(html).toContain('불러오는 중…');
+    // loading 분기의 패널은 진행 표시만 내므로 추이 표 자체가 없다(시계열 고유 값 미렌더).
+    expect(trendSection(html)).toBe('');
+    expect(html).not.toContain('<td>75.5</td>');
+  });
+
+  // error path — 조회 실패 시 alert 로 흡수(throw 0), data 미도착이면 빈 상태 분기(b).
+  it('시계열 조회 실패·미도착을 throw 없이 흡수한다 (error path — 오류/미도착)', () => {
+    setResources({
+      assessments: { data: RAW_SAMPLE, loading: false, error: undefined },
+      summaries: { data: undefined, loading: false, error: 'HTTP 500: trend boom' },
+    });
+    expect(() => renderToStaticMarkup(<DashboardView personId="p1" />)).not.toThrow();
+    const failedHtml = renderToStaticMarkup(<DashboardView personId="p1" />);
+    expect(failedHtml).toContain('HTTP 500: trend boom');
+    // error 분기의 패널은 alert 만 렌더하므로 추이 표는 없다.
+    expect(trendSection(failedHtml)).toBe('');
+    // data 미도착(undefined) → 빈 상태로 흡수(표 미렌더).
+    const idle = renderTrend(undefined);
+    expect(idle).toContain('표시할 추이 데이터가 없습니다');
+    expect(idle).not.toContain('<table>');
+  });
+
+  // negative (a) — 배열이 아닌 응답(객체·문자열·숫자·boolean)도 빈 시계열 + throw 0.
+  it('배열이 아닌 응답을 빈 시계열로 흡수한다 (negative — 비배열 응답)', () => {
+    for (const bad of [{ rows: [] }, 'boom', 42, true]) {
+      const trend = renderTrend(bad);
+      expect(trend).toContain('표시할 추이 데이터가 없습니다');
+      expect(trend).not.toContain('<table>');
+    }
+  });
+
+  // negative (b) — 옛 계약 row(value/score 만) 는 metricScore 가 없어 0 위장 대신 제외된다.
+  it('옛 계약 row 를 0 점으로 위장하지 않고 포인트에서 제외한다 (negative — 옛 계약 잔존)', () => {
+    const trend = renderTrend([
+      { id: 'old1', period: '2026-06-01', value: 70 },
+      { id: 'old2', label: 'wk2', score: 88 },
+      { id: 'new1', period: 'daily', periodStart: '2026-07-01T00:00:00.000Z', metricScore: 2.5 },
+    ]);
+    // 값이 살아 있는 새 계약 row 1 건만 포인트가 된다.
+    expect(trend).toContain('<td>2026-07-01</td>');
+    expect(trend).toContain('<td>2.5</td>');
+    expect(trend).not.toContain('<td>0</td>');
+    expect(trend).not.toContain('<td>70</td>');
+    expect(trend).not.toContain('<td>88</td>');
+  });
+
+  // negative (c) — 결손 row(id 부재 · 원소 null/배열)가 흡수되고 undefined·NaN 이 화면에 새지 않는다.
+  it('결손 row 를 흡수하고 undefined·NaN 문자열을 화면에 내지 않는다 (negative — 결손 row)', () => {
+    const trend = renderTrend([
+      null,
+      { period: 'daily', periodStart: '2026-06-01T00:00:00.000Z', metricScore: 5 }, // id 부재 → 매핑 제외.
+      ['배열 원소'],
+      { id: 'ok', period: 'daily', periodStart: '2026-06-02T00:00:00.000Z', metricScore: 1.5 },
+    ]);
+    expect(trend).toContain('<td>2026-06-02</td>');
+    expect(trend).toContain('<td>1.5</td>');
+    expect(trend).not.toContain('undefined');
+    expect(trend).not.toContain('NaN');
+    expect(trend).not.toContain('<td>2026-06-01</td>');
+  });
+
+  // negative (d) — 비수치 metricScore 는 0 포인트를 만들지 않고 그 행만 빠진다.
+  it('비수치 metricScore 가 0 포인트를 만들지 않는다 (negative — 수치 파싱 실패)', () => {
+    const trend = renderTrend([
+      { id: 'bad1', period: 'daily', periodStart: '2026-06-01T00:00:00.000Z', metricScore: 'abc' },
+      { id: 'bad2', period: 'daily', periodStart: '2026-06-02T00:00:00.000Z', metricScore: '' },
+      { id: 'bad3', period: 'daily', periodStart: '2026-06-03T00:00:00.000Z', metricScore: null },
+      { id: 'good', period: 'daily', periodStart: '2026-06-04T00:00:00.000Z', metricScore: '3' },
+    ]);
+    expect(trend).toContain('<td>2026-06-04</td>');
+    expect(trend).toContain('<td>3</td>');
+    expect(trend).not.toContain('<td>0</td>');
+    expect(trend).not.toContain('<td>2026-06-01</td>');
+    expect(trend).not.toContain('<td>2026-06-03</td>');
+  });
+
+  // negative (e) — personId 미선택이면 시계열 조회 자체가 미수행(path=null 가드 회귀 0).
+  it('personId 미선택 시 시계열 조회를 발사하지 않는다 (negative — 조건부 조회 가드)', () => {
+    setResources({
+      assessments: { data: undefined, loading: false, error: undefined },
+      summaries: { data: TREND_SAMPLE as never, loading: false, error: undefined },
+    });
+    renderToStaticMarkup(<DashboardView />);
+    const summaryCalls = useApiResourceMock.mock.calls.filter(
+      (call: unknown[]) => typeof call[0] === 'string' && call[0].startsWith('/api/summaries'),
+    );
+    expect(summaryCalls).toHaveLength(0);
   });
 });
 
@@ -1139,7 +1341,7 @@ describe('DashboardView — AssessmentDisplayRow 파이프라인 배선 (T-1727)
       'resolveHeaderSort',
       'deriveMetrics',
       'buildSummariesPath',
-      'deriveTrendPoints',
+      'toTrendPoints',
       'buildContributionsPath',
       'deriveContributionMetrics',
       'pageRows',
