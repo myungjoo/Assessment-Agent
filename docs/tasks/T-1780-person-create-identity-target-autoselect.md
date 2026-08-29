@@ -2,7 +2,7 @@
 id: T-1780
 title: AdminView 인원 생성 성공 후 ServiceIdentity 대상 자동 선택 결선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-079]
 independentStream: service-identity-web-ui
@@ -73,3 +73,11 @@ state 로 연결한다.
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-08-29 10:53Z DONE)
+
+- `commitMode: pr` — PR [#1407](https://github.com/myungjoo/Assessment-Agent/pull/1407) squash `e4c81021` 머지 후 branch 삭제.
+- `web/src/views/AdminView.tsx` 에 `extractCreatedPersonId`(기존 `normalizeRowId` 재사용) 방어 파싱 helper 신설 + `CreatePersonDeps.onCreated` optional 추가 + 컨테이너 `handleCreatePerson` 을 `setSelectedIdentityPersonId` 로 배선 (2 파일 `+211/-1`, backend·JSX·새 dependency 0).
+- 신규 colocated spec `AdminView.person-create-identity-autoselect.test.tsx` 로 R-112 4 종 cover — helper 분기 9 종 + 러너 happy / error path / `onCreated` 미전달 / 응답 형태 4 종 / 빈 입력 2 종 / in-flight. web 2898 · 루트 13208 test green, `test:cov`(line·function ≥ 80%) · lint · web build green.
+- 4-게이트 PASS: reviewer APPROVE(round 1/7) + PR comment 외부 존재 + integrator 자체 점검 + PR CI green.
+- 잔여: REQ-079 재판정(자동 선택 동선 shipped 반영) 과 ADR-0058 `§Follow-ups (d)·(e)` closure 표기 doc slice.
