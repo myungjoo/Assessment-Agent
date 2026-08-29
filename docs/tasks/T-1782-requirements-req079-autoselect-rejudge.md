@@ -2,7 +2,7 @@
 id: T-1782
 title: Re-judge REQ-079 against the shipped person create/update identity autoselect wiring
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-079]
 independentStream: service-identity-doc-sync
@@ -12,6 +12,7 @@ touchesFiles:
 estimatedDiff: 40
 estimatedFiles: 1
 created: 2026-08-29
+completedAt: 2026-08-29T12:45Z
 plannerNote: P5 / ADR-0058 §Follow-ups (e) 잔여 — T-1780·T-1781 동선 연결 shipped 실측으로 REQ-079 재판정 (doc-only)
 ---
 
@@ -33,13 +34,13 @@ plannerNote: P5 / ADR-0058 §Follow-ups (e) 잔여 — T-1780·T-1781 동선 연
 
 ## Acceptance Criteria
 
-- [ ] `docs/requirements.md` 의 REQ-079 행 (`98 행`) 근거가 **동선 연결 shipped** 사실로 갱신된다 — 최소 `onCreated` · `onUpdated` · `setSelectedIdentityPersonId` 세 심볼명을 인용하고, `grep -n "onCreated?:\|onUpdated?:\|setSelectedIdentityPersonId" web/src/views/AdminView.tsx` 결과와 인용 심볼 문자열이 일치한다.
-- [ ] 상태 토큰이 실측에 맞게 재판정된다 — T-1779 가 적은 잔여 (1) (생성 · 수정 후 자동 연결) 이 해소됐음을 근거로 `DONE` 으로 승격하거나, 잔여 (2) (본 REQ 의 검증 위치인 `e2e` 로 연속 동선 고정) 를 아직 미충족으로 판단하면 `IN_PROGRESS` 를 유지하고 **잔여를 한 줄로 명시** 한다. 어느 쪽이든 **근거 없이 토큰만 바꾸지 않는다** — 판정 문장이 (1) · (2) 각각의 충족 / 미충족 이유를 적어야 한다.
-- [ ] 잔여 (2) 판정 시 **현재 shipped 된 검증 실체를 사실대로 적는다** — 두 동선은 backend supertest e2e 가 아니라 web colocated spec (`AdminView.person-create-identity-autoselect.test.tsx` · `AdminView.person-update-identity-autoselect.test.tsx`) 으로 고정돼 있다. 검증 위치 컬럼을 바꿀 경우 `docs/requirements.md` `10 행` 의 검증 위치 enum (`unit` / `smoke` / `e2e` / `perf` / `policy` / `manual` / `n/a`) 밖의 새 토큰을 만들지 않는다.
-- [ ] REQ-079 의 "구현 위치" 컬럼에 동선 연결 slice ID `T-1780`, `T-1781` 이 comma 로 추가된다 (`grep -c "T-1780" docs/requirements.md` ≥ 1).
-- [ ] 상태 enum 은 `docs/requirements.md` `9 행` 이 정의한 5 값 (`PLANNED` / `IN_PROGRESS` / `DONE` / `BLOCKED` / `SUPERSEDED`) 밖의 새 토큰을 만들지 않는다.
-- [ ] 표의 7 컬럼 schema 가 깨지지 않는다 — `awk -F'|' '/^\| REQ-079 /{print NF}' docs/requirements.md` 가 인접 REQ 행 (`REQ-078` · `REQ-080`) 과 동일한 필드 수를 출력한다.
-- [ ] `git diff --stat` 결과가 `docs/requirements.md` 1 파일이며 diff ≤ 300 LOC.
+- [x] `docs/requirements.md` 의 REQ-079 행 (`98 행`) 근거가 **동선 연결 shipped** 사실로 갱신된다 — 최소 `onCreated` · `onUpdated` · `setSelectedIdentityPersonId` 세 심볼명을 인용하고, `grep -n "onCreated?:\|onUpdated?:\|setSelectedIdentityPersonId" web/src/views/AdminView.tsx` 결과와 인용 심볼 문자열이 일치한다.
+- [x] 상태 토큰이 실측에 맞게 재판정된다 — T-1779 가 적은 잔여 (1) (생성 · 수정 후 자동 연결) 이 해소됐음을 근거로 `DONE` 으로 승격하거나, 잔여 (2) (본 REQ 의 검증 위치인 `e2e` 로 연속 동선 고정) 를 아직 미충족으로 판단하면 `IN_PROGRESS` 를 유지하고 **잔여를 한 줄로 명시** 한다. 어느 쪽이든 **근거 없이 토큰만 바꾸지 않는다** — 판정 문장이 (1) · (2) 각각의 충족 / 미충족 이유를 적어야 한다.
+- [x] 잔여 (2) 판정 시 **현재 shipped 된 검증 실체를 사실대로 적는다** — 두 동선은 backend supertest e2e 가 아니라 web colocated spec (`AdminView.person-create-identity-autoselect.test.tsx` · `AdminView.person-update-identity-autoselect.test.tsx`) 으로 고정돼 있다. 검증 위치 컬럼을 바꿀 경우 `docs/requirements.md` `10 행` 의 검증 위치 enum (`unit` / `smoke` / `e2e` / `perf` / `policy` / `manual` / `n/a`) 밖의 새 토큰을 만들지 않는다.
+- [x] REQ-079 의 "구현 위치" 컬럼에 동선 연결 slice ID `T-1780`, `T-1781` 이 comma 로 추가된다 (`grep -c "T-1780" docs/requirements.md` ≥ 1).
+- [x] 상태 enum 은 `docs/requirements.md` `9 행` 이 정의한 5 값 (`PLANNED` / `IN_PROGRESS` / `DONE` / `BLOCKED` / `SUPERSEDED`) 밖의 새 토큰을 만들지 않는다.
+- [x] 표의 7 컬럼 schema 가 깨지지 않는다 — `awk -F'|' '/^\| REQ-079 /{print NF}' docs/requirements.md` 가 인접 REQ 행 (`REQ-078` · `REQ-080`) 과 동일한 필드 수를 출력한다.
+- [x] `git diff --stat` 결과가 `docs/requirements.md` 1 파일이며 diff ≤ 300 LOC.
 
 > 본 task 는 `commitMode: direct` **doc-only** slice 다 — 추가되는 production symbol 이 0 이라 CLAUDE.md §3.2 R-112 4 항목 (happy-path / error path / 분기 cover / negative cases 충분 cover) 은 **적용 대상 없음** 이고, R-110 tester 의무도 direct-mode doc-only 면제 조항에 해당한다. 대신 위 grep / awk / `git diff --stat` 검증 항목이 문서 정합의 기계 검증을 대신한다.
 
@@ -57,4 +58,14 @@ plannerNote: P5 / ADR-0058 §Follow-ups (e) 잔여 — T-1780·T-1781 동선 연
 
 `implementer` (doc-only 편집 — architect · tester 불요)
 
+## 완료 기록
+
+- **DONE** 2026-08-29T12:45Z — direct commit `5b0b748c` (main). `docs/requirements.md` 1 파일 `+1/-1`, 코드 0 LOC.
+- REQ-079 행의 잔여 2 개를 축별로 재판정했다. **잔여 (1) 동선 연결 = 해소** — `web/src/views/AdminView.tsx` `1702 행` `onCreated?: (personId: string) => void;` · `1766 행` `extractCreatedPersonId(created)` · `1768 행` `deps.onCreated?.(createdId);` (T-1780) 과 `3013 행` `onUpdated?: (personId: string) => void;` · `3066 행` `deps.onUpdated?.(id.trim());` (T-1781), 그리고 배선처 `3716 행` · `3999 행` 의 `setSelectedIdentityPersonId(personId)` 를 실측 인용해, "`setSelectedIdentityPersonId` 호출처가 `handleIdentityPersonChange` (현 `3458 행`) 하나뿐" 이라던 T-1779 시점 근거가 더 이상 사실이 아님을 박제했다.
+- **잔여 (2) e2e 연속 동선 고정 = 미충족** — shipped 검증 실체가 `web/src/views/AdminView.person-create-identity-autoselect.test.tsx` · `AdminView.person-update-identity-autoselect.test.tsx` 두 web colocated spec 이고 `test/e2e/service-identities.e2e-spec.ts` 는 identity API 5 route 만 덮는다. 따라서 상태 토큰은 `IN_PROGRESS` 유지, 검증 위치는 실측대로 `e2e` → `unit + e2e` 로 적었다 (enum 밖 신규 토큰 0).
+- 구현 위치 컬럼에 `T-1780` · `T-1781` 추가. 상태 enum 5 값 · 7 컬럼 schema 유지. doc-only direct 라 R-110 tester 의무 · R-112 4 항목은 적용 대상 없음.
+
 ## Follow-ups
+
+- REQ-079 잔여 (2) — 인원 생성 · 수정 → identity 매핑 **연속 동선을 e2e 로 고정** 하는 slice (본 slice 범위 밖, 별도 pr-mode task).
+- [ADR-0058](../decisions/ADR-0058-service-identity-management-api.md) `§Status` · `§Follow-ups (d)·(e)` closure 표기 direct doc slice.
