@@ -3006,6 +3006,11 @@ interface UpdatePersonDeps {
   bumpRefresh: () => void;
   // 성공 후 편집 상태 종료 트리거(편집 대상 id·폼 입력을 비워 인라인 폼을 닫는다).
   closeEdit: () => void;
+  // 수정 성공 후 후속 훅(T-1781, optional) — 방금 수정한 인원 id(trim 된 값)를 1 회 넘긴다.
+  // 컨테이너는 이 값을 identity 조회 대상 state 로 흘려 자동 선택에 쓴다(REQ-079). optional 이라
+  // 기존 호출처·기존 spec 은 무수정으로 통과한다(하위 호환). 생성 축의 onCreated 와 달리 대상
+  // id 가 이미 입력이라 응답 파싱이 불요하다 — 성공 사실만으로 그 id 를 그대로 넘긴다.
+  onUpdated?: (personId: string) => void;
 }
 
 // 인원 수정 PATCH /api/persons/:id(body 는 변경 필드만) + state-전이 로직을 캡슐화한 순수 async
@@ -3055,6 +3060,10 @@ async function runUpdatePerson(
     // 편집 상태 종료(인라인 폼 닫힘 + 폼 입력 잔존 방지).
     deps.bumpRefresh();
     deps.closeEdit();
+    // 성공 분기에서만 후속 훅 1 회(T-1781) — 방금 수정한 인원 id 를 trim 해 넘긴다(path 인코딩에
+    // 쓴 원본이 아니라 가드가 통과시킨 정규화 값 — 조회 select 의 option value 와 같은 형태).
+    // 실패(catch)·3 가드 no-op 경로에서는 호출되지 않는다. optional 이라 미전달 호출처는 no-op.
+    deps.onUpdated?.(id.trim());
   } catch (e) {
     // 실패 — 사람-친화 문구를 error state 로 안전 표시(throw 없이). 400 검증 실패(빈/잘못된 email) /
     // 403 Admin+ 미만 / 404 미존재 / 409 email 중복 / 비-2xx / 네트워크 0 모두 ApiError.status →
@@ -3981,6 +3990,13 @@ function AdminView({
           setUpdateError: setUpdatePersonError,
           bumpRefresh: () => setPersonsRefreshNonce((n) => n + 1),
           closeEdit: resetEditPersonForm,
+          // 수정 직후 identity 대상 자동 선택(T-1781, REQ-079) — 방금 고친 인원에 service
+          // identity 를 붙이는 동선에서 사용자가 조회 select 를 손으로 다시 고르지 않도록,
+          // 수정 대상 id 를 조회 대상 state 로 그대로 넘긴다(ADR-0058 §Follow-ups (d) 잔여 한 칸,
+          // 생성 축 onCreated 배선 mirror). 주의: 인원 목록은 위 bumpRefresh 로 방금 재조회를
+          // 시작한 참이라, 응답이 오기 전까지는 <select> 에 이 id 의 option 이 잠깐 비어 보일 수
+          // 있다(값 자체는 유지되고 재조회 완료 시 정상 표시된다 — 별도 보정 없음).
+          onUpdated: (personId) => setSelectedIdentityPersonId(personId),
         },
       ),
     [
