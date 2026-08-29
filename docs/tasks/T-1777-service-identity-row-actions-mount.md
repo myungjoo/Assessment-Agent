@@ -2,7 +2,7 @@
 id: T-1777
 title: AdminView 에 ServiceIdentityRowActions 컨테이너 마운트 결선
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 270
@@ -111,3 +111,20 @@ id · 실패 문구) + in-flight gate + wiring deps memo + `<ServiceIdentityList
 ## Follow-ups
 
 (작성 시 비어 있음 — sub-agent 가 관련 작업 발견 시 여기 append)
+
+---
+
+## 완료 기록
+
+- **완료 시각**: 2026-08-29T07:56:58Z (PR [#1405](https://github.com/myungjoo/Assessment-Agent/pull/1405) squash `ff78a38b`)
+- **결과 요약**: `web/src/views/AdminView.tsx` 컨테이너에 행 액션 state 4 종을 배치하고 기존
+  `createInFlightIdGate` 로 in-flight 를 감쌌다. `beginServiceIdentityEdit` 를 `onEdit` useCallback 으로
+  묶고, wiring deps 14 필드를 `useMemo` 로 안정화해 `buildServiceIdentityRowActionsSlot` 결과를
+  `ServiceIdentityList` 의 `renderRowActions` 로 전달했다 (remove=`deleteServiceIdentity` /
+  setPrimary=`setPrimaryServiceIdentity` 정배선, 교차 없음). 새 순수 helper 신설 0 — 준비된 7 겹을
+  소비만 했다. 2 파일 `+275/-1`.
+- **검증**: 신규 colocated spec 10 케이스(happy 1 · error path 1 · 분기 3 · negative 5 — 교차 배선
+  양방향 포함) 로 R-112 4 종 cover. web 2872 test · 루트 13208 test green, `pnpm test:cov`
+  (line/function 80%) 통과, 루트 lint + web build green.
+- **4-게이트**: reviewer APPROVE(round 1/7, finding 0) + PR comment 외부 post + integrator 자체 점검
+  + PR CI green 모두 PASS → squash 머지 + branch 삭제.
