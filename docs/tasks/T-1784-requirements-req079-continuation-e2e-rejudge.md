@@ -2,7 +2,7 @@
 id: T-1784
 title: Re-judge REQ-079 against the shipped person-identity continuation e2e
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-079]
 independentStream: service-identity-doc-sync
@@ -12,6 +12,7 @@ touchesFiles:
 estimatedDiff: 40
 estimatedFiles: 1
 created: 2026-08-29
+completedAt: 2026-08-29T14:45:00Z
 plannerNote: P5 / ADR-0058 §Follow-ups (e) 잔여 — T-1783 연속 동선 e2e shipped 실측으로 REQ-079 최종 재판정 (doc-only)
 ---
 
