@@ -204,4 +204,178 @@ describe('ServiceIdentityList', () => {
     expect((html.match(/<li>/g) ?? []).length).toBe(3);
     expect((html.match(/<span>primary<\/span>/g) ?? []).length).toBe(1);
   });
+
+  // ── T-1774 행별 액션 slot(renderRowActions) ────────────────────────────────
+  // slot 미전달 시의 populated markup 정본 — "바이트 단위 동일" 회귀 판정 기준선이다.
+  const BASELINE_MARKUP =
+    '<ul>' +
+    '<li><span>github</span><span>octo-dev</span><span>primary</span></li>' +
+    '<li><span>confluence</span><span>octo@example.com</span></li>' +
+    '</ul>';
+
+  // 호출 인자를 기록하며 행마다 식별 가능한 노드를 돌려주는 slot 을 만든다(vi.fn 없이 순수 클로저).
+  function makeSlot() {
+    const calls: ServiceIdentityRow[] = [];
+    return {
+      calls,
+      slot: (identity: ServiceIdentityRow) => {
+        calls.push(identity);
+        return <b>{`action-${identity.id}`}</b>;
+      },
+    };
+  }
+
+  // happy-path — slot 이 행마다 정확히 1 회, 배열 순서대로 그 행 객체로 호출된다.
+  it('slot 전달 시 identities 순서대로 행마다 정확히 1 회 그 행 객체로 호출한다 (happy-path)', () => {
+    const { slot, calls } = makeSlot();
+    const html = renderToStaticMarkup(
+      <ServiceIdentityList identities={sampleIdentities} renderRowActions={slot} />,
+    );
+    expect(calls.length).toBe(2);
+    // 인자는 복제본이 아니라 props 배열의 그 행 객체 자체여야 한다(참조 동일성).
+    expect(calls[0]).toBe(sampleIdentities[0]);
+    expect(calls[1]).toBe(sampleIdentities[1]);
+    expect(html).toContain('<b>action-i1</b>');
+    expect(html).toContain('<b>action-i2</b>');
+  });
+
+  // happy-path — 반환 노드는 해당 행의 <li> 안, 표시 컬럼 뒤에 위치한다.
+  it('slot 반환 노드는 해당 행의 <li> 안·표시 컬럼 뒤에 렌더된다 (happy-path, 행 귀속)', () => {
+    const { slot } = makeSlot();
+    const html = renderToStaticMarkup(
+      <ServiceIdentityList identities={sampleIdentities} renderRowActions={slot} />,
+    );
+    const secondLi = html.indexOf('<li>', html.indexOf('<li>') + 1);
+    const firstAction = html.indexOf('<b>action-i1</b>');
+    // 첫 행의 액션은 그 행의 externalId 뒤이면서 둘째 <li> 시작 전이어야 한다.
+    expect(firstAction).toBeGreaterThan(html.indexOf('octo-dev'));
+    expect(firstAction).toBeLessThan(secondLi);
+    // primary 표식(표시 컬럼) 뒤에 온다.
+    expect(firstAction).toBeGreaterThan(html.indexOf(`<span>${PRIMARY_BADGE}</span>`));
+    // 둘째 행의 액션은 둘째 <li> 안이며 </ul> 앞이다.
+    const secondAction = html.indexOf('<b>action-i2</b>');
+    expect(secondAction).toBeGreaterThan(secondLi);
+    expect(secondAction).toBeLessThan(html.indexOf('</ul>'));
+    // 액션이 <ul> 밖으로 새지 않는다.
+    expect(html.endsWith('</ul>')).toBe(true);
+  });
+
+  // error path — slot 이 throw 하면 렌더가 삼키지 않고 상위로 전파한다(error boundary 흉내 금지).
+  it('slot 이 throw 하면 예외를 삼키지 않고 상위로 전파한다 (error path)', () => {
+    const boom = () => {
+      throw new Error('slot 렌더 실패');
+    };
+    expect(() =>
+      renderToStaticMarkup(
+        <ServiceIdentityList identities={sampleIdentities} renderRowActions={boom} />,
+      ),
+    ).toThrow('slot 렌더 실패');
+  });
+
+  // error path — error 분기에서는 slot 호출 0 이고 alert 문구만 렌더된다.
+  it('error truthy 분기에서는 slot 호출 0 이고 alert 문구만 렌더한다 (error path — slot 미호출)', () => {
+    const { slot, calls } = makeSlot();
+    const html = renderToStaticMarkup(
+      <ServiceIdentityList identities={sampleIdentities} error="조회 실패" renderRowActions={slot} />,
+    );
+    expect(calls.length).toBe(0);
+    expect(html).toBe('<div role="alert">조회 실패</div>');
+  });
+
+  // 분기 cover — [1] loading / [2] error / [3] empty / [4] populated 의 slot 호출 횟수 0/0/0/N.
+  it('4 분기의 slot 호출 횟수를 0/0/0/N 으로 고정한다 (분기 cover)', () => {
+    const loadingSlot = makeSlot();
+    renderToStaticMarkup(
+      <ServiceIdentityList
+        identities={sampleIdentities}
+        loading={true}
+        renderRowActions={loadingSlot.slot}
+      />,
+    );
+    expect(loadingSlot.calls.length).toBe(0);
+
+    const errorSlot = makeSlot();
+    renderToStaticMarkup(
+      <ServiceIdentityList
+        identities={sampleIdentities}
+        error="실패"
+        renderRowActions={errorSlot.slot}
+      />,
+    );
+    expect(errorSlot.calls.length).toBe(0);
+
+    const emptySlot = makeSlot();
+    renderToStaticMarkup(
+      <ServiceIdentityList identities={[]} renderRowActions={emptySlot.slot} />,
+    );
+    expect(emptySlot.calls.length).toBe(0);
+
+    const populatedSlot = makeSlot();
+    renderToStaticMarkup(
+      <ServiceIdentityList identities={sampleIdentities} renderRowActions={populatedSlot.slot} />,
+    );
+    expect(populatedSlot.calls.length).toBe(sampleIdentities.length);
+  });
+
+  // negative (a) — slot 미전달 시 markup 이 slot 도입 전과 바이트 단위로 동일하다(호출부 회귀 0).
+  it('negative (a) slot 미전달 → markup 이 종전과 바이트 단위로 동일하다', () => {
+    const html = renderToStaticMarkup(<ServiceIdentityList identities={sampleIdentities} />);
+    expect(html).toBe(BASELINE_MARKUP);
+  });
+
+  // negative (b) — slot 이 null 을 돌려줘도 throw 없이 그 행이 정상 렌더된다.
+  it('negative (b) slot 이 null 반환 → throw 없이 행이 정상 렌더된다', () => {
+    let html = '';
+    expect(() => {
+      html = renderToStaticMarkup(
+        <ServiceIdentityList identities={sampleIdentities} renderRowActions={() => null} />,
+      );
+    }).not.toThrow();
+    expect(html).toBe(BASELINE_MARKUP);
+  });
+
+  // negative (c) — slot 이 undefined 를 돌려줘도 동일하다.
+  it('negative (c) slot 이 undefined 반환 → throw 없이 행이 정상 렌더된다', () => {
+    let html = '';
+    expect(() => {
+      html = renderToStaticMarkup(
+        <ServiceIdentityList identities={sampleIdentities} renderRowActions={() => undefined} />,
+      );
+    }).not.toThrow();
+    expect(html).toBe(BASELINE_MARKUP);
+  });
+
+  // negative (d) — identities 가 빈 배열이면 slot 호출 0(존재하지 않는 행의 액션 노출 차단).
+  it('negative (d) identities 빈 배열 → slot 호출 0, 빈 상태 문구만 렌더', () => {
+    const { slot, calls } = makeSlot();
+    const html = renderToStaticMarkup(
+      <ServiceIdentityList identities={[]} renderRowActions={slot} />,
+    );
+    expect(calls.length).toBe(0);
+    expect(html).toBe(`<div role="status">${DEFAULT_EMPTY}</div>`);
+  });
+
+  // negative (e) — loading=true 가 identities 다건 + slot 동시 전달보다 우선한다(slot 호출 0).
+  it('negative (e) loading=true 는 identities·slot 동시 전달보다 우선 → slot 호출 0', () => {
+    const { slot, calls } = makeSlot();
+    const html = renderToStaticMarkup(
+      <ServiceIdentityList identities={sampleIdentities} loading={true} renderRowActions={slot} />,
+    );
+    expect(calls.length).toBe(0);
+    expect(html).toContain(LOADING_TOKEN);
+    expect(html).not.toContain('<b>');
+  });
+
+  // negative (f) — slot 이 다른 행의 노드를 돌려줘도 컴포넌트는 교정하지 않고 받은 대로 렌더한다.
+  it('negative (f) slot 이 다른 행의 노드를 반환해도 교정 없이 받은 대로 렌더한다', () => {
+    // 어느 행을 받든 항상 첫 행 id 의 노드를 돌려주는 어긋난 slot(판정은 상위 책임).
+    const html = renderToStaticMarkup(
+      <ServiceIdentityList
+        identities={sampleIdentities}
+        renderRowActions={() => <b>{`action-${sampleIdentities[0].id}`}</b>}
+      />,
+    );
+    expect((html.match(/<b>action-i1<\/b>/g) ?? []).length).toBe(2);
+    expect(html).not.toContain('action-i2');
+  });
 });

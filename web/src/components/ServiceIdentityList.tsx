@@ -14,6 +14,9 @@
 // backend 스키마가 움직일 때 한쪽만 갱신되는 drift 가 생긴다(AssessmentResultTable.tsx `16 행`
 // 의 `import type { AssessmentDisplayRow }` 선례 승계).
 import type { ServiceIdentityRow } from '../api/serviceIdentity';
+// slot 반환 타입 — 이미 설치된 react 의 type 만 가져오므로 새 dependency 0 이고,
+// `import type` 이라 런타임 import 도 생성되지 않는다.
+import type { ReactNode } from 'react';
 
 // loading 중 노출할 기본 한국어 문구(선례와 동일 문구·U+2026 말줄임표).
 const LOADING_TEXT = '불러오는 중…';
@@ -32,6 +35,15 @@ interface ServiceIdentityListProps {
   error?: string;
   // 빈 상태 문구(선택). 빈 문자열이면 기본 문구로 fallback(의미 없는 빈 메시지 방지).
   emptyMessage?: string;
+  // 행별 액션 slot(선택) — 주어졌을 때만 [4] populated 분기의 각 <li> 안, 기존 표시 컬럼
+  // 뒤에 그 반환 노드를 렌더한다. 액션 콜백·플래그를 개별 prop 으로 늘어놓는 대신 행 객체를
+  // 넘겨 노드를 받는 slot 하나만 두는 이유는 `ServiceIdentityRowActionsProps`(9 props)가 두
+  // 곳에 복제돼 drift 나는 것을 막기 위해서다 — 조립은 상위 컨테이너 책임이다.
+  // 미전달 시 아무것도 렌더하지 않아 기존 호출부(T-1766 AdminView 읽기 축) markup 회귀가 0 이다
+  // (UserList `onChangeRole` optional 콜백 하위 호환 convention 승계).
+  // 본 컴포넌트는 반환 노드를 검사·가공·캐싱하지 않고 받은 그대로 그 행에 렌더하며, slot 이
+  // throw 하면 삼키지 않고 상위로 전파한다(error boundary 흉내 금지 — 판정은 상위 책임).
+  renderRowActions?: (identity: ServiceIdentityRow) => ReactNode;
 }
 
 // 인원의 service identity 목록. 분기 순서는 선례와 동일하게 loading → error → empty → populated
@@ -41,6 +53,7 @@ function ServiceIdentityList({
   loading,
   error,
   emptyMessage,
+  renderRowActions,
 }: ServiceIdentityListProps) {
   // [1] loading 우선 — 조회가 진행 중이면 직전 error 나 잔여 identities 가 남아 있어도 그것을
   // 현재 사실처럼 보여줘선 안 되므로 로딩 표시만 렌더한다.
@@ -76,6 +89,12 @@ function ServiceIdentityList({
               단 본 컴포넌트는 invariant 를 강제하지 않는다: primary 가 0 건이거나 2 건 이상인
               계약 위반 입력이 와도 throw 하지 않고 받은 그대로 렌더한다. */}
           {row.isPrimary === true ? <span>{PRIMARY_BADGE_TEXT}</span> : null}
+          {/* 행별 액션 slot — 표시 컬럼 뒤, 같은 <li> 안에 그려야 "어느 행에 대한 액션인지"가
+              시각적으로 귀속된다(<ul> 밖 별도 목록으로 빼면 대상 오인 삭제가 난다).
+              행마다 정확히 1 회, identities 배열 순서대로 그 행 객체로 호출하며 배열을
+              복제·정렬·필터하지 않는 기존 계약은 그대로다. 위 [1]~[3] 분기는 map 이전에
+              return 하므로 loading·error·empty 에서는 slot 이 한 번도 호출되지 않는다. */}
+          {renderRowActions ? renderRowActions(row) : null}
         </li>
       ))}
     </ul>
