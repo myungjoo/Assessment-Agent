@@ -1888,6 +1888,54 @@ async function runDeleteServiceIdentity(
   }
 }
 
+// primary 지정 POST + state-전이 로직에 주입하는 deps(T-1770 — DeleteServiceIdentityDeps 를 1:1
+// mirror). 발사 primitive 는 client 의 setPrimaryServiceIdentity(후속 마운트 slice 가 기본 주입,
+// 테스트는 mock)다 — action route path 조립과 무-body 마감이 그 함수 책임이기 때문이다
+// (api/serviceIdentity.ts). 삭제 축과 달리 확인 단계가 없어 종료 콜백(endConfirm)을 받지 않는다.
+interface SetPrimaryServiceIdentityDeps {
+  setPrimary: (personId: string, identityId: string) => Promise<unknown>;
+  describeError: (e: unknown) => string;
+  // in-flight(true 면 미발사) + setter + 재조회 트리거.
+  settingPrimary: boolean;
+  setSettingPrimary: (next: boolean) => void;
+  setPrimaryError: (next: string | undefined) => void;
+  bumpRefresh: () => void;
+}
+// primary 지정 POST /api/persons/:personId/identities/:identityId/primary(body 없음) + state-전이를
+// 캡슐화한 순수 async 러너(T-1770 — runDeleteServiceIdentity mirror).
+async function runSetPrimaryServiceIdentity(
+  personId: string,
+  identityId: string,
+  deps: SetPrimaryServiceIdentityDeps,
+): Promise<void> {
+  // 3 no-op 가드 — 미선택 personId / 미선택 identityId(깨진 item path 차단) / in-flight(이중 POST
+  // 경합 차단). falsy·빈·공백뿐은 모두 미선택으로 본다.
+  // "이미 primary 인 행" 가드는 두지 않는다 — client 계약이 idempotent 이고(api/serviceIdentity.ts)
+  // 버튼 disable 은 ServiceIdentityRowActions 책임이다.
+  const targetPersonId = personId?.trim();
+  const targetIdentityId = identityId?.trim();
+  if (!targetPersonId || !targetIdentityId || deps.settingPrimary) {
+    return;
+  }
+  deps.setSettingPrimary(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리).
+  deps.setPrimaryError(undefined);
+  try {
+    // 성공 응답의 승격 row 는 소비하지 않고 버린다 — "1 인원 1 primary" invariant 상 승격은 직전
+    // primary 행의 해제를 동반하는데(ADR-0058 §Decision 2) 응답에는 그 반대편 행이 없어 낙관
+    // 갱신이 목록을 어긋나게 만든다. 그래서 bumpRefresh 로 권위 재조회만 건다.
+    await deps.setPrimary(targetPersonId, targetIdentityId);
+    deps.bumpRefresh();
+  } catch (e) {
+    // 실패 — 문구를 안전 표시(throw 없이). 404 3 단·401·5xx·네트워크 0 모두 동일 경로.
+    // 재조회는 하지 않는다(목록이 그대로 남아 같은 자리에서 재시도 가능).
+    deps.setPrimaryError(deps.describeError(e));
+  } finally {
+    deps.setSettingPrimary(false);
+  }
+}
+
+
 // 그룹 생성 POST + state-전이 로직에 주입하는 deps(T-1146 — runCreatePerson 의 CreatePersonDeps 를
 // mirror. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). 컨테이너의 handleCreateGroup 은 이 러너에
 // 현재 입력 name·in-flight 여부(creating)·상태 setter·재조회 트리거·입력 초기화를 주입해 호출만 한다.
@@ -5446,6 +5494,7 @@ export {
   runCreateServiceIdentity,
   runUpdateServiceIdentity,
   runDeleteServiceIdentity,
+  runSetPrimaryServiceIdentity,
   runCreateGroup,
   runCreatePart,
   runCreateUser,
