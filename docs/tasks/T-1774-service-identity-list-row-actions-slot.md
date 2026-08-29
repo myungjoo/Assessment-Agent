@@ -2,7 +2,10 @@
 id: T-1774
 title: ServiceIdentityList 에 행별 액션 slot renderRowActions 추가 (하위 호환 optional)
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1402
+completedAt: 2026-08-29T04:54:00Z
+mergeCommit: bcecf96a
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 150
