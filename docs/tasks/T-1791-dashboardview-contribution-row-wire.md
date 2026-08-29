@@ -2,7 +2,10 @@
 id: T-1791
 title: DashboardView 기여 상세 축을 contributionRow 모듈 소비로 배선 (로컬 ContributionRow · deriveContributionMetrics 철거)
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1413
+completedAt: 2026-08-29T21:58:29Z
+mergeCommit: fb36c2d4
 commitMode: pr
 coversReq: [REQ-075, REQ-004]
 estimatedDiff: 240
@@ -76,3 +79,13 @@ plannerNote: "P6 PLAN 131 행 ② 기여 상세 축 배선 — T-1790 Follow-up 
 - (a) **REQ-004 · REQ-075 재판정 + [PLAN](../PLAN.md) `131 행` ② 축 closure** — 표 · 점수 분포 · 시계열 · 기여 4 축이 모두 배선까지 닫힌 뒤 doc-only slice 로.
 - (b) **형제 drift-guard 주석 정리** — assessments · permission-denied contract spec 의 `<ContributionRow[]>` 언급 주석을 새 anchor 사실에 맞게 갱신 (다른 주석 정리와 묶어 1 slice).
 - (c) **기여 상세 표시 확장** — `difficulty` · `volume` · `sourceUrl` 을 패널에 노출(링크 · 배지)하려면 `EvaluationMetricItem` 계약 확장이 선행돼야 한다 (컴포넌트 계약 변경이라 별도 slice).
+
+## 결과 (2026-08-29)
+
+**DONE** — PR [#1413](https://github.com/myungjoo/Assessment-Agent/pull/1413) → main squash `fb36c2d4` (3 파일 `+229/-113`).
+
+- [DashboardView.tsx](../../web/src/views/DashboardView.tsx) 의 컨테이너-로컬 `ContributionRow` · `FALLBACK_METRIC_LABEL` · `deriveContributionMetrics` 를 named/type export 까지 철거하고 기여 조회를 `useApiResource<unknown[]>` 로 낮춰 [contributionRow.ts](../../web/src/api/contributionRow.ts) 의 `deriveContributionDisplayRows` 소비로 배선했다 — 이로써 [T-1790](T-1790-contribution-row-module.md) 이 절반만 닫았던 기여 상세 축("지표 미상 · 0 점 · 근거 없음")이 실데이터 렌더로 성립한다.
+- 표시 계층 정책 helper `toContributionMetricItems` 신설 — `score === null` 행은 0 위장 없이 제외, `maxScore` 미전달, `rationale = sourceUrl` (T-1727 · T-1789 집계 정책 승계). 비배열 입력은 빈 배열로 흡수(throw 0).
+- 타입 인자를 anchor 로 쓰던 drift-guard spec [DashboardView.contributions-list-contract.test.ts](../../web/src/views/DashboardView.contributions-list-contract.test.ts) 는 같은 commit 에서 alias 구조분해로 anchor 재지정 — test 개수·이름 불변으로 daily-test parity 사고 차단.
+- R-112 4 종 cover (순수 파생 5 건 + 마운트 3 건 신설), negative 5 종 각 1+ — web vitest 104 files / 2991 test, 루트 458 suite / 13208 test, `pnpm lint`/`build`/`test:cov` threshold 전부 green.
+- 4-게이트 PASS — reviewer APPROVE round 1/7 (Nit 1 건은 타입 우회 경로 전용 방어 분기라 non-blocking, 코드 변경 불요), PR comment 외부 post `5465093141`, PR CI `33277141198` success, integrator 자체 점검.
