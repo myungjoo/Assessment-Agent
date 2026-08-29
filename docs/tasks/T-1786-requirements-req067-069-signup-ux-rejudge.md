@@ -2,7 +2,7 @@
 id: T-1786
 title: Re-judge REQ-067 / REQ-068 / REQ-069 against the shipped account-creation UX chain
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-067, REQ-068, REQ-069]
 independentStream: account-creation-ux
