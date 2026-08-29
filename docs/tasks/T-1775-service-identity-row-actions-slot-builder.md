@@ -2,7 +2,7 @@
 id: T-1775
 title: AdminView 에 ServiceIdentity 행별 액션 slot factory buildServiceIdentityRowActionsSlot 신설
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 210
@@ -83,3 +83,10 @@ plannerNote: P6 ADR-0058 §Follow-ups (d) 열일곱 번째 web slice — props f
 ## Follow-ups
 
 - (비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 append)
+
+---
+
+## 완료 기록
+
+- 완료 시각: 2026-08-29T05:57:23Z (PR [#1403](https://github.com/myungjoo/Assessment-Agent/pull/1403) squash 머지 `94d6a997`)
+- 결과 요약: `web/src/views/AdminView.tsx` 하단 export 블록에 순수 factory `buildServiceIdentityRowActionsSlot` 신설 + colocated spec 12 test (2 파일 `+218/-0`). deps 는 `ServiceIdentityRowActionsWiringDeps` 재사용(타입 재선언 0), `ServiceIdentityRowActions` 값 import 승격, 컨테이너 본문/JSX 무수정 · 새 dependency 0 · backend 무변경. reviewer APPROVE(round 1/7, finding 0) + CI green 으로 4-게이트 PASS.
