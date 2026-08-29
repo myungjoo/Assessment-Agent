@@ -2446,6 +2446,55 @@ function buildServiceIdentityRowActionsSlot(
   );
 }
 
+// 행 편집 진입 helper 가 받는 deps(T-1776) — 진입 한 번이 건드려야 하는 setter 6 개만 받는다. 컨테이너
+// state 이름(setIdentityEditExternalIdInput 등)을 그대로 쓰지 않고 짧은 역할 이름으로 받는 이유는, 이
+// helper 가 컨테이너 변수에 결합하지 않고 spec 이 mock setter 만으로 전 계약을 고정할 수 있게 하려는
+// 것이다. 실패 귀속 slot 2 종(setErrorIdentityId · setErrorText)은 어댑터(T-1772)와 같은 slot 이다.
+interface BeginServiceIdentityEditDeps {
+  // 편집 대상 id — 목록 find 가 원문 비교라 정규화 값이 아니라 원문이 실린다(아래 (b) 참조).
+  setEditingIdentityId: (next: string) => void;
+  setEditExternalIdInput: (next: string) => void;
+  setUpdateError: (next: string | undefined) => void;
+  setConfirmingDeleteId: (next: string | undefined) => void;
+  setErrorIdentityId: (next: string | undefined) => void;
+  setErrorText: (next: string | undefined) => void;
+}
+
+// (a) 결함: 행 액션의 onEdit 을 마운트 JSX 안 인라인 화살표로 두면 세 사고가 어떤 test 도 깨지 않은
+// 채 지나간다 — (1) externalId prefill 을 빠뜨리면 편집 폼이 빈 값으로 열려 러너의 "변경 0" 판정이
+// 뒤집히고, (2) 진입 시 직전 실패 문구(수정 실패 · 행 액션 실패 귀속/문구)를 비우지 않으면 새 편집
+// 화면에 남의 실패 문구가 그대로 남으며, (3) 다른 행이 열어둔 삭제 확인 slot 을 닫지 않으면 편집 폼과
+// "정말 삭제" 확인 단계가 동시에 열린 모순 상태가 된다.
+// (b) 그래서 진입 한 겹만 모듈 레벨 순수 helper 로 절단한다 — ADR-0040 §5 로 RTL 상태 구동 렌더 test
+// 가 불가한 현 harness 에서는 helper 직접 호출 + setter mock 검증만이 이 진입 표를 고정할 수 있다.
+// 대상 id 는 **원문 그대로** 싣는다: 컨테이너의 editingIdentity 파생이 `row.id === editingIdentityId`
+// 원문 비교라, trim 된 값을 실으면 padding 있는 행을 목록에서 못 찾아 폼이 즉시 접힌다(정규화는 귀속
+// 가능 여부 판정에만 쓴다). 호출은 fetch · 러너 · async 를 일절 부르지 않고 인자 객체도 변형하지 않는다.
+// 소비처(renderRowActions 마운트의 onEdit)는 다음 slice 책임이라 본 slice 의 소비처는 spec 뿐이다.
+function beginServiceIdentityEdit(
+  identity: ServiceIdentityRow,
+  deps: BeginServiceIdentityEditDeps,
+): void {
+  // 행 id 정규화는 플래그 helper · 어댑터와 같은 normalizeRowId 하나만 쓴다(규칙 중복 구현 금지).
+  // 귀속 불가한 행(빈 · 공백뿐 · 문자열 아님)은 6 setter 중 어느 것도 부르지 않는 전체 no-op 이다
+  // — 미선택 sentinel '' 이 대상 id 에 박히면 id 없는 전 행이 편집 대상으로 물들기 때문이다.
+  if (!normalizeRowId(identity.id)) {
+    return;
+  }
+  deps.setEditingIdentityId(identity.id);
+  // 비정상 payload 방어 — 문자열이 아닌 externalId 는 빈 문자열 prefill 로 접는다(폼 input 은
+  // controlled 라 undefined 가 실리면 uncontrolled 로 전환되며 경고 + 값 유실이 난다).
+  deps.setEditExternalIdInput(
+    typeof identity.externalId === 'string' ? identity.externalId : '',
+  );
+  // 직전 실패 문구 3 종을 모두 비운다 — 수정 실패 문구 1 개 + 행 액션 실패 귀속/문구 짝 2 개.
+  deps.setUpdateError(undefined);
+  deps.setErrorIdentityId(undefined);
+  deps.setErrorText(undefined);
+  // 다른 행이 열어둔 삭제 확인 slot 을 닫는다(편집 폼과 확인 단계 동시 노출 차단).
+  deps.setConfirmingDeleteId(undefined);
+}
+
 // 부여 POST + state-전이 deps(T-1166 — 위 CreateUserDeps 1:1 mirror, 필드 의미는 그쪽 주석). 조회
 // endpoint 부재라 bumpRefresh 대신 성공 안내 setter(setGrantNotice — error 와 상호 배타)를 두고,
 // resetInput 은 인스턴스 입력만 비운다(선택 사용자 유지 — 연속 부여 편의).
@@ -5760,6 +5809,7 @@ export {
   buildServiceIdentityRowActionBridge,
   buildServiceIdentityRowActionsProps,
   buildServiceIdentityRowActionsSlot,
+  beginServiceIdentityEdit,
   createInFlightIdGate,
   runDeletePerson,
   runDeleteGroup,
@@ -5811,6 +5861,7 @@ export type {
   ServiceIdentityRowActionBridgeDeps,
   ServiceIdentityRowActionBridge,
   ServiceIdentityRowActionsWiringDeps,
+  BeginServiceIdentityEditDeps,
   InFlightIdGate,
   DeletePersonDeps,
   DeleteGroupDeps,
