@@ -2,7 +2,7 @@
 id: T-1778
 title: AdminView ServiceIdentity 쓰기 축에 Admin+ RBAC gating 부착
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 270
@@ -106,3 +106,21 @@ T-1777 로 화면에 붙은 ServiceIdentity 관리 UI 는 **등급과 무관하�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 append)
+
+---
+
+## 완료 기록
+
+- **완료 시각**: 2026-08-29T08:56:27Z (PR [#1406](https://github.com/myungjoo/Assessment-Agent/pull/1406) squash `dfd09059`)
+- **결과 요약**: `web/src/views/AdminView.tsx` 의 ServiceIdentity **쓰기 3 컨트롤**(추가 폼 · 수정 대상
+  select · 수정 폼)을 기존 `isAdmin` 삼항 안으로 옮기고, 행 액션 slot 은
+  `renderRowActions={isAdmin ? slot : undefined}` 로 전달 여부만 분기했다 (slot factory 호출 자체는
+  무조건 — hook 순서 불변). 조회 select · 목록 렌더 등 **읽기 축은 게이트 밖에 그대로** 두고 근거를
+  주석으로 박제했다. 쓰기 축 전용 안내 문구 상수 `SERVICE_IDENTITY_NOT_ADMIN_NOTICE_TEXT` 를 신설해
+  기존 `NOT_ADMIN_NOTICE_TEXT` 와의 문구 중복 모호성을 피했다. 2 파일 `+239/-38`.
+- **검증**: 신규 colocated spec 12 케이스(happy 2 — Admin/SuperAdmin · error path 1 — `me` 조회 실패
+  fail-closed · 분기 (a)(b)(c) · negative 5 종 — User/누락/null/빈값/소문자 `'admin'`) 로 R-112 4 종
+  cover. web 2884 test · 루트 13208 test green, `pnpm test:cov`(line/function 80%) 통과, 루트 lint +
+  web build(`tsc --noEmit`, `noUnusedLocals` 위반 0) green.
+- **4-게이트**: reviewer APPROVE(round 1/7) + PR comment 외부 post + integrator 자체 점검 + PR CI
+  green 모두 PASS → squash 머지 + branch 삭제.
