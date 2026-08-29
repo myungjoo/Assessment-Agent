@@ -2,8 +2,9 @@
 id: T-1783
 title: 인원 추가·수정 → ServiceIdentity 매핑 연속 동선 e2e 고정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1409
 coversReq: [REQ-079]
 independentStream: service-identity-e2e
 dependsOn: [T-1780, T-1781, T-1782]
@@ -12,6 +13,7 @@ touchesFiles:
 estimatedDiff: 280
 estimatedFiles: 1
 created: 2026-08-29
+completedAt: 2026-08-29T14:01:04Z
 plannerNote: P5 / PLAN 132 행 R-182~R-183 — REQ-079 잔여 (2) e2e 연속 동선 고정 (인원 생성·수정 후 이어서 매핑)
 ---
 
