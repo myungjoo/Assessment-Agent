@@ -2,7 +2,7 @@
 id: T-1772
 title: AdminView 에 ServiceIdentity 행별 액션 어댑터 buildServiceIdentityRowActionBridge 신설
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 230
@@ -64,3 +64,12 @@ plannerNote: "P6/PLAN 132 행 — ADR-0058 (d) 열네 번째 web slice: 러너 b
 `implementer → tester`
 
 ## Follow-ups
+
+## 결과 (2026-08-29 완료)
+
+- **Status: DONE** — 2026-08-29T02:54:32Z, PR [#1400](https://github.com/myungjoo/Assessment-Agent/pull/1400) squash 머지 `9a7da367`.
+- `web/src/views/AdminView.tsx` 에 순수 factory `buildServiceIdentityRowActionBridge` + 인터페이스 2 개를 신설하고, colocated spec `AdminView.service-identity-row-bridge.test.tsx` 를 붙였다 (2 파일 `+266/-0`, cap 이내 · 새 dependency 0 · 컨테이너 본문/JSX 무수정).
+- 러너 deps 의 boolean 계약(`deleting` / `setDeleting` / `setDeleteError`)과 T-1771 플래그 helper 의 id-귀속 계약(`busyIdentityId` / `errorIdentityId`) 사이 간극을 전이 규칙 (a)~(d) 로 절단했다. `normalizeRowId` 재사용으로 정규화 규칙을 단일화해, `setErrorIdentityId` 누락 시 실패 문구가 어느 행에도 뜨지 않는 무성 실패와 `setBusy(false)` 소유 미검사로 남의 진행 표시를 꺼버리는 창을 막았다.
+- 신규 spec 24 케이스(happy 2 · error 2 · 진리표 14 · negative 6) 전량 green, web 95 파일 2809 케이스 green, 루트 `test:cov`(line/function 80%) · lint · build(tsc --noEmit + vite) green.
+- reviewer APPROVE(round 1/7) + PR comment 외부 post + CI green 4-게이트 PASS.
+- 잔여 `ADR-0058 §Follow-ups (d)`: `ServiceIdentityRowActions` 마운트(러너 2 종 + 플래그 helper + bridge 준비 완료) + Admin RBAC gating + doc-sync.
