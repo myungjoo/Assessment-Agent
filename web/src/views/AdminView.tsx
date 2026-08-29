@@ -91,6 +91,8 @@ import ServiceIdentityRowActions from '../components/ServiceIdentityRowActions';
 import {
   createServiceIdentity,
   updateServiceIdentity,
+  deleteServiceIdentity,
+  setPrimaryServiceIdentity,
   serviceIdentityCollectionPath,
 } from '../api/serviceIdentity';
 import type { ServiceIdentityRow } from '../api/serviceIdentity';
@@ -3540,6 +3542,85 @@ function AdminView({
     ],
   );
 
+  // 행 액션 state 4 종(T-1777 — ADR-0058 §Follow-ups (d) 마감 결선). 목록 전체에 각각 하나씩만
+  // 두는 slot 이며, 앞 3 종은 boolean 이 아니라 "대상 행 id" 다 — 행 단위 플래그 파생
+  // (deriveServiceIdentityRowActionsFlags)이 id 비교로 판정해야 다른 행의 진행 · 확인 · 실패가
+  // 이 행을 물들이지 않기 때문이다. undefined 가 "해당 행 없음" 이다.
+  const [identityActionBusyId, setIdentityActionBusyId] = useState<
+    string | undefined
+  >(undefined);
+  const [confirmingDeleteIdentityId, setConfirmingDeleteIdentityId] = useState<
+    string | undefined
+  >(undefined);
+  const [identityActionErrorId, setIdentityActionErrorId] = useState<
+    string | undefined
+  >(undefined);
+  const [identityActionErrorText, setIdentityActionErrorText] = useState<
+    string | undefined
+  >(undefined);
+  // 진행 id 의 동기 사본 + gate(changingRoleGate 선례 그대로 — 새로 구현하지 않는다). 위 state 는
+  // 렌더 표면이라 같은 tick 의 두 번째 발사가 stale 값을 본다. 러너 가드는 gate.read() 로 ref 를 읽고,
+  // 둘은 createInFlightIdGate 가 ref → state 순서로 함께 갱신한다.
+  const identityActionBusyIdRef = useRef<string | undefined>(undefined);
+  const identityActionGate = useMemo(
+    () => createInFlightIdGate(identityActionBusyIdRef, setIdentityActionBusyId),
+    [],
+  );
+
+  // 행 편집 진입(T-1776 helper 호출만 — 진입 로직 인라인 재작성 금지). 주입하는 6 종이 모두
+  // useState setter 라 참조가 stable 하므로 deps 는 빈 배열이다.
+  const handleBeginServiceIdentityEdit = useCallback(
+    (identity: ServiceIdentityRow) =>
+      beginServiceIdentityEdit(identity, {
+        setEditingIdentityId,
+        setEditExternalIdInput: setIdentityEditExternalIdInput,
+        setUpdateError: setUpdateServiceIdentityError,
+        setConfirmingDeleteId: setConfirmingDeleteIdentityId,
+        setErrorIdentityId: setIdentityActionErrorId,
+        setErrorText: setIdentityActionErrorText,
+      }),
+    [],
+  );
+
+  // 행 액션 배선 deps 14 필드(T-1773 계약) — remove 에 deleteServiceIdentity, setPrimary 에
+  // setPrimaryServiceIdentity 를 꽂는다. 두 primitive 는 시그니처가 같아 교차 배선이 컴파일을
+  // 통과하므로 spec 이 호출 인자까지 검증한다. personId 는 조회 <select> 가 고른 인원이라
+  // 미선택('')이면 러너 가드가 발사 없이 접는다.
+  const serviceIdentityRowActionsDeps =
+    useMemo<ServiceIdentityRowActionsWiringDeps>(
+      () => ({
+        gate: identityActionGate,
+        setErrorIdentityId: setIdentityActionErrorId,
+        setErrorText: setIdentityActionErrorText,
+        personId: selectedIdentityPersonId,
+        onEdit: handleBeginServiceIdentityEdit,
+        remove: deleteServiceIdentity,
+        setPrimary: setPrimaryServiceIdentity,
+        describeError: toErrorMessage,
+        bumpRefresh: () => setServiceIdentitiesRefreshNonce((n) => n + 1),
+        confirmingDeleteId: confirmingDeleteIdentityId,
+        setConfirmingDeleteId: setConfirmingDeleteIdentityId,
+        busyIdentityId: identityActionBusyId,
+        errorIdentityId: identityActionErrorId,
+        errorText: identityActionErrorText,
+      }),
+      [
+        identityActionGate,
+        selectedIdentityPersonId,
+        handleBeginServiceIdentityEdit,
+        confirmingDeleteIdentityId,
+        identityActionBusyId,
+        identityActionErrorId,
+        identityActionErrorText,
+      ],
+    );
+  // 목록에 내려보낼 행 액션 slot — props 조립은 factory(T-1773/T-1775) 책임이라 손으로 만들지
+  // 않는다. deps 가 바뀔 때만 새 함수를 만들어 <ServiceIdentityList> 의 prop 정체성을 안정화한다.
+  const serviceIdentityRowActionsSlot = useMemo(
+    () => buildServiceIdentityRowActionsSlot(serviceIdentityRowActionsDeps),
+    [serviceIdentityRowActionsDeps],
+  );
+
   // 인원 생성 2 controlled input 상태(T-1143) — 컨테이너 소유. "추가" 클릭 시 handleCreatePerson
   // 이 POST body 의 2 필드(fullName/email)로 공급하고, 성공 후 모두 빈 값으로 되돌린다(연속 생성
   // 편의). runCreateProvider 의 providerInput 패턴 mirror.
@@ -5498,7 +5579,7 @@ function AdminView({
         {/* 인원별 service identity 목록(T-1766, ADR-0058 §Follow-ups (d) 읽기 축) — 전용
             <select> 로 인원을 고르면 GET /api/persons/:personId/identities 를 조건부 조회해
             ServiceIdentityList 에 내려보낸다. 옵션은 이미 조회 중인 personData 파생이라 새
-            fetch 0(비정상 payload 는 빈 배열 방어). 쓰기 축 배선은 후속 slice 책임. */}
+            fetch 0(비정상 payload 는 빈 배열 방어). 행 액션 slot 결선은 T-1777. */}
         <select
           aria-label="service identity 조회 인원 선택"
           value={selectedIdentityPersonId}
@@ -5515,6 +5596,7 @@ function AdminView({
           identities={serviceIdentities}
           loading={serviceIdentityLoading}
           error={serviceIdentityError}
+          renderRowActions={serviceIdentityRowActionsSlot}
         />
         {/* service identity 추가 폼(T-1767, ADR-0058 §Follow-ups (d) 쓰기 축 1/3) — 위 조회
             <select> 로 고른 인원에게 POST /api/persons/:personId/identities 를 발사한다. 입력값·
