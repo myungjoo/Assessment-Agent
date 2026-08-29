@@ -24,6 +24,10 @@ const DEFAULT_SUBJECT = '대상 미지정';
 const DEFAULT_PERIOD = '기간 미지정';
 // 정성 근거 fallback 문구 (구현의 DEFAULT_RATIONALE 과 정합).
 const DEFAULT_RATIONALE = '정성 근거 없음';
+// 평가 전체 정성 서술 영역의 접근성 라벨 markup 토큰 (구현의 NARRATIVE_ARIA_LABEL 과 정합).
+const NARRATIVE_LABEL_TOKEN = 'aria-label="평가 정성 서술"';
+// 테스트에서 사용할 평가 전체 정성 서술 문자열 (지표별 rationale 과 겹치지 않는 문구).
+const NARRATIVE_TEXT = '이번 분기 전반적으로 기여도가 꾸준히 상승했다';
 
 // 정상 metric 2개 — 첫 항목은 만점(8/10·rationale 있음)이 아니라 80%, 둘째는 10/10 만점(100%).
 const twoMetrics: EvaluationMetricItem[] = [
@@ -304,5 +308,123 @@ describe('EvaluationDetailPanel', () => {
     // throw 없이 항목이 렌더되고 score 가 표시된다.
     expect(html).toContain('role="img"');
     expect(html).toContain('3/10');
+  });
+
+  // === T-1793 narrative optional slot (REQ-075 잔여 축) ===
+
+  // happy-path — 정상 경로에서 narrative 문자열이 접근성 라벨과 함께 plain text 로 노출된다.
+  it('정상 경로 + narrative 전달 → 서술 텍스트와 한국어 접근성 라벨을 렌더한다 (happy-path — narrative)', () => {
+    const html = renderToStaticMarkup(
+      <EvaluationDetailPanel metrics={twoMetrics} narrative={NARRATIVE_TEXT} />,
+    );
+    expect(html).toContain(NARRATIVE_TEXT);
+    expect(html).toContain(NARRATIVE_LABEL_TOKEN);
+    // 항목도 그대로 렌더된다(서술이 기존 항목 렌더를 대체하지 않는다).
+    expect(html).toContain('코드 품질');
+  });
+
+  // error path — error truthy 면 narrative 를 전달해도 alert 만 렌더되고 서술이 문서에 없다.
+  it('error truthy + narrative 전달 → alert 만 렌더·서술 미렌더 (error path — narrative)', () => {
+    const html = renderToStaticMarkup(
+      <EvaluationDetailPanel
+        metrics={twoMetrics}
+        error="조회에 실패했습니다"
+        narrative={NARRATIVE_TEXT}
+      />,
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).not.toContain(NARRATIVE_TEXT);
+    expect(html).not.toContain(NARRATIVE_LABEL_TOKEN);
+  });
+
+  // branch — loading=true 면 loading 우선 정책 승계로 narrative 를 렌더하지 않는다.
+  it('loading=true + narrative 전달 → 진행 표시만·서술 미렌더 (branch — loading 우선)', () => {
+    const html = renderToStaticMarkup(
+      <EvaluationDetailPanel metrics={twoMetrics} loading={true} narrative={NARRATIVE_TEXT} />,
+    );
+    expect(html).toContain(LOADING_TOKEN);
+    expect(html).not.toContain(NARRATIVE_TEXT);
+    expect(html).not.toContain(NARRATIVE_LABEL_TOKEN);
+  });
+
+  // branch — 빈 목록 경로에서도 narrative 는 평가 전체 축이라 함께 렌더된다.
+  it('metrics=[] + narrative 전달 → 빈 상태 라벨과 서술을 함께 렌더한다 (branch — 빈 목록에서도 렌더)', () => {
+    const html = renderToStaticMarkup(
+      <EvaluationDetailPanel metrics={[]} narrative={NARRATIVE_TEXT} />,
+    );
+    expect(html).toContain(DEFAULT_EMPTY);
+    expect(html).toContain(NARRATIVE_TEXT);
+    expect(html).toContain(NARRATIVE_LABEL_TOKEN);
+    // 항목은 여전히 미렌더다(빈 목록 정책 불변).
+    expect(html).not.toContain('role="img"');
+  });
+
+  // negative ① — narrative 미전달(undefined) 시 서술 영역 자체가 렌더되지 않는다.
+  it('narrative 미전달(undefined) → 서술 영역 미렌더 (negative — narrative 미전달)', () => {
+    const html = renderToStaticMarkup(<EvaluationDetailPanel metrics={twoMetrics} />);
+    expect(html).not.toContain(NARRATIVE_LABEL_TOKEN);
+  });
+
+  // negative ② — 빈 문자열 narrative(경계값) 는 fallback 문구로 위장하지 않고 영역을 미렌더한다.
+  it('narrative="" → 서술 영역 미렌더·fallback 문구 위장 없음 (negative — 빈 문자열 narrative 경계값)', () => {
+    const html = renderToStaticMarkup(
+      <EvaluationDetailPanel metrics={twoMetrics} narrative="" />,
+    );
+    expect(html).not.toContain(NARRATIVE_LABEL_TOKEN);
+    // 빈 문자열용 새 fallback 문구를 만들지 않았으므로 서술 라벨 텍스트도 등장하지 않는다.
+    expect(html).not.toContain('평가 정성 서술');
+  });
+
+  // negative ③ — 공백만 있는 비정상 입력도 throw 없이 안전 렌더한다(값을 위장하지 않는다).
+  it('공백만 있는 narrative → throw 없이 서술 영역 안전 렌더 (negative — 공백 문자열 비정상 입력)', () => {
+    const render = () =>
+      renderToStaticMarkup(<EvaluationDetailPanel metrics={twoMetrics} narrative="   " />);
+    expect(render).not.toThrow();
+    expect(render()).toContain(NARRATIVE_LABEL_TOKEN);
+  });
+
+  // negative ④ — narrative 가 지표별 rationale 자리로 새어 나가지 않는다(축 혼입 0).
+  it('narrative 는 지표 rationale 자리로 새지 않는다 (negative — 축 혼입 방지)', () => {
+    const html = renderToStaticMarkup(
+      <EvaluationDetailPanel metrics={twoMetrics} narrative={NARRATIVE_TEXT} />,
+    );
+    // 서술은 항목 목록(<ul>) 앞 헤더 영역에 1 회만 등장한다.
+    const occurrences = html.split(NARRATIVE_TEXT).length - 1;
+    expect(occurrences).toBe(1);
+    expect(html.indexOf(NARRATIVE_TEXT)).toBeLessThan(html.indexOf('<ul>'));
+    // 각 항목의 근거는 자기 rationale 그대로이며 fallback 문구로 대체되지 않는다.
+    expect(html).toContain('테스트 커버리지가 향상됨');
+    expect(html).toContain('리뷰 응답이 빠름');
+    expect(html).not.toContain(DEFAULT_RATIONALE);
+  });
+
+  // negative ⑤ — 하위 호환 회귀 방어: 미전달/빈 문자열이면 기존 markup 이 바이트 단위로 동일하다.
+  it('narrative 미전달·빈 문자열이면 기존 markup 이 바이트 단위로 동일하다 (negative — 하위 호환 회귀)', () => {
+    const baseline = renderToStaticMarkup(
+      <EvaluationDetailPanel subjectName="홍길동" periodLabel="2026년 6월" metrics={twoMetrics} />,
+    );
+    const withUndefined = renderToStaticMarkup(
+      <EvaluationDetailPanel
+        subjectName="홍길동"
+        periodLabel="2026년 6월"
+        metrics={twoMetrics}
+        narrative={undefined}
+      />,
+    );
+    const withEmpty = renderToStaticMarkup(
+      <EvaluationDetailPanel
+        subjectName="홍길동"
+        periodLabel="2026년 6월"
+        metrics={twoMetrics}
+        narrative=""
+      />,
+    );
+    expect(withUndefined).toBe(baseline);
+    expect(withEmpty).toBe(baseline);
+    // 빈 목록 경로도 동일하게 하위 호환을 유지한다.
+    const emptyBaseline = renderToStaticMarkup(<EvaluationDetailPanel metrics={[]} />);
+    expect(renderToStaticMarkup(<EvaluationDetailPanel metrics={[]} narrative="" />)).toBe(
+      emptyBaseline,
+    );
   });
 });
