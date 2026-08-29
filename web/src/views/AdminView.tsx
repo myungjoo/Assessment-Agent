@@ -78,6 +78,9 @@ import ServiceIdentityList from '../components/ServiceIdentityList';
 import ServiceIdentityAddForm from '../components/ServiceIdentityAddForm';
 // T-1768 — 쓰기 축 2/3(수정 PATCH). 폼(T-1764)도 controlled 이라 대상 선택·입력·발사는 컨테이너 책임.
 import ServiceIdentityEditForm from '../components/ServiceIdentityEditForm';
+// T-1773 — 행별 액션 props 조립 factory 의 반환 타입. 같은 모양을 AdminView 에 재선언하면 컴포넌트
+// 계약과 갈라지므로 컴포넌트가 export 한 props 타입을 그대로 재사용한다(type-only import).
+import type { ServiceIdentityRowActionsProps } from '../components/ServiceIdentityRowActions';
 import {
   createServiceIdentity,
   updateServiceIdentity,
@@ -2318,6 +2321,102 @@ function buildServiceIdentityRowActionBridge(
       deps.setErrorIdentityId(rowId);
       deps.setErrorText(next);
     },
+  };
+}
+
+// ServiceIdentityRowActions 행별 props 조립에 주입하는 계약(T-1773) — "행 자신이 아닌 것"(대상 인원 ·
+// 발사 primitive 2 종 · 문구 파생 · 재조회 · 목록 전체에 하나씩뿐인 slot 4 종)만 모은다. 행 정보는
+// factory 첫 인자(identity)로 들어오므로 여기에 중복해 담지 않는다. 어댑터(T-1772)가 요구하는 3 종
+// (gate · 실패 귀속 setter 짝)은 재선언 대신 그 계약을 그대로 확장해 받는다(같은 모양 중복 금지).
+interface ServiceIdentityRowActionsWiringDeps extends ServiceIdentityRowActionBridgeDeps {
+  // 두 러너의 첫 인자 — 미선택(빈 · 공백뿐)이면 러너 가드가 no-op 로 접는다.
+  personId: string;
+  // 편집 동선 진입 — 어느 행인지 상위가 알아야 하므로 행 객체를 그대로 넘긴다.
+  onEdit: (identity: ServiceIdentityRow) => void;
+  // 발사 primitive 2 종(아래 (a)(1) 축 교차 사고의 당사자 — spec 의 호출 인자 검증으로만 고정된다).
+  remove: (personId: string, identityId: string) => Promise<unknown>;
+  setPrimary: (personId: string, identityId: string) => Promise<unknown>;
+  describeError: (e: unknown) => string;
+  bumpRefresh: () => void;
+  confirmingDeleteId?: string;
+  setConfirmingDeleteId: (next: string | undefined) => void;
+  busyIdentityId?: string;
+  errorIdentityId?: string;
+  errorText?: string;
+}
+
+// (a) 결함: 이 조립을 마운트 JSX 의 행 map 안 인라인으로 두면 세 사고가 어떤 test 도 깨지 않고
+// 지나간다 — (1) remove 와 setPrimary 는 시그니처가 같아 서로 바꿔 꽂아도(둘 다 string 인 인자 순서를
+// 뒤바꿔도) 컴파일이 통과해 "identity 삭제" 버튼이 primary POST 를 쏘고, (2) 어댑터를 render 시점에
+// 한 번만 build 해 콜백이 그 busy 스냅샷을 캡처하면 가드가 늘 직전 render 값을 봐 이중 발사가 새고,
+// (3) 삭제 취소가 소유 검사 없이 slot 을 비우면 다른 행이 열어둔 확인 단계까지 닫힌다.
+// (b) 그래서 조립만 인자 → 반환 순수 factory 로 절단한다 — ADR-0040 §5 로 RTL 상태 구동 렌더 test 가
+// 불가한 현 harness 에서는 factory 직접 호출만이 이 배선 표를 고정할 수 있다. 반환 타입은 컴포넌트가
+// export 한 ServiceIdentityRowActionsProps 를 그대로 쓰고(재선언 금지 — drift 차단), 플래그 3 종은
+// deriveServiceIdentityRowActionsFlags(T-1771) 결과를 그대로 싣는다(판정 재구현 금지). 호출 자체는
+// 부수효과 0 — 반환까지 어떤 setter · 러너 · fetch 도 부르지 않고 인자 객체도 변형하지 않는다.
+function buildServiceIdentityRowActionsProps(
+  identity: ServiceIdentityRow,
+  deps: ServiceIdentityRowActionsWiringDeps,
+): ServiceIdentityRowActionsProps {
+  // 행 id 정규화는 플래그 helper · 어댑터와 같은 normalizeRowId 하나만 쓴다(규칙 중복 구현 금지).
+  const rowId = normalizeRowId(identity.id);
+  const flags = deriveServiceIdentityRowActionsFlags({
+    identityId: identity.id,
+    confirmingDeleteId: deps.confirmingDeleteId,
+    busyIdentityId: deps.busyIdentityId,
+    errorIdentityId: deps.errorIdentityId,
+    errorText: deps.errorText,
+  });
+  // 귀속 불가한 행 — 다섯 콜백 전원이 어떤 주입 함수도 부르지 않는 no-op 이다(플래그 3 종은 같은
+  // 조건에서 derive 가 이미 전부 꺼짐으로 돌려준 값이다).
+  if (!rowId) {
+    const noop = () => {};
+    const off = { onEdit: noop, onDeleteRequest: noop, onDeleteConfirm: noop, onDeleteCancel: noop, onSetPrimary: noop };
+    return { identity, ...off, ...flags };
+  }
+  // 어댑터는 render 시점이 아니라 **콜백 호출 시점** 에 만든다 — busy 가 build 시점 gate.read()
+  // 스냅샷이라(T-1772) 한 번 만들어 캡처하면 가드가 직전 render 값에 굳어 이중 발사가 샌다.
+  const bridge = (): ServiceIdentityRowActionBridge =>
+    buildServiceIdentityRowActionBridge(identity.id, deps);
+  // 확인 단계 slot 은 이 행이 대상일 때만 비운다(남의 확인 단계를 닫는 창 차단).
+  const clearConfirmIfOwned = () => {
+    if (normalizeRowId(deps.confirmingDeleteId) === rowId) {
+      deps.setConfirmingDeleteId(undefined);
+    }
+  };
+  return {
+    identity,
+    onEdit: () => deps.onEdit(identity),
+    // 즉시 삭제가 아니라 확인 단계로의 전이만 알린다(정규화된 id 를 박아 sentinel 유입 차단).
+    onDeleteRequest: () => deps.setConfirmingDeleteId(rowId),
+    onDeleteCancel: clearConfirmIfOwned,
+    // 두 러너 인자는 항상 (personId, identity.id) 순서다. 러너가 돌려준 promise 는 그대로 반환한다
+    // — props 타입이 void 로 지우지만 spec 이 완료를 기다릴 수 있게 남겨둔다.
+    onDeleteConfirm: () => {
+      const row = bridge();
+      return runDeleteServiceIdentity(deps.personId, identity.id, {
+        remove: deps.remove,
+        describeError: deps.describeError,
+        deleting: row.busy,
+        setDeleting: row.setBusy,
+        setDeleteError: row.setError,
+        bumpRefresh: deps.bumpRefresh,
+        endConfirm: clearConfirmIfOwned,
+      });
+    },
+    onSetPrimary: () => {
+      const row = bridge();
+      return runSetPrimaryServiceIdentity(deps.personId, identity.id, {
+        setPrimary: deps.setPrimary,
+        describeError: deps.describeError,
+        settingPrimary: row.busy,
+        setSettingPrimary: row.setBusy,
+        setPrimaryError: row.setError,
+        bumpRefresh: deps.bumpRefresh,
+      });
+    },
+    ...flags,
   };
 }
 
@@ -5633,6 +5732,7 @@ export {
   deriveInstanceAccessFormFlags,
   deriveServiceIdentityRowActionsFlags,
   buildServiceIdentityRowActionBridge,
+  buildServiceIdentityRowActionsProps,
   createInFlightIdGate,
   runDeletePerson,
   runDeleteGroup,
@@ -5683,6 +5783,7 @@ export type {
   ServiceIdentityRowActionsFlags,
   ServiceIdentityRowActionBridgeDeps,
   ServiceIdentityRowActionBridge,
+  ServiceIdentityRowActionsWiringDeps,
   InFlightIdGate,
   DeletePersonDeps,
   DeleteGroupDeps,
