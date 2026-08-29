@@ -219,6 +219,13 @@ const AUTH_ME_PATH = '/api/auth/me';
 // 보여줄 사람-친화 한국어 한 줄. role="status" 로 렌더해 보조기술이 상태로 인식하게 한다.
 const NOT_ADMIN_NOTICE_TEXT = 'Admin 권한이 필요한 기능입니다 (현재 등급으로는 표시되지 않습니다)';
 
+// service identity 쓰기 축 전용 권한 안내 문구(T-1778) — ADR-0058 §Decision 4 가 추가 · 수정 ·
+// 삭제 · primary 지정을 Admin+ 로 못 박았으므로, 비-Admin(또는 등급 불명/조회 중)에게는 쓰기
+// 컨트롤 대신 이 한 줄만 보여준다(fail-closed). 위 NOT_ADMIN_NOTICE_TEXT 를 재사용하지 않는 것은
+// 한 화면에 같은 문구가 두 번 뜨면 어느 패널 이야기인지 사람도 spec 도 구분할 수 없기 때문이다.
+const SERVICE_IDENTITY_NOT_ADMIN_NOTICE_TEXT =
+  'service identity 편집은 Admin 권한이 필요합니다 (조회만 가능합니다)';
+
 // LLM provider 목록 조회 path — 고정 endpoint(GET /api/llm/providers, api.md 114 Admin+,
 // sanitize view 6 필드 id/provider/endpointUrl/modelId/createdAt/updatedAt). Admin+ 라
 // User 등급은 403 — 그 403 은 LLM_ERROR_FALLBACK 경로로 error props 안전 표시(throw 없음).
@@ -5592,49 +5599,65 @@ function AdminView({
             </option>
           ))}
         </select>
+        {/* 읽기 축은 등급 무관 렌더 유지(ADR-0058 §Decision 4 — GET = User+). 위 조회 <select> 와
+            이 목록 본체는 게이트 밖에 남기고, 행 액션 slot 만 Admin+ 로 막는다. 비-Admin 이면
+            undefined 를 내려 T-1774 의 slot 미전달 경로(행 액션 markup 0)로 떨어진다 — slot factory
+            호출 자체는 그대로 두고 전달 여부만 분기한다(hook 순서 불변). */}
         <ServiceIdentityList
           identities={serviceIdentities}
           loading={serviceIdentityLoading}
           error={serviceIdentityError}
-          renderRowActions={serviceIdentityRowActionsSlot}
+          renderRowActions={isAdmin ? serviceIdentityRowActionsSlot : undefined}
         />
-        {/* service identity 추가 폼(T-1767, ADR-0058 §Follow-ups (d) 쓰기 축 1/3) — 위 조회
-            <select> 로 고른 인원에게 POST /api/persons/:personId/identities 를 발사한다. 입력값·
-            진행·실패 문구는 컨테이너가 내려보내고, 성공 시 nonce bump 로 위 목록이 재조회된다. */}
-        <ServiceIdentityAddForm
-          service={identityServiceInput}
-          externalId={identityExternalIdInput}
-          onServiceChange={setIdentityServiceInput}
-          onExternalIdChange={setIdentityExternalIdInput}
-          onSubmit={handleCreateServiceIdentity}
-          loading={creatingServiceIdentity}
-          error={createServiceIdentityError}
-        />
-        {/* 수정 축(T-1768, ADR-0058 (d) 쓰기 2/3) — 대상 선택 시 prefill 후 PATCH 폼 마운트. */}
-        <select
-          aria-label="수정 대상 identity 선택"
-          value={editingIdentityId}
-          onChange={handleEditTargetChange}
-        >
-          <option value="">수정할 identity 를 선택하세요</option>
-          {serviceIdentities.map((identity) => (
-            <option key={identity.id} value={identity.id}>
-              {identity.service} / {identity.externalId}
-            </option>
-          ))}
-        </select>
-        {editingIdentity ? (
-          <ServiceIdentityEditForm
-            service={editingIdentity.service}
-            initialExternalId={editingIdentity.externalId}
-            externalId={identityEditExternalIdInput}
-            onExternalIdChange={setIdentityEditExternalIdInput}
-            onSubmit={handleUpdateServiceIdentity}
-            onCancel={endServiceIdentityEdit}
-            loading={updatingServiceIdentity}
-            error={updateServiceIdentityError}
-          />
-        ) : null}
+        {/* 쓰기 축 Admin+ gating(T-1778, ADR-0058 §Decision 4 — 추가 · 수정 · 삭제 · primary 지정은
+            Admin+). 추가 폼 · 수정 대상 <select> · 수정 폼 3 컨트롤을 isAdmin 삼항 안으로 넣어
+            Admin/SuperAdmin 에게만 마운트하고, 그 외(비-Admin · 등급 불명 · 조회 중 · 조회 실패)에는
+            안내 한 줄만 렌더한다(fail-closed — 눌러도 403 만 돌아오는 버튼을 노출하지 않는다).
+            판정은 기존 isAdmin 파생을 그대로 쓴다(등급 helper 재구현 0). */}
+        {isAdmin ? (
+          <>
+            {/* service identity 추가 폼(T-1767, ADR-0058 §Follow-ups (d) 쓰기 축 1/3) — 위 조회
+                <select> 로 고른 인원에게 POST /api/persons/:personId/identities 를 발사한다. 입력값·
+                진행·실패 문구는 컨테이너가 내려보내고, 성공 시 nonce bump 로 위 목록이 재조회된다. */}
+            <ServiceIdentityAddForm
+              service={identityServiceInput}
+              externalId={identityExternalIdInput}
+              onServiceChange={setIdentityServiceInput}
+              onExternalIdChange={setIdentityExternalIdInput}
+              onSubmit={handleCreateServiceIdentity}
+              loading={creatingServiceIdentity}
+              error={createServiceIdentityError}
+            />
+            {/* 수정 축(T-1768, ADR-0058 (d) 쓰기 2/3) — 대상 선택 시 prefill 후 PATCH 폼 마운트. */}
+            <select
+              aria-label="수정 대상 identity 선택"
+              value={editingIdentityId}
+              onChange={handleEditTargetChange}
+            >
+              <option value="">수정할 identity 를 선택하세요</option>
+              {serviceIdentities.map((identity) => (
+                <option key={identity.id} value={identity.id}>
+                  {identity.service} / {identity.externalId}
+                </option>
+              ))}
+            </select>
+            {editingIdentity ? (
+              <ServiceIdentityEditForm
+                service={editingIdentity.service}
+                initialExternalId={editingIdentity.externalId}
+                externalId={identityEditExternalIdInput}
+                onExternalIdChange={setIdentityEditExternalIdInput}
+                onSubmit={handleUpdateServiceIdentity}
+                onCancel={endServiceIdentityEdit}
+                loading={updatingServiceIdentity}
+                error={updateServiceIdentityError}
+              />
+            ) : null}
+          </>
+        ) : (
+          // 비-Admin(또는 등급 불명/조회 중) — 쓰기 컨트롤 대신 권한 안내 한 줄(fail-closed).
+          <p role="status">{SERVICE_IDENTITY_NOT_ADMIN_NOTICE_TEXT}</p>
+        )}
       </section>
       {/* 그룹 관리(T-1146, REQ-028/REQ-049) — 그룹 생성 폼을 담는 별도 섹션. 그룹 목록은 기존 select
           조회부(useApiResource<GroupRow[]>)가 소유하므로 본 slice 는 생성 성공 시 groupsRefreshNonce
