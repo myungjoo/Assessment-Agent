@@ -2333,7 +2333,7 @@ interface ServiceIdentityRowActionsWiringDeps extends ServiceIdentityRowActionBr
   personId: string;
   // 편집 동선 진입 — 어느 행인지 상위가 알아야 하므로 행 객체를 그대로 넘긴다.
   onEdit: (identity: ServiceIdentityRow) => void;
-  // 발사 primitive 2 종(위 (a)(1) 축 교차 사고의 당사자 — spec 의 호출 인자 검증으로만 고정된다).
+  // 발사 primitive 2 종(아래 (a)(1) 축 교차 사고의 당사자 — spec 의 호출 인자 검증으로만 고정된다).
   remove: (personId: string, identityId: string) => Promise<unknown>;
   setPrimary: (personId: string, identityId: string) => Promise<unknown>;
   describeError: (e: unknown) => string;
@@ -2372,8 +2372,8 @@ function buildServiceIdentityRowActionsProps(
   // 조건에서 derive 가 이미 전부 꺼짐으로 돌려준 값이다).
   if (!rowId) {
     const noop = () => {};
-    const off = { onEdit: noop, onDeleteRequest: noop, onDeleteConfirm: noop, onDeleteCancel: noop };
-    return { identity, ...off, onSetPrimary: noop, ...flags };
+    const off = { onEdit: noop, onDeleteRequest: noop, onDeleteConfirm: noop, onDeleteCancel: noop, onSetPrimary: noop };
+    return { identity, ...off, ...flags };
   }
   // 어댑터는 render 시점이 아니라 **콜백 호출 시점** 에 만든다 — busy 가 build 시점 gate.read()
   // 스냅샷이라(T-1772) 한 번 만들어 캡처하면 가드가 직전 render 값에 굳어 이중 발사가 샌다.
