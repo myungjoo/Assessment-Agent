@@ -25,6 +25,13 @@ dependency 도 0** (기존 NestJS · Prisma · class-validator 만으로 성립)
 REQ-079 의 `PLANNED` status 도 그대로 둔다. 실제 capability 는 §Follow-ups 의 slice 들이
 merge 된 뒤에야 생긴다.
 
+**2026-08-30 closure** — 위 세 문단은 본 ADR merge 시점(2026-08-27)의 사실 서술이므로 그대로
+보존한다. 그 뒤 §Follow-ups 의 chain (a) ~ (e) 가 **전량 shipped** 되어 상황이 바뀌었다 — 그 결과
+[docs/requirements.md](../requirements.md) `97~98 행` 의 REQ-078 · REQ-079 두 row 가 모두 `DONE` 이고
+[PLAN.md](../PLAN.md) `132 행` 오너 지시 bullet 도 `[x]` 로 승격됐다. 본 문단은 **진행 상태 표기만**
+갱신하며 frontmatter 의 `status: ACCEPTED` · §Decision · §Consequences 의 결정 내용은 변경 0 이다
+(T-1785).
+
 ## Context
 
 [PLAN.md](../PLAN.md) `132 행` 의 오너 지시(2026-08-26, REQ-078 / REQ-079)는 착수 slice 가
@@ -268,18 +275,32 @@ negative cases 충분 cover)을 준수한다.**
   자동 승격 · 재승격, §Decision 5 의 Prisma → HttpException 변환), 그리고 §Decision 3 이
   요구하는 `ServiceIdentityRepository.update` 확장. cap ≤ 300 LOC / ≤ 5 파일 · R-112 준수
   (negative 는 최소 `P2002` 409 / `P2025` 404 / person 부재 404 / 타 person 소유 404 4 종).
+  **shipped** — T-1739 ~ T-1747. 실측: [create-service-identity.dto.ts](../../src/user/dto/create-service-identity.dto.ts) ·
+  [update-service-identity.dto.ts](../../src/user/dto/update-service-identity.dto.ts) ·
+  [service-identity.service.ts](../../src/user/service-identity.service.ts) `66 행` `export class ServiceIdentityService` ·
+  [service-identity.repository.ts](../../src/user/service-identity.repository.ts) `84 행` `async update(`.
 - **(b) controller + RBAC 배선** — §Decision 1 의 5 route 를 `PersonController` 와 별도
   controller 중 어디에 둘지 결정해 배선하고, §Decision 4 의 guard stack 을 부착한다. cap
   ≤ 300 LOC / ≤ 5 파일 · R-112 준수(401 / 403 분기 각 1+ test).
+  **shipped** — T-1748 ~ T-1752. 실측: [service-identity.controller.ts](../../src/user/service-identity.controller.ts)
+  `69 행` `@Controller("api/persons/:personId/identities")` 아래 5 route 가 guard stack 과 함께 배선됨.
 - **(c) e2e 로 오류 계약 고정** — §Decision 5 의 표 5 행(a ~ e)을 실 HTTP 로 고정한다. 특히
   §Decision 2 의 자동 승격 · 재승격을 DB 상태로 검증한다. cap ≤ 300 LOC / ≤ 5 파일 · R-112
   준수(negative 위주 스위트).
+  **shipped** — T-1753 ~ T-1756. 실측: [test/e2e/service-identities.e2e-spec.ts](../../test/e2e/service-identities.e2e-spec.ts)
+  `139 행` describe "목록·생성·수정·삭제·primary 지정 계약".
 - **(d) AdminView 편집 UI** — REQ-079 의 "이름 / email 만 입력 가능한 상태 금지" 를 해소하는
   인원 추가 · 편집 동선. §Consequences (b) 완화를 위한 **service 후보 목록 제시** 방식(활성
   instance key 조회 수단의 신설 여부 포함)을 이 slice 가 판단한다. cap ≤ 300 LOC / ≤ 5 파일 ·
   R-112 준수(web spec 의 error path · 빈 목록 분기 포함).
+  **shipped** — T-1759 ~ T-1768 · T-1777 · T-1778 · T-1780 · T-1781 · T-1783. 실측:
+  [web/src/views/AdminView.tsx](../../web/src/views/AdminView.tsx) `5645 행` `aria-label="service identity 조회 인원 선택"` ·
+  `5660 행` `<ServiceIdentityList` · `5671 행` `{isAdmin ? (` (쓰기 축 gating), 연속 동선은
+  [test/e2e/person-identity-continuation.e2e-spec.ts](../../test/e2e/person-identity-continuation.e2e-spec.ts) `61 행` 이 고정.
 - **(e) api.md · requirements.md doc-sync** — §Decision 1 의 5 route 를 api.md UC-03 표에
   추가하고 REQ-078 / REQ-079 status 를 (a) ~ (d) 실측에 맞춰 재판정한다. **본 ADR 만으로는
   어떤 완료 표기도 하지 않는다.** doc-sync 이므로 코드 변경 0 · cap ≤ 300 LOC / ≤ 5 파일.
+  **shipped** — T-1757 · T-1758 · T-1782. 실측: [docs/architecture/api.md](../architecture/api.md) `82~86 행` 이 5 route 를
+  UC-03 표에 담고, [docs/requirements.md](../requirements.md) `97~98 행` 의 REQ-078 · REQ-079 가 `DONE` 으로 재판정됨.
 
 Refs: T-1738, REQ-078, REQ-079
