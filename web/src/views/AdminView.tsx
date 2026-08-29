@@ -1696,6 +1696,30 @@ interface CreatePersonDeps {
   bumpRefresh: () => void;
   // 성공 후 2 입력 초기화 트리거(빈 값으로 되돌림 — 연속 생성 편의).
   resetInput: () => void;
+  // 생성 성공 + 응답에서 id 추출 성공 시에만 호출되는 optional 후속 훅(T-1780) — 컨테이너가
+  // 방금 만든 인원을 service identity 대상으로 자동 선택하는 데 쓴다(REQ-079). optional 이라
+  // 미전달 호출처(기존 spec 포함)는 수정 0 으로 그대로 컴파일·통과한다.
+  onCreated?: (personId: string) => void;
+}
+
+// 인원 생성 201 응답에서 생성된 인원 id 를 방어적으로 꺼내는 순수 helper(T-1780). 응답 형태를
+// 신뢰하지 않는다 — 비객체(undefined/null/문자열/숫자/배열) · `id` 부재 · `id` 비-string · 공백뿐인
+// id 는 모두 undefined 로 접는다. trim 규칙은 재구현하지 않고 행 id 정규화 정본 normalizeRowId 를
+// 재사용한다(같은 규칙 두 벌 금지). 반환이 undefined 면 호출처는 후속 자동 선택을 하지 않는다.
+function extractCreatedPersonId(response: unknown): string | undefined {
+  if (
+    typeof response !== 'object' ||
+    response === null ||
+    Array.isArray(response)
+  ) {
+    return undefined;
+  }
+  const rawId = (response as { id?: unknown }).id;
+  if (typeof rawId !== 'string') {
+    return undefined;
+  }
+  // 공백뿐인 id 는 빈 값으로 접혀 undefined 가 된다(빈 선택으로 조회가 idle 로 떨어지는 사고 차단).
+  return normalizeRowId(rawId) || undefined;
 }
 
 // 인원 생성 POST /api/persons(body `{ fullName, email }`) + state-전이 로직을 캡슐화한 순수 async
@@ -1727,7 +1751,7 @@ async function runCreatePerson(
   try {
     // POST /api/persons — 201 Created. trim 된 2 필드를 JSON body 로 전송한다(runCreateProvider 의
     // JSON body 발사 convention 동형). active 는 backend Prisma default(true)가 채우므로 미포함.
-    await deps.create(PERSONS_PATH, {
+    const created = await deps.create(PERSONS_PATH, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fullName, email }),
@@ -1736,6 +1760,13 @@ async function runCreatePerson(
     // 입력 초기화(연속 생성 시 직전 값 잔존 방지).
     deps.bumpRefresh();
     deps.resetInput();
+    // 후속 훅(T-1780) — 201 응답에서 id 를 꺼내는 데 성공한 경우에만 호출한다. 추출 실패(비객체·
+    // id 부재/비-string/공백)면 호출 0 이고 위 성공 전이는 그대로다(응답 형태 변화가 생성 자체를
+    // 깨지 않도록 — 자동 선택은 부가 편의일 뿐).
+    const createdId = extractCreatedPersonId(created);
+    if (createdId) {
+      deps.onCreated?.(createdId);
+    }
   } catch (e) {
     // 실패 — 사람-친화 문구를 error state 로 안전 표시(throw 없이). 400 검증 실패(빈/잘못된 email)
     // / 409 email 중복 / 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로
@@ -3667,6 +3698,13 @@ function AdminView({
             setFullNameInput('');
             setEmailInput('');
           },
+          // 생성 직후 identity 대상 자동 선택(T-1780, REQ-079) — 방금 만든 인원에 service
+          // identity 를 붙이는 동선에서 사용자가 select 를 손으로 다시 고르지 않도록, 생성 응답의
+          // id 를 조회 대상 state 로 그대로 넘긴다(ADR-0058 §Follow-ups (d) 마지막 한 칸).
+          // 주의: 인원 목록은 위 bumpRefresh 로 방금 재조회를 시작한 참이라, 응답이 오기 전까지는
+          // <select> 에 이 id 의 option 이 아직 없어 잠깐 비어 보일 수 있다(값 자체는 유지되고
+          // 재조회 완료 시 정상 표시된다 — 별도 보정 없음).
+          onCreated: (personId) => setSelectedIdentityPersonId(personId),
         },
       ),
     [fullNameInput, emailInput, creatingPerson],
@@ -5897,6 +5935,7 @@ export {
   runAdd,
   runCreateProvider,
   runCreatePerson,
+  extractCreatedPersonId,
   runCreateServiceIdentity,
   runUpdateServiceIdentity,
   runDeleteServiceIdentity,
