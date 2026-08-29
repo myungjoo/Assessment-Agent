@@ -524,7 +524,9 @@ describe('DashboardView — 재조회 배선 source guard (T-1737, reviewer MINO
 
   // AC 1 — summaries 조회가 trend prefix alias 로 reload 를 구조분해한다(상태 오염 차단).
   it('summaries 조회부가 trendReload alias 로 구조분해한다 (happy-path — 배선 2)', () => {
-    expect(SOURCE).toMatch(/reload: trendReload,\s*\n\s*\} = useApiResource<SummaryRow\[\]>/);
+    // T-1789 — 컨테이너가 응답을 특정 행 타입으로 단정하지 않게 되어(<unknown[]>) 타입 인자
+    // 부분만 갱신한다. `reload: trendReload` alias 검사 의미는 그대로라 이 줄이 지워지면 여전히 fail 한다.
+    expect(SOURCE).toMatch(/reload: trendReload,\s*\n\s*\} = useApiResource<unknown\[\]>/);
   });
 
   // AC 2 — 제출 완료 분기가 두 재조회를 함께 넘겨 호출한다. 이 한 줄이 지워지면 fail 한다.
