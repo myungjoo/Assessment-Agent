@@ -16,6 +16,10 @@
 // ④b Out of Scope(본 컨테이너는 useApiResource 를 그룹 목록 조회에 단 한 번만 호출한다).
 
 import { useCallback, useMemo, useRef, useState } from 'react';
+// T-1775 — 행별 액션 slot factory 반환 함수의 결과 타입(ReactNode 가 아니라 ReactElement 로 좁혀
+// spec 이 element 의 type · props 를 그대로 검사할 수 있게 한다). ServiceIdentityList 의 slot 계약
+// (ReactNode 반환)에는 그대로 대입 가능하다.
+import type { ReactElement } from 'react';
 import { useApiResource, toErrorMessage } from '../api/useApiResource';
 import { request, ApiError } from '../api/apiClient';
 import type { RequestOptions } from '../api/apiClient';
@@ -81,6 +85,9 @@ import ServiceIdentityEditForm from '../components/ServiceIdentityEditForm';
 // T-1773 — 행별 액션 props 조립 factory 의 반환 타입. 같은 모양을 AdminView 에 재선언하면 컴포넌트
 // 계약과 갈라지므로 컴포넌트가 export 한 props 타입을 그대로 재사용한다(type-only import).
 import type { ServiceIdentityRowActionsProps } from '../components/ServiceIdentityRowActions';
+// T-1775 — 행별 액션 slot factory 가 실제 element 를 만들기 위한 값(default) import 로의 승격.
+// 위 type-only import 는 그대로 두고(반환 타입 계약의 출처) 값 import 만 함께 둔다.
+import ServiceIdentityRowActions from '../components/ServiceIdentityRowActions';
 import {
   createServiceIdentity,
   updateServiceIdentity,
@@ -2418,6 +2425,25 @@ function buildServiceIdentityRowActionsProps(
     },
     ...flags,
   };
+}
+
+// (a) 결함: 이 "행 → 액션 노드" 변환을 마운트 JSX 안 인라인 화살표로 두면 세 사고가 어떤 test 도
+// 깨지 않고 지나간다 — (1) buildServiceIdentityRowActionsProps(T-1773)를 우회해 props 를 손으로 다시
+// 조립하는 drift 가 열려 필드 하나가 빠지거나 다른 값이 실리고, (2) 행마다가 아니라 slot 생성 시점에
+// 한 번만 props 를 만들면 한 행의 플래그(진행 중 · 삭제 확인 · 실패 문구)가 모든 행에 복제되며,
+// (3) 반환 element 를 캐싱하면 그 사이 바뀐 deps 상태가 화면에 영영 반영되지 않는다.
+// (b) 그래서 변환 한 겹만 모듈 레벨 순수 factory 로 절단한다 — ADR-0040 §5 로 RTL 상태 구동 렌더
+// test 가 불가한 현 harness 에서는 factory 직접 호출 + 반환 element 검사만이 이 배선을 고정할 수
+// 있다. 반환 함수는 호출될 때마다 props 를 새로 조립해(캐싱 0) 그대로 spread 하며, deps 타입은
+// T-1773 계약을 재선언 없이 그대로 받는다. 소비처(<ServiceIdentityList renderRowActions={...} />
+// 실제 전달)는 다음 slice 책임이라 본 slice 의 소비처는 spec 뿐이다.
+function buildServiceIdentityRowActionsSlot(
+  deps: ServiceIdentityRowActionsWiringDeps,
+): (identity: ServiceIdentityRow) => ReactElement {
+  return (identity: ServiceIdentityRow) => (
+    // props 를 손으로 고르지 않고 factory 결과를 통째로 spread 한다(필드 추가 · 누락 원천 차단).
+    <ServiceIdentityRowActions {...buildServiceIdentityRowActionsProps(identity, deps)} />
+  );
 }
 
 // 부여 POST + state-전이 deps(T-1166 — 위 CreateUserDeps 1:1 mirror, 필드 의미는 그쪽 주석). 조회
@@ -5733,6 +5759,7 @@ export {
   deriveServiceIdentityRowActionsFlags,
   buildServiceIdentityRowActionBridge,
   buildServiceIdentityRowActionsProps,
+  buildServiceIdentityRowActionsSlot,
   createInFlightIdGate,
   runDeletePerson,
   runDeleteGroup,
