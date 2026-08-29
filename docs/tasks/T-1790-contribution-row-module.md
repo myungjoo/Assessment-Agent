@@ -2,7 +2,10 @@
 id: T-1790
 title: 기여 상세 표시 row 순수 모듈 contributionRow 신설
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1412
+completedAt: 2026-08-29T20:56:35Z
+mergeCommit: 37a01e89
 commitMode: pr
 coversReq: [REQ-075, REQ-004]
 estimatedDiff: 420
@@ -72,4 +75,13 @@ plannerNote: "P6 오너 지시 PLAN 131 행 ② 표시 계약 정합(REQ-075) �
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+- (a) **DashboardView 배선** — 로컬 `ContributionRow` · `deriveContributionMetrics` 를 철거하고 본 모듈 소비로 전환 ([T-1789](T-1789-dashboardview-summary-row-wire.md) 선례 동형). 그때 `c{index+1}` 합성 key 가 [EvaluationDetailPanel](../../web/src/components/EvaluationDetailPanel.tsx) 의 `EvaluationMetricItem.id` 와 맞물리는지 확인한다.
+- (b) **REQ-074~077 재판정 + [PLAN](../PLAN.md) `131 행` 마커 승격** — 표 · 점수 분포 · 시계열 · 기여 4 축이 모두 배선까지 닫힌 뒤 doc-only slice 로.
+
+## 결과 (2026-08-29)
+
+**DONE** — PR [#1412](https://github.com/myungjoo/Assessment-Agent/pull/1412) → main squash `37a01e89` (2 파일 `+417/-0`).
+
+- [contributionRow.ts](../../web/src/api/contributionRow.ts) 166 LOC 신설 — `sourceType` · `sourceRef` 합성 라벨 4 분기, `id` 결손 시 `c{index+1}` 합성 key, 수치는 [assessmentRow.ts](../../web/src/api/assessmentRow.ts) 의 `parseNumericField` import 재사용(복제 0), 결손은 0 위장 없이 `null` 유지.
+- colocated spec 251 LOC / 29 케이스로 R-112 4 종 cover — web vitest 104 files / 2987 tests, 루트 458 suite / 13208 test, `test:cov` threshold 전부 green.
+- 4-게이트 PASS — reviewer APPROVE round 1/7 (finding 0), PR comment 외부 post `5464819978`, PR CI `9a80ca12` success, integrator 자체 점검.
