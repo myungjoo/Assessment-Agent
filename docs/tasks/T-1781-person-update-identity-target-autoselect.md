@@ -2,7 +2,7 @@
 id: T-1781
 title: AdminView 인원 수정 성공 후 ServiceIdentity 대상 자동 선택 결선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-079]
 independentStream: service-identity-web-ui
@@ -82,3 +82,11 @@ plannerNote: P5 / ADR-0058 §Follow-ups (d) 잔여 — 인원 수정 동선의 i
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 추가한다.)
+
+## 결과 (2026-08-29 11:52Z DONE)
+
+- `commitMode: pr` — PR [#1408](https://github.com/myungjoo/Assessment-Agent/pull/1408) squash `4e50c061` 머지 후 branch 삭제.
+- `web/src/views/AdminView.tsx` 의 `UpdatePersonDeps` 에 optional `onUpdated` 를 추가하고 성공 분기에서만 `deps.onUpdated?.(id.trim())` 1 회 호출하도록 절단, 컨테이너 `handleUpdatePerson` 의 deps 에 `setSelectedIdentityPersonId` 를 배선했다 (2 파일 `+164/-0`, backend·JSX·새 dependency 0 · 콜백이 optional 이라 기존 호출처 무수정 하위 호환).
+- 신규 colocated spec `AdminView.person-update-identity-autoselect.test.tsx` 로 R-112 4 종 cover — happy 1 · error 3 종 · 3 가드 · in-flight · 훅 미전달 · trim 경계 · 배선 소스 guard. web 2909 · 루트 13208 test green, `test:cov`(line·function ≥ 80%) · 루트 lint · web build green.
+- 4-게이트 PASS: reviewer APPROVE(round 1/7, PR comment 외부 존재) + integrator 자체 점검 + PR CI green.
+- 잔여: REQ-079 재판정(생성·수정 두 동선 shipped 반영) 과 ADR-0058 `§Follow-ups (d)·(e)` closure 표기 doc slice.
