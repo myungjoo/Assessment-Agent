@@ -2,7 +2,9 @@
 id: T-1789
 title: DashboardView 시계열 축을 summaryRow 모듈 소비로 배선 (로컬 SummaryRow · deriveTrendPoints 철거)
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1411
+completedAt: 2026-08-29T19:59:46Z
 commitMode: pr
 coversReq: [REQ-075]
 independentStream: web-dashboard-display-contract
@@ -38,23 +40,23 @@ plannerNote: P6 PLAN 131 행 ② 시계열 축 배선 — T-1788 Follow-up (a), 
 
 ## Acceptance Criteria
 
-- [ ] `DashboardView.tsx` 의 컨테이너-로컬 `interface SummaryRow` 와 순수 함수 `deriveTrendPoints` 를 **삭제** 하고, 그 named export / type export 도 함께 걷어낸다. 동등 cover 는 [summaryRow.test.ts](../../web/src/api/summaryRow.test.ts) 에 이미 있으므로 그 test 를 옮겨 적지 않는다 (중복 재작성 금지).
-- [ ] 시계열 조회를 `useApiResource<unknown[]>(summariesPath)` 로 낮추고(컨테이너가 응답을 특정 행 타입으로 단정하지 않는다 — T-1727 근거 승계), 표시 행은 `deriveSummaryDisplayRows(trendData)` 로만 파생한다. alias 구조분해(`data: trendData` · `trendLoading` · `trendError` · `reload: trendReload`) 는 **그대로 유지** 한다 (형제 조회와의 상태 분리 · T-1737 재조회 배선 회귀 0).
-- [ ] 컨테이너에 순수 helper `toTrendPoints(rows: SummaryDisplayRow[]): TrendPoint[]` 를 신설·named export 하고 `trendPoints` useMemo 가 이것만 호출하게 한다. **`value === null` 행은 포인트에서 제외** 한다 (표본 없음 ≠ 0 점 — T-1727 `toLegacyScoreRows` · T-1730 집계 정책 승계). 제외 근거를 주석 1~2 줄로 박제한다. 배열이 아닌 입력도 throw 없이 빈 배열로 흡수한다.
-- [ ] `TrendTimeSeriesPanel` 에 내려보내는 props(`points` · `loading` · `error`) 의 형태·이름 불변 — 컴포넌트 파일 수정 0.
-- [ ] `deriveMetrics` · `deriveContributionScoreBuckets` · `pageRows` · `buildSummariesPath` · `buildAssessmentsPath` · `buildContributionsPath` · `derivePersonOptions` · `runPeriodEvaluation` 계열의 **시그니처·본문 불변** (이 경계가 본 task 를 4 파일로 묶는다).
-- [ ] drift-guard anchor 재지정 (같은 commit 필수 — 미동반 시 CI red):
-  - [ ] [DashboardView.summaries-list-contract.test.ts](../../web/src/views/DashboardView.summaries-list-contract.test.ts) 의 `extractSummariesFireMethod` anchor 를 `<SummaryRow[]>` 대신 **시계열 조회만 갖는 alias 구조분해**(예: `data: trendData` ~ `} = useApiResource<unknown[]>(...)`) 로 바꾸고, 형제 조회(assessments 무-alias · contributions/permission-denied 의 다른 alias)와 섞이지 않는 유일성을 주석으로 박제한다. `286 행` 의 추출기 자체 검사 fixture 문자열도 새 anchor 형태로 갱신한다.
-  - [ ] [DashboardView.period-evaluation.test.tsx](../../web/src/views/DashboardView.period-evaluation.test.tsx) `527 행` 의 정적 정규식을 `useApiResource<unknown[]>` 기준으로 갱신하되 `reload: trendReload` alias 검사 의미는 유지한다 (그 줄이 지워지면 여전히 fail).
-  - [ ] 두 spec 의 **test 개수·이름·다른 단언은 불변** — anchor 갱신 외의 확장 금지.
-- [ ] happy-path unit test 1+ ([DashboardView.test.tsx](../../web/src/views/DashboardView.test.tsx)) — backend 실응답 형태(`metricScore` Decimal 문자열 + `periodStart` ISO) fixture 로 마운트했을 때 시계열에 **날짜 라벨과 0 이 아닌 실제 값** 이 렌더됨 1+, `toTrendPoints` 정상 매핑 1+.
-- [ ] error path unit test 1+ — 시계열 조회 실패(error) · `data` 미도착(`undefined`) 시 throw 0 + 빈/오류 표시로 흡수 1+, `toTrendPoints(null as never)` 류 비정상 입력이 빈 배열 반환 + throw 0 1+.
-- [ ] 분기 cover — (a) `trendLoading=true` 분기, (b) 포인트 0 건 빈 상태 분기, (c) `value === null` 행이 섞인 배열에서 그 행만 제외되고 나머지는 유지, (d) `periodStart` 유효/무효 라벨 분기가 화면 라벨로 이어짐, (e) 기간 평가 성공 후 `trendReload` 재조회 경로 회귀 0 각 1+.
-- [ ] negative cases 충분 cover — 각 1+ test: (a) 배열이 아닌 응답(객체 · 문자열)에도 빈 시계열 + throw 0, (b) 옛 계약 row(`value`/`score` 만 존재)가 값 0 으로 위장되지 않고 **포인트에서 제외**, (c) 결손 row(`id` 부재 · 원소가 `null`)가 흡수되어 `'undefined'` · `'NaN'` 문자열이 화면에 새지 않음, (d) `metricScore: "abc"` 같은 비수치 문자열이 0 포인트를 만들지 않음, (e) `personId` 미선택 시 시계열 조회 미수행 가드 회귀 0.
-- [ ] `cd web && pnpm test` (vitest) 전량 green — 위 4 파일 외 web spec 은 **수정 없이** green (특히 [DashboardView.person-selector.test.tsx](../../web/src/views/DashboardView.person-selector.test.tsx) · [DashboardView.assessments-list-contract.test.ts](../../web/src/views/DashboardView.assessments-list-contract.test.ts) · [DashboardView.contributions-list-contract.test.ts](../../web/src/views/DashboardView.contributions-list-contract.test.ts)).
-- [ ] `cd web && pnpm build` 통과 (TypeScript 오류 0 — 옛 `SummaryRow` · `deriveTrendPoints` 잔존 참조 없음).
-- [ ] 루트 `pnpm lint && pnpm build && pnpm test` green, `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%).
-- [ ] 새 외부 dependency 0 · `src/`(backend) 파일 변경 0 · `prisma/` 변경 0.
+- [x] `DashboardView.tsx` 의 컨테이너-로컬 `interface SummaryRow` 와 순수 함수 `deriveTrendPoints` 를 **삭제** 하고, 그 named export / type export 도 함께 걷어낸다. 동등 cover 는 [summaryRow.test.ts](../../web/src/api/summaryRow.test.ts) 에 이미 있으므로 그 test 를 옮겨 적지 않는다 (중복 재작성 금지).
+- [x] 시계열 조회를 `useApiResource<unknown[]>(summariesPath)` 로 낮추고(컨테이너가 응답을 특정 행 타입으로 단정하지 않는다 — T-1727 근거 승계), 표시 행은 `deriveSummaryDisplayRows(trendData)` 로만 파생한다. alias 구조분해(`data: trendData` · `trendLoading` · `trendError` · `reload: trendReload`) 는 **그대로 유지** 한다 (형제 조회와의 상태 분리 · T-1737 재조회 배선 회귀 0).
+- [x] 컨테이너에 순수 helper `toTrendPoints(rows: SummaryDisplayRow[]): TrendPoint[]` 를 신설·named export 하고 `trendPoints` useMemo 가 이것만 호출하게 한다. **`value === null` 행은 포인트에서 제외** 한다 (표본 없음 ≠ 0 점 — T-1727 `toLegacyScoreRows` · T-1730 집계 정책 승계). 제외 근거를 주석 1~2 줄로 박제한다. 배열이 아닌 입력도 throw 없이 빈 배열로 흡수한다.
+- [x] `TrendTimeSeriesPanel` 에 내려보내는 props(`points` · `loading` · `error`) 의 형태·이름 불변 — 컴포넌트 파일 수정 0.
+- [x] `deriveMetrics` · `deriveContributionScoreBuckets` · `pageRows` · `buildSummariesPath` · `buildAssessmentsPath` · `buildContributionsPath` · `derivePersonOptions` · `runPeriodEvaluation` 계열의 **시그니처·본문 불변** (이 경계가 본 task 를 4 파일로 묶는다).
+- [x] drift-guard anchor 재지정 (같은 commit 필수 — 미동반 시 CI red):
+  - [x] [DashboardView.summaries-list-contract.test.ts](../../web/src/views/DashboardView.summaries-list-contract.test.ts) 의 `extractSummariesFireMethod` anchor 를 `<SummaryRow[]>` 대신 **시계열 조회만 갖는 alias 구조분해**(예: `data: trendData` ~ `} = useApiResource<unknown[]>(...)`) 로 바꾸고, 형제 조회(assessments 무-alias · contributions/permission-denied 의 다른 alias)와 섞이지 않는 유일성을 주석으로 박제한다. `286 행` 의 추출기 자체 검사 fixture 문자열도 새 anchor 형태로 갱신한다.
+  - [x] [DashboardView.period-evaluation.test.tsx](../../web/src/views/DashboardView.period-evaluation.test.tsx) `527 행` 의 정적 정규식을 `useApiResource<unknown[]>` 기준으로 갱신하되 `reload: trendReload` alias 검사 의미는 유지한다 (그 줄이 지워지면 여전히 fail).
+  - [x] 두 spec 의 **test 개수·이름·다른 단언은 불변** — anchor 갱신 외의 확장 금지.
+- [x] happy-path unit test 1+ ([DashboardView.test.tsx](../../web/src/views/DashboardView.test.tsx)) — backend 실응답 형태(`metricScore` Decimal 문자열 + `periodStart` ISO) fixture 로 마운트했을 때 시계열에 **날짜 라벨과 0 이 아닌 실제 값** 이 렌더됨 1+, `toTrendPoints` 정상 매핑 1+.
+- [x] error path unit test 1+ — 시계열 조회 실패(error) · `data` 미도착(`undefined`) 시 throw 0 + 빈/오류 표시로 흡수 1+, `toTrendPoints(null as never)` 류 비정상 입력이 빈 배열 반환 + throw 0 1+.
+- [x] 분기 cover — (a) `trendLoading=true` 분기, (b) 포인트 0 건 빈 상태 분기, (c) `value === null` 행이 섞인 배열에서 그 행만 제외되고 나머지는 유지, (d) `periodStart` 유효/무효 라벨 분기가 화면 라벨로 이어짐, (e) 기간 평가 성공 후 `trendReload` 재조회 경로 회귀 0 각 1+.
+- [x] negative cases 충분 cover — 각 1+ test: (a) 배열이 아닌 응답(객체 · 문자열)에도 빈 시계열 + throw 0, (b) 옛 계약 row(`value`/`score` 만 존재)가 값 0 으로 위장되지 않고 **포인트에서 제외**, (c) 결손 row(`id` 부재 · 원소가 `null`)가 흡수되어 `'undefined'` · `'NaN'` 문자열이 화면에 새지 않음, (d) `metricScore: "abc"` 같은 비수치 문자열이 0 포인트를 만들지 않음, (e) `personId` 미선택 시 시계열 조회 미수행 가드 회귀 0.
+- [x] `cd web && pnpm test` (vitest) 전량 green — 위 4 파일 외 web spec 은 **수정 없이** green (특히 [DashboardView.person-selector.test.tsx](../../web/src/views/DashboardView.person-selector.test.tsx) · [DashboardView.assessments-list-contract.test.ts](../../web/src/views/DashboardView.assessments-list-contract.test.ts) · [DashboardView.contributions-list-contract.test.ts](../../web/src/views/DashboardView.contributions-list-contract.test.ts)).
+- [x] `cd web && pnpm build` 통과 (TypeScript 오류 0 — 옛 `SummaryRow` · `deriveTrendPoints` 잔존 참조 없음).
+- [x] 루트 `pnpm lint && pnpm build && pnpm test` green, `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%).
+- [x] 새 외부 dependency 0 · `src/`(backend) 파일 변경 0 · `prisma/` 변경 0.
 
 ## Out of Scope
 
@@ -72,3 +74,11 @@ plannerNote: P6 PLAN 131 행 ② 시계열 축 배선 — T-1788 Follow-up (a), 
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 요약 (driver 기입)
+
+- PR [#1411](https://github.com/myungjoo/Assessment-Agent/pull/1411) → main squash `fda06775` (2026-08-29T19:59:46Z).
+- 4 파일 `+286/-61`. 컨테이너-로컬 `SummaryRow` · `deriveTrendPoints` 철거 → `useApiResource<unknown[]>` + `deriveSummaryDisplayRows` 소비로 배선, 순수 helper `toTrendPoints`(`value === null` 행 제외) 신설.
+- drift-guard anchor 2 종(summaries-list-contract · period-evaluation) 같은 commit 재지정 — test 개수·이름 불변.
+- reviewer round 2/7 APPROVE (round 1 의 Nit-1 은 §3 Nit-in-PR closure 로 같은 PR 에서 마감, follow-up task 생성 0). PR CI `5ba53b6b` success, 4-게이트 PASS.
+- web vitest 2958 test / 루트 458 suite · 13208 test green, `test:cov` threshold 통과.
