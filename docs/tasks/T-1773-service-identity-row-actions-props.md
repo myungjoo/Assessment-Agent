@@ -2,8 +2,11 @@
 id: T-1773
 title: AdminView 에 ServiceIdentity 행별 액션 props 조립 helper buildServiceIdentityRowActionsProps 신설
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1401
+completedAt: 2026-08-29T04:04:01Z
+mergeCommit: 2af5586a
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 260
 estimatedFiles: 2
