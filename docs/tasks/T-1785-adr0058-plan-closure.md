@@ -2,7 +2,7 @@
 id: T-1785
 title: ADR-0058 §Status·§Follow-ups closure 표기 + PLAN 132 행 bullet 마커 승격
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 45
