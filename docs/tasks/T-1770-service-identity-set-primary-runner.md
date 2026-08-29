@@ -2,7 +2,7 @@
 id: T-1770
 title: AdminView 에 ServiceIdentity primary 지정(POST primary) 순수 러너 runSetPrimaryServiceIdentity 신설
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 estimatedDiff: 190
@@ -70,3 +70,9 @@ plannerNote: "P6/PLAN 132 행 — ADR-0058 (d) 열두 번째 web slice: primary 
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 적는다.)
+
+## 완료 기록
+
+- 완료: 2026-08-29T00:52:21Z (PR [#1398](https://github.com/myungjoo/Assessment-Agent/pull/1398) squash `427f1f53`)
+- 결과: `web/src/views/AdminView.tsx` 에 `runSetPrimaryServiceIdentity` + `SetPrimaryServiceIdentityDeps` 신설, colocated spec 1 개 추가 (2 파일 `+197/-0`). 3 no-op 가드 + "이미 primary" 무가드 + 승격 row 미소비(`bumpRefresh()` 권위 재조회) 근거를 주석으로 박제. reviewer APPROVE(round 1/7) → 4-게이트 PASS.
+- test: web 2760 test / root 458 suite · 13208 test green, `test:cov` threshold(line·function ≥ 80%) 유지. R-112 4 종(happy 1 · error 3 · 가드 7 분기 + finally 2 · negative 8) 전부 cover.
