@@ -2,7 +2,7 @@
 id: T-1792
 title: Re-judge REQ-075 against the shipped display-contract 4-axis chain
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-075]
 estimatedDiff: 20
@@ -64,3 +64,13 @@ plannerNote: "P6 PLAN 131 행 ② 축 4 개(표·분포·시계열·기여) 배�
 - (a) **REQ-003 · REQ-004 의 "표시 축 / 프런트 노출 축" 부분 amend** — 두 행은 평가 · 저장 · LLM 코멘트 등 다른 축의 잔여를 함께 안고 있으므로, 표시 축 문구만 본 chain 실측으로 갱신하는 별도 doc slice.
 - (b) **REQ-074 · REQ-076 · REQ-077 재판정** — PLAN `131 행` ① · ③ · ④ 축의 shipped 여부 실측 후 각각 재판정 (축별 별도 slice 권장).
 - (c) **PLAN `131 행` bullet 마커 승격** — 위 (b) 까지 끝나 4 축이 모두 닫히면 direct doc slice 로.
+
+## 결과 (2026-08-29T22:45Z, direct `d29002d8`)
+
+**Status: DONE** — [requirements.md](../requirements.md) `94 행` REQ-075 한 행만 inline-amend 했다 (1 파일 `+1/-1`, 코드 0 LOC).
+
+- **상태 토큰 `PLANNED` → `IN_PROGRESS`** (`DONE` 아님) — 4 축 배선은 모두 화면까지 닿지만, REQ 문언이 열거한 backend 필드 5 종 중 **`narrative` 만 어느 표시 축에도 도달하지 않는다**: 표 축은 [AssessmentResultTable.tsx](../../web/src/components/AssessmentResultTable.tsx) `15 행` 이 컬럼에서 제외, 시계열 축은 [DashboardView.tsx](../../web/src/views/DashboardView.tsx) `249~265 행` `toTrendPoints` 가 `label` · `value` 만 담아 버리고, 기여 상세 패널 축은 [contributionRow.ts](../../web/src/api/contributionRow.ts) `30~39 행` 키 목록에 narrative 자체가 없다.
+- **검증 위치 `unit + e2e` → `unit` 정정** — `test/e2e/` 26 spec 중 dashboard · display 축 harness 0 건 실측.
+- **구현 위치에 slice ID 12 개 추가** — 표 축 T-1724~T-1727 · 점수 분포 축 T-1728~T-1731 · 시계열 축 T-1788~T-1789 · 기여 상세 패널 축 T-1790~T-1791. 기존 `P6 (PLAN 131 행)` 표기는 보존.
+- 7 컬럼 schema (`NF=9`) · 상태 enum · 검증 위치 enum 유지, 다른 REQ 행 무변경. doc-only direct 라 R-110 tester 의무 · R-112 4 항목은 적용 대상 없음 — 인용 좌표는 전수 grep 대조로 대체했다.
+- **잔여**: `narrative` 표시 축 배선이 REQ-075 를 `DONE` 으로 올리기 위한 유일한 남은 조건 — 위 Follow-ups (a)~(c) 와 별개의 코드 slice 다.
