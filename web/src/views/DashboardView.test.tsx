@@ -22,12 +22,16 @@ import DashboardView, {
   buildSummariesPath,
   toTrendPoints,
   buildContributionsPath,
-  deriveContributionMetrics,
+  toContributionMetricItems,
   pageRows,
 } from './DashboardView';
 // T-1731 drift guard — 제거한 임시 브리지가 export 로 되살아나지 않는지 모듈 전체를 읽는다.
 import * as DashboardViewModule from './DashboardView';
-import type { ContributionRow } from './DashboardView';
+// T-1791 — 기여 표시 행 계약은 컨테이너가 아니라 순수 모듈이 소유한다(컨테이너-로컬
+// ContributionRow 는 철거). toContributionMetricItems 의 입력 타입·fallback 라벨을 그
+// 단일 출처에서 가져온다.
+import { deriveContributionDisplayRows, FALLBACK_CONTRIBUTION_LABEL } from '../api/contributionRow';
+import type { ContributionDisplayRow } from '../api/contributionRow';
 // T-1789 — 시계열 표시 행 계약은 컨테이너가 아니라 순수 모듈이 소유한다(컨테이너-로컬
 // SummaryRow 는 철거). toTrendPoints 의 입력 타입을 그 단일 출처에서 가져온다.
 import type { SummaryDisplayRow } from '../api/summaryRow';
@@ -86,10 +90,35 @@ const IDLE: ApiResourceState<unknown> = {
   error: undefined,
 };
 
-const CONTRIBUTION_SAMPLE: ContributionRow[] = [
-  { id: 'm1', metricLabel: '코드 품질', score: 8, maxScore: 10, rationale: '명확한 구조' },
-  { id: 'm2', metricLabel: '협업', score: 7, maxScore: 10, rationale: '리뷰 활발' },
+// T-1791 — backend `GET /api/contributions` 응답 형태의 raw 행 2 개. prisma
+// `model Contribution` 의 실제 필드는 `sourceType` · `sourceRef` · `sourceUrl` ·
+// `difficulty` · `contributionScore`(Decimal — JSON 직렬화 후 문자열로도 도착) · `volume`
+// 이고, 옛 컨테이너-로컬 계약(`metricLabel` · `score` · `rationale`)과는 `id` 하나만 겹쳐
+// 전 항목이 라벨 "지표 미상" · 점수 0 · 근거 없음으로 렌더됐다.
+const CONTRIBUTION_SAMPLE: unknown[] = [
+  {
+    id: 'm1',
+    sourceType: 'github-pr',
+    sourceRef: '#128',
+    sourceUrl: 'https://example.test/pr/128',
+    difficulty: 'high',
+    contributionScore: '2.75',
+    volume: 3,
+  },
+  {
+    id: 'm2',
+    sourceType: 'jira',
+    sourceRef: 'AA-42',
+    sourceUrl: '',
+    difficulty: 'mid',
+    contributionScore: 1.25,
+    volume: 1,
+  },
 ];
+// 위 fixture 가 만드는 합성 라벨 — 라벨 파생은 contributionRow.ts 소관이라 여기서는
+// 결과 문자열만 상수로 붙든다(라벨 규약이 바뀌면 본 상수 1 곳만 갱신).
+const SAMPLE_LABEL = 'github-pr #128';
+const SAMPLE_URL = 'https://example.test/pr/128';
 
 // T-1789 — backend `GET /api/summaries` 응답 형태의 raw 행 3 개. prisma `model Summary` 의
 // 실제 필드는 `metricScore`(Decimal — JSON 직렬화 후 문자열로 도착) · `periodStart`(ISO) ·
@@ -642,10 +671,13 @@ describe('DashboardView — 평가 상세 패널 배선 (③b-2)', () => {
     const html = renderToStaticMarkup(
       <DashboardView personId="p1" period="2026년 6월" initialSelectedId="1" />,
     );
-    // 상세 패널 제목 + 기여 metric 라벨/근거가 렌더된다.
+    // 상세 패널 제목 + 합성 라벨(sourceType + sourceRef) + 근거 pointer(sourceUrl) 가 렌더된다.
     expect(html).toContain('평가 상세');
-    expect(html).toContain('코드 품질');
-    expect(html).toContain('명확한 구조');
+    expect(html).toContain(SAMPLE_LABEL);
+    expect(html).toContain(SAMPLE_URL);
+    // 점수가 0 위장이 아니라 실제 contributionScore(Decimal 문자열 "2.75") 로 렌더된다.
+    expect(html).toContain(`aria-label="${SAMPLE_LABEL}: 2.75"`);
+    expect(html).not.toContain(`aria-label="${SAMPLE_LABEL}: 0"`);
     // 선택 row(id=1)의 period 메타 + 조회 기간 라벨이 헤더에 표시된다.
     expect(html).toContain('2026-06');
     expect(html).toContain('2026년 6월');
@@ -663,7 +695,7 @@ describe('DashboardView — 평가 상세 패널 배선 (③b-2)', () => {
     );
     expect(html).toContain('HTTP 500: detail boom');
     // 기여 metric 라벨은 미렌더(에러 분기는 항목 목록을 렌더하지 않음).
-    expect(html).not.toContain('코드 품질');
+    expect(html).not.toContain(SAMPLE_LABEL);
     // 다른 조회(분포·시계열)는 오염 없이 정상 — 상태 분리 확인.
     expect(html).toContain('점수 분포');
     expect(html).toContain('점수 추이');
@@ -681,7 +713,7 @@ describe('DashboardView — 평가 상세 패널 배선 (③b-2)', () => {
     expect(html).toContain('평가 결과를 선택하면 상세가 표시됩니다');
     // 빈 선택 컨트롤은 노출되지만 기여 metric 은 미렌더.
     expect(html).toContain('평가 결과를 선택하세요');
-    expect(html).not.toContain('코드 품질');
+    expect(html).not.toContain(SAMPLE_LABEL);
   });
 
   // flow/branch — contributions loading 진행 표시(상세만 진행, 다른 패널은 정상).
@@ -710,16 +742,21 @@ describe('DashboardView — 평가 상세 패널 배선 (③b-2)', () => {
       <DashboardView personId="p1" initialSelectedId="1" />,
     );
     expect(html).toContain('평가 결과를 선택하면 상세가 표시됩니다');
-    expect(html).not.toContain('코드 품질');
+    expect(html).not.toContain(SAMPLE_LABEL);
   });
 
-  // negative — 비정상/누락 필드(점수 누락·라벨 누락) 도 안전 fallback 으로 렌더된다.
-  it('비정상/누락 필드 contribution row 도 안전 fallback 으로 렌더한다 (negative — 누락 필드)', () => {
+  // negative (b)(c)(d) — 옛 계약 row·결손 row·비수치 점수가 0 점 항목으로 위장되지 않는다.
+  it('옛 계약/결손/비수치 row 는 0 점 항목으로 위장되지 않고 제외된다 (negative — 값 0 위장 차단)', () => {
     setResources3({
       assessments: { data: RAW_SAMPLE, loading: false, error: undefined },
       summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
       contributions: {
-        data: [{ contribution: Number.NaN }], // id/label/score 누락 + NaN.
+        data: [
+          { id: 'old', metricLabel: '코드 품질', score: 8, rationale: '명확한 구조' }, // 옛 계약.
+          null, // 원소 결손.
+          { sourceType: 'github-pr', contributionScore: '' }, // id 부재 + 빈 문자열 점수.
+          { id: 'x', sourceType: 'jira', contributionScore: 'abc' }, // 비수치 점수.
+        ],
         loading: false,
         error: undefined,
       },
@@ -727,9 +764,49 @@ describe('DashboardView — 평가 상세 패널 배선 (③b-2)', () => {
     const html = renderToStaticMarkup(
       <DashboardView personId="p1" initialSelectedId="1" />,
     );
-    // 라벨 누락 → fallback 라벨, 점수 NaN → 0 으로 안전 렌더(throw 없이).
-    expect(html).toContain('지표 미상');
-    expect(html).toContain('평가 상세');
+    // 어느 행도 점수를 갖지 못하므로 항목 0 건 → 빈 상태(throw 0). 0 점 항목 미생성.
+    expect(html).toContain('평가 결과를 선택하면 상세가 표시됩니다');
+    expect(html).not.toContain('코드 품질'); // 옛 계약 필드는 라벨로 읽히지 않는다.
+    expect(html).not.toContain('undefined');
+    expect(html).not.toContain('NaN');
+  });
+
+  // branch (c) + negative (e) — 점수 결손 행만 제외되고, 라벨 축 결손 행은 fallback 라벨로 남는다.
+  it('점수 결손 행만 제외하고 라벨 결손 행은 fallback 라벨로 렌더한다 (branch — 부분 결손)', () => {
+    setResources3({
+      assessments: { data: RAW_SAMPLE, loading: false, error: undefined },
+      summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
+      contributions: {
+        data: [
+          { id: 'k1', sourceType: 'github-pr', sourceRef: '#7', volume: 2 }, // 점수 결손 → 제외.
+          { id: 'k2', contributionScore: 1.5 }, // sourceType/sourceRef 둘 다 결손 → fallback 라벨.
+        ],
+        loading: false,
+        error: undefined,
+      },
+    });
+    const html = renderToStaticMarkup(
+      <DashboardView personId="p1" initialSelectedId="1" />,
+    );
+    expect(html).toContain(FALLBACK_CONTRIBUTION_LABEL); // 빈 라벨이 새지 않는다.
+    expect(html).toContain(`aria-label="${FALLBACK_CONTRIBUTION_LABEL}: 1.5"`);
+    expect(html).not.toContain('github-pr #7'); // 점수 결손 행은 항목에서 제외.
+  });
+
+  // negative (a) — 배열이 아닌 응답(객체·문자열)도 throw 없이 빈 항목 목록으로 흡수한다.
+  it('배열이 아닌 기여 응답도 throw 없이 빈 상태로 흡수한다 (negative — 비배열 응답)', () => {
+    for (const bogus of [{ items: [] }, 'boom']) {
+      setResources3({
+        assessments: { data: RAW_SAMPLE, loading: false, error: undefined },
+        summaries: { data: TREND_SAMPLE, loading: false, error: undefined },
+        contributions: { data: bogus, loading: false, error: undefined },
+      });
+      const html = renderToStaticMarkup(
+        <DashboardView personId="p1" initialSelectedId="1" />,
+      );
+      expect(html).toContain('평가 결과를 선택하면 상세가 표시됩니다');
+      expect(html).not.toContain('boom');
+    }
   });
 
   // negative — 상세 실패 시 다른 조회는 정상(상태 오염 차단의 역방향 확인).
@@ -759,48 +836,69 @@ describe('DashboardView — 평가 상세 파생 (순수 함수)', () => {
     expect(buildContributionsPath('')).toBeNull();
   });
 
-  // deriveContributionMetrics — metricLabel/score/rationale 매핑 + 미도착 시 빈 배열.
-  it('contribution row 를 EvaluationMetricItem 으로 매핑하고 미도착이면 빈 배열을 낸다 (상세 파생)', () => {
-    const metrics = deriveContributionMetrics(CONTRIBUTION_SAMPLE);
-    expect(metrics).toHaveLength(2);
-    expect(metrics[0]).toEqual({
+  // happy-path — 표시 행(모듈 매핑 결과)이 EvaluationMetricItem 으로 그대로 옮겨진다.
+  // maxScore 는 넘기지 않는다(backend 에 만점 축 없음 — 임의 분모 날조 금지).
+  it('표시 행을 EvaluationMetricItem 으로 매핑한다 (happy-path — 상세 파생)', () => {
+    const items = toContributionMetricItems(
+      deriveContributionDisplayRows(CONTRIBUTION_SAMPLE),
+    );
+    expect(items).toHaveLength(2);
+    expect(items[0]).toEqual({
       id: 'm1',
-      label: '코드 품질',
-      score: 8,
-      maxScore: 10,
-      rationale: '명확한 구조',
+      label: SAMPLE_LABEL, // 라벨 재파생 0 — 모듈이 합성한 값을 그대로 쓴다.
+      score: 2.75, // Decimal 문자열 → 실 점수(0 위장 아님).
+      rationale: SAMPLE_URL, // sourceUrl 이 근거 pointer.
     });
-    // data 미도착(undefined) → 빈 배열(패널 빈 상태 위임).
-    expect(deriveContributionMetrics(undefined)).toEqual([]);
-    expect(deriveContributionMetrics([])).toEqual([]);
+    expect(items[0]).not.toHaveProperty('maxScore');
   });
 
-  // negative — 대체 필드(label/contribution/narrative) fallback + id 누락 합성 key.
-  it('대체 필드로 fallback 하고 id 누락 시 합성 key 를 만든다 (negative — 대체 필드)', () => {
-    const rows: ContributionRow[] = [
-      { label: '문서화', contribution: 6, narrative: '근거 텍스트' }, // metricLabel/score/rationale 없음.
-    ];
-    const metrics = deriveContributionMetrics(rows);
-    expect(metrics[0]).toEqual({
-      id: 'c1', // id 누락 → 합성 key.
-      label: '문서화', // label fallback.
-      score: 6, // contribution fallback.
-      maxScore: undefined,
-      rationale: '근거 텍스트', // narrative fallback.
-    });
+  // branch (d) — sourceUrl 존재/부재로 rationale 전달/미전달 2 분기.
+  it('sourceUrl 유무로 rationale 전달/미전달이 갈린다 (branch — 근거 pointer)', () => {
+    const items = toContributionMetricItems(
+      deriveContributionDisplayRows(CONTRIBUTION_SAMPLE),
+    );
+    expect(items[0].rationale).toBe(SAMPLE_URL); // 있으면 그 값.
+    expect(items[1].rationale).toBeUndefined(); // 빈 문자열이면 미전달(패널 fallback 문구).
   });
 
-  // negative — 점수 누락/NaN → 0, 라벨 누락 → fallback 라벨(off-by-one/NaN 회피).
-  it('점수 누락/NaN 은 0, 라벨 누락은 fallback 라벨로 보수 파생한다 (negative — 비정상 필드)', () => {
-    const rows: ContributionRow[] = [
-      { id: 'x' }, // score/label 전부 누락.
-      { id: 'y', metricLabel: '협업', score: Number.NaN }, // NaN → 0.
-      { id: 'z', metricLabel: '', score: 5 }, // 빈 라벨 → fallback.
-    ];
-    const metrics = deriveContributionMetrics(rows);
-    expect(metrics[0]).toMatchObject({ id: 'x', label: '지표 미상', score: 0 });
-    expect(metrics[1]).toMatchObject({ id: 'y', label: '협업', score: 0 });
-    expect(metrics[2]).toMatchObject({ id: 'z', label: '지표 미상', score: 5 });
+  // branch (c) — score === null 행만 제외되고 나머지 행·순서는 유지된다(값 없음 ≠ 0 점).
+  it('score 결손 행만 제외하고 나머지는 순서대로 유지한다 (branch — 결손 제외)', () => {
+    const rows = deriveContributionDisplayRows([
+      { id: 'a', sourceType: 'github-pr', sourceRef: '#1', contributionScore: 3 },
+      { id: 'b', sourceType: 'jira', sourceRef: 'AA-1' }, // 점수 결손.
+      { id: 'c', sourceType: 'wiki', sourceRef: 'W-2', contributionScore: '0' }, // 실제 0 점은 유지.
+    ]);
+    const items = toContributionMetricItems(rows);
+    expect(items.map((item) => item.id)).toEqual(['a', 'c']);
+    expect(items[1].score).toBe(0); // 실제 0 점과 "값 없음" 을 구분한다.
+  });
+
+  // error path/negative — 비정상 입력(비배열·원소 결손)도 throw 없이 빈/부분 목록으로 흡수.
+  it('비정상 입력을 throw 없이 흡수한다 (error path — 타입 우회 입력)', () => {
+    expect(toContributionMetricItems(null as never)).toEqual([]);
+    expect(toContributionMetricItems(undefined as never)).toEqual([]);
+    expect(toContributionMetricItems('boom' as never)).toEqual([]);
+    expect(toContributionMetricItems({} as never)).toEqual([]);
+    expect(toContributionMetricItems([])).toEqual([]);
+    // 원소가 null·원시값인 배열(타입 우회)도 그 원소만 건너뛴다.
+    const mixed = [
+      null,
+      42,
+      { id: 'ok', label: '라벨', sourceUrl: '', score: 1 },
+    ] as unknown as ContributionDisplayRow[];
+    expect(toContributionMetricItems(mixed)).toEqual([
+      { id: 'ok', label: '라벨', score: 1, rationale: undefined },
+    ]);
+  });
+
+  // negative — 옛 계약 row(metricLabel/score/rationale) 는 점수 0 항목으로 위장되지 않는다.
+  it('옛 계약 row 는 0 점 항목을 만들지 않는다 (negative — 값 0 위장 회귀 차단)', () => {
+    const items = toContributionMetricItems(
+      deriveContributionDisplayRows([
+        { id: 'm1', metricLabel: '코드 품질', score: 8, rationale: '명확한 구조' },
+      ]),
+    );
+    expect(items).toEqual([]); // contributionScore 부재 → 항목 제외(0 점 아님).
   });
 });
 
@@ -941,7 +1039,7 @@ describe('DashboardView — 페이지네이션 배선 (③b-3)', () => {
     expect(html).toContain('점수 추이');
     expect(html).toContain('점수 분포');
     expect(html).toContain('평가 상세');
-    expect(html).toContain('코드 품질');
+    expect(html).toContain(SAMPLE_LABEL);
     expect(html).toContain('1 / 2 페이지');
   });
 
@@ -960,7 +1058,7 @@ describe('DashboardView — 페이지네이션 배선 (③b-3)', () => {
     // 상세 패널은 visibleRows 기준 selectedRow(대상12) 헤더로 정상 렌더(깨지지 않음).
     expect(html).toContain('대상12');
     expect(html).toContain('평가 상세');
-    expect(html).toContain('코드 품질');
+    expect(html).toContain(SAMPLE_LABEL);
   });
 
   // personId 미선택 분기 — 페이지네이션 컨트롤·테이블 미렌더(NO_PERSON_TEXT 만).
@@ -1342,6 +1440,13 @@ describe('DashboardView — AssessmentDisplayRow 파이프라인 배선 (T-1727)
     expect(
       (DashboardViewModule as Record<string, unknown>).deriveTrendPoints,
     ).toBeUndefined();
+    // T-1791 — 기여 상세 축 배선으로 철거한 컨테이너-로컬 파생 helper 도 같은 방식으로
+    // 부활을 차단한다. 표시 행 매핑의 단일 출처는 api/contributionRow.ts 이며, 컨테이너가
+    // 다시 자체 매핑을 들이면(옛 계약 재도입 = 라벨 "지표 미상" · 점수 0 위장 회귀) fail 한다.
+    expect(exportedNames).not.toContain('deriveContributionMetrics');
+    expect(
+      (DashboardViewModule as Record<string, unknown>).deriveContributionMetrics,
+    ).toBeUndefined();
     // 과잉 삭제 차단 — 남아야 하는 순수 helper export 는 그대로다.
     for (const name of [
       'buildAssessmentsPath',
@@ -1350,7 +1455,7 @@ describe('DashboardView — AssessmentDisplayRow 파이프라인 배선 (T-1727)
       'buildSummariesPath',
       'toTrendPoints',
       'buildContributionsPath',
-      'deriveContributionMetrics',
+      'toContributionMetricItems',
       'pageRows',
       'derivePersonOptions',
     ]) {
