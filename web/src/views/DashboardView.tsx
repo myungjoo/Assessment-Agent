@@ -47,6 +47,13 @@ import {
 // 모든 포인트를 값 0 · 종류값 라벨로 렌더했으므로 정의·export 를 함께 걷어냈다.
 import { deriveSummaryDisplayRows } from '../api/summaryRow';
 import type { SummaryDisplayRow } from '../api/summaryRow';
+// T-1791 (REQ-075, PLAN 131 행 ②) 기여 상세 축 배선 — 직전 slice T-1790 이 신설한 순수
+// 매핑 모듈을 본 컨테이너가 실제로 소비한다(모듈 수정 0). 컨테이너-로컬 `ContributionRow` ·
+// `deriveContributionMetrics` 는 backend 실 필드(sourceType · sourceRef · sourceUrl ·
+// contributionScore)를 몰라 모든 항목을 라벨 "지표 미상" · 점수 0 으로 렌더했으므로
+// 정의·export 를 함께 걷어냈다(시계열 축 T-1789 와 동형).
+import { deriveContributionDisplayRows } from '../api/contributionRow';
+import type { ContributionDisplayRow } from '../api/contributionRow';
 import TrendTimeSeriesPanel from '../components/TrendTimeSeriesPanel';
 import type { TrendPoint } from '../components/TrendTimeSeriesPanel';
 import ScoreDistributionChart from '../components/ScoreDistributionChart';
@@ -179,29 +186,6 @@ function buildSummariesPath(
   return `/api/summaries?${params.toString()}`;
 }
 
-// 기여 row 의 frontend-local 최소 타입 — backend DTO 전수 공유는 Out of Scope(후속 별도
-// 결정). 본 slice 는 지표 라벨 + 점수 + 만점(선택) + 정성 근거(선택) 필드만 보수적으로
-// 매핑한다. 모든 필드를 선택적으로 두어 누락/비정상 row 도 throw 없이 받는다(api.md 104:
-// GET /api/contributions 응답 = assessment 별 기여 row 배열).
-interface ContributionRow {
-  // 기여 식별자 후보 — id 우선, 없으면 파생 helper 가 index 기반 key 를 합성한다.
-  id?: string;
-  // 지표 라벨 후보 — metricLabel 우선, 없으면 label 을 라벨로 쓴다(둘 다 누락이면 fallback).
-  metricLabel?: string;
-  label?: string;
-  // 점수 후보 — score 우선, 없으면 contribution 을 점수로 매핑한다(둘 다 누락/NaN 이면 0).
-  score?: number;
-  contribution?: number;
-  // 만점(선택) — 있으면 패널이 "score/maxScore"·비율 막대 분모로 쓴다.
-  maxScore?: number;
-  // LLM 정성 근거 후보 — rationale 우선, 없으면 narrative 를 근거로 쓴다(plain text).
-  rationale?: string;
-  narrative?: string;
-}
-
-// 라벨 누락 시 패널 항목에 노출할 fallback 라벨 — 의미 없는 빈 라벨 방지(파생 단계 보수).
-const FALLBACK_METRIC_LABEL = '지표 미상';
-
 // 선택된 assessmentId → GET /api/contributions?assessmentId= 조회 path 파생(순수 함수).
 // assessmentId 가 falsy 면 null 반환(조회 미수행 — api.md 104 의 assessmentId 누락 400
 // 회피). assessments/summaries path 와 동일한 조건부 조회 가드 규약을 따른다.
@@ -213,31 +197,45 @@ function buildContributionsPath(assessmentId: string | undefined): string | null
   return `/api/contributions?${params.toString()}`;
 }
 
-// contribution row 배열 → EvaluationMetricItem[] 파생(순수 함수). data 미도착(undefined)
-// 이면 빈 배열로 간주한다(패널이 빈 상태 fallback). 라벨은 metricLabel → label 순으로 첫
-// truthy 값을, 점수는 score → contribution 순으로 첫 유한수를 취한다(누락/NaN 이면 0 으로
-// fallback — EvaluationDetailPanel 의 safeScore 가 추가로 막지만 컨테이너 파생도 보수적으로).
-// id 누락 row 도 index 기반 합성 key 로 안정 렌더한다.
-function deriveContributionMetrics(
-  rows: ContributionRow[] | undefined,
+// 기여 표시 행 배열 → EvaluationMetricItem[] 파생(순수 함수, T-1791). 매핑 자체는 이미
+// contributionRow.ts 가 끝냈으므로 본 helper 는 **표시 계층 정책**만 담는다.
+//
+// 정책 1 — `id` · `label` 은 표시 행 값을 그대로 쓴다. 라벨 파생(sourceType · sourceRef
+// 합성, 둘 다 결손이면 FALLBACK_CONTRIBUTION_LABEL)은 모듈이 이미 끝냈으므로 컨테이너가
+// 다시 파생하지 않는다(단일 출처 — 재파생하면 두 규칙이 갈린다).
+// 정책 2 — `score === null`(contributionScore 결손·비수치) 행은 항목에서 **제외** 한다.
+// 표본이 없다는 사실을 0 점으로 위장하면 "기여 0" 으로 오독되기 때문이다(toTrendPoints ·
+// T-1727 · T-1730 정책 승계 — 값 없음 ≠ 0 점).
+// 정책 3 — `maxScore` 는 넘기지 않는다. backend `Contribution` 에 만점 축이 없어서
+// 분모를 임의로 날조하면 비율 막대가 거짓 비교를 만든다(패널은 미전달 시 점수만 표기).
+// 정책 4 — `rationale` 은 `sourceUrl` 이 비어있지 않을 때만 그 값을 넘긴다. `Contribution`
+// 에는 정성 서술 축이 아예 없고(narrative 는 `Assessment` 소관 — T-1790 Out of Scope)
+// 근거를 굳이 만들어 낼 수 없으므로, 사람이 원문을 찾아갈 pointer 만 넘기고 없으면
+// undefined 로 두어 패널의 fallback 문구가 표시되게 한다.
+// 비배열 입력(null · undefined · 객체 등 타입 우회 값)도 throw 없이 빈 배열로 흡수한다.
+function toContributionMetricItems(
+  rows: ContributionDisplayRow[],
 ): EvaluationMetricItem[] {
   if (!Array.isArray(rows)) {
     return [];
   }
-  return rows.map((row, index) => {
-    const label = row.metricLabel ?? row.label ?? FALLBACK_METRIC_LABEL;
-    const rawScore = row.score ?? row.contribution;
-    const score =
-      typeof rawScore === 'number' && Number.isFinite(rawScore) ? rawScore : 0;
-    const rationale = row.rationale ?? row.narrative;
-    return {
-      id: row.id ?? `c${index + 1}`,
-      label: label || FALLBACK_METRIC_LABEL,
+  const items: EvaluationMetricItem[] = [];
+  for (const row of rows) {
+    if (row === null || typeof row !== 'object') {
+      continue;
+    }
+    const { id, label, score, sourceUrl } = row;
+    if (typeof score !== 'number' || !Number.isFinite(score)) {
+      continue;
+    }
+    items.push({
+      id: typeof id === 'string' ? id : '',
+      label: typeof label === 'string' ? label : '',
       score,
-      maxScore: row.maxScore,
-      rationale,
-    };
-  });
+      rationale: typeof sourceUrl === 'string' && sourceUrl !== '' ? sourceUrl : undefined,
+    });
+  }
+  return items;
 }
 
 // 시계열 표시 행 배열 → TrendPoint[] 파생(순수 함수, T-1789). 매핑 자체는 이미
@@ -561,12 +559,15 @@ function DashboardView({
   // 의 assessmentId 누락 400 회피). selectedId 변경이 곧 path 변경 → 재조회. 세 번째
   // useApiResource 호출로 컨테이너가 상세 상태를 소유한다. 변수명에 contribution prefix 를
   // 붙여 assessments/summaries 의 loading/error 와 섞이지 않게 분리한다(상태 오염 차단).
+  // 응답을 컨테이너가 특정 행 타입으로 단정하지 않는다(T-1727 근거를 기여 축에 승계,
+  // T-1791) — 매핑 책임은 contributionRow.ts 의 deriveContributionDisplayRows 가 지며
+  // 여기서는 원문을 그대로 받는다. alias 구조분해는 형제 조회와의 상태 분리를 위해 유지한다.
   const contributionsPath = buildContributionsPath(selectedId || undefined);
   const {
     data: contributionData,
     loading: contributionLoading,
     error: contributionError,
-  } = useApiResource<ContributionRow[]>(contributionsPath);
+  } = useApiResource<unknown[]>(contributionsPath);
 
   // 권한 부족 record 조회(T-1140, R-20/R-33) — 고정 endpoint(GET /api/permission-denied-records)
   // 를 무조건 조회한다(personId 가드 없음 — audience 차등은 backend service-layer 담당).
@@ -652,11 +653,16 @@ function DashboardView({
     [visibleRows],
   );
 
-  // 평가 상세 metric 파생 — contributions 조회 결과(contributionData) 를
-  // EvaluationMetricItem[] 로 매핑한다(data 미도착이면 빈 배열).
-  const contributionMetrics = useMemo(
-    () => deriveContributionMetrics(contributionData),
+  // 기여 표시 행 파생 — contributions 조회 원문(contributionData)을 순수 모듈이 매핑한다(T-1791).
+  const contributionRows = useMemo(
+    () => deriveContributionDisplayRows(contributionData),
     [contributionData],
+  );
+
+  // 평가 상세 metric 파생 — 표시 행에 표시 계층 정책(점수 결손 행 제외 등)만 적용한다.
+  const contributionMetrics = useMemo(
+    () => toContributionMetricItems(contributionRows),
+    [contributionRows],
   );
 
   // 선택 row 메타 — visibleRows 에서 선택된 row 를 찾아 상세 패널 헤더(subjectName/period)
@@ -917,7 +923,7 @@ export {
   buildSummariesPath,
   toTrendPoints,
   buildContributionsPath,
-  deriveContributionMetrics,
+  toContributionMetricItems,
   pageRows,
   derivePersonOptions,
   derivePeriodEvaluationNotice,
@@ -928,7 +934,6 @@ export {
 };
 export type {
   DashboardViewProps,
-  ContributionRow,
   PeriodEvaluationNotice,
 };
 export default DashboardView;

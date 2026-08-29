@@ -64,13 +64,19 @@ function extractPathQueryParams(path: string): string[] {
     .sort();
 }
 
-// DashboardView 조회 call site 의 발사 method 추론. useApiResource<ContributionRow[]>(path) 를
-// 옵션 인자 없이(단일 인자) 호출 → fetch default GET. 인자 2+ 면 non-GET. <ContributionRow[]> 타입
-// 인자로 형제 조회(<SummaryRow[]> 등)와 섞이지 않게 anchor 슬라이스한다.
+// DashboardView 조회 call site 의 발사 method 추론. 기여 조회를 옵션 인자 없이(단일 인자)
+// 호출 → fetch default GET. 인자 2+ 면 non-GET.
+// T-1791 이후 컨테이너는 응답을 특정 행 타입으로 단정하지 않으므로(<unknown[]>) 옛 타입 인자
+// (<ContributionRow[]>)를 anchor 로 쓸 수 없다. 기여 조회만 갖는 alias 구조분해
+// (`data: contributionData` ~ `} = useApiResource<unknown[]>(...)`)를 anchor 로 슬라이스한다 —
+// 형제 조회는 assessments 가 무-alias(`const { data, loading, error }`), summaries 가
+// `data: trendData`, persons 가 `data: personsData` 라 이 alias 이름을 쓰는 호출부는 기여
+// 조회 하나뿐이다(anchor 유일성). T-1789 의 summaries anchor 재지정과 동형.
 function extractContributionsFireMethod(source: string): string | null {
-  const matched = /useApiResource<ContributionRow\[\]>\(\s*([^)]*)\)/.exec(
-    stripComments(source),
-  );
+  const matched =
+    /data: contributionData[\s\S]*?\} = useApiResource<unknown\[\]>\(\s*([^)]*)\)/.exec(
+      stripComments(source),
+    );
   if (!matched) {
     return null;
   }
@@ -274,7 +280,7 @@ describe('DashboardView — 평가 상세 조회(GET /api/contributions) web↔b
     expect(diffContract(contributionsFire(), drifted)).toEqual(['backend 계약 추출 실패']);
   });
   it('web call site 가 옵션 인자를 전달하면(단일 인자 아님) GET 추론이 깨져 method 불일치로 잡힌다 (negative — 발사 override drift)', () => {
-    const overridden = extractContributionsFireMethod("const x = useApiResource<ContributionRow[]>(path, { method: 'POST' });");
+    const overridden = extractContributionsFireMethod("const { data: contributionData, loading: contributionLoading, error: contributionError } = useApiResource<unknown[]>(path, { method: 'POST' });");
     expect(overridden).toBe('NON-GET(args=2)'); // 옵션 인자 존재 → GET 아님
     const fired: WebFire = { path: `${BASE}?assessmentId=a1`, method: overridden ?? 'GET', queryParams: ['assessmentId'] };
     expect(diffContract(fired, LIST_CONTRACT)).toEqual([expect.stringContaining('method 불일치')]);
