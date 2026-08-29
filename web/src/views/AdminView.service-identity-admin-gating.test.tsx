@@ -150,9 +150,9 @@ describe('AdminView service identity 쓰기 축 Admin+ gating (T-1778)', () => {
   });
 
   it('분기 (c) — 등급 조회 중(loading)에도 false 분기로 떨어진다', () => {
-    expectWriteAxisBlocked({
-      ...mount({ data: { role: 'Admin' }, loading: true, error: undefined }),
-    });
+    expectWriteAxisBlocked(
+      mount({ data: { role: 'Admin' }, loading: true, error: undefined }),
+    );
   });
 
   const NEGATIVE_ROLES: [string, unknown][] = [
