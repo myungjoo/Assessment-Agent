@@ -2248,6 +2248,79 @@ function normalizeRowId(value: string | undefined): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+// ServiceIdentityRowActions 행별 액션 어댑터가 받는 deps(T-1772) — 행 개념이 없는 두 러너의 boolean ·
+// 문구 계약을, 컨테이너가 목록 전체에 하나씩만 들고 있는 "행 id 귀속" state 로 옮기는 데 필요한 최소
+// 3 개다. gate 는 본 factory 가 만들지 않고 주입만 받아 read / write 한다(소유는 createInFlightIdGate).
+interface ServiceIdentityRowActionBridgeDeps {
+  // 진행 중인 행 id 의 단일 출처 — read() 는 render 캡처가 아니라 호출 시점 ref 값이다.
+  gate: InFlightIdGate;
+  // 실패 귀속 행 id + 실패 문구 — 목록 전체에 각각 하나뿐인 slot 이라 항상 짝으로 갱신한다.
+  setErrorIdentityId: (next: string | undefined) => void;
+  setErrorText: (next: string | undefined) => void;
+}
+
+// 어댑터 반환(T-1772) — DeleteServiceIdentityDeps 의 deleting / setDeleting / setDeleteError 와
+// SetPrimaryServiceIdentityDeps 의 settingPrimary / setSettingPrimary / setPrimaryError 양쪽에 그대로
+// 꽂히는 모양이다(두 deps 는 필드 이름만 다르고 형태가 같아 한 어댑터가 두 축을 모두 채운다).
+interface ServiceIdentityRowActionBridge {
+  busy: boolean;
+  setBusy: (next: boolean) => void;
+  setError: (next: string | undefined) => void;
+}
+
+// (a) 결함: 이 어댑터를 마운트 JSX 의 행 map 안에 인라인으로 쓰면 세 종류 사고가 어떤 test 도 깨지
+// 않은 채 지나간다 — (1) 실패 경로에서 setErrorText 만 부르고 setErrorIdentityId 를 빠뜨리면 문구가
+// 어느 행에도 뜨지 않는 무성(無聲) 실패가 되고, (2) setBusy(false) 가 소유 검사 없이 진행 id 를 지우면
+// 늦게 끝난 요청이 남의 행 진행 표시를 꺼버리며, (3) 귀속 불가한 빈 · 공백뿐 행 id 가 그대로 state 에
+// 박히면 미선택 sentinel '' 이 id 없는 전 행과 일치해 목록 전체가 물든다.
+// (b) 그래서 러너의 boolean 계약 ↔ 플래그 helper 의 id-귀속 계약 사이의 변환만 인자 → 반환 순수
+// factory 로 절단한다 — ADR-0040 §5 로 jsdom/RTL 상태 구동 렌더 test 가 불가한 현 harness 에서는
+// helper 직접 호출만이 이 전이 표를 고정할 수 있다. 행 id 정규화는 deriveServiceIdentityRowActionsFlags
+// 가 쓰는 normalizeRowId 를 그대로 재사용한다(같은 규칙을 두 번 구현하면 drift 가 난다).
+// busy 는 호출 시점 gate.read() 스냅샷이므로 render 시점이 아니라 핸들러 호출 시점에 build 해야 한다.
+// 소비처는 후속 ServiceIdentityRowActions 마운트 slice 이며 본 slice 는 factory 만 둔다.
+function buildServiceIdentityRowActionBridge(
+  identityId: string,
+  deps: ServiceIdentityRowActionBridgeDeps,
+): ServiceIdentityRowActionBridge {
+  const rowId = normalizeRowId(identityId);
+  // (a) 귀속 불가한 행 — busy 는 꺼짐이고 두 setter 는 어떤 주입 setter 도 부르지 않는 no-op 다.
+  // 그런 행은 러너 가드(targetIdentityId 미선택)가 이미 no-op 이라 실패 자체가 발생하지 않는다.
+  if (!rowId) {
+    return { busy: false, setBusy: () => {}, setError: () => {} };
+  }
+  // gate 가 지금 이 행을 들고 있는지 — 호출 시점 값을 매번 다시 읽는다(양쪽 모두 trim 정규화).
+  const ownsGate = (): boolean => normalizeRowId(deps.gate.read()) === rowId;
+  return {
+    // (b) 다른 행의 진행은 이 행을 잠그지 않는다(T-1771 loading 규칙과 동일한 행 단위 in-flight).
+    busy: ownsGate(),
+    setBusy: (next: boolean) => {
+      if (next) {
+        deps.gate.write(rowId);
+        return;
+      }
+      // (c) 끄기는 현재 gate 값이 이 행일 때만 — 늦게 끝난 요청이 남의 진행 표시를 꺼버리는 창 차단.
+      if (ownsGate()) {
+        deps.gate.write(undefined);
+      }
+    },
+    setError: (next: string | undefined) => {
+      // (d) 문구가 실제로 있을 때만 이 행에 귀속시킨다. 빈 · 공백뿐 · undefined 는 모두 "없음" 이다.
+      const text = typeof next === 'string' ? next.trim() : '';
+      if (!text) {
+        // 소유 여부와 무관하게 비운다 — 귀속 slot 이 목록 전체에 하나뿐이라, 지우지 않으면 재시도
+        // 성공 후에도 stale 문구가 남는다(러너는 재발화 시작 시 setError(undefined) 를 먼저 부른다).
+        deps.setErrorIdentityId(undefined);
+        deps.setErrorText(undefined);
+        return;
+      }
+      // 귀속 행과 문구는 항상 짝으로 — 한쪽만 쓰면 무성 실패 또는 문구 복제가 된다.
+      deps.setErrorIdentityId(rowId);
+      deps.setErrorText(next);
+    },
+  };
+}
+
 // 부여 POST + state-전이 deps(T-1166 — 위 CreateUserDeps 1:1 mirror, 필드 의미는 그쪽 주석). 조회
 // endpoint 부재라 bumpRefresh 대신 성공 안내 setter(setGrantNotice — error 와 상호 배타)를 두고,
 // resetInput 은 인스턴스 입력만 비운다(선택 사용자 유지 — 연속 부여 편의).
@@ -5559,6 +5632,7 @@ export {
   runRevokeInstanceAccess,
   deriveInstanceAccessFormFlags,
   deriveServiceIdentityRowActionsFlags,
+  buildServiceIdentityRowActionBridge,
   createInFlightIdGate,
   runDeletePerson,
   runDeleteGroup,
@@ -5607,6 +5681,8 @@ export type {
   InstanceAccessFormFlags,
   ServiceIdentityRowFlagsInput,
   ServiceIdentityRowActionsFlags,
+  ServiceIdentityRowActionBridgeDeps,
+  ServiceIdentityRowActionBridge,
   InFlightIdGate,
   DeletePersonDeps,
   DeleteGroupDeps,
