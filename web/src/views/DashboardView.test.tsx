@@ -1335,6 +1335,13 @@ describe('DashboardView — AssessmentDisplayRow 파이프라인 배선 (T-1727)
     expect(
       (DashboardViewModule as Record<string, unknown>).toLegacyScoreRows,
     ).toBeUndefined();
+    // T-1789 (reviewer Nit-1) — 시계열 축 배선으로 철거한 컨테이너-로컬 파생 helper 도
+    // 같은 방식으로 부활을 차단한다. 표시 행 매핑의 단일 출처는 api/summaryRow.ts 이며,
+    // 컨테이너가 다시 자체 매핑을 들이면(옛 계약 재도입 = 값 0 위장 회귀) 본 test 가 fail 한다.
+    expect(exportedNames).not.toContain('deriveTrendPoints');
+    expect(
+      (DashboardViewModule as Record<string, unknown>).deriveTrendPoints,
+    ).toBeUndefined();
     // 과잉 삭제 차단 — 남아야 하는 순수 helper export 는 그대로다.
     for (const name of [
       'buildAssessmentsPath',
