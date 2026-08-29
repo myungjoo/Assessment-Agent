@@ -2194,6 +2194,60 @@ function deriveInstanceAccessFormFlags(input: InstanceAccessFormInput): Instance
   };
 }
 
+// ServiceIdentityRowActions 행별 플래그 파생 입력(T-1771) — 행 자신의 id 와, 컨테이너가 목록 전체에
+// 대해 한 개씩만 들고 있는 "대상 행 id" 3 개(삭제 확인 단계 · 진행 중 · 실패 귀속) + 실패 문구다.
+// 미선택은 undefined 뿐 아니라 빈 문자열 · 공백만도 동치로 본다(sentinel '' 이 전 행과 일치하는 사고 차단).
+interface ServiceIdentityRowFlagsInput {
+  identityId: string;
+  confirmingDeleteId?: string;
+  busyIdentityId?: string;
+  errorIdentityId?: string;
+  errorText?: string;
+}
+
+// 파생 결과(T-1771) — ServiceIdentityRowActions 의 confirmingDelete · loading · error props 와 1:1 이다
+// (그 이상도 이하도 만들지 않는다). 소비처는 후속 RowActions 마운트 slice 이며 본 slice 는 helper 만 둔다.
+interface ServiceIdentityRowActionsFlags {
+  confirmingDelete: boolean;
+  loading: boolean;
+  error: string | undefined;
+}
+
+// (a) 결함: 이 판정을 마운트 JSX 의 행 map 안 인라인 식으로 두면(`confirmingDeleteId === identity.id` ·
+// `busyId === identity.id` · `error` 그대로 전달) 비교 누락·잘못된 변수 참조·미선택 sentinel '' 미처리가
+// 어떤 test 도 깨지 않고 지나간다 — 실제 결과는 (1) 한 행의 실패 문구가 모든 행에 복제돼 멀쩡한 행이
+// 실패한 것처럼 보이거나, (2) 미선택 sentinel '' 이 id 없는 전 행과 일치해 목록 전체가 동시에 삭제 확인
+// 단계로 열리는 창이다(확정 버튼이 전 행에 노출된다).
+// (b) 그래서 판정만 인자 → 반환 순수 helper 로 뽑는다 — ADR-0040 §5 로 jsdom/RTL 상태 구동 렌더 test 가
+// 불가한 현 harness 에서는 helper 직접 호출만이 진리표 전량을 고정할 수 있다. 비교는 항상 trim() 정규화
+// 후 수행하고(양쪽 padding 차이가 같은 행을 다른 행으로 갈라놓지 않도록), 행 id 자체가 비면 세 값 모두
+// 즉시 "꺼짐" 으로 단락한다. React import·state·부수효과 0 이라 같은 인자면 항상 같은 결과다
+// (인자 객체도 변형하지 않는다).
+function deriveServiceIdentityRowActionsFlags(
+  input: ServiceIdentityRowFlagsInput,
+): ServiceIdentityRowActionsFlags {
+  // 비교의 기준이 되는 행 id. 정규화 결과가 비면 어떤 대상 id 와도 일치시키지 않는다.
+  const rowId = normalizeRowId(input.identityId);
+  if (!rowId) {
+    return { confirmingDelete: false, loading: false, error: undefined };
+  }
+  // 대상 id 가 이 행을 가리키는지 — 미지정(undefined)·빈 값은 항상 false 다.
+  const targetsThisRow = (candidate: string | undefined): boolean =>
+    normalizeRowId(candidate) === rowId;
+  return {
+    confirmingDelete: targetsThisRow(input.confirmingDeleteId),
+    // 다른 행의 진행은 이 행을 잠그지 않는다(행 단위 in-flight — createInFlightIdGate 가 든 id 를 읽기만 한다).
+    loading: targetsThisRow(input.busyIdentityId),
+    // 귀속 행이 일치하고 문구가 실제로 있을 때만 노출한다(문구 복제 차단).
+    error: targetsThisRow(input.errorIdentityId) && input.errorText ? input.errorText : undefined,
+  };
+}
+
+// 행 id 비교용 정규화 — undefined·빈 문자열·공백만을 모두 빈 값 하나로 접는다.
+function normalizeRowId(value: string | undefined): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 // 부여 POST + state-전이 deps(T-1166 — 위 CreateUserDeps 1:1 mirror, 필드 의미는 그쪽 주석). 조회
 // endpoint 부재라 bumpRefresh 대신 성공 안내 setter(setGrantNotice — error 와 상호 배타)를 두고,
 // resetInput 은 인스턴스 입력만 비운다(선택 사용자 유지 — 연속 부여 편의).
@@ -5504,6 +5558,7 @@ export {
   runGrantInstanceAccess,
   runRevokeInstanceAccess,
   deriveInstanceAccessFormFlags,
+  deriveServiceIdentityRowActionsFlags,
   createInFlightIdGate,
   runDeletePerson,
   runDeleteGroup,
@@ -5550,6 +5605,8 @@ export type {
   RevokeInstanceAccessDeps,
   InstanceAccessFormInput,
   InstanceAccessFormFlags,
+  ServiceIdentityRowFlagsInput,
+  ServiceIdentityRowActionsFlags,
   InFlightIdGate,
   DeletePersonDeps,
   DeleteGroupDeps,
