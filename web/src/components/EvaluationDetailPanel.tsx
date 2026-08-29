@@ -10,7 +10,9 @@
 // 유지) 모양만 정합시킨다. 차트 라이브러리·SVG·canvas·마크다운 렌더러를 도입하지 않고(ADR-0040
 // §5) 점수 막대는 div + inline style percent 로, 정성 근거는 plain text 로만 렌더한다. 내부
 // 상태(useState)·데이터 fetch 없이 props 표시·비율 파생(maxScore 대비 percent 같은 순수 표시
-// 파생)만 수행한다(controlled).
+// 파생)만 수행한다(controlled). 평가 1 건 전체의 정성 서술(narrative)은 표 축이 "장문이라 표
+// 셀에 넣으면 행 높이가 무너진다" 는 사유로 상세 패널에 넘긴 축이라 optional slot 으로 받는다
+// (REQ-075 잔여) — 여기서도 마크다운/리치 텍스트 렌더러 없이 plain text 로만 렌더한다.
 
 // loading 중 노출할 기본 한국어 진행 문구 (직전 컴포넌트의 LOADING_TEXT 와 정합 — 말줄임표 U+2026).
 const LOADING_TEXT = '불러오는 중…';
@@ -24,6 +26,9 @@ const DEFAULT_SUBJECT_NAME = '대상 미지정';
 const DEFAULT_PERIOD_LABEL = '기간 미지정';
 // rationale 미전달/빈 문자열 시 노출할 정성 근거 fallback 문구 (의미 없는 빈 근거 방지).
 const DEFAULT_RATIONALE = '정성 근거 없음';
+// 평가 전체 정성 서술(narrative) 영역의 접근성 라벨 — 스크린리더가 지표별 근거(rationale)와
+// 구분해 식별할 수 있도록 한국어 라벨을 고정한다.
+const NARRATIVE_ARIA_LABEL = '평가 정성 서술';
 
 // 1개 = 한 평가 항목(metric)의 상세. label 은 지표 라벨(예: "코드 품질"), score 는 그 지표의
 // 점수, maxScore 는 만점(있으면 "score/maxScore" 형태·비율 막대 분모), rationale 은 LLM 정성
@@ -58,6 +63,10 @@ interface EvaluationDetailPanelProps {
   emptyLabel?: string;
   // 영역 제목 접두(선택). 빈 문자열/미전달이면 기본 한국어 라벨로 fallback(빈 라벨 방지).
   titlePrefix?: string;
+  // 평가 1 건 전체의 LLM 정성 서술(선택) — 지표 1 개당 근거인 EvaluationMetricItem.rationale
+  // 과는 다른 축이다(그쪽은 metric 단위, 이쪽은 평가 단위). 미전달/빈 문자열이면 서술 영역
+  // 자체를 렌더하지 않는다(하위 호환 — 빈 문자열용 fallback 문구를 새로 만들지 않는다).
+  narrative?: string;
 }
 
 // score 안전 clamp — 음수·NaN·Infinity 등 비정상 값을 0 으로 치환해 raw NaN/Infinity 점수/
@@ -93,6 +102,13 @@ function scoreText(score: number, maxScore?: number): string {
   return `${safe}`;
 }
 
+// 서술 영역 렌더 여부 판정 — 미전달(undefined)/빈 문자열이면 false 라 영역 자체를 렌더하지
+// 않아 기존 markup 이 그대로 유지된다(하위 호환). 공백만 있는 문자열 같은 비정상 입력은 truthy
+// 라 throw 없이 그대로 plain text 렌더한다(표시 계층이 값을 위장하지 않는다).
+function hasNarrative(narrative?: string): boolean {
+  return typeof narrative === 'string' && narrative.length > 0;
+}
+
 // 단일 평가 결과 상세 패널. 평가 상세 조회/산정 로직 자체는 수행하지 않고 props 의 metric 배열을
 // 항목으로 표시하며 maxScore 대비 비율 같은 순수 표시 파생만 수행하는 presentational 책임만
 // 진다 — 실 데이터 배선·서버 조회는 상위 컨테이너/후속 slice 가 수행한다.
@@ -104,6 +120,7 @@ function EvaluationDetailPanel({
   error,
   emptyLabel,
   titlePrefix,
+  narrative,
 }: EvaluationDetailPanelProps) {
   // loading 우선 정책 — 진행 중이면 error·metrics 유무와 무관하게 진행 표시만 렌더한다.
   // 항목 목록을 아예 렌더하지 않아 진행 중 부정확 표시를 차단한다.
@@ -122,6 +139,14 @@ function EvaluationDetailPanel({
   const subjectText = subjectName ? subjectName : DEFAULT_SUBJECT_NAME;
   const periodText = periodLabel ? periodLabel : DEFAULT_PERIOD_LABEL;
 
+  // 평가 전체 정성 서술 — 마크다운/리치 텍스트 렌더러·새 dependency 없이 plain text 로만
+  // 렌더한다(ADR-0040 §5). loading·error 분기는 이 지점 이전에 return 하므로 서술이 렌더되지
+  // 않고(loading 우선 정책·error 시 항목 미렌더 정책 승계), 빈 목록·정상 경로 양쪽에는 평가
+  // 전체 축이라 metric 이 0 개여도 함께 렌더한다.
+  const narrativeNode = hasNarrative(narrative) ? (
+    <p aria-label={NARRATIVE_ARIA_LABEL}>{narrative}</p>
+  ) : null;
+
   // 빈 목록 분기 — metrics 미전달(undefined)/빈 배열이면 빈 상태 라벨을 렌더한다.
   // 빈 문자열 emptyLabel 은 기본 라벨로 fallback 한다(빈 메시지 방지 정책).
   const items = Array.isArray(metrics) ? metrics : [];
@@ -134,6 +159,7 @@ function EvaluationDetailPanel({
           <span>{subjectText}</span>
           <span>{periodText}</span>
         </div>
+        {narrativeNode}
         <div role="status">{emptyText}</div>
       </section>
     );
@@ -147,6 +173,7 @@ function EvaluationDetailPanel({
         <span>{subjectText}</span>
         <span>{periodText}</span>
       </div>
+      {narrativeNode}
       <ul>
         {items.map((item) => {
           // 안전 clamp 된 점수·텍스트·maxScore 대비 비율 — 0 나눗셈/NaN/Infinity 를 차단하고
