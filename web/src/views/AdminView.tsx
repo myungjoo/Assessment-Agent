@@ -808,7 +808,8 @@ function buildProvidersPath(refreshNonce: number): string {
 // cache-busting query(`_r`)로 실어 path 문자열을 변화시킨다. useApiResource 는 path 변경 시에만
 // 재조회하므로(read-only hook 수정 0), nonce 증가가 곧 재조회 트리거다. nonce 0(초기 조회)이면
 // query 없는 깨끗한 base path 를 그대로 쓴다(T-1142 마운트 path 와 동일 유지 — 회귀 0). `_r` 은
-// backend GET 핸들러가 @Query 를 받지 않아 무시한다(api.md — 부수효과 0).
+// backend GET 핸들러가 읽지 않는 미지의 query 라 그대로 무시된다(T-1803 이 개통한 @Query 는
+// includeInactive 하나뿐 — api.md, 부수효과 0).
 function buildPersonsPath(
   refreshNonce: number,
   includeInactive = false,
