@@ -370,3 +370,233 @@ describe("prisma schema — User.timezone (T-0799, ADR-0052 §Decision (a))", ()
     // "분기 없음, 이 항목 생략" (R-112, 기존 prisma-schema.spec.ts (T-0485) 패턴 정합).
   });
 });
+
+// T-1808 (ADR-0059 §Decision 4 / §Follow-ups (a)) — CollectionTarget model + migration 검증.
+//
+// 본 task 는 model CollectionTarget 1 개와 additive migration SQL 만 추가한다 (배선은 후속
+// slice — ADR-0059 §Follow-ups (b)~(e)). 따라서 **분기 없음 — schema 선언 slice** 이며
+// production 분기 로직이 0 LOC 다. 검증 구획: (a) happy-path — delegate / DMMF model /
+// 10 필드 타입·list, (b) error path — 필수 3 필드가 nullable 아님, (c) flow/branch 대체 —
+// type 값 invariant 가 DB 제약이 아니라 후속 DTO `@IsIn` 소관임을 "Prisma enum 미생성"
+// 으로 문서화, (d) negative 4 종 — credential 컬럼 부재 / relation 0 / @@unique 계약 /
+// 기존 model 무손상 (위 T-0485 / T-0799 블록 패턴 승계).
+//
+// Prisma 7.x runtime DMMF 는 isList / isRequired / @default 메타를 carry 하지 않는다 (위
+// T-0799 블록 주석과 동일 사실). 그런 메타는 schema 원문 + migration SQL 을 truth 로
+// 단언하고, DMMF 가 carry 하는 버전에서는 DMMF 로도 함께 단언한다.
+describe("prisma schema — CollectionTarget (T-1808, ADR-0059 §Decision 4)", () => {
+  const schema = readFileSync(
+    join(__dirname, "..", "prisma", "schema.prisma"),
+    "utf8",
+  );
+  const MIGRATION_DIR = "20260830000000_collection_target";
+  const migration = readFileSync(
+    join(
+      __dirname,
+      "..",
+      "prisma",
+      "migrations",
+      MIGRATION_DIR,
+      "migration.sql",
+    ),
+    "utf8",
+  );
+
+  // `--` 주석을 제거한 실행 DDL — 주석에 인용된 금지 어휘의 오탐 차단.
+  const migrationDdl = migration
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("--"))
+    .join("\n");
+
+  // CollectionTarget model 블록만 잘라낸다 — 다른 model 의 동명 필드 오탐 차단.
+  const modelBlock = (() => {
+    const matched = schema.match(/model CollectionTarget \{[\s\S]*?\n\}/);
+    if (!matched) {
+      throw new Error("schema 원문에 model CollectionTarget 블록이 없습니다");
+    }
+    return matched[0];
+  })();
+
+  // ADR-0059 §Decision 4 필드 표 1:1 — 이름 / 타입 / list 여부.
+  const EXPECTED_FIELDS = [
+    { name: "id", type: "String", isList: false },
+    { name: "type", type: "String", isList: false },
+    { name: "instanceKey", type: "String", isList: false },
+    { name: "endpoint", type: "String", isList: false },
+    { name: "orgs", type: "String", isList: true },
+    { name: "repos", type: "String", isList: true },
+    { name: "spaces", type: "String", isList: true },
+    { name: "active", type: "Boolean", isList: false },
+    { name: "createdAt", type: "DateTime", isList: false },
+    { name: "updatedAt", type: "DateTime", isList: false },
+  ] as const;
+
+  const targetModel = () =>
+    Prisma.dmmf.datamodel.models.find((m) => m.name === "CollectionTarget");
+
+  // (a) happy-path — delegate / DMMF model / 10 필드 타입·list 여부.
+  describe("(a) happy-path — delegate / DMMF model / 필드 표 1:1", () => {
+    it("DMMF datamodel 이 CollectionTarget model 을 포함하고 PrismaClient 가 collectionTarget delegate 를 노출한다", () => {
+      expect(targetModel()).toBeDefined();
+      // 실 DB connection 없이 prototype 의 delegate 존재만 확인 (위 T-0485 블록 패턴 정합).
+      const proto = PrismaClient.prototype as unknown as Record<
+        string,
+        unknown
+      >;
+      const hasDelegate =
+        "collectionTarget" in proto ||
+        Object.getOwnPropertyDescriptor(proto, "collectionTarget") !==
+          undefined ||
+        Prisma.dmmf.datamodel.models.some(
+          (m) => m.name.toLowerCase() === "collectiontarget",
+        );
+      expect(hasDelegate).toBe(true);
+    });
+
+    it("ADR-0059 §Decision 4 의 10 개 필드가 정확히 그 집합으로 선언돼 있다", () => {
+      const names = targetModel()!.fields.map((f) => f.name);
+      expect(names).toEqual(EXPECTED_FIELDS.map((f) => f.name));
+    });
+
+    it.each(EXPECTED_FIELDS.map((f) => [f.name, f.type, f.isList] as const))(
+      "%s 필드가 type=%s / isList=%s 로 선언돼 있다",
+      (name, type, isList) => {
+        const field = targetModel()!.fields.find((f) => f.name === name) as
+          | { type: string; isList?: boolean }
+          | undefined;
+        expect(field).toBeDefined();
+        expect(field!.type).toBe(type);
+        if (field!.isList !== undefined) {
+          // DMMF 가 isList 를 carry 하는 버전 — DMMF 로 단언.
+          expect(field!.isList).toBe(isList);
+        }
+        // schema-as-truth — Prisma 7.x DMMF 가 isList 를 carry 하지 않으므로 원문으로도 단언.
+        const declaredAsList = new RegExp(`\\n\\s+${name}\\s+${type}\\[\\]`);
+        expect(declaredAsList.test(modelBlock)).toBe(isList);
+      },
+    );
+
+    it("migration.sql 이 CREATE TABLE 과 10 개 컬럼 + 배열 default 를 포함한다", () => {
+      expect(migration).toMatch(/CREATE TABLE "CollectionTarget"/);
+      for (const { name } of EXPECTED_FIELDS) {
+        expect(migration).toContain(`"${name}"`);
+      }
+      // 다중 값 컬럼은 PostgreSQL TEXT[] + 빈 배열 default (ADR-0059 §Decision 4).
+      for (const name of ["orgs", "repos", "spaces"]) {
+        expect(migration).toContain(
+          `"${name}" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[]`,
+        );
+      }
+      expect(migration).toMatch(
+        /CONSTRAINT "CollectionTarget_pkey" PRIMARY KEY \("id"\)/,
+      );
+    });
+  });
+
+  // (b) error path — 필수 필드 누락 시 저장 불가라는 schema-level 계약의 regression 방지.
+  describe("(b) error path — 필수 3 필드가 nullable 이 아니다", () => {
+    it.each(["type", "instanceKey", "endpoint"])(
+      "%s 가 required 다 (schema 원문에 `?` 없음 + migration DDL NOT NULL)",
+      (name) => {
+        const field = targetModel()!.fields.find((f) => f.name === name) as
+          | { isRequired?: boolean }
+          | undefined;
+        expect(field).toBeDefined();
+        if (field!.isRequired !== undefined) {
+          expect(field!.isRequired).toBe(true);
+        }
+        // schema-as-truth — optional 표기(`String?`) drift 차단 + DDL NOT NULL 확인.
+        expect(modelBlock).not.toMatch(
+          new RegExp(`\\n\\s+${name}\\s+String\\?`),
+        );
+        expect(modelBlock).toMatch(new RegExp(`\\n\\s+${name}\\s+String\\s`));
+        expect(migration).toContain(`"${name}" TEXT NOT NULL`);
+      },
+    );
+  });
+
+  // (c) flow / branch 대체 — 분기 없음 (schema 선언 slice). type 이 허용하는 두 값은 DB
+  // 제약이 아니라 후속 DTO 의 @IsIn 소관 (§Decision 4 / §Follow-ups (c)) — 그 사실을
+  // "Prisma enum 미생성" 단언으로 문서화·강제한다.
+  describe("(c) 분기 없음 — type 값 invariant 는 DB 제약이 아님", () => {
+    it("type 이 String 이며 대상 종류용 Prisma enum 이 생성되지 않았다", () => {
+      expect(targetModel()!.fields.find((f) => f.name === "type")!.type).toBe(
+        "String",
+      );
+      // 대상 종류 enum 블록이 schema 에 없고 migration 도 CREATE TYPE 을 만들지 않는다
+      // (enum-as-String 관례 — §Decision 4).
+      expect(schema).not.toMatch(/enum\s+CollectionTarget\w*\s*\{/);
+      expect(schema).not.toMatch(/enum\s+\w*TargetType\s*\{/);
+      expect(migrationDdl).not.toMatch(/CREATE TYPE/);
+    });
+  });
+
+  // (d) negative 4 종 — credential 부재 / relation 0 / @@unique 계약 / 기존 model 무손상.
+  describe("(d) negative — credential 0 / relation 0 / unique 계약 / 기존 model 무손상", () => {
+    it("credential 계열 금지 컬럼이 하나도 존재하지 않는다 (ADR-0059 §Decision 2 regression)", () => {
+      const names = targetModel()!.fields.map((f) => f.name.toLowerCase());
+      for (const forbidden of [
+        "token",
+        "tokenenc",
+        "secret",
+        "password",
+        "hashedpassword",
+        "apikey",
+        "credential",
+        "credentials",
+        "authuser",
+      ]) {
+        expect(names).not.toContain(forbidden);
+      }
+      // 선언 원문에도 없다 (DMMF 우회 drift 차단). 주석은 금지 목록을 인용하므로 제외.
+      const declarationLines = modelBlock
+        .split("\n")
+        .filter((line) => !line.trim().startsWith("//"))
+        .join("\n");
+      expect(declarationLines).not.toMatch(
+        /token|secret|password|apiKey|credential/i,
+      );
+    });
+
+    it("다른 model 로의 relation 필드가 0 개다 (additive 판정 regression)", () => {
+      const relations = targetModel()!.fields.filter(
+        (f) => (f as { kind?: string }).kind === "object",
+      );
+      expect(relations).toHaveLength(0);
+      // @relation 0 + FK 0 — back-relation 불요라는 additive 판정(§Decision 6) 근거.
+      expect(modelBlock).not.toMatch(/@relation/);
+      expect(migrationDdl).not.toMatch(/FOREIGN KEY/);
+      expect(migrationDdl).not.toMatch(/ADD CONSTRAINT "\w+_fkey"/);
+    });
+
+    it("@@unique([type, instanceKey]) 가 schema 와 migration 양쪽에 있고 endpoint 단독 unique 는 없다", () => {
+      expect(modelBlock).toMatch(/@@unique\(\[type,\s*instanceKey\]\)/);
+      expect(migration).toMatch(
+        /CREATE UNIQUE INDEX "CollectionTarget_type_instanceKey_key" ON "CollectionTarget"\("type", "instanceKey"\)/,
+      );
+      // endpoint 단독 unique 부재 — 같은 host 의 서로 다른 org 집합 등록이 정당한 사용
+      // 이기 때문 (§Decision 4).
+      expect(modelBlock).not.toMatch(/endpoint\s+String\s+@unique/);
+      expect(modelBlock).not.toMatch(/@@unique\(\[endpoint\]\)/);
+      expect(migrationDdl).not.toMatch(/UNIQUE INDEX[^\n]*\("endpoint"\)/);
+    });
+
+    it("기존 model (Person · User · ServiceIdentity) 의 필드 수·필수성이 그대로다 (안전망)", () => {
+      // 필드 수 고정 — 본 migration 이 기존 model 에 컬럼/relation 을 더하거나 뺐다면 fail.
+      const countOf = (name: string) =>
+        Prisma.dmmf.datamodel.models.find((m) => m.name === name)!.fields
+          .length;
+      expect(countOf("Person")).toBe(12);
+      expect(countOf("User")).toBe(10);
+      expect(countOf("ServiceIdentity")).toBe(8);
+      // 필수성 표기 무변경 + 기존 table 무접촉 (additive only).
+      expect(schema).toMatch(/fullName\s+String\s/);
+      expect(schema).toMatch(/email\s+String\s+@unique/);
+      expect(schema).toMatch(/hashedPassword\s+String\s/);
+      expect(schema).toMatch(/externalId\s+String\s/);
+      expect(migrationDdl).not.toMatch(/ALTER TABLE/);
+      expect(migrationDdl).not.toMatch(/DROP /);
+      expect(migrationDdl).not.toMatch(/UPDATE /);
+    });
+  });
+});

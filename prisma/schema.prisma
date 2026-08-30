@@ -664,3 +664,44 @@ model ImportJob {
   // status polling + 감사 조회 leading-edge index (ADR-0044 Decision §1, UC-07 §8).
   @@index([status, createdAt])
 }
+
+// CollectionTarget — ADR-0059 §Decision 1 (저장 위치) + §Decision 4 (단일 model +
+// type discriminator, 필드 표 1:1). 운영자가 화면에서 등록·편집하는 "평가 대상
+// 시스템"(수집 대상) 좌표의 정본 — REQ-070 / REQ-072 / REQ-073 의 시스템 축 backbone.
+// T-1808 은 schema + migration 만 박제, 배선은 §Follow-ups (b)~(e) 소관.
+//
+// 🔒 credential 컬럼 0 (§Decision 2 — ADR-0006 raw 미저장 schema-level 강제 동형 기법):
+//   token / tokenEnc / secret / password / apiKey 계열 컬럼을 **정의하지 않는다**. 실값도
+//   ADR-0014 암호문도 DB 에 넣지 않고 `instanceKey` 1 개로 **참조만** 한다 (수집 시점에
+//   env 의 `GITHUB_<KEY>_TOKEN_ENC` 등을 조립 — ADR-0017 / ADR-0018 무손상).
+//
+// type 은 Prisma enum 으로 격상하지 않고 String 유지 (§Decision 4): (i) 기존 3 enum 은
+// 코드가 전부 소유하는 job lifecycle 값인 반면 type 은 adapter 추가마다 늘어나는 확장 축,
+// (ii) 도메인/배포 축 값은 이미 enum-as-String 관례 (User.role · ServiceIdentity.service ·
+// Assessment.period), (iii) enum 값 추가마다 migration 이 든다. 값 invariant ("GITHUB" |
+// "CONFLUENCE") 강제는 DB 제약이 아니라 후속 DTO 의 `@IsIn` 소관 (§Follow-ups (c)).
+//
+// relation 0 — 다른 model 과 FK 를 맺지 않는다. 그래서 기존 model 의 컬럼·relation 이
+// 1 개도 바뀌지 않고 back-relation 추가도 불필요하며, 신규 table 이라 data migration 도
+// 0 이다 (§Decision 6 additive 판정의 실측 재확인). 다중 값 컬럼 (orgs / repos / spaces)
+// 은 Prisma scalar list — ADR-0002 의 PostgreSQL native array, 새 dependency 0. GITHUB 은
+// orgs / repos, CONFLUENCE 는 spaces 를 채우고 나머지는 빈 배열 (type 별 조건부 필수성은
+// DTO / service 책임 — §Consequences (c)).
+model CollectionTarget {
+  id          String   @id @default(cuid())
+  type        String
+  instanceKey String
+  endpoint    String
+  orgs        String[]
+  repos       String[]
+  spaces      String[]
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 한 종류 안에서 instance key 는 유일 — env 의 "중복 key → 먼저 등장한 1 개만 활성"
+  // 규칙과 같은 의도를 DB 층에서 강제 (ADR-0059 §Decision 4).
+  // endpoint 단독 unique 는 두지 않는다 — 같은 host 에 서로 다른 org 집합을 별도 대상으로
+  // 등록하는 것이 정당한 사용이기 때문 (ADR-0059 §Decision 4).
+  @@unique([type, instanceKey])
+}
