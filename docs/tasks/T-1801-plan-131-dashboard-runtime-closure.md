@@ -2,7 +2,7 @@
 id: T-1801
 title: PLAN 131 행 대시보드 실동작 오너 지시 bullet 마커 승격 (R-175~R-178 closure)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-074, REQ-075, REQ-076, REQ-077]
 estimatedDiff: 30
@@ -66,3 +66,15 @@ PLAN 의 **결정 내용·다른 bullet 은 1 자도 바꾸지 않고** 진행 �
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 후속 작업을 발견하면 여기에 추가)
+
+## 완료 기록
+
+- 완료 시각: 2026-08-30T07:49Z
+- 결과: [docs/PLAN.md](../PLAN.md) `131 행` 오너 지시 bullet 마커를 `- [ ]` → `- [x]` 로 승격하고,
+  T-1800 시점의 보류 문단을 승격 근거 문장 1 개로 교체했다 (1 파일 `+1/-1`, main `f99eb235`).
+- 승격 전 실측 재확인: [docs/requirements.md](../requirements.md) `93~96 행` 의 REQ-074 · REQ-075 ·
+  REQ-076 · REQ-077 네 row 판정 컬럼이 **전부 `DONE`**, 축별 재판정 slice 는 `git log` 대조로
+  REQ-074=T-1796(`461e4d39`) · REQ-075=T-1795(`46712a81`) · REQ-076=T-1797(`01054125`) ·
+  REQ-077=T-1800(`8ae20264`) 임을 확인했다 (task 본문 예시 ID 와 일치 — 정정 불요).
+- 코드 0 LOC · production symbol 0 이라 R-110 tester 의무 · R-112 4 항목은 적용 대상 없음.
+  main CI run (`58a00517` · `f99eb235`) 둘 다 `success`.
