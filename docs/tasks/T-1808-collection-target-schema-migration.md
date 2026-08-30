@@ -2,7 +2,9 @@
 id: T-1808
 title: CollectionTarget model + migration 박제 (ADR-0059 Follow-up (a))
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1420
+completedAt: 2026-08-30T16:03:43Z
 commitMode: pr
 coversReq: [REQ-070, REQ-072, REQ-073]
 estimatedDiff: 200
@@ -63,3 +65,11 @@ plannerNote: "P6 PLAN 130 행 시스템 축 — ADR-0059 §Follow-ups (a) schema
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append 한다.)
+
+## 결과 (DONE — 2026-08-30T16:03:43Z, PR #1420 → main `26e4add8`)
+
+- AC 1 게이트 통과 — `prisma/schema.prisma` 실측으로 additive 3 조건(기존 model 컬럼·relation 무변경 / back-relation 추가 불요 / 기존 row 를 읽거나 옮기는 data migration 0)을 확인해 [CLAUDE.md §5](../../CLAUDE.md) owner 게이트(`db-schema-change`) 경유 없이 진행했다.
+- `model CollectionTarget` 10 필드를 [ADR-0059](../decisions/ADR-0059-collection-target-registration.md) `§Decision 4` 필드 표와 1:1 로 박제하고 `@@unique([type, instanceKey])` 를 뒀다 — relation 0, credential 계열 컬럼 0(`§Decision 2`), `type` 은 Prisma enum 으로 격상하지 않고 `String` 유지(값 invariant 는 후속 DTO `@IsIn` 소관이라 주석 병기).
+- `prisma/migrations/20260830000000_collection_target/migration.sql` 은 `CREATE TABLE` + `CREATE UNIQUE INDEX` 만 — 기존 table 의 ALTER / DROP / UPDATE 문 0, 다중 값 컬럼은 `TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[]`.
+- `test/prisma-schema.spec.ts` 에 describe 블록 1 개 append (신규 spec 파일 신설 0) — happy 12 · error path 3 · branch 대체 1(Prisma enum 미생성 확인) · negative 4(credential 컬럼 부재 / relation 0 / unique 계약 양쪽 존재 + `endpoint` 단독 unique 부재 / 기존 model 무손상).
+- 3 파일 `+300/-0`, `src/` diff 0. 458 suite · 13243 test green, line 99.94% · function 100%. reviewer APPROVE round 1/7(BLOCKER · MAJOR · MINOR 0), 4-게이트 전부 pass, squash + branch delete.
