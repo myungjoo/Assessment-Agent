@@ -2,7 +2,7 @@
 id: T-1813
 title: CollectionTarget 편집 API 의 Update DTO 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-070, REQ-072, REQ-073]
 estimatedDiff: 300
@@ -13,6 +13,9 @@ dependsOn: [T-1812]
 touchesFiles:
   - src/assessment-collection/dto/update-collection-target.dto.ts
   - src/assessment-collection/dto/update-collection-target.dto.spec.ts
+completedAt: 2026-08-30T20:52:20Z
+prNumber: 1425
+mergeCommit: b615ce40
 sizeExempt: true
 exemptReason: 초과분 전량이 R-112 강제 colocated spec — production 순증 ≤ 70 LOC (필드 5 개, 전량 optional). T-1812(340 LOC · 7 필드 DTO) 선례 승계.
 plannerNote: ADR-0059 Follow-ups (c) 의 둘째 조각 — DTO 2 종 중 Update 축만. controller/route/guard 는 별도 slice.
@@ -64,6 +67,14 @@ plannerNote: ADR-0059 Follow-ups (c) 의 둘째 조각 — DTO 2 종 중 Update 
 
 `implementer → tester`
 
+## 결과 (2026-08-30 완료)
+
+**DONE** — `commitMode: pr`, PR [#1425](https://github.com/myungjoo/Assessment-Agent/pull/1425) → main `b615ce40` squash merge (branch 삭제 완료).
+
+- `src/assessment-collection/dto/update-collection-target.dto.ts` 신설 (production `+67/-0`) — 5 필드(`endpoint` · `orgs` · `repos` · `spaces` · `active`) 전량 optional 로 manual decorate 했다. `@nestjs/mapped-types` 를 도입하지 않아 새 dependency 0. 정체성 축(`type` · `instanceKey`) 은 필드 자체를 두지 않아 `forbidNonWhitelisted` 로 400 이 나가고, 그 근거를 헤더 주석에 박제했다. `endpoint` 의 "미전달 = 미변경 / 전달 시 빈 값 불가" 이중 의미도 주석으로 구분했다.
+- `src/assessment-collection/dto/update-collection-target.dto.spec.ts` colocated spec 29 케이스로 R-112 4 종 cover (happy 3 · error path 3 · 분기 7 · negative 9 · drift guard 7). 신규 DTO line/branch/function 100%, 전역 line 99.94% · function 100% (threshold 80%), 전체 13350 test green.
+- 4-게이트 전부 충족 — reviewer APPROVE round 1/7 + PR comment 외화 + integrator self-check + CI green (PR head `826a2413`). claim `prNumber` 동기(`sync-claim-pr.sh`) 도 PR open 직후 정상 수행됐다.
+
 ## Follow-ups
 
-(비어 있음 — sub-agent 가 발견 시 append)
+- (a) **`null` payload 오류 계약 확정** — `@IsOptional()` 은 `undefined` 뿐 아니라 `null` 도 검증에서 skip 하므로 `{ "endpoint": null }` 이 DTO 를 통과해 Prisma 층까지 내려간다. 후속 controller slice 에서 400 으로 막을지 `§Decision 5` 오류 표 e 행으로 흡수할지 확정해야 한다 (reviewer MINOR M2 로 PR #1425 에 외화됨).
