@@ -2,7 +2,7 @@
 id: T-1803
 title: GET /api/persons 에 includeInactive query 축 추가 (휴직 인원 조회 경로 개통)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-071]
 estimatedDiff: 165
@@ -66,3 +66,17 @@ plannerNote: P6 오너 지시 130 행 REQ-071 잔여 Activate 진입점의 선�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 추가)
+
+---
+
+## 완료 기록
+
+- **완료**: 2026-08-30 09:57 (UTC) — PR [#1417](https://github.com/myungjoo/Assessment-Agent/pull/1417) squash 머지, main `e2c8e673`.
+- **결과**: `GET /api/persons` 가 `?includeInactive=true` 일 때만 `findAll()`(휴직 포함), 그 외에는 종전대로 `findActive()` 를 호출한다. 분기 판정은 핸들러 안 삼항 1 줄 (`=== "true"`) — DTO class · helper 파일 신설 0, 기본 동작 불변.
+- **변경**: 4 파일 `+186/-13`. `person.controller.ts`(query 분기) · `person.controller.spec.ts`(R-112 4 종) · `person.service.ts`("후속 task" 자인 주석 1 줄을 현재 사실로 갱신, 로직 0) · `web/src/views/AdminView.persons-list-contract.test.ts`(controller 소스를 읽어 `hasQuery === false` 를 단언하던 drift-guard parity — 같은 commit 에서 갱신하지 않으면 CI red 라 불가피, `AdminView.tsx` 자체는 무변경).
+- **검증**: reviewer APPROVE (round 2 — round 1 Nit 은 §3 Nit-in-PR closure 로 본 PR 안에서 마감), 4-게이트 PASS, CI green. `person.controller.ts` · `person.service.ts` 각 coverage 100%, 전체 line 99.94% / function 100%. jest 13222 · vitest 3033 green.
+
+## Follow-ups (완료 시점 추가)
+
+- **AdminView 휴직 인원 필터 토글 + Activate 진입점** — 본 slice 가 연 조회 경로를 web 에서 소비해야 REQ-071 이 `DONE` 으로 승격 가능 (`commitMode: pr`).
+- **[api.md](../architecture/api.md) 동기** — `GET /api/persons` 의 `?includeInactive` query 를 계약 문서에 반영 (`commitMode: direct`).
