@@ -65,6 +65,16 @@ jest.mock("../persistence/prisma.service", () => ({
       delete: jest.fn(),
     };
     user = { findUnique: jest.fn(), update: jest.fn() };
+    // T-1811: CollectionTargetRepository 가 collectionTarget delegate 를 inject 하므로
+    // primitive 5 종을 stub 한다 — 없으면 provider resolve 자체는 되지만 배선 의도가
+    // mock 에서 누락된다.
+    collectionTarget = {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    };
     onModuleInit = jest.fn().mockResolvedValue(undefined);
     enableShutdownHooks = jest.fn();
   },
@@ -87,6 +97,8 @@ import { CollectionOrchestratorService } from "./collection-orchestrator.service
 import { CollectionPersistenceService } from "./collection-persistence.service";
 // eslint-disable-next-line import/first
 import { CollectionSpecService } from "./collection-spec.service";
+// eslint-disable-next-line import/first
+import { CollectionTargetService } from "./collection-target.service";
 // eslint-disable-next-line import/first
 import { CollectionTriggerService } from "./collection-trigger.service";
 import { ConfluenceCollectionService } from "./confluence-collection.service";
@@ -164,6 +176,12 @@ describe("AssessmentCollectionModule", () => {
     // 증명(compile 자체가 circular 회귀 가드를 겸한다).
     const controller = moduleRef.get(AssessmentCollectionController);
     expect(controller).toBeInstanceOf(AssessmentCollectionController);
+
+    // T-1811(ADR-0059 §Follow-ups (b) 종결): CollectionTargetService 가 resolve 되면 그
+    // 의존 CollectionTargetRepository → PrismaService 가 @Global() PersistenceModule 로
+    // 닫힘의 증명(새 module import 0). §Follow-ups (c) controller 주입의 선행 조건.
+    const target = moduleRef.get(CollectionTargetService);
+    expect(target).toBeInstanceOf(CollectionTargetService);
 
     await moduleRef.close();
   });
@@ -297,6 +315,26 @@ describe("AssessmentCollectionModule", () => {
     // #2b/#3(T-0273/T-0274): CollectionTriggerService / controller 도 본 module 없이는 미등록.
     expect(() => moduleRef.get(CollectionTriggerService)).toThrow();
     expect(() => moduleRef.get(AssessmentCollectionController)).toThrow();
+    // T-1811: CollectionTargetService 도 본 module 없이는 미등록(배선 누락 회귀 가드).
+    expect(() => moduleRef.get(CollectionTargetService)).toThrow();
+
+    await moduleRef.close();
+  });
+
+  // Negative / exports 정합(7, T-1811): CollectionTargetService 도 sentinel override →
+  // resolve 검증. exports 배열 등록의 독립 cover — §Follow-ups (c) 의 controller 가 다른
+  // module 에서 inject 할 수 있으려면 provider 등록만으로는 부족하고 export 가 필요하다.
+  it("CollectionTargetService provider 가 sentinel 로 override 되어도 compile 한다 (exports 등록 정합)", async () => {
+    const sentinel = { __sentinel: "collection-target-override" };
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, AssessmentCollectionModule],
+    })
+      .overrideProvider(CollectionTargetService)
+      .useValue(sentinel)
+      .compile();
+
+    const resolved = moduleRef.get(CollectionTargetService);
+    expect(resolved).toBe(sentinel);
 
     await moduleRef.close();
   });
