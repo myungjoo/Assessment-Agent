@@ -2,7 +2,10 @@
 id: T-1812
 title: CollectionTarget 등록 API 의 Create DTO 신설
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-30T19:53:04Z
+prNumber: 1424
+mergeCommit: c195721d
 commitMode: pr
 coversReq: [REQ-070, REQ-072, REQ-073]
 estimatedDiff: 340
