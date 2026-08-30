@@ -2,7 +2,7 @@
 id: T-1804
 title: AdminView 인원 목록에 휴직 인원 포함 토글 배선 (Activate 진입점 개통)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-071]
 estimatedDiff: 195
@@ -60,3 +60,10 @@ plannerNote: "P6 오너 지시 130 행 인원 축의 유일 잔여(Activate 진�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 추가)
+
+## 완료 기록
+
+- **완료 시각**: 2026-08-30T11:56:08Z (PR [#1418](https://github.com/myungjoo/Assessment-Agent/pull/1418) squash merge → main `a376541f`)
+- **결과 요약**: `buildPersonsPath` 에 optional 2 번째 인자 `includeInactive`(default `false`) 를 추가해 `true` 일 때만 `?includeInactive=true` 를 구분자(`?`/`&`) 정합으로 싣고, 컨테이너에 `personsIncludeInactive` boolean state 를 두어 `personsPath` useMemo 의존성에 포함시켰다(토글 시 재조회 트리거). 인원 관리 섹션에는 접근 가능한 이름을 가진 controlled checkbox 한 개만 추가했다. backend · `PersonList` · 인라인 수정 폼은 무변경 — 재활성은 기존 활성·휴직 `<select>` → `PATCH /api/persons/:id` 경로를 그대로 탄다.
+- **테스트**: 신규 [AdminView.persons-include-inactive.test.tsx](../../web/src/views/AdminView.persons-include-inactive.test.tsx) 18 test (분기 4 조합 · happy 3 · error 2 · negative 6 · 소스 guard 2). 배선 제거 mutation 시 3 test fail 로 비-공허성 확인. root `lint`/`build`/`test`/`test:cov` + web 전량 green.
+- **리뷰**: reviewer VERDICT=APPROVE (round 2/7 — round 1 Nit 은 [CLAUDE.md §3](../../CLAUDE.md) Nit-in-PR closure 로 본 PR 안에서 마감), 4-게이트 PASS, squash + branch delete.
