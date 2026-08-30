@@ -2,7 +2,7 @@
 id: T-1805
 title: Activate(재활성) UI 진입점 shipped 실측으로 REQ-071 DONE 재판정 + PLAN 130 행 인원 축 서술 갱신
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-071]
 estimatedDiff: 70
@@ -62,3 +62,8 @@ plannerNote: "P6 오너 지시 PLAN 130 행 인원 축 — T-1803+T-1804 로 Act
 ## Follow-ups
 
 - [api.md](../architecture/api.md) `GET /api/persons` row 에 `?includeInactive=true` query 계약 동기 (doc-only `direct`, T-1803 Follow-ups 승계).
+
+## 완료 기록
+
+- **완료 시각**: 2026-08-30T12:46Z (direct commit `710c9824`)
+- **결과 요약**: `docs/requirements.md` `90 행` REQ-071 을 `IN_PROGRESS` → `DONE` 으로 재판정했다. 5 동작 축(추가 · 삭제 · 변경 · Deactivate · Activate) 전량이 Web UI 에서 발사됨을 원본 소스 좌표로 실측 확인했고 — backend 는 `src/user/person.controller.ts` `71~73 행` 의 `includeInactive === "true"` 분기, web 은 `web/src/views/AdminView.tsx` `813 행` `buildPersonsPath` optional 인자 · `3462 행` `personsIncludeInactive` state · `5574~5581 행` 토글 checkbox · `5649 행` 활성 여부 `<select>` — Activate 왕복 경로(토글 → `?includeInactive=true` 조회 → 인라인 수정 폼 select → `PATCH {active:true}`)가 전용 route 없이 성립함을 한 겹 명시했다. `docs/PLAN.md` `130 행` 인원 축 서술은 4/5 → 5/5 로 갱신하되 잔여 REQ-070 · REQ-072 · REQ-073 이 남아 bullet 마커 `[ ]` 는 유지했다. 변경 정확히 2 파일 · `+2/-2`, 코드 0 LOC.
