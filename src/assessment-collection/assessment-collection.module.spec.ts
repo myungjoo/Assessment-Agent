@@ -98,6 +98,8 @@ import { CollectionPersistenceService } from "./collection-persistence.service";
 // eslint-disable-next-line import/first
 import { CollectionSpecService } from "./collection-spec.service";
 // eslint-disable-next-line import/first
+import { CollectionTargetController } from "./collection-target.controller";
+// eslint-disable-next-line import/first
 import { CollectionTargetService } from "./collection-target.service";
 // eslint-disable-next-line import/first
 import { CollectionTriggerService } from "./collection-trigger.service";
@@ -317,6 +319,24 @@ describe("AssessmentCollectionModule", () => {
     expect(() => moduleRef.get(AssessmentCollectionController)).toThrow();
     // T-1811: CollectionTargetService 도 본 module 없이는 미등록(배선 누락 회귀 가드).
     expect(() => moduleRef.get(CollectionTargetService)).toThrow();
+    // T-1814: CollectionTargetController 도 본 module 없이는 미등록(controllers 배열
+    // 배선 누락 회귀 가드).
+    expect(() => moduleRef.get(CollectionTargetController)).toThrow();
+
+    await moduleRef.close();
+  });
+
+  // Happy(8, T-1814): CollectionTargetController 가 module 에서 resolve 되면 그 유일한
+  // 생성자 의존 CollectionTargetService 가 같은 module 의 provider 로 닫히고, 두 route 의
+  // @UseGuards(JwtAuthGuard, RolesGuard) 가 기존 AuthModule import 로 circular 없이
+  // 닫힘의 증명(compile 자체가 circular 회귀 가드를 겸한다 — 새 import 0).
+  it("CollectionTargetController 가 resolve 되고 그 의존이 DI 로 닫힌다 (T-1814 controllers 배선)", async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      imports: [PersistenceModule, AssessmentCollectionModule],
+    }).compile();
+
+    const controller = moduleRef.get(CollectionTargetController);
+    expect(controller).toBeInstanceOf(CollectionTargetController);
 
     await moduleRef.close();
   });

@@ -60,6 +60,7 @@ import { CollectionEntryService } from "./collection-entry.service";
 import { CollectionOrchestratorService } from "./collection-orchestrator.service";
 import { CollectionPersistenceService } from "./collection-persistence.service";
 import { CollectionSpecService } from "./collection-spec.service";
+import { CollectionTargetController } from "./collection-target.controller";
 import { CollectionTargetRepository } from "./collection-target.repository";
 import { CollectionTargetService } from "./collection-target.service";
 import { CollectionTriggerService } from "./collection-trigger.service";
@@ -83,7 +84,13 @@ import { SinceDerivationService } from "./since-derivation.service";
   imports: [GithubModule, ConfluenceModule, UserModule, AuthModule],
   // #3 controller(T-0274): manual-trigger HTTP 진입점(POST /api/assessment-collection/
   // collect, Admin RBAC)을 등록. CollectionTriggerService 위임(ADR-0031 §2/§4).
-  controllers: [AssessmentCollectionController],
+  //
+  // T-1814(ADR-0059 §Follow-ups (c) 셋째 조각): CollectionTargetController 를 등록해
+  // flat `/api/collection-targets` 의 조회 2 route(GET 목록 · GET 단건, `User+`)를 연다.
+  // 유일한 생성자 의존 CollectionTargetService 는 같은 module 의 provider 라 DI 가 닫히고,
+  // 두 route 의 @UseGuards(JwtAuthGuard, RolesGuard) 는 기존 AuthModule import 로 닫힌다 —
+  // **imports · providers · exports 배열 불변, 새 dependency 0** (controllers 한 줄만 증가).
+  controllers: [AssessmentCollectionController, CollectionTargetController],
   // 두 collection service + orchestrator(v-b) + 영속화 service(v-c)를 provider 로 등록.
   // GithubCollectionService 는 GithubInstanceClient 를, ConfluenceCollectionService 는
   // ConfluenceSpaceTraversalService 를 생성자 주입받으며, 위 imports 가 그 token 들을
