@@ -2,7 +2,8 @@
 id: T-1800
 title: 조회(GET) 축 배선 실측으로 REQ-077 재판정 + PLAN 131 행 ④ 축 서술 갱신
 phase: P6
-status: PENDING
+status: DONE
+completedAt: 2026-08-30
 commitMode: direct
 coversReq: [REQ-077]
 estimatedDiff: 70
@@ -39,14 +40,14 @@ planner 가 본 fire 에서 issue-still-relevant pre-check 로 `origin/main` 을
 
 ## Acceptance Criteria
 
-- [ ] [requirements.md](../requirements.md) `96 행` REQ-077 의 status 를 실측 결과에 따라 재판정한다. 판정은 **T-1798 이 보류 근거로 든 조회(GET) 축이 실제로 닫혔는지**를 먼저 확인한 뒤 정한다 — 선택된 기간이 `GET /api/assessments` · `GET /api/summaries` 조회 path 의 query 로 실리면 그 근거는 소멸이다. 조회 축을 포함해 REQ 문언에 잔여가 없으면 `IN_PROGRESS` → `DONE`, 잔여가 남으면 `IN_PROGRESS` 를 유지하되 **잔여를 파일·행 좌표로 좁혀 명시**한다 (없는 잔여를 지어내지도, 있는 잔여를 감추지도 않는다).
-- [ ] 판정 본문에서 **시작 시점(`periodStart`) 의 조회 반영 여부를 명시적으로 다룬다** — REQ 문언이 "조회 기간(일/주/월 + 시작 시점) 지정" 이므로, backend `GET /api/assessments` 가 시작 시점 필터를 받지 않는다면 그것이 (가) REQ 문언상 잔여인지 (나) UI 제공 의무 밖(조회 계약 소관)인지 한 문장 이상으로 판단 근거를 적는다. 판단이 (가) 면 `IN_PROGRESS` 유지 + 잔여 좌표, (나) 면 `DONE` 으로 가되 그 해석 근거를 남긴다.
-- [ ] T-1798 이 적어둔 보류 근거 문장(prop 소비 · 무-prop 마운트 · `params.set('period', period)` 분기가 항상 거짓)을 **현재 사실에 맞게 걷어내거나 갱신**한다 — 이미 거짓이 된 서술이 row 에 남지 않게 한다.
-- [ ] 같은 row 의 근거 열에 조회 축 shipped slice `T-1799` 를 기존 chain(`T-1732` ~ `T-1737`)과 같은 표기로 추가한다.
-- [ ] 검증 위치 열(현재 `unit`)을 실측으로 재확인한다 — 조회 축의 실 검증체가 [DashboardView.period-query-wire.test.tsx](../../web/src/views/DashboardView.period-query-wire.test.tsx) 등 web colocated vitest 인지 확인하고, 그 파일명을 판정 본문에 적는다. `test/e2e/` 에 본 REQ 문언을 브라우저 렌더로 검증하는 harness 가 새로 생겼는지도 확인해 값이 바뀌어야 하면 정정한다.
-- [ ] [PLAN.md](../PLAN.md) `131 행` 의 ④ 축 서술 두 곳을 재판정 결과와 정합하게 갱신한다 — 본문 ④ 축의 "부분 shipped" · "다만 선택한 기간이 조회(GET) query 에는 반영되지 않아 …" 서술과, 말미 잔여 문장의 ④ 상태 · 잔여 좌표 열거(`web/src/views/DashboardView.tsx` `134 행` · `537 행` · `550 행` 과 `web/src/AppShell.tsx` `315 행`)를 현재 사실로 교체한다.
-- [ ] 두 문서의 좌표 표기는 CLAUDE.md §12 "범위 좌표 표기" 3 점을 따른다 (`~` 하나 · 단일 행은 `96 행` · `L` prefix 금지).
-- [ ] 코드 변경 0 — `git diff --stat` 결과가 [docs/requirements.md](../requirements.md) · [docs/PLAN.md](../PLAN.md) 2 파일뿐임을 확인한다.
+- [x] [requirements.md](../requirements.md) `96 행` REQ-077 의 status 를 실측 결과에 따라 재판정한다. 판정은 **T-1798 이 보류 근거로 든 조회(GET) 축이 실제로 닫혔는지**를 먼저 확인한 뒤 정한다 — 선택된 기간이 `GET /api/assessments` · `GET /api/summaries` 조회 path 의 query 로 실리면 그 근거는 소멸이다. 조회 축을 포함해 REQ 문언에 잔여가 없으면 `IN_PROGRESS` → `DONE`, 잔여가 남으면 `IN_PROGRESS` 를 유지하되 **잔여를 파일·행 좌표로 좁혀 명시**한다 (없는 잔여를 지어내지도, 있는 잔여를 감추지도 않는다).
+- [x] 판정 본문에서 **시작 시점(`periodStart`) 의 조회 반영 여부를 명시적으로 다룬다** — REQ 문언이 "조회 기간(일/주/월 + 시작 시점) 지정" 이므로, backend `GET /api/assessments` 가 시작 시점 필터를 받지 않는다면 그것이 (가) REQ 문언상 잔여인지 (나) UI 제공 의무 밖(조회 계약 소관)인지 한 문장 이상으로 판단 근거를 적는다. 판단이 (가) 면 `IN_PROGRESS` 유지 + 잔여 좌표, (나) 면 `DONE` 으로 가되 그 해석 근거를 남긴다.
+- [x] T-1798 이 적어둔 보류 근거 문장(prop 소비 · 무-prop 마운트 · `params.set('period', period)` 분기가 항상 거짓)을 **현재 사실에 맞게 걷어내거나 갱신**한다 — 이미 거짓이 된 서술이 row 에 남지 않게 한다.
+- [x] 같은 row 의 근거 열에 조회 축 shipped slice `T-1799` 를 기존 chain(`T-1732` ~ `T-1737`)과 같은 표기로 추가한다.
+- [x] 검증 위치 열(현재 `unit`)을 실측으로 재확인한다 — 조회 축의 실 검증체가 [DashboardView.period-query-wire.test.tsx](../../web/src/views/DashboardView.period-query-wire.test.tsx) 등 web colocated vitest 인지 확인하고, 그 파일명을 판정 본문에 적는다. `test/e2e/` 에 본 REQ 문언을 브라우저 렌더로 검증하는 harness 가 새로 생겼는지도 확인해 값이 바뀌어야 하면 정정한다.
+- [x] [PLAN.md](../PLAN.md) `131 행` 의 ④ 축 서술 두 곳을 재판정 결과와 정합하게 갱신한다 — 본문 ④ 축의 "부분 shipped" · "다만 선택한 기간이 조회(GET) query 에는 반영되지 않아 …" 서술과, 말미 잔여 문장의 ④ 상태 · 잔여 좌표 열거(`web/src/views/DashboardView.tsx` `134 행` · `537 행` · `550 행` 과 `web/src/AppShell.tsx` `315 행`)를 현재 사실로 교체한다.
+- [x] 두 문서의 좌표 표기는 CLAUDE.md §12 "범위 좌표 표기" 3 점을 따른다 (`~` 하나 · 단일 행은 `96 행` · `L` prefix 금지).
+- [x] 코드 변경 0 — `git diff --stat` 결과가 [docs/requirements.md](../requirements.md) · [docs/PLAN.md](../PLAN.md) 2 파일뿐임을 확인한다.
 
 ## Out of Scope
 
@@ -62,4 +63,7 @@ planner 가 본 fire 에서 issue-still-relevant pre-check 로 `origin/main` 을
 
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 적는다.)
+- **GET 조회 계약의 시작 시점(`periodStart`) 필터 확장 여부 판단** — 본 재판정은 `periodStart` 미반영을 조회 계약(`docs/architecture/api.md` `97 행` · `116 행` 이 `?personId=&period=` 뿐, backend `src/user/assessment.controller.ts` `97~98 행` · `src/user/summary.controller.ts` `104~105 행`) 범위 문제로 판단해 REQ-077 잔여로 적지 않았다. 조회를 시작 시점으로도 좁힐 필요가 실사용에서 확인되면 backend query 확장 + api.md 계약 갱신 + web 조회 path 배선을 별도 slice 로 채번한다.
+- **`DashboardView.tsx` `936 행` `periodLabel={period}` 의 prop 소비** — 상세 패널 헤더 라벨만 아직 prop 을 보고, 무-prop 마운트에서는 `web/src/components/EvaluationDetailPanel.tsx` `140 행` 기본 라벨로 fallback 한다(빈 라벨 아님). 조회 축과 달리 표시 라벨 축(REQ-075 소관)이라 본 slice 에서 손대지 않았다 — 선택 기간을 헤더에도 비추려면 별도 slice.
+- **PLAN `131 행` bullet 마커 `[ ]` → `[x]` 승격 slice** — 본 재판정으로 ①~④ 네 row 가 모두 `DONE` 이 되었으므로, 이 commit 이 머지된 뒤 그 사실만을 근거로 마커를 승격하는 doc slice 를 채번한다(T-1785 · T-1787 선례).
+- **`docs/use-cases/REQ-COVERAGE-AUDIT.md` 동기** — REQ-077 판정 변화 반영이 필요한지 확인(본 slice Out of Scope).
