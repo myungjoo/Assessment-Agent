@@ -2,7 +2,7 @@
 id: T-1802
 title: 인원 추가/삭제/변경/Deactivate/Activate Web UI 배선 실측으로 REQ-071 재판정 + PLAN 130 행 인원 축 서술 갱신
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-071]
 estimatedDiff: 70
@@ -61,3 +61,27 @@ planner 가 본 fire 에서 `origin/main` (`35b7b438`) 을 직접 확인한 결�
 `implementer` (doc-only 단일 편집 — architect · tester 불요)
 
 ## Follow-ups
+
+- 휴직(`active: false`) 처리한 인원의 **재활성(Activate) UI 진입점 신설** — `GET /api/persons` 가
+  `findActive()`(`src/user/person.service.ts` `85 행`, 주석이 `?includeInactive=true` 를 후속 task 로
+  자인) 로 활성 인원만 반환하고 인라인 수정 폼은 `PersonList` 행의 "수정" 버튼으로만 열리므로,
+  한 번 휴직 처리하면 목록에서 사라져 되돌릴 화면 경로가 0 이다. backend query 확장 + AdminView
+  필터 토글이 필요하므로 `commitMode: pr` 별도 slice 소관 (REQ-071 `DONE` 승격의 선행 조건).
+- REQ-070 (빈 상태 우산) · REQ-072 (시스템 등록·편집, architect ADR 선행) · REQ-073 (RBAC) 재판정 —
+  [PLAN.md](../PLAN.md) `130 행` 마커 `[x]` 승격의 남은 3 축.
+- [docs/use-cases/REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) 의 REQ-071 행 동기
+  ([T-1800](T-1800-requirements-req077-query-axis-rejudge.md) Follow-up 과 묶어 처리 가능한 doc-only `direct`).
+
+## 완료 기록
+
+- 완료 시각: 2026-08-30T08:47Z
+- 결과: [docs/requirements.md](../requirements.md) `90 행` REQ-071 을 `PLANNED` → **`IN_PROGRESS`** 로
+  재판정하고 (`DONE` 아님 — 아래 잔여 사유), 근거 열에 실측 확인한 shipped slice 를 기입, 검증 위치
+  열을 `e2e` → `unit + e2e` 로 정정했다. [docs/PLAN.md](../PLAN.md) `130 행` 인원 축 서술을 "4/5 shipped
+  + Activate 잔여" 로 갱신했다 (2 파일 `+2/-2`, 코드 0 LOC, main `3ab45acc`).
+- `IN_PROGRESS` 판정 사유: 추가(`POST`) · 삭제(`DELETE`) · 변경(`PATCH`) · Deactivate(`active:false`)
+  4 축은 backend 5 route + AdminView mutation 3 종으로 shipped 이나, **Activate(재활성) UI 진입점이
+  부재** — `GET /api/persons` 가 활성 인원만 반환해 휴직 처리한 인원이 목록에서 사라진다. 이 잔여를
+  Follow-ups 첫 항목으로 박제했다.
+- 코드 0 LOC · production symbol 0 이라 R-110 tester 의무 · R-112 4 항목은 적용 대상 없음
+  (CLAUDE.md §3.2 direct-mode doc-only 면제). main CI run (`f45ea3f3` · `3ab45acc`) 둘 다 `success`.
