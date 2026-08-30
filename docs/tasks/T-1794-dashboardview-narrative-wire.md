@@ -2,7 +2,7 @@
 id: T-1794
 title: DashboardView 에서 선택 row 의 narrative 를 EvaluationDetailPanel 로 배선
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-075]
 estimatedDiff: 150
@@ -60,3 +60,10 @@ plannerNote: P6 오너 지시 PLAN 131 행 ② 표시 계약 정합 — T-1793 �
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 기록
+
+- 완료 시각: 2026-08-30T00:55:26Z (PR [#1415](https://github.com/myungjoo/Assessment-Agent/pull/1415) squash merge `f4f4d75e`)
+- 결과 요약: `EvaluationDetailPanel` 마운트에 `narrative={selectedRow?.narrative}` 축 1 개 + 출처 근거 주석을 박제했다 (2 파일 +237/-1). 컴포넌트·매퍼·backend 수정 0, 새 dependency 0. 신규 colocated spec 17 test(happy 2 / error 2 / 분기 4 / negative 9) 로 R-112 4 종 cover, 배선 제거 시 5 test fail 로 비-공허 확인. web 3017 test · root 458 suite 13208 test · lint · build · `test:cov` 전량 green.
+- 4-게이트: reviewer `Round 1/7` VERDICT=APPROVE PR comment 외부 존재 · CI(run 33284233300) 전 step pass · integrator 자체 점검 통과 · CI green — 모두 PASS.
+- 남은 것: 본 slice 로 `narrative` 가 화면에 도달했으므로 REQ-075 를 `IN_PROGRESS` → `DONE` 으로 재판정하는 doc slice 가 후속으로 남는다 (Out of Scope 였음).
