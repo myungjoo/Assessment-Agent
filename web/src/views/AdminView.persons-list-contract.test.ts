@@ -14,7 +14,7 @@ import {
 
 // R-112 — 인원 목록 조회(GET /api/persons) web↔backend **계약 drift guard**.
 // 직전 GET-list slice llm-provider-list(T-1189) mirror — 발사 대상을 providers → persons 로
-// 바꾸고 GET 패턴(GET method · bare @Get() 세그먼트 0 · 핸들러 인자 0 · `?_r=nonce` cache-buster 무해)을
+// 바꾸고 GET 패턴(GET method · bare @Get() 세그먼트 0 · @Body/@Param 0 · `?_r=nonce` cache-buster 무해)을
 // 재적용. **판별 축**: person controller 는 같은 소스에 두 GET 핸들러 — @Get() findActive(목록) 과
 // @Get(":id") findOne(단건) — 를 가진다. 추출기가 web 목록 발사(bare base)에 대응하는 @Get() findActive 를
 // @Get(":id") findOne 대조군에서 정확히 판별해야 한다(세그먼트 0 GET vs 세그먼트 1 GET). findActive 는
