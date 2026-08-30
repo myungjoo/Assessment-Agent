@@ -2,7 +2,7 @@
 id: T-1799
 title: DashboardView 조회 path 가 prop 대신 컨테이너 기간 state 를 소비하도록 배선
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-077]
 estimatedDiff: 180
@@ -13,6 +13,8 @@ dependsOn: [T-1735, T-1798]
 touchesFiles:
   - web/src/views/DashboardView.tsx
   - web/src/views/DashboardView.period-query-wire.test.tsx
+prNumber: 1416
+completedAt: 2026-08-30T06:02:31Z
 plannerNote: P6 오너 지시 PLAN 131 행 ④ 의 유일 잔여 — 선택 기간이 GET query 에 실리도록 period lift-up 배선
 ---
 
@@ -63,3 +65,9 @@ plannerNote: P6 오너 지시 PLAN 131 행 ④ 의 유일 잔여 — 선택 기�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 요약 (2026-08-30 DONE)
+
+PR [#1416](https://github.com/myungjoo/Assessment-Agent/pull/1416) squash 머지 (`a6e44a94`). `DashboardView.tsx` 에 조회용 기간 파생 1 개(`deriveQueryPeriod` — 컨테이너 state `evaluationPeriod` 우선 · prop `period` fallback)를 추가하고 두 조회 path 파생(`buildAssessmentsPath` · `buildSummariesPath`)의 인자만 그 값으로 교체했다. 컴포넌트 · backend · 순수 path builder · `AppShell.tsx` 변경 0, 새 dependency 0. 신규 colocated spec `DashboardView.period-query-wire.test.tsx` 로 R-112 4 종(happy 1 · error path 1 · 분기 4 · negative 3) cover, 배선을 prop 소비로 되돌리는 mutation 에서 7 test fail 로 비-공허성 확인. reviewer APPROVE round 1/7, 4-게이트 PASS, web 3033 test + root 13208 test green (`+296/-5`, 2 파일).
+
+REQ-077 의 잔여였던 "조회 기간 지정" 축이 닫혔다 — 후속 재판정(`docs/requirements.md` `96 행` `IN_PROGRESS` → `DONE`) 은 Follow-up.
