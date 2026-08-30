@@ -2,8 +2,9 @@
 id: T-1810
 title: CollectionTargetService 신설 — create / findAll / findById + Prisma error 변환
 phase: P5
-status: PENDING
+status: IN_PROGRESS
 commitMode: pr
+prNumber: 1422
 coversReq: [REQ-070, REQ-072, REQ-073]
 independentStream: collection-target-registration
 dependsOn: [T-1809]
