@@ -2,7 +2,10 @@
 id: T-1811
 title: CollectionTargetService update / delete 축 + AssessmentCollectionModule 배선
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 1423
+completedAt: 2026-08-30T18:55:23Z
+mergeCommit: 00b0bb5d
 commitMode: pr
 coversReq: [REQ-070, REQ-072, REQ-073]
 independentStream: collection-target-registration
