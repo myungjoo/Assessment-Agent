@@ -2,12 +2,13 @@
 id: T-1796
 title: 인원 선택 UI shipped 실측으로 REQ-074 재판정 + PLAN 131 행 ① 축 서술 갱신
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-074]
 estimatedDiff: 70
 estimatedFiles: 2
 created: 2026-08-30
+completedAt: 2026-08-30T02:50:00Z
 independentStream: web-dashboard-display-contract
 dependsOn: []
 touchesFiles:
