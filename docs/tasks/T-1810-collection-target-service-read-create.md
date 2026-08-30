@@ -2,7 +2,7 @@
 id: T-1810
 title: CollectionTargetService 신설 — create / findAll / findById + Prisma error 변환
 phase: P5
-status: IN_PROGRESS
+status: DONE
 commitMode: pr
 prNumber: 1422
 coversReq: [REQ-070, REQ-072, REQ-073]
@@ -76,3 +76,11 @@ REQ-073)에서 controller 가 forward 할 대상이 존재하지 않아 (c) DTO+
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 append)
+
+## 결과 (2026-08-30 완료)
+
+- **DONE** — `commitMode: pr`, PR [#1422](https://github.com/myungjoo/Assessment-Agent/pull/1422) → main `1f2846c5`. 2 파일 `+296/-0`.
+- `src/assessment-collection/collection-target.service.ts` — `CollectionTargetRepository`(T-1809) 단독 주입 위에 public 메서드 정확히 3 개(`create` · `findAll` · `findById`). ADR-0059 `§Decision 5` 오류 표 c 행(`P2002` → `ConflictException` 409) · d 행(row 부재 → `NotFoundException` 404) 만 얹은 변환층이며 도메인 검증 · credential 가공 0 (pass-through), 그 외 Prisma error 는 raw propagate.
+- colocated spec 15 case 로 R-112 4 종 cover (happy 3 · error 2 · 분기 3 · negative 7). 신규 파일 line/function/branch 100%, 전체 460 suite / 13274 test green, 전역 threshold(line·function ≥ 80%) 유지.
+- 4-게이트 전부 충족 — reviewer `APPROVE` PR comment 외화(`#issuecomment-5470294152`) + integrator self-check + CI green 후 squash merge.
+- Out of Scope 는 전부 무변경 유지 — `update`/`delete` · module 배선 · controller · DTO · e2e/smoke · web · doc-sync 는 ADR-0059 `§Follow-ups (b) 후반부 2/2`~`(f)` 로 이월.
