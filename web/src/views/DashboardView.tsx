@@ -130,8 +130,13 @@ interface DashboardViewProps {
   // 조회 대상 personId — 미선택(빈 문자열/undefined) 시 조회 미수행 + 안내 표시.
   // renderToStaticMarkup 정적 검증을 위해 초기값 주입을 허용한다(테스트 가능성).
   personId?: string;
-  // 조회 기간(선택) — 있으면 query string 에 실어 보낸다.
+  // 조회 기간(선택) — 있으면 query string 에 실어 보낸다. T-1799 이후로는 화면 안 선택
+  // (evaluationPeriod state) 이 비어 있을 때만 쓰이는 fallback 이다(하위 호환 보존용).
   period?: string;
+  // 초기 조회 기간 선택값 — initialSortKey/initialSelectedId 와 같은 initial* 주입 관례로,
+  // 정적 렌더에서 "사용자가 이미 기간을 고른 상태"를 재현하기 위해 허용한다(테스트 가능성).
+  // 실 마운트처(AppShell)는 주입하지 않으며, 이후 선택 변경은 컨테이너 state 가 권위다.
+  initialEvaluationPeriod?: string;
   // 초기 정렬 키/방향/검색어 — 정적 렌더로 정렬·필터 분기를 검증할 수 있도록 주입 허용.
   initialSortKey?: AssessmentRowSortKey;
   initialSortDirection?: 'asc' | 'desc';
@@ -184,6 +189,19 @@ function buildSummariesPath(
     params.set('period', period);
   }
   return `/api/summaries?${params.toString()}`;
+}
+
+// 조회(GET) 에 실을 기간 파생(순수 함수, T-1799) — 컨테이너 state 우선, 값이 없을 때만 prop
+// fallback. 빈 문자열/공백뿐인 state 는 "미선택"이라 fallback 대상이고, prop 은 종전 렌더 계약
+// 보존을 위해 가공 없이 그대로 돌려준다(하위 호환). 비-문자열은 미선택으로 흡수한다(throw 0).
+function deriveQueryPeriod(
+  evaluationPeriod: string | undefined,
+  period: string | undefined,
+): string | undefined {
+  if (typeof evaluationPeriod === 'string' && evaluationPeriod.trim() !== '') {
+    return evaluationPeriod;
+  }
+  return period;
 }
 
 // 선택된 assessmentId → GET /api/contributions?assessmentId= 조회 path 파생(순수 함수).
@@ -497,6 +515,7 @@ function reloadAfterPeriodEvaluation(notice: unknown, reloads: unknown[]): numbe
 function DashboardView({
   personId,
   period,
+  initialEvaluationPeriod = '',
   initialSortKey = 'contributionScore',
   initialSortDirection = 'desc',
   initialSearchTerm = '',
@@ -513,7 +532,10 @@ function DashboardView({
 
   // T-1735 — 기간 지정 평가 요청 상태(controlled lift-up, 컨테이너 소유). 기간 종류·시작일은
   // 미선택(빈 값)으로 시작하며, 진행 중 flag 와 성공/실패 문구는 제출 1 회의 수명만 갖는다.
-  const [evaluationPeriod, setEvaluationPeriod] = useState<string>('');
+  // T-1799 — 기간 종류만 initial* 주입을 허용해(기본값은 종전 그대로 빈 값) 정적 렌더에서 선택
+  // 이후 상태를 재현한다. 이 state 는 POST 요청뿐 아니라 조회 query 의 정본이기도 하다.
+  const [evaluationPeriod, setEvaluationPeriod] =
+    useState<string>(initialEvaluationPeriod);
   const [evaluationPeriodStart, setEvaluationPeriodStart] = useState<string>('');
   const [periodSubmitting, setPeriodSubmitting] = useState<boolean>(false);
   const [periodNotice, setPeriodNotice] =
@@ -532,9 +554,20 @@ function DashboardView({
   const [currentPage, setCurrentPage] = useState<number>(initialPage);
   const [pageSize, setPageSize] = useState<number>(initialPageSize);
 
+  // 조회(GET) 에 실을 기간 파생(T-1799) — 화면 안 선택(evaluationPeriod) 우선, prop fallback.
+  // (가) 실 마운트처 AppShell.tsx 315 행이 <DashboardView /> 를 무-prop 으로 마운트하므로 prop
+  //      만 소비하면 두 path 파생의 조건부 params.set('period', …) 분기가 실사용에서 영원히 거짓
+  //      이 되어, 사용자가 일간/주간/월간을 골라도 GET path 에 period= 가 실리지 않는다.
+  // (나) 같은 <select name="period"> 값이 조회 필터와 기간 평가 요청(POST) 두 곳의 단일 source
+  //      다 — 기간 축 컨트롤을 더 두지 않고 이미 있는 선택을 그대로 재사용한다.
+  // (다) periodStart 는 GET 계약(api.md 97 행 — personId·period 만)에 없어 범위 밖이다 — 조회
+  //      path 에는 period 만 싣고 periodStart 는 POST 요청 축에만 남긴다.
+  const queryPeriod = deriveQueryPeriod(evaluationPeriod, period);
+
   // assessments 조회 path — 선택 personId 미선택이면 null(조회 미수행). path 변경이 곧 재조회.
-  // prop 이 아니라 선택 state 를 소비한다(T-1723 — 화면 안 선택이 즉시 조회로 이어진다).
-  const path = buildAssessmentsPath(selectedPersonId, period);
+  // prop 이 아니라 선택 state 를 소비한다(T-1723 인원 축 — 화면 안 선택이 즉시 조회로 이어진다.
+  // T-1799 이 기간 축에도 같은 규약을 승계해 queryPeriod 를 넘긴다).
+  const path = buildAssessmentsPath(selectedPersonId, queryPeriod);
   // 응답을 컨테이너가 특정 행 타입으로 단정하지 않는다(T-1727) — 매핑 책임은
   // assessmentRow.ts 의 deriveAssessmentDisplayRows 가 지며, 여기서는 원문을 그대로 받는다.
   // reload 는 기간 평가 성공 직후의 명시적 재조회 수단(T-1737) — path 가 그대로여도 같은 조회를
@@ -547,7 +580,9 @@ function DashboardView({
   // 응답을 컨테이너가 특정 행 타입으로 단정하지 않는다(T-1727 근거를 시계열 축에 승계,
   // T-1789) — 매핑 책임은 summaryRow.ts 의 deriveSummaryDisplayRows 가 지며 여기서는
   // 원문을 그대로 받는다. alias 구조분해는 형제 조회와의 상태 분리를 위해 유지한다.
-  const summariesPath = buildSummariesPath(selectedPersonId, period);
+  // 기간 축도 assessments 와 동일하게 queryPeriod 를 소비한다(T-1799) — 두 조회가 같은 기간을
+  // 보게 해 표와 시계열이 서로 다른 기간을 가리키는 상태를 원천 차단한다.
+  const summariesPath = buildSummariesPath(selectedPersonId, queryPeriod);
   const {
     data: trendData,
     loading: trendLoading,
@@ -930,6 +965,7 @@ export {
   resolveHeaderSort,
   deriveMetrics,
   buildSummariesPath,
+  deriveQueryPeriod,
   toTrendPoints,
   buildContributionsPath,
   toContributionMetricItems,
