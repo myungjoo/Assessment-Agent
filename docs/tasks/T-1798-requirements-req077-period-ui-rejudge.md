@@ -2,7 +2,7 @@
 id: T-1798
 title: 기간 지정 UI + period 호출 경로 실측으로 REQ-077 재판정 + PLAN 131 행 ④ 축 서술 갱신
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-077]
 estimatedDiff: 70
@@ -61,6 +61,16 @@ planner 가 본 fire 에서 issue-still-relevant pre-check 로 `origin/main` (`4
 
 `implementer` (doc-only 편집). commitMode 가 `direct` 라 reviewer · integrator 경로 없음. 코드 변경 0 이므로 tester 호출은 §3.2 면제 대상이나, 편집 후 `git diff --stat` 으로 2 파일만 바뀌었는지 확인한다.
 
+## 결과 (2026-08-30 DONE)
+
+`origin/main` (`9dad800b` 기준) 실측으로 Acceptance Criteria 를 모두 충족했다. 결과 commit = `bbbb98b7` (direct, 2 파일 +2/-2, 코드 변경 0 LOC).
+
+- **판정 = `IN_PROGRESS`** (`DONE` 아님). REQ 문언 두 축 중 (가) 기간 지정 UI · (나) `POST /api/assessment-evaluation/period` 호출 경로는 5 단계(요청 조립 → 선택 UI → 실행/정규화 → 컨테이너 배선 → 성공 후 재조회)가 끊김 없이 shipped 라 `PLANNED` 를 승격했으나, 첫 축 "**조회** 기간 지정" 의 GET query 반영이 미배선이라 `DONE` 으로는 올리지 않았다.
+- **잔여 좌표** — [DashboardView.tsx](../../web/src/views/DashboardView.tsx) `537 행` `buildAssessmentsPath(selectedPersonId, period)` · `550 행` `buildSummariesPath(selectedPersonId, period)` 가 소비하는 `period` 는 컨테이너 state `evaluationPeriod`(`516 행`)가 아니라 `134 행` 의 **prop** 이고, 실 마운트처 [AppShell.tsx](../../web/src/AppShell.tsx) `315 행` 은 `<DashboardView />` 를 무-prop 으로 마운트한다 → `params.set('period', period)` 분기가 실사용에서 항상 거짓.
+- **근거 열** 에 shipped chain T-1732 ~ T-1737 을 REQ-075 · REQ-076 row 와 같은 표기로 추가했고, **검증 위치** 는 `test/e2e/` 26 spec 이 전부 supertest HTTP 축(브라우저 렌더 harness 0)이라 `e2e` → `unit` 으로 정정했다 — 실 검증체는 web colocated vitest 4 개.
+- [PLAN](../PLAN.md) `131 행` ④ 축 서술 두 곳을 정합 갱신. bullet 마커 `[x]` 승격은 Out of Scope 대로 `[ ]` 유지 (REQ-077 이 아직 `IN_PROGRESS`).
+
 ## Follow-ups
 
-(작성 시점 없음 — sub-agent 가 발견 시 여기에 append)
+- **조회(GET) 축 배선 slice** — `evaluationPeriod` state 를 `buildAssessmentsPath` / `buildSummariesPath` 로 lift-up (인원 선택 축이 `selectedPersonId` state 로 prop 의존을 끊은 T-1722 선례와 동형). [api.md](../architecture/api.md) `97 행` GET 계약이 `?personId=&period=` 뿐이라 `periodStart` query 확장 필요 여부를 함께 판단해야 한다.
+- **PLAN `131 행` bullet `[x]` 승격** — REQ-077 이 `DONE` 이 된 뒤로 계속 보류.
