@@ -2,7 +2,7 @@
 id: T-1807
 title: ADR — 평가 대상 시스템(수집 대상) 등록·편집 모델·API 계약 (저장 위치 · credential 경계 · env 병합 · RBAC)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-070, REQ-072, REQ-073]
 independentStream: p6-collection-target-registration
@@ -120,3 +120,8 @@ DB model · API · Admin UI 어느 것도 없다. 즉 운영자가 화면에서 
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append 한다.)
+
+## 완료 기록
+
+- **완료 시각**: 2026-08-30T14:57Z (PR [#1419](https://github.com/myungjoo/Assessment-Agent/pull/1419) squash merge `de0d2a51`)
+- **결과 요약**: [ADR-0059](../decisions/ADR-0059-collection-target-registration.md) 를 신설해 (`1 파일 +299/-0`, 코드 0 LOC) 수집 대상 등록·편집의 6 개 결정 축을 박제했다 — (1) 저장 위치는 신규 Prisma model `CollectionTarget` 채택 (env-only 유지·별도 설정 파일 두 대안은 Alternatives 로 강등), (2) credential 경계는 token 실값·암호문의 DB·응답·요청 body 진입을 금지하고 DB 는 `instanceKey` 참조만 보유, (3) env 병합은 env 우선 union 이라 기존 수집 경로 동작 변화 0, (4) 대상 종류는 단일 model + type discriminator (Prisma enum 격상 비채택), (5) API 는 flat `/api/collection-targets` 5 route + 조회 `User+` · 편집 `Admin+`, (6) CLAUDE.md `§5` 게이트는 새 dependency 0 · additive 신규 table 로 판정했다. schema · migration · 수집 파이프라인 · web 패널 · api.md 동기는 전부 Out of Scope 로 남겨 Follow-ups (a)~(g) 에 이월했고, 완료 선언 (PLAN `130 행` 마커 · REQ-070/072/073 status) 은 하지 않았다. reviewer APPROVE round 1/7, 4-게이트 전부 pass, CI green (기본 검사 + 배포 산출물 검증), feature branch 삭제 완료.
