@@ -2,7 +2,7 @@
 id: T-1795
 title: narrative 배선 shipped 실측으로 REQ-075 재판정 + PLAN 131 행 ② 축 shipped 서술
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-075]
 estimatedDiff: 70
@@ -64,3 +64,11 @@ plannerNote: "T-1794 머지로 REQ-075 의 유일 잔여(narrative 미표시)가
 `implementer`
 
 ## Follow-ups
+
+(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 완료 기록
+
+- 완료 시각: 2026-08-30T01:44:23Z (direct commit `46712a81` → main)
+- 결과 요약: [requirements.md](../requirements.md) `94 행` REQ-075 를 `IN_PROGRESS` → `DONE` 으로 재판정하고, [PLAN.md](../PLAN.md) `131 행` 오너 지시 bullet 의 ② 축 서술을 shipped 실측으로 갱신했다 (2 파일 +2/-2, 코드 변경 0). 판정 근거로 narrative 도달 경로 3 단계 좌표(매퍼 [assessmentRow.ts](../../web/src/api/assessmentRow.ts) `27 행` · `101 행` → 컨테이너 [DashboardView.tsx](../../web/src/views/DashboardView.tsx) `906 행` → 표시 노드 [EvaluationDetailPanel.tsx](../../web/src/components/EvaluationDetailPanel.tsx) `146~147 행`)를 박고, [T-1792](T-1792-requirements-req075-display-contract-rejudge.md) 가 남긴 "잔여 1 개 — `narrative` 미표시" 문단을 걷어냈다. 구현 위치 컬럼에 `T-1793`, `T-1794` 를 comma 로 이어 붙이고 검증 실체 목록에 [DashboardView.narrative-wire.test.tsx](../../web/src/views/DashboardView.narrative-wire.test.tsx) 를 추가했다.
+- 경계 준수: PLAN `131 행` bullet 마커는 `[ ]` 그대로 유지하고 ①(REQ-074 인원 선택 UI) · ③(REQ-076 점수 스케일) · ④(REQ-077 기간 지정 UI) 가 잔여임을 서술에 남겼다. REQ-074/076/077 행과 코드(`web/` · `src/` · `test/`)는 무변경.
