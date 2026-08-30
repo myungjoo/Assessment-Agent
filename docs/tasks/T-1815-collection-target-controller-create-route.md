@@ -2,7 +2,8 @@
 id: T-1815
 title: Add the POST create route to CollectionTargetController
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-30T23:56:18Z
 commitMode: pr
 coversReq: [REQ-070, REQ-072, REQ-073]
 independentStream: collection-target-backend
