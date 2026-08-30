@@ -1,4 +1,5 @@
-// CollectionTargetService — ADR-0059 §Follow-ups (b) 후반부 1/2 (read + create 축).
+// CollectionTargetService — ADR-0059 §Follow-ups (b) 후반부 (read + create 축은 T-1810,
+// update + delete 축은 T-1811 이 얹어 (b) 를 종결한다).
 // T-1809 가 박은 CollectionTargetRepository 의 primitive 위에 ADR-0059 §Decision 5 오류
 // 계약을 얹는 얇은 변환층이며 PartService (src/user/part.service.ts) 의 shape 을 mirror 한다.
 //
@@ -12,7 +13,7 @@
 // 책임 경계 — 도메인 검증 (type 허용 값 · type 별 조건부 필수 필드) 은 DTO 의 `@IsIn` /
 // `@IsArray` 소관이라 인자를 그대로 pass-through 한다 (§Consequences (c)). credential 계열
 // 필드는 만들지도 되돌리지도 않는다 — row 는 `instanceKey` 참조만 보관 (§Decision 2).
-// `update` · `delete` 와 module provider 배선은 다음 slice (§Follow-ups (b) 잔여).
+// DTO · controller · route 배선은 §Follow-ups (c) 소관으로 본 layer 밖이다.
 import {
   ConflictException,
   Injectable,
@@ -23,6 +24,7 @@ import type { CollectionTarget } from "@prisma/client";
 import {
   CollectionTargetRepository,
   type CollectionTargetCreateInput,
+  type CollectionTargetUpdateInput,
 } from "./collection-target.repository";
 
 // Prisma 의 error 식별 — `code` field 가 known request error 의 식별자다.
@@ -78,5 +80,40 @@ export class CollectionTargetService {
       throw new NotFoundException(`collection target not found: ${id}`);
     }
     return found;
+  }
+
+  // update — REQ-073 부분 수정. repository update 가 raw propagate 한 `P2025` (:id row
+  // 부재) 만 NotFoundException 으로 변환한다 (§Decision 5 오류 표 d 행). 그 외 error 는
+  // code 유무와 무관하게 raw propagate — 다른 Prisma code 를 404 로 삼키면 원인이 소실된다.
+  // 정체성 축 (`type` · `instanceKey`) 은 CollectionTargetUpdateInput 이 애초에 받지 않으므로
+  // (§Decision 5 PATCH 행) 본 layer 의 제거 로직 0 이고, 빈 객체 `{}` 도 그대로 forward 한다
+  // (Prisma 가 `@updatedAt` 만 갱신 — no-op 아님).
+  async update(
+    id: string,
+    input: CollectionTargetUpdateInput,
+  ): Promise<CollectionTarget> {
+    try {
+      return await this.collectionTargetRepository.update(id, input);
+    } catch (error) {
+      if (getPrismaErrorCode(error) === "P2025") {
+        throw new NotFoundException(`collection target not found: ${id}`);
+      }
+      throw error;
+    }
+  }
+
+  // delete — REQ-073 등록 해제 (hard delete). update 와 동일하게 `P2025` 만
+  // NotFoundException 으로 변환하고 (§Decision 5 오류 표 d 행) 나머지는 raw propagate 한다.
+  // relation 0 인 독립 table 이라 `P2003` (FK) 분기는 부재하지만 (§Decision 6), 그런 code 가
+  // 와도 삼키지 않고 그대로 올린다.
+  async delete(id: string): Promise<CollectionTarget> {
+    try {
+      return await this.collectionTargetRepository.delete(id);
+    } catch (error) {
+      if (getPrismaErrorCode(error) === "P2025") {
+        throw new NotFoundException(`collection target not found: ${id}`);
+      }
+      throw error;
+    }
   }
 }

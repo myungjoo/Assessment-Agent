@@ -60,6 +60,8 @@ import { CollectionEntryService } from "./collection-entry.service";
 import { CollectionOrchestratorService } from "./collection-orchestrator.service";
 import { CollectionPersistenceService } from "./collection-persistence.service";
 import { CollectionSpecService } from "./collection-spec.service";
+import { CollectionTargetRepository } from "./collection-target.repository";
+import { CollectionTargetService } from "./collection-target.service";
 import { CollectionTriggerService } from "./collection-trigger.service";
 import { ConfluenceCollectionService } from "./confluence-collection.service";
 import { GithubCollectionSpecService } from "./github-collection-spec.service";
@@ -112,6 +114,12 @@ import { SinceDerivationService } from "./since-derivation.service";
     // (UserModule export) + SinceDerivationService/CollectionEntryService(같은 module)를
     // 주입받아 manual-trigger 6단계를 합성한다. AssessmentCollectionController(#3)가 호출.
     CollectionTriggerService,
+    // T-1811(ADR-0059 §Follow-ups (b) 종결): 수집 대상 등록 축 2 종 배선.
+    // CollectionTargetRepository 의 유일한 의존 `PrismaService` 는 @Global()
+    // PersistenceModule 이 공급하므로 새 module import 가 불요하다(기존 imports 불변).
+    // CollectionTargetService 의 유일한 의존은 같은 module 의 repository 라 DI 가 닫힌다.
+    CollectionTargetRepository,
+    CollectionTargetService,
   ],
   // 두 collection service / orchestrator / 영속화 service 는 후속 slice / 외부가 inject.
   // enumerate chain 은 외부 진입점 CollectionEntryService 만 export 한다 — 중간 chain
@@ -138,6 +146,10 @@ import { SinceDerivationService } from "./since-derivation.service";
     // 였으나, 별도 module(scheduling)이 inject 하므로 export 표면을 연다 — collection module
     // 동작 변경 0(export 추가만, scheduling → collection 단방향 유지).
     CollectionTriggerService,
+    // T-1811: §Follow-ups (c) 의 controller 가 생성자 주입할 수 있도록 service 만 export
+    // 한다. CollectionTargetRepository 는 module 내부 의존이라 미export(의존성 표면 최소화 —
+    // 외부가 primitive 를 직접 부를 명분 0, 기존 enumerate chain 중간 service 와 동일 기준).
+    CollectionTargetService,
   ],
 })
 export class AssessmentCollectionModule {}
