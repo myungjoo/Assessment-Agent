@@ -2,7 +2,7 @@
 id: T-1809
 title: CollectionTargetRepository CRUD primitive 5 종 + colocated spec 박제
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-070, REQ-072, REQ-073]
 independentStream: collection-target-registration
@@ -68,3 +68,11 @@ plannerNote: P5 / ADR-0059 Follow-up (b) 전반부 — schema(T-1808) 위 reposi
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 append)
+
+## 결과 (2026-08-30 완료)
+
+- **DONE** — `commitMode: pr`, PR [#1421](https://github.com/myungjoo/Assessment-Agent/pull/1421) → main `28435491`. 2 파일 `+296/-0`.
+- `src/assessment-collection/collection-target.repository.ts` — `PrismaService` 단독 주입 + `collectionTarget` delegate 1:1 forwarding CRUD 5 종. `PartRepository` shape mirror. 자격증명 계열 필드 0 · `try/catch` 0 (Prisma error 는 raw propagate — `P2002`→409 · `P2025`→404 변환은 다음 service slice 소관, ADR-0059 `§Decision 5`).
+- colocated spec 16 case 로 R-112 4 종 cover (happy 5 · error path 3 · 분기 4 · negative 4). 신규 파일 line/function/branch 100%, 전체 459 suite / 13259 test green, 전역 threshold(line·function ≥ 80%) 유지.
+- 4-게이트 전부 충족 — reviewer `APPROVE` PR comment 외화(`#issuecomment-5470007742`) + integrator self-check + CI green(기본 검사 · 배포 산출물 검증 2 job pass) 후 squash merge.
+- Out of Scope 는 전부 무변경 유지 — service 변환층 · module 배선 · controller · DTO · e2e/smoke · web · doc-sync 는 ADR-0059 `§Follow-ups (b) 후반부`~`(f)` 로 이월.
