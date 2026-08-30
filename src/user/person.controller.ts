@@ -1,7 +1,8 @@
 // PersonController — `/api/persons` 5 REST endpoint. T-0036 acceptance D 박제.
 //
 // api.md §3 row L71–75 정합:
-//   - GET    /api/persons         → findActive  (active filter default true)
+//   - GET    /api/persons         → findActive  (active filter default true,
+//                                                ?includeInactive=true 시 전체 반환)
 //   - POST   /api/persons         → create      (201)
 //   - GET    /api/persons/:id     → findOne
 //   - PATCH  /api/persons/:id     → update      (active: false → soft deactivate /
@@ -18,7 +19,8 @@
 // 책임 경계 (Out of Scope):
 //   - AuthGuard (Admin+ / User+) 적용 안 함 — T-0038+ 책임.
 //   - ServiceIdentity nested endpoint 미노출 — T-0036.5+ 책임.
-//   - GET list 의 pagination / sorting / filtering query param 미지원.
+//   - GET list 의 pagination / sorting 미지원 (filtering 은 T-1803 이 includeInactive
+//     1 축만 개통 — 그 외 필터 축은 여전히 미지원).
 //   - 응답 envelope (`{ data: ..., meta: ... }`) 표준화 안 함 — Prisma return 그대로.
 import {
   Body,
@@ -29,6 +31,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UsePipes,
   ValidationPipe,
 } from "@nestjs/common";
@@ -49,10 +52,25 @@ import { PersonService } from "./person.service";
 export class PersonController {
   constructor(private readonly service: PersonService) {}
 
-  // GET /api/persons — active 인원 목록. 200 OK + JSON 배열.
+  // GET /api/persons — 인원 목록. 200 OK + JSON 배열.
+  //
+  // `?includeInactive=true` 한 축만 수용한다 (T-1803). 값이 정확히 문자열 `"true"` 일
+  // 때만 휴직(soft-deactivate) 인원을 포함한 전체 목록(service.findAll)을 반환하고, 그
+  // 외 모든 경우 — 미전달 · `"false"` · `"TRUE"` 같은 대소문자 변형 · 빈 문자열 ·
+  // `"yes"` 같은 무관한 문자열 — 는 기존 동작(service.findActive, 활성 인원만)을 그대로
+  // 유지한다. 판정 어휘를 넓히지 않는 이유: 목록에 휴직 인원이 섞여 들어가는 것은 화면
+  // 기본값을 바꾸는 부작용이라, 오탈자·우연한 값이 그 분기를 켜지 못하게 막는다.
+  //
+  // 별도 DTO class 를 두지 않는 이유: assessment.controller 의 `@Query("period") p?: string`
+  // 선례와 동형인 optional string 1 개라, class-validator decorator 로 얻을 이득이 없다
+  // (controller-scope ValidationPipe 의 whitelist / forbidNonWhitelisted 는 @Body 대상).
   @Get()
-  async findActive(): Promise<Person[]> {
-    return this.service.findActive();
+  async findActive(
+    @Query("includeInactive") includeInactive?: string,
+  ): Promise<Person[]> {
+    return includeInactive === "true"
+      ? this.service.findAll()
+      : this.service.findActive();
   }
 
   // GET /api/persons/:id — 단일 인원 상세. row 부재 시 service 가 NotFoundException

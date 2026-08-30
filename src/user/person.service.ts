@@ -81,8 +81,8 @@ export class PersonService {
     return this.repository.findMany({ activeOnly: true });
   }
 
-  // findAll — admin 의 deactivated 포함 전체 조회 용. 본 task 는 controller 에서
-  // 직접 endpoint 노출 안 함 — query param `?includeInactive=true` 도입은 후속 task.
+  // findAll — admin 의 deactivated 포함 전체 조회 용. controller 의
+  // `GET /api/persons?includeInactive=true` 가 본 메서드를 호출한다 (T-1803 개통).
   async findAll(): Promise<Person[]> {
     return this.repository.findMany({ activeOnly: false });
   }

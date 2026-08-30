@@ -17,7 +17,9 @@ import {
 // 바꾸고 GET 패턴(GET method · bare @Get() 세그먼트 0 · 핸들러 인자 0 · `?_r=nonce` cache-buster 무해)을
 // 재적용. **판별 축**: person controller 는 같은 소스에 두 GET 핸들러 — @Get() findActive(목록) 과
 // @Get(":id") findOne(단건) — 를 가진다. 추출기가 web 목록 발사(bare base)에 대응하는 @Get() findActive 를
-// @Get(":id") findOne 대조군에서 정확히 판별해야 한다(세그먼트 0 GET vs 세그먼트 1 GET). create @Post()·
+// @Get(":id") findOne 대조군에서 정확히 판별해야 한다(세그먼트 0 GET vs 세그먼트 1 GET). findActive 는
+// T-1803 이후 optional @Query("includeInactive") 1 개를 갖지만, optional 이라 web 의 bare base 발사는
+// 계약과 여전히 일치한다(세그먼트 0 · @Param 0 은 불변 — 판별 축 무영향). create @Post()·
 // update @Patch(":id")·remove @Delete(":id") 는 method drift 대조군. 정규식 추출기만 — 새 devDependency 0,
 // 공용 helper 추출은 Out of Scope refactor slice.
 
@@ -29,7 +31,8 @@ interface HandlerDecorator {
   hasQuery: boolean;
 }
 // HTTP method + sub-path + 시그니처의 @Body/@Param/@Query 존재. 멀티라인 시그니처는 handler 줄부터
-// 괄호 균형 0 까지 이어붙여 인자 decorator 를 탐지. GET findActive 는 인자 0, findOne 은 @Param 1 이 정답.
+// 괄호 균형 0 까지 이어붙여 인자 decorator 를 탐지. GET findActive 는 optional @Query 1(T-1803, @Param 0),
+// findOne 은 @Param 1 이 정답.
 function extractHandlerMethods(source: string): Record<string, HandlerDecorator> {
   const found: Record<string, HandlerDecorator> = {};
   const lines = stripComments(source).split('\n');
@@ -144,11 +147,13 @@ describe('AdminView — 인원 목록 조회 web↔backend 계약 drift guard (T
     expect(composed.split('/').filter(Boolean)).toHaveLength(2); // 세그먼트 정확히 2개(추가 0)
     expect(pathParams(composed)).toEqual([]); // path param 정확히 0개
   });
-  it('findActive 핸들러가 @Body·@Param·@Query 를 하나도 갖지 않는다 (분기 — 핸들러 인자 부재)', () => {
+  it('findActive 핸들러가 @Body·@Param 없이 optional @Query 만 갖는다 (분기 — 핸들러 인자 형태)', () => {
     expect(FIND_ACTIVE).not.toBeNull();
     expect(LIST_CONTRACT.hasBody).toBe(false); // GET 조회 — body 계약 없음
-    expect(LIST_CONTRACT.hasParam).toBe(false); // path/query param 없음
-    expect(LIST_CONTRACT.hasQuery).toBe(false); // @Query 미선언 — `_r` 무시 근거
+    expect(LIST_CONTRACT.hasParam).toBe(false); // path param 없음 — bare @Get() 세그먼트 0 유지
+    // T-1803 이 @Query("includeInactive") optional string 1 개를 개통했다. optional 이므로
+    // web 의 bare base 발사(query 미전달)는 여전히 계약 일치 — `_r` cache-buster 도 무해.
+    expect(LIST_CONTRACT.hasQuery).toBe(true);
   });
   it('같은 소스의 @Get(":id") findOne 은 세그먼트 1 + @Param 을 가져 @Get() findActive 와 정확히 판별된다 (분기 — GET-vs-GET 판별, 핵심 축)', () => {
     expect(FIND_ONE).not.toBeNull();

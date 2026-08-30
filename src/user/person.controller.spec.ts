@@ -5,7 +5,8 @@
 //   1. Unit-level (controller-only with mocked PersonService) — 5 endpoint 의 routing /
 //      service 호출 인자 / 예외 propagation 검증.
 //   2. Integration-level (createNestApplication + ValidationPipe controller-scope 가
-//      자동 활성화 + supertest) — DTO decorator 위반 5 negative case 검증.
+//      자동 활성화 + supertest) — DTO decorator 위반 negative case + GET 목록의
+//      `?includeInactive` query 축 통과 검증 (T-1803).
 //
 // PrismaService 는 import path 가 등장하므로 jest.mock 으로 PrismaClient 부작용 회피
 // (user.module.spec.ts 패턴 동일).
@@ -97,6 +98,86 @@ describe("PersonController (unit)", () => {
     expect(serviceMock.findActive).toHaveBeenCalledTimes(1);
     expect(result).toBe(fixture);
   });
+
+  // -----------------------------------------------------------------------
+  // findActive — includeInactive query 분기 (T-1803)
+  //
+  // 두 분기를 각각 cover 하고, 어느 test 도 **반대 분기의 service 메서드가 호출되지
+  // 않았음** 을 함께 단언한다 (분기가 한쪽으로 새는 회귀를 잡는 축).
+  // -----------------------------------------------------------------------
+  it("GET /api/persons?includeInactive=true — service.findAll 을 1 회 호출하고 그 배열을 그대로 반환한다 (happy)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const fixture = [
+      buildPersonFixture({ id: "active-1" }),
+      buildPersonFixture({ id: "inactive-1", active: false }),
+    ];
+    serviceMock.findAll.mockResolvedValueOnce(fixture);
+
+    const controller = new PersonController(service);
+    const result = await controller.findActive("true");
+
+    expect(serviceMock.findAll).toHaveBeenCalledTimes(1);
+    expect(serviceMock.findAll).toHaveBeenCalledWith();
+    expect(serviceMock.findActive).not.toHaveBeenCalled(); // 반대 분기 미호출
+    expect(result).toBe(fixture);
+  });
+
+  it("GET /api/persons — query 미전달 시 findActive 만 호출하고 findAll 은 호출하지 않는다 (happy — 기본 동작 회귀 방지)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const fixture = [buildPersonFixture()];
+    serviceMock.findActive.mockResolvedValueOnce(fixture);
+
+    const controller = new PersonController(service);
+    const result = await controller.findActive();
+
+    expect(serviceMock.findActive).toHaveBeenCalledTimes(1);
+    expect(serviceMock.findAll).not.toHaveBeenCalled(); // 반대 분기 미호출
+    expect(result).toBe(fixture);
+  });
+
+  it("GET /api/persons?includeInactive=true — service.findAll 의 예외를 삼키지 않고 propagate 한다 (error)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    serviceMock.findAll.mockRejectedValueOnce(new Error("db down"));
+
+    const controller = new PersonController(service);
+    await expect(controller.findActive("true")).rejects.toThrow("db down");
+    expect(serviceMock.findActive).not.toHaveBeenCalled();
+  });
+
+  it("GET /api/persons — service.findActive 의 예외를 삼키지 않고 propagate 한다 (error)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    serviceMock.findActive.mockRejectedValueOnce(new Error("db down"));
+
+    const controller = new PersonController(service);
+    await expect(controller.findActive()).rejects.toThrow("db down");
+    expect(serviceMock.findAll).not.toHaveBeenCalled();
+  });
+
+  // negative — 판정 어휘를 `"true"` 정확 일치로만 유지한다. 아래 값들은 모두 기본
+  // 분기(findActive)로 떨어져야 하고, findAll 은 한 번도 호출되면 안 된다.
+  it.each<[string, string | undefined]>([
+    ["(a) 명시적 false", "false"],
+    ["(b) 대문자 변형 TRUE", "TRUE"],
+    ["(b) 첫 글자 대문자 True", "True"],
+    ["(c) 빈 문자열", ""],
+    ["(d) 무관한 문자열 yes", "yes"],
+    ["(d) 숫자 문자열 1", "1"],
+    ["(d) 공백 padding 된 true", " true"],
+  ])(
+    "GET /api/persons?includeInactive=%s — findActive 분기로 떨어진다 (negative)",
+    async (_label, value) => {
+      const { service, serviceMock } = buildServiceMock();
+      const fixture = [buildPersonFixture()];
+      serviceMock.findActive.mockResolvedValueOnce(fixture);
+
+      const controller = new PersonController(service);
+      const result = await controller.findActive(value);
+
+      expect(serviceMock.findActive).toHaveBeenCalledTimes(1);
+      expect(serviceMock.findAll).not.toHaveBeenCalled(); // 어휘 확장 금지
+      expect(result).toBe(fixture);
+    },
+  );
 
   // -----------------------------------------------------------------------
   // findOne — happy + error (NotFoundException propagate)
@@ -296,6 +377,7 @@ describe("PersonController (ValidationPipe integration)", () => {
   let serviceMock: {
     create: jest.Mock;
     findActive: jest.Mock;
+    findAll: jest.Mock;
     findById: jest.Mock;
     update: jest.Mock;
     deactivate: jest.Mock;
@@ -307,6 +389,7 @@ describe("PersonController (ValidationPipe integration)", () => {
     serviceMock = {
       create: jest.fn(),
       findActive: jest.fn(),
+      findAll: jest.fn(),
       findById: jest.fn(),
       update: jest.fn(),
       deactivate: jest.fn(),
@@ -401,5 +484,59 @@ describe("PersonController (ValidationPipe integration)", () => {
     expect(serviceMock.update).not.toHaveBeenCalled();
     expect(serviceMock.deactivate).not.toHaveBeenCalled();
     expect(serviceMock.reactivate).not.toHaveBeenCalled();
+  });
+
+  // ---------------------------------------------------------------------
+  // includeInactive query 축의 실 HTTP 통과 검증 (T-1803).
+  //
+  // 핵심 증명: controller-scope ValidationPipe 의 forbidNonWhitelisted 는 @Body 의
+  // DTO 를 대상으로 하므로, primitive(String) metatype 인 @Query 는 검증 대상에서
+  // 제외되어 400 으로 거절되지 않는다. 즉 query 축이 실제로 핸들러까지 도달한다.
+  // ---------------------------------------------------------------------
+  it("GET /api/persons?includeInactive=true — 200 + JSON 배열이고 findAll 이 호출된다 (integration happy)", async () => {
+    const rows = [
+      buildPersonFixture({ id: "p-active" }),
+      buildPersonFixture({ id: "p-inactive", active: false }),
+    ];
+    serviceMock.findAll.mockResolvedValueOnce(rows);
+
+    const response = await request(app.getHttpServer())
+      .get("/api/persons?includeInactive=true")
+      .expect(200);
+
+    expect(Array.isArray(response.body)).toBe(true);
+    expect(response.body).toHaveLength(2);
+    expect(response.body.map((row: Person) => row.id)).toEqual([
+      "p-active",
+      "p-inactive",
+    ]);
+    expect(serviceMock.findAll).toHaveBeenCalledTimes(1);
+    expect(serviceMock.findActive).not.toHaveBeenCalled();
+  });
+
+  it("GET /api/persons — query 미전달 시 200 + findActive 경로 (integration 기본 동작)", async () => {
+    serviceMock.findActive.mockResolvedValueOnce([
+      buildPersonFixture({ id: "p-active" }),
+    ]);
+
+    const response = await request(app.getHttpServer())
+      .get("/api/persons")
+      .expect(200);
+
+    expect(response.body).toHaveLength(1);
+    expect(serviceMock.findActive).toHaveBeenCalledTimes(1);
+    expect(serviceMock.findAll).not.toHaveBeenCalled();
+  });
+
+  it("GET /api/persons?includeInactive=false — 400 이 아니라 200 + findActive 경로 (integration negative)", async () => {
+    serviceMock.findActive.mockResolvedValueOnce([]);
+
+    const response = await request(app.getHttpServer())
+      .get("/api/persons?includeInactive=false")
+      .expect(200);
+
+    expect(response.body).toEqual([]);
+    expect(serviceMock.findActive).toHaveBeenCalledTimes(1);
+    expect(serviceMock.findAll).not.toHaveBeenCalled();
   });
 });
