@@ -887,7 +887,15 @@ function DashboardView({
           내려보낸다(ADR-0041 Decision 1 — 패널은 fetch 를 모른다). 다른 조회(테이블·시계열·
           분포)의 상태와 섞이지 않도록 contribution* 상태를 분리해 전달한다. 선택 row 의
           subjectName/period 를 헤더로 표시하고, 미선택이면 빈 안내(DETAIL_EMPTY_LABEL)를
-          렌더한다. 컴포넌트 수정 0. */}
+          렌더한다. 컴포넌트 수정 0.
+          [narrative 출처 근거] 평가 정성 서술(narrative)은 지표 1 개당 근거(rationale)와 달리
+          선택된 `Assessment` 1 건 전체의 축이라 `contributionMetrics` 가 아니라 `selectedRow`
+          에서 온다 — `Contribution` 에는 정성 서술 축 자체가 없다(위 toContributionMetricItems
+          정책 4 의 "narrative 는 `Assessment` 소관" 주석과 같은 사실의 소비처 쪽 표현). 선택
+          row 가 없으면 `undefined` 가 전달돼 패널이 서술 영역을 렌더하지 않고(하위 호환 슬롯,
+          T-1793), 빈 안내(DETAIL_EMPTY_LABEL) 경로도 종전 그대로다. 매퍼가 결손·비문자열
+          narrative 를 빈 문자열로 정규화하므로(assessmentRow.ts toDisplayString) 그 경우도
+          패널의 미렌더 분기로 흡수된다 — 컨테이너가 fallback 문구를 새로 만들지 않는다. */}
       <EvaluationDetailPanel
         subjectName={selectedRow?.period}
         periodLabel={period}
@@ -895,6 +903,7 @@ function DashboardView({
         loading={contributionLoading}
         error={contributionError}
         emptyLabel={DETAIL_EMPTY_LABEL}
+        narrative={selectedRow?.narrative}
       />
       {/* 권한 부족 기록(T-1140, R-20/R-33) — backend audit(GET /api/permission-denied-records,
           service-layer audience 차등)를 사람이 볼 수 있게 읽기 전용 목록으로 표시한다. 기존
