@@ -135,6 +135,10 @@ const PERSONS_PATH = '/api/persons';
 // §12 한국어. aria-label 겸 <h2> 로 재사용해 보조기술이 섹션 경계를 인식하게 한다.
 const PERSON_HEADING = '인원 관리';
 
+// 휴직 인원 포함 토글의 접근 가능한 이름(T-1804) — checkbox 의 aria-label 겸 시각 label 문구로
+// 재사용해 보조기술과 눈으로 보는 사람이 같은 문구를 읽게 한다(§12 한국어).
+const PERSON_INCLUDE_INACTIVE_LABEL = '휴직 인원 포함';
+
 // 그룹 관리 섹션 heading 문구(T-1146) — 그룹 생성 폼을 담는 별도 섹션의 제목(PERSON_HEADING 동형).
 // §12 한국어. aria-label 겸 <h2> 로 재사용해 보조기술이 섹션 경계를 인식하게 한다.
 const GROUP_HEADING = '그룹 관리';
@@ -556,6 +560,9 @@ interface AdminViewProps {
   initialSelectedIdentityPersonId?: string;
   // 초기 수정 대상 identity id(선택, T-1768) — 정적 렌더 검증용 주입(미주입 시 폼 미마운트).
   initialEditingIdentityId?: string;
+  // 초기 "휴직 인원 포함" 토글 값(선택, T-1804) — 정적 렌더 검증용 주입 affordance
+  // (initialScheduleBusy 동형). 미주입 시 false = 활성 인원만 조회하는 실사용 초기 상태와 동일.
+  initialPersonsIncludeInactive?: boolean;
 }
 
 // 등급 문자열 → Admin+ 여부 파생(순수 helper, ④h). backend role enum(api.md 71 —
@@ -802,11 +809,27 @@ function buildProvidersPath(refreshNonce: number): string {
 // 재조회하므로(read-only hook 수정 0), nonce 증가가 곧 재조회 트리거다. nonce 0(초기 조회)이면
 // query 없는 깨끗한 base path 를 그대로 쓴다(T-1142 마운트 path 와 동일 유지 — 회귀 0). `_r` 은
 // backend GET 핸들러가 @Query 를 받지 않아 무시한다(api.md — 부수효과 0).
-function buildPersonsPath(refreshNonce: number): string {
-  if (refreshNonce <= 0) {
+function buildPersonsPath(
+  refreshNonce: number,
+  includeInactive = false,
+): string {
+  // T-1804 — 휴직 인원 포함 토글. backend 는 `includeInactive === "true"` 일 때만 findAll() 로
+  // 분기하므로(T-1803, person.controller.ts @Get()), true 일 때만 `includeInactive=true` 를 싣고
+  // false 는 아예 query 를 만들지 않는다(무의미한 `includeInactive=false` 금지 — bare base 발사가
+  // findActive 계약과 글자-동일하게 유지된다). 두 query 가 동시에 실릴 때의 구분자(`?` / `&`)는
+  // 아래 join 이 조립한다(첫 항목만 `?`, 나머지는 `&`). 두 번째 인자를 생략한 기존 호출부는
+  // default false 라 종전 path 를 그대로 낸다(회귀 0).
+  const params: string[] = [];
+  if (refreshNonce > 0) {
+    params.push(`_r=${refreshNonce}`);
+  }
+  if (includeInactive) {
+    params.push('includeInactive=true');
+  }
+  if (params.length === 0) {
     return PERSONS_PATH;
   }
-  return `${PERSONS_PATH}?_r=${refreshNonce}`;
+  return `${PERSONS_PATH}?${params.join('&')}`;
 }
 
 // 그룹 목록 조회 path 빌더(순수 helper, T-1146 — buildPersonsPath 동형) — 그룹 생성 POST
@@ -3384,6 +3407,7 @@ function AdminView({
   initialImportConfirmText,
   initialSelectedIdentityPersonId = '',
   initialEditingIdentityId = '',
+  initialPersonsIncludeInactive = false,
 }: AdminViewProps) {
   // 선택 그룹 상태 — controlled lift-up(컨테이너 소유). <select> 선택이 이 값을 갱신한다.
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
@@ -3430,11 +3454,20 @@ function AdminView({
   // nonce 0 초기 마운트는 base path 그대로다(T-1142 마운트와 동일 — 회귀 0).
   const [personsRefreshNonce, setPersonsRefreshNonce] = useState<number>(0);
 
-  // 인원 목록 조회 path(T-1143) — nonce-aware 빌더로 전환(buildPersonsPath). nonce 0 이면
-  // base path(T-1142 마운트와 동일), 생성 성공 후 nonce 증가가 `_r` query 로 재조회를 낸다.
+  // 휴직 인원 포함 여부(T-1804) — 인원 관리 섹션의 controlled checkbox 가 소유하는 컨테이너
+  // 상태(controlled lift-up). true 면 조회 path 에 `includeInactive=true` 가 실려 backend 가
+  // findAll()(휴직 포함)로 분기하고, 그 목록의 기존 인라인 수정 폼(활성/휴직 <select> → PATCH)이
+  // 곧 재활성(Activate) 진입점이 된다. 기본 false = 종전 활성-only 조회(회귀 0).
+  const [personsIncludeInactive, setPersonsIncludeInactive] = useState<boolean>(
+    initialPersonsIncludeInactive,
+  );
+
+  // 인원 목록 조회 path(T-1143 nonce, T-1804 includeInactive) — 빌더가 두 축을 함께 조립한다.
+  // nonce 0 + 토글 OFF 면 base path(T-1142 마운트와 동일), 생성 성공 후 nonce 증가가 `_r` query 로
+  // 재조회를 내고, 토글 변경도 path 를 바꿔 useApiResource 재조회를 낸다(두 값 모두 의존성).
   const personsPath = useMemo(
-    () => buildPersonsPath(personsRefreshNonce),
-    [personsRefreshNonce],
+    () => buildPersonsPath(personsRefreshNonce, personsIncludeInactive),
+    [personsRefreshNonce, personsIncludeInactive],
   );
 
   // 인원 목록 조회(T-1142, T-1143 nonce 전환) — useApiResource 로 GET /api/persons(active 인원
@@ -5531,6 +5564,22 @@ function AdminView({
           렌더한다. 생성 성공 시 personsRefreshNonce bump 로 권위 재조회한다(낙관 추가 없음). */}
       <section aria-label={PERSON_HEADING}>
         <h2>{PERSON_HEADING}</h2>
+        {/* 휴직 인원 포함 토글(T-1804, REQ-071) — 체크하면 조회 path 에 `includeInactive=true` 가
+            실려 backend 가 휴직(active:false) 인원까지 돌려준다(T-1803 query 계약). 그래야 휴직
+            처리한 인원이 목록에 다시 나타나 기존 인라인 수정 폼의 활성/휴직 <select> → PATCH
+            경로로 재활성(Activate)할 수 있다. controlled checkbox — 컨테이너가 값을 소유하고,
+            변경이 곧 personsPath 변경 = useApiResource 재조회다(hook 수정 0). */}
+        <label>
+          <input
+            aria-label={PERSON_INCLUDE_INACTIVE_LABEL}
+            type="checkbox"
+            checked={personsIncludeInactive}
+            onChange={(event) =>
+              setPersonsIncludeInactive(event.target.checked)
+            }
+          />
+          {PERSON_INCLUDE_INACTIVE_LABEL}
+        </label>
         {/* 인원 생성 폼(T-1143, REQ-023) — 2 controlled input(fullName/email) + "인원 추가" 버튼.
             PersonList(presentational 읽기 전용 목록)는 생성 컨트롤을 모르므로 컨테이너가 직접 소유한다
             (controlled lift-up, ADR-0041 Decision 1 — 컴포넌트 수정 0). 클릭 시 handleCreatePerson 이
