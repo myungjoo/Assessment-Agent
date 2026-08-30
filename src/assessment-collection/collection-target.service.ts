@@ -6,9 +6,9 @@
 // 집행하는 오류 계약 행 (§Decision 5 오류 표):
 //   - c 행 — 동일 `(type, instanceKey)` 재등록 시 repository create 가 raw propagate 한
 //     `P2002` 를 붙잡아 `ConflictException` (HTTP 409) 으로 변환.
-//   - d 행 — 단건 조회의 row 부재 (repository findById 의 `null`) 를 `NotFoundException`
-//     (HTTP 404) 으로 변환. 나머지 행 (a 401 / b 403 guard, e 400 ValidationPipe) 은 본
-//     layer 소관이 아니다.
+//   - d 행 — `:id` row 부재를 `NotFoundException` (HTTP 404) 으로 변환. 부재 신호는 진입점마다
+//     달라 findById 는 repository 의 `null`, update · delete 는 raw propagate 된 `P2025` 를
+//     본다. 나머지 행 (a 401 / b 403 guard, e 400 ValidationPipe) 은 본 layer 소관이 아니다.
 //
 // 책임 경계 — 도메인 검증 (type 허용 값 · type 별 조건부 필수 필드) 은 DTO 의 `@IsIn` /
 // `@IsArray` 소관이라 인자를 그대로 pass-through 한다 (§Consequences (c)). credential 계열
