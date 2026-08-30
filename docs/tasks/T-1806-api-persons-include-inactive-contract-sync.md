@@ -2,7 +2,7 @@
 id: T-1806
 title: api.md 77 행 GET /api/persons 의 ?includeInactive query 계약 동기 + stale group filter 표기 정정
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-026, REQ-071]
 estimatedDiff: 40
@@ -57,3 +57,8 @@ plannerNote: "P6 인원 축 잔여 doc-sync — T-1803 이 shipped 한 ?includeI
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 인접 작업 발견 시 여기에 append)
+
+## 완료 기록
+
+- **완료 시각**: 2026-08-30T13:44Z (direct commit `ecc19661`)
+- **결과 요약**: [api.md](../architecture/api.md) `77 행` `GET /api/persons` 설명 열 한 줄만 교체했다 (`1 파일 +1/-1`, 코드 0 LOC). 실측 근거로 `src/user/person.controller.ts` 의 `@Query("includeInactive")` 분기 (`69~71 행`, `includeInactive === "true"` 단일 등가 비교) 존재와 group 축 query 의 전역 부재 (controller · service 0 hit) 를 각각 확인한 뒤에만 서술했다. 박제 내용은 (a) default (query 미전달) 는 `PersonService.findActive` 로 활성 인원만, (b) `?includeInactive=true` 일 때만 `PersonService.findAll` 로 휴직 포함 전량, (c) 판정 어휘가 **정확히 문자열 `"true"`** 라 `"1"` · `"yes"` · `"TRUE"` 변형은 모두 default 동작을 유지한다는 점, (d) 근거 slice `T-1803` (PR #1417) 네 겹이다. 동시에 shipped 아닌 `group filter 가능` 옛 표기를 **미구현** 으로 명시 정정해 web 소비자와 다음 slice 가 없는 기능을 전제하지 않게 했다. `158 행` 합계 (endpoint 77 / prefix 16 / shipped 72) 와 표 구조 (5 열 · 권한 열 `User+ (조회)`) 는 불변, `77 행` 외 다른 행 변경 0.
