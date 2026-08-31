@@ -1974,6 +1974,69 @@ async function runCreateCollectionTarget(
   }
 }
 
+// 수집 대상 삭제(DELETE) + state-전이 로직에 주입하는 deps(T-1828 — 위 CreateCollectionTargetDeps
+// 를 1:1 mirror 하되 DELETE 계약에 맞춘다). in-flight 표현이 boolean 이 아니라 **진행 중 id** 인
+// 것은 삭제가 행 단위 액션이라 어느 행이 진행 중인지가 화면 표시에 필요하기 때문이다
+// (identityActionBusyId 선례). 발사 primitive 가 apiClient.request 인 것도 등록 축과 같은 이유다
+// (route 1 개뿐 — per-resource client 모듈 추출은 task Out of Scope).
+interface DeleteCollectionTargetDeps {
+  // DELETE 발사기 — (path, options) 시그니처는 apiClient.request 와 같다(테스트는 mock 주입).
+  remove: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 삭제 진행 중인 행 id — truthy 면 미발사(이중 DELETE·경합 가드). 어느 행이든 하나가
+  // 진행 중이면 전체를 잠근다(재조회가 목록 전체를 갈아끼우므로 행별 병렬 삭제는 무의미).
+  deletingId: string | undefined;
+  setDeletingId: (next: string | undefined) => void;
+  setDeleteError: (next: string | undefined) => void;
+  // 목록 권위 재조회(useApiResource 의 reload) — 삭제 성공 후 호출한다.
+  reloadTargets: () => void;
+}
+
+// 수집 대상 삭제 DELETE /api/collection-targets/:id + state-전이를 캡슐화한 순수 async 러너
+// (T-1828 — runCreateCollectionTarget / runDeletePerson 을 1:1 mirror). backend 는
+// collection-target.controller `@Delete(":id")` + `@HttpCode(204)` + `@Roles("Admin")` 이다.
+// 동작:
+//  - 빈/공백뿐/비문자열 id → 미발사(잘못된 path·400 확정 요청을 네트워크 전에 차단).
+//  - deletingId 보유(이전 삭제 미완) → 미발사(이중 DELETE·state 경합 차단).
+//  - 발사 시 진행 id on + 직전 error 비움 → DELETE(id 는 encodeURIComponent 안전 인코딩) →
+//    성공(목록 권위 재조회 — 204 는 body 가 없으므로 응답을 소비하지 않고 낙관 제거도 없다) /
+//    실패(문구 표면화 — throw 없이) → 진행 id off(공통 finally).
+async function runDeleteCollectionTarget(
+  id: string,
+  deps: DeleteCollectionTargetDeps,
+): Promise<void> {
+  // 비정상 호출 가드 — 비문자열(undefined·숫자 등 계약 위반 입력)은 trim 이 없으므로 typeof 로
+  // 먼저 잠그고, 빈/공백뿐 id 도 trim 후 빈 문자열이면 차단한다(경계값 — `/api/...//` 회피).
+  const targetId = typeof id === 'string' ? id.trim() : '';
+  if (!targetId) {
+    return;
+  }
+  // 동시 재호출 가드 — 진행 중인 행이 하나라도 있으면 미발사(이중 DELETE·state 경합 차단).
+  if (deps.deletingId) {
+    return;
+  }
+  deps.setDeletingId(targetId);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 문구가 남지 않도록).
+  deps.setDeleteError(undefined);
+  try {
+    // DELETE — 204 No Content 라 응답 body 가 없다. 그래서 응답을 소비하지 않고 성공 사실만
+    // 확인하며, 계약을 어기고 body 가 실려 와도(예상 밖 shape) 여기서 throw 하지 않는다.
+    await deps.remove(
+      `${COLLECTION_TARGETS_PATH}/${encodeURIComponent(targetId)}`,
+      { method: 'DELETE' },
+    );
+    // 성공 — 권위 목록 재조회(삭제된 행이 재조회로 사라진다 — 낙관 제거 없음).
+    deps.reloadTargets();
+  } catch (e) {
+    // 실패 — 문구를 안전 표시(throw 없이). 403 Admin 미만 / 404 row 부재(P2025) / 5xx /
+    // 네트워크 0 모두 동일 경로다. 재조회는 하지 않는다(실패 시 목록 그대로 유지).
+    deps.setDeleteError(deps.describeError(e));
+  } finally {
+    deps.setDeletingId(undefined);
+  }
+}
+
 // 수정 PATCH + state-전이 로직에 주입하는 deps(T-1768 — CreateServiceIdentityDeps 를 1:1 mirror).
 // 발사 primitive 가 client 의 updateServiceIdentity(기본 주입, 테스트는 mock)인 것은 item path
 // 조립과 body 화이트리스트(externalId 단일)가 그 함수 책임이기 때문이다(ADR-0058 §Decision 3 —
@@ -4584,6 +4647,29 @@ function AdminView({
     ],
   );
 
+  // 삭제 진행 중인 행 id(T-1828) — 행 단위 액션이라 boolean 대신 id 를 들고 있어야 어느 행이
+  // 진행 중인지 표시·격리가 가능하다(undefined 면 진행 중 아님). 실패 문구는 섹션 안에
+  // role="alert" 로 노출한다(등록 폼의 error props 와 별도 축 — 어느 쪽 실패인지 섞이지 않게).
+  const [deletingCollectionTargetId, setDeletingCollectionTargetId] =
+    useState<string | undefined>(undefined);
+  const [deleteCollectionTargetError, setDeleteCollectionTargetError] =
+    useState<string | undefined>(undefined);
+
+  // 삭제 실 mutation 핸들러(T-1828) — 러너에 deps 를 주입해 호출만 한다. 진행 id 를 deps 배열에
+  // 포함해 stale 없이 최신 값으로 가드가 걸린다(handleCreateCollectionTarget 동형).
+  const handleDeleteCollectionTarget = useCallback(
+    (id: string) =>
+      runDeleteCollectionTarget(id, {
+        remove: request,
+        describeError: toErrorMessage,
+        deletingId: deletingCollectionTargetId,
+        setDeletingId: setDeletingCollectionTargetId,
+        setDeleteError: setDeleteCollectionTargetError,
+        reloadTargets: reloadCollectionTargets,
+      }),
+    [deletingCollectionTargetId, reloadCollectionTargets],
+  );
+
   // 선택 파트 상태(T-1156) — controlled lift-up(컨테이너 소유). 파트 관리 섹션의 파트 선택
   // <select> 가 이 값을 갱신하고, 값이 있을 때만 소속 인원을 조건부 조회한다(selectedGroupId 동형).
   const [selectedPartId, setSelectedPartId] = useState<string>(
@@ -5869,7 +5955,17 @@ function AdminView({
           loading={collectionTargetLoading}
           error={collectionTargetError}
           emptyMessage={EMPTY_COLLECTION_TARGET_TEXT}
+          /* 삭제 진입점(T-1828) — backend `@Delete(":id")` 가 `@Roles("Admin")` 이라 non-Admin
+             에게는 콜백을 내리지 않아 버튼 자체가 렌더되지 않는다(403 확정 컨트롤 미노출 —
+             등록 폼 gating 과 동형). 목록 본체는 종전대로 gating 바깥에 남는다. */
+          onDelete={isAdmin ? handleDeleteCollectionTarget : undefined}
         />
+        {/* 삭제 실패 문구(T-1828) — 목록·등록 폼과 별도 축이라 섹션 안 독립 alert 로 노출한다
+            (등록 폼의 error props 와 섞이면 어느 동작이 실패했는지 구분되지 않는다). 값이
+            없으면 미렌더라 정상 화면에는 빈 alert 가 남지 않는다. */}
+        {deleteCollectionTargetError ? (
+          <div role="alert">{deleteCollectionTargetError}</div>
+        ) : null}
         {/* 등록 폼(T-1826, ADR-0059 §Follow-ups (e) 편집 축) — POST /api/collection-targets 가
             `@Roles("Admin")` 편집 tier 라 isAdmin 이 true 일 때만 렌더한다(non-Admin 에게
             보이면 403 이 확정된 컨트롤을 노출하는 셈). 위 목록은 GET 이 `@Roles("User")` 라
@@ -5933,6 +6029,7 @@ export {
   extractCreatedPersonId,
   runCreateServiceIdentity,
   runCreateCollectionTarget,
+  runDeleteCollectionTarget,
   runUpdateServiceIdentity,
   runDeleteServiceIdentity,
   runSetPrimaryServiceIdentity,

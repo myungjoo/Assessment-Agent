@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { isValidElement } from 'react';
+import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import CollectionTargetList from './CollectionTargetList';
 import type { CollectionTargetRow } from './CollectionTargetList';
@@ -13,6 +15,35 @@ const LOADING_TOKEN = '불러오는 중';
 const DEFAULT_EMPTY = '등록된 수집 대상이 없습니다';
 const INACTIVE_BADGE = '비활성';
 const MISSING_FIELD = '(없음)';
+// 삭제 버튼 라벨(구현의 DELETE_LABEL 과 정합, T-1828).
+const DELETE_LABEL = '삭제';
+
+// renderToStaticMarkup 은 이벤트를 발화하지 않으므로(jsdom 미도입 — ADR-0040 §5 게이트) onDelete
+// 클릭 콜백은 컴포넌트가 반환한 React element 트리를 순회해 button 의 onClick 을 수동 호출하는
+// 방식으로 검증한다(PersonList.test.tsx collectButtons 동형). React element 는 { type, props }
+// 평문 객체라 트리 walk 로 button 노드를 수집할 수 있다.
+function collectButtons(node: ReactNode): Array<{ onClick?: () => void }> {
+  const found: Array<{ onClick?: () => void }> = [];
+  const walk = (current: ReactNode): void => {
+    if (Array.isArray(current)) {
+      current.forEach(walk);
+      return;
+    }
+    if (!isValidElement(current)) {
+      return;
+    }
+    const element = current as {
+      type: unknown;
+      props: { children?: ReactNode; onClick?: () => void };
+    };
+    if (element.type === 'button') {
+      found.push({ onClick: element.props.onClick });
+    }
+    walk(element.props.children);
+  };
+  walk(node);
+  return found;
+}
 
 // 정상 목록 2 건 — GITHUB(orgs/repos 채움) + CONFLUENCE(spaces 채움) 로 type 별 배열 분포가
 // 다르다는 schema 사실(ADR-0059 §Consequences (c))을 그대로 반영한다.
@@ -256,5 +287,103 @@ describe('CollectionTargetList', () => {
       />,
     );
     expect(html).not.toContain(INACTIVE_BADGE);
+  });
+  // ── T-1828 삭제 진입점 (onDelete optional prop) ──────────────────────────────
+
+  // happy-path — onDelete 전달 시 각 행에 삭제 버튼(<button type="button">)이 행 수만큼 렌더된다.
+  it('onDelete 전달 시 각 행에 삭제 버튼을 행 수만큼 렌더한다 (happy-path — T-1828)', () => {
+    const html = renderToStaticMarkup(
+      <CollectionTargetList targets={sampleTargets} onDelete={() => undefined} />,
+    );
+    expect((html.match(/<button type="button">/g) ?? []).length).toBe(2);
+    expect((html.match(new RegExp(DELETE_LABEL, 'g')) ?? []).length).toBe(2);
+  });
+
+  // happy-path(콜백) — 삭제 버튼 클릭 시 그 행의 row.id 로 onDelete 가 호출된다(element 트리 순회).
+  it('삭제 버튼 클릭 시 해당 행 id 로 onDelete 를 호출한다 (happy-path — 콜백 발화, T-1828)', () => {
+    const onDelete = vi.fn();
+    const tree = CollectionTargetList({ targets: sampleTargets, onDelete });
+    const buttons = collectButtons(tree);
+    // 버튼이 행 수만큼 수집되고, 각 버튼 클릭이 대응 row.id 로 콜백을 호출한다(순서 보존).
+    expect(buttons).toHaveLength(2);
+    buttons[0]?.onClick?.();
+    expect(onDelete).toHaveBeenLastCalledWith('t1');
+    buttons[1]?.onClick?.();
+    expect(onDelete).toHaveBeenLastCalledWith('t2');
+    expect(onDelete).toHaveBeenCalledTimes(2);
+  });
+
+  // 분기/negative ④ — onDelete 미전달(비-Admin 마운트) 시 삭제 버튼 0 개. T-1825 의 읽기 전용
+  // 마운트가 글자 그대로 보존된다(목록 본체는 그대로 렌더).
+  it('onDelete 미전달 시 삭제 버튼을 렌더하지 않는다 (분기/negative ④ — 읽기 전용 하위 호환)', () => {
+    const html = renderToStaticMarkup(
+      <CollectionTargetList targets={sampleTargets} />,
+    );
+    expect(html).not.toContain('<button');
+    expect(html).not.toContain(DELETE_LABEL);
+    expect(html).toContain('<ul>');
+    expect(html).toContain('github-main');
+  });
+
+  // negative ⑤ — loading · error · empty 분기에서는 onDelete 를 줘도 버튼이 렌더되지 않는다
+  // (분기 순서가 populated 에 도달하지 않으므로 행 자체가 없다).
+  it.each([
+    ['loading=true', { loading: true }, LOADING_TOKEN],
+    ['error truthy', { error: '조회에 실패했습니다' }, '조회에 실패했습니다'],
+  ])(
+    'onDelete 전달 + %s 이면 버튼 대신 상태 표시만 렌더한다 (negative ⑤ — 분기 우선순위)',
+    (_label, extra, token) => {
+      const html = renderToStaticMarkup(
+        <CollectionTargetList
+          targets={sampleTargets}
+          onDelete={() => undefined}
+          {...extra}
+        />,
+      );
+      expect(html).not.toContain('<button');
+      expect(html).toContain(token);
+    },
+  );
+
+  // negative ⑤-b — 빈 목록에서는 onDelete 를 줘도 버튼이 0 개다(행이 없으므로).
+  it('onDelete 전달 + 빈 목록이면 버튼 0 개이고 빈 상태 문구만 렌더한다 (negative ⑤-b 경계값)', () => {
+    const html = renderToStaticMarkup(
+      <CollectionTargetList targets={[]} onDelete={() => undefined} />,
+    );
+    expect(html).not.toContain('<button');
+    expect(html).toContain(DEFAULT_EMPTY);
+  });
+
+  // negative — 삭제 버튼 도입 후에도 표시 축(type·instanceKey·endpoint·비활성 표식)은 그대로다
+  // (버튼은 <span> 축을 대체하지 않는다 — 표시 회귀 0).
+  it('onDelete 전달이 기존 표시 축을 바꾸지 않는다 (negative — 표시 회귀 0)', () => {
+    const withDelete = renderToStaticMarkup(
+      <CollectionTargetList
+        targets={[{ ...sampleTargets[0], active: false }]}
+        onDelete={() => undefined}
+      />,
+    );
+    const readOnly = renderToStaticMarkup(
+      <CollectionTargetList targets={[{ ...sampleTargets[0], active: false }]} />,
+    );
+    // span 개수(표시 축)는 동일하고, 삭제 버튼만 추가로 붙는다.
+    const spanCount = (html: string) => (html.match(/<span>/g) ?? []).length;
+    expect(spanCount(withDelete)).toBe(spanCount(readOnly));
+    expect(withDelete).toContain(INACTIVE_BADGE);
+    expect(withDelete).toContain('<button');
+  });
+
+  // negative — id 가 빈 문자열인 계약 위반 row 여도 렌더는 throw 하지 않고, 클릭은 그 값을 그대로
+  // 콜백에 넘긴다(판정은 컨테이너 러너 몫 — 목록은 값을 교정하지 않는다).
+  it('id 가 빈 문자열인 row 도 throw 없이 렌더하고 그 값을 그대로 콜백에 넘긴다 (negative — 계약 위반 입력)', () => {
+    const onDelete = vi.fn();
+    const broken = [{ ...sampleTargets[0], id: '' }];
+    expect(() =>
+      renderToStaticMarkup(
+        <CollectionTargetList targets={broken} onDelete={onDelete} />,
+      ),
+    ).not.toThrow();
+    collectButtons(CollectionTargetList({ targets: broken, onDelete }))[0]?.onClick?.();
+    expect(onDelete).toHaveBeenCalledWith('');
   });
 });
