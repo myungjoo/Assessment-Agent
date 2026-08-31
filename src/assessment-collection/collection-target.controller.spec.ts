@@ -386,15 +386,13 @@ describe("CollectionTargetController (위임 동작)", () => {
   // error path 5 — `:id` row 부재의 NotFoundException(오류 표 d 행)을 흡수 없이 전파.
   it("PATCH 부분 수정: service 의 NotFoundException 을 변환·흡수 없이 그대로 전파한다", async () => {
     const error = new NotFoundException("collection target not found: missing");
+    const dto = buildUpdateDto({ active: false });
     serviceMock.update.mockRejectedValue(error);
 
-    await expect(controller.update("missing", buildUpdateDto())).rejects.toBe(
-      error,
-    );
-    expect(serviceMock.update).toHaveBeenCalledWith(
-      "missing",
-      expect.anything(),
-    );
+    await expect(controller.update("missing", dto)).rejects.toBe(error);
+    // 실패 경로에서도 인자는 무가공 전달 — id 원문 + DTO 동일 참조 (reviewer N1).
+    expect(serviceMock.update).toHaveBeenCalledWith("missing", dto);
+    expect(serviceMock.update.mock.calls[0]?.[1]).toBe(dto);
   });
 
   // error path 6 — HttpException 이 아닌 일반 Error 도 동일하게 raw forward
