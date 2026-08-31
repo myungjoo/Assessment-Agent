@@ -154,6 +154,17 @@ planner 는 task 생성 시 다음 3 필드를 frontmatter 에 박제한다 (현
 | doc-only enumerated-section (architecture doc 또는 ADR 신설 또는 inline-amend)        | × 1.6      | T-0063 / T-0070 / T-0072 / T-0073                                     |
 | ADR-first split stage (ADR → CI → smoke → e2e chain 의 개별 stage)                    | × 1.3      | T-0061 / T-0062                                                       |
 | single-helper test (jest config / shared mock helper 단일 변경)                       | × 1.0      | T-0058                                                                |
+| 순수 추출 리팩터 (pure extraction)                                                    | multiplier 미적용 — **`sizeExempt` 직행** | PLAN `183 행` AdminView 부채 bullet (T-1822 신설) |
+
+**순수 추출 리팩터 카테고리 상세 (T-1822 신설)**:
+
+- **정의 — 다음 3 조건을 모두 만족하는 변경만** 해당한다 (하나라도 어긋나면 순수 추출이 아니며 일반 카테고리로 되돌아간다. 넓게 열면 cap 이 무의미해진다):
+  - (a) 기존 파일에서 **동작 변경 없이** 코드를 다른 파일로 옮기는 것이 변경의 전부다 (symbol 이름 변경 · import 경로 조정 · `export` 추가는 허용).
+  - (b) **신규 로직 0 LOC** — 옮겨진 코드의 본문이 바뀌면 순수 추출이 아니다.
+  - (c) 옮겨진 symbol 의 **기존 spec 이 그대로 통과**한다 (spec 은 import 경로만 수정).
+- **`sizeExempt` 직행 규칙** — 순수 추출의 LOC 은 **이동량에 비례할 뿐 위험도에 비례하지 않는다** (삭제 N + 추가 N 이 그대로 diff 로 계상). 그래서 multiplier 로 보정하지 않고, 위 (a)(b)(c) 충족 사실을 **task 파일 본문에 명시**하면 `estimatedDiff` 초과만으로는 split 하지 않고 `sizeExempt: true` + `exemptReason: "pure-extraction"` 으로 진행한다.
+- **파일 수 cap (≤ 5 파일) 은 예외 없이 유지** — 면제 대상은 **LOC 뿐**이다. 한 번에 여러 모듈로 흩는 추출은 여전히 split 한다 (한 PR 의 리뷰 가능성 보존).
+- **근거 (검증 가능한 실측)** — [web/src/views/AdminView.tsx](../../web/src/views/AdminView.tsx) 가 **6,087 줄 · top-level 선언 149 개** 로 자랐고 3 일 (2026-08-29 ~ 08-31) 에만 **+985 줄** 늘었다. 400 줄 helper 군 추출은 즉시 cap 초과인 반면 같은 helper 를 AdminView 에 **덧붙이는** slice 는 60~120 줄이라 언제나 cap 안 — cap 이 append 를 싸게, extract 를 비싸게 만들어 god component 를 키우는 방향으로 작동했다. 부채 추적 지점은 [docs/PLAN.md](../../docs/PLAN.md) `183 행` 의 AdminView god component bullet.
 
 **sub-multiplier — P2002 분기 추가 (unique constraint entity)**:
 
@@ -175,6 +186,7 @@ planner 는 task 생성 시 다음 3 필드를 frontmatter 에 박제한다 (현
 4. multiplier 적용 후 estimate > 300 LOC 또는 > 5 파일 시:
    - **planner-pre-justified note 의무** — frontmatter `plannerNote` 에 "cap-bend pre-justified: <category> × <multiplier> [× <sub-multiplier>] = <est> LOC, <precedent task ID> 패턴 정당화" 명시 + `sizeExempt: true` + `exemptReason` 박제 → executor cap 검사 skip.
    - 또는 **split** — 2+ 작은 task 로 분할 (dependency chain 박제).
+   - **카테고리가 순수 추출 리팩터이면 split 대신 `sizeExempt` 를 기본 선택** 한다 (위 두 선택지는 대등하지 않다) — `exemptReason: "pure-extraction"` + (a)(b)(c) 충족 명시. 단 **파일 수 > 5 이면 그때는 split** (LOC 만 면제).
 
 **cap policy 자체 변경 0** — multiplier 는 planner 의 estimate 직관 calibration 만, executor cap envelope (≤ 300 LOC / ≤ 5 파일) 정책은 불변. 자세히는 [docs/architecture/estimate-model.md](../../docs/architecture/estimate-model.md) §4 (multiplier 산출 + P2002 sub-multiplier) + §5 (planner 적용 절차).
 
