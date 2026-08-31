@@ -169,6 +169,21 @@ describe('CollectionTargetList', () => {
     expect((html.match(/<li>/g) ?? []).length).toBe(1);
   });
 
+  // negative ③-c (review round 1 MINOR-1) — 필드가 **빈 문자열**이어도 placeholder 로 접는다.
+  // 부재(undefined)와 달리 빈 문자열은 backend DTO 의 @IsNotEmpty 를 우회해 도달할 수 있는
+  // 값이라(예: 공백 trim 이후) displayText 의 falsy 분기를 별도로 잠근다.
+  it('endpoint 가 빈 문자열이어도 placeholder 로 접어 렌더한다 (negative ③-c 빈 문자열 경계값)', () => {
+    const html = renderToStaticMarkup(
+      <CollectionTargetList
+        targets={[
+          { id: 't6', type: 'GITHUB', instanceKey: 'gh-6', endpoint: '' },
+        ]}
+      />,
+    );
+    expect(html).toContain('gh-6');
+    expect(html).toContain(MISSING_FIELD);
+  });
+
   // negative ③-b — 배열 3 종이 전부 undefined 여도 formatScope 가 throw 하지 않는다.
   it('orgs·repos·spaces 가 전부 undefined 여도 throw 없이 렌더한다 (negative ③-b 배열 누락)', () => {
     const html = renderToStaticMarkup(
@@ -185,6 +200,30 @@ describe('CollectionTargetList', () => {
     );
     expect(html).toContain('gh-8');
     // scope span 이 하나도 붙지 않아 span 은 기본 3 축뿐이다.
+    expect((html.match(/<span>/g) ?? []).length).toBe(3);
+  });
+
+  // negative ③-d (review round 1 MINOR-2) — scope 필드가 **비-배열**(null · 문자열)이어도
+  // formatScope 의 Array.isArray 가드가 흡수해 throw 하지 않는다. AdminView 는 응답 최상위
+  // body 만 정상화하고 행 내부 필드는 정상화하지 않으므로 이 가드가 마지막 방어선이다 —
+  // 가드를 지우면 본 test 가 red 가 되도록 잠근다(공허한 방어 방지).
+  it('orgs 가 비-배열(null·문자열)이어도 throw 없이 흡수해 렌더한다 (negative ③-d 비-배열 scope)', () => {
+    const broken = [
+      {
+        id: 't5',
+        type: 'GITHUB',
+        instanceKey: 'gh-5',
+        endpoint: 'https://e.example.com',
+        orgs: null,
+        repos: 'acme/web',
+      },
+    ] as unknown as CollectionTargetRow[];
+    const render = () =>
+      renderToStaticMarkup(<CollectionTargetList targets={broken} />);
+    expect(render).not.toThrow();
+    const html = render();
+    expect(html).toContain('gh-5');
+    // 비-배열은 빈 문자열로 접히므로 scope span 이 하나도 붙지 않는다(기본 3 축뿐).
     expect((html.match(/<span>/g) ?? []).length).toBe(3);
   });
 
