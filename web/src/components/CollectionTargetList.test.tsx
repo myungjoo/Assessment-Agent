@@ -17,6 +17,9 @@ const INACTIVE_BADGE = '비활성';
 const MISSING_FIELD = '(없음)';
 // 삭제 버튼 라벨(구현의 DELETE_LABEL 과 정합, T-1828).
 const DELETE_LABEL = '삭제';
+// 활성/비활성 토글 버튼 라벨(구현의 DEACTIVATE_LABEL / ACTIVATE_LABEL 과 정합, T-1829).
+const DEACTIVATE_LABEL = '비활성화';
+const ACTIVATE_LABEL = '활성화';
 
 // renderToStaticMarkup 은 이벤트를 발화하지 않으므로(jsdom 미도입 — ADR-0040 §5 게이트) onDelete
 // 클릭 콜백은 컴포넌트가 반환한 React element 트리를 순회해 button 의 onClick 을 수동 호출하는
@@ -38,6 +41,40 @@ function collectButtons(node: ReactNode): Array<{ onClick?: () => void }> {
     };
     if (element.type === 'button') {
       found.push({ onClick: element.props.onClick });
+    }
+    walk(element.props.children);
+  };
+  walk(node);
+  return found;
+}
+
+// 토글 버튼 검증은 라벨(현재 상태에서 파생)과 클릭 인자(다음 상태)를 함께 봐야 하므로, 위
+// collectButtons 와 달리 children 문자열까지 회수하는 수집기를 따로 둔다(T-1829). onClick 은
+// 인자를 받으므로 시그니처를 unknown[] 로 열어둔다.
+function collectLabeledButtons(
+  node: ReactNode,
+): Array<{ label: string; onClick?: (...args: unknown[]) => void }> {
+  const found: Array<{ label: string; onClick?: (...args: unknown[]) => void }> = [];
+  const walk = (current: ReactNode): void => {
+    if (Array.isArray(current)) {
+      current.forEach(walk);
+      return;
+    }
+    if (!isValidElement(current)) {
+      return;
+    }
+    const element = current as {
+      type: unknown;
+      props: {
+        children?: ReactNode;
+        onClick?: (...args: unknown[]) => void;
+      };
+    };
+    if (element.type === 'button') {
+      found.push({
+        label: String(element.props.children ?? ''),
+        onClick: element.props.onClick,
+      });
     }
     walk(element.props.children);
   };
@@ -387,4 +424,169 @@ describe('CollectionTargetList', () => {
     collectButtons(CollectionTargetList({ targets: broken, onDelete }))[0]?.onClick?.();
     expect(onDelete).toHaveBeenCalledWith('');
   });
+
+  // ── T-1829 활성/비활성 토글 진입점 (onToggleActive optional prop) ──────────────
+
+  // happy-path — onToggleActive 전달 시 각 행에 토글 버튼이 행 수만큼 렌더된다(활성 2 행이므로
+  // 라벨은 둘 다 '비활성화').
+  it('onToggleActive 전달 시 각 행에 토글 버튼을 행 수만큼 렌더한다 (happy-path — T-1829)', () => {
+    const html = renderToStaticMarkup(
+      <CollectionTargetList
+        targets={sampleTargets}
+        onToggleActive={() => undefined}
+      />,
+    );
+    expect((html.match(/<button type="button">/g) ?? []).length).toBe(2);
+    expect((html.match(new RegExp(DEACTIVATE_LABEL, 'g')) ?? []).length).toBe(2);
+    expect(html).not.toContain(DELETE_LABEL);
+  });
+
+  // happy-path(콜백) — 토글 클릭 시 (row.id, 다음 상태) 2 인자로 호출된다. 활성 행이므로 다음
+  // 상태는 false 다(호출부가 현재 상태를 다시 계산할 필요가 없다는 계약의 핵심).
+  it('토글 클릭 시 (id, nextActive) 2 인자로 onToggleActive 를 호출한다 (happy-path — 콜백 발화, T-1829)', () => {
+    const onToggleActive = vi.fn();
+    const tree = CollectionTargetList({ targets: sampleTargets, onToggleActive });
+    const buttons = collectLabeledButtons(tree);
+    expect(buttons).toHaveLength(2);
+    buttons[0]?.onClick?.();
+    expect(onToggleActive).toHaveBeenLastCalledWith('t1', false);
+    buttons[1]?.onClick?.();
+    expect(onToggleActive).toHaveBeenLastCalledWith('t2', false);
+    expect(onToggleActive).toHaveBeenCalledTimes(2);
+  });
+
+  // 분기 (a)(b) — 라벨과 다음 상태는 행의 현재 active 에서 파생한다. active 누락 행은 schema
+  // 기본값(true) 대로 활성 취급이라 active: true 행과 완전히 같게 동작한다.
+  it.each([
+    ['active=true', { active: true }, DEACTIVATE_LABEL, false],
+    ['active=false', { active: false }, ACTIVATE_LABEL, true],
+    ['active 필드 누락', {}, DEACTIVATE_LABEL, false],
+    ['active=undefined', { active: undefined }, DEACTIVATE_LABEL, false],
+  ])(
+    '%s 행은 라벨과 다음 상태를 현재 상태에서 파생한다 (분기 (a)(b) — 라벨/다음 상태)',
+    (_label, patch, expectedLabel, expectedNext) => {
+      const onToggleActive = vi.fn();
+      const row = { ...sampleTargets[0], ...patch } as CollectionTargetRow;
+      const buttons = collectLabeledButtons(
+        CollectionTargetList({ targets: [row], onToggleActive }),
+      );
+      expect(buttons).toHaveLength(1);
+      expect(buttons[0]?.label).toBe(expectedLabel);
+      buttons[0]?.onClick?.();
+      expect(onToggleActive).toHaveBeenCalledWith('t1', expectedNext);
+    },
+  );
+
+  // 분기 (c) / negative — onToggleActive 미전달이면 토글 버튼이 0 개다(하위 호환 — T-1825 읽기
+  // 전용 마운트와 T-1828 삭제 전용 마운트가 글자 그대로 보존된다).
+  it('onToggleActive 미전달 시 토글 버튼을 렌더하지 않는다 (분기 (c) — 하위 호환)', () => {
+    const readOnly = renderToStaticMarkup(
+      <CollectionTargetList targets={sampleTargets} />,
+    );
+    expect(readOnly).not.toContain(DEACTIVATE_LABEL);
+    expect(readOnly).not.toContain(ACTIVATE_LABEL);
+    expect(readOnly).not.toContain('<button');
+    // 삭제만 전달한 마운트에도 토글 버튼은 붙지 않는다(축 독립).
+    const deleteOnly = renderToStaticMarkup(
+      <CollectionTargetList targets={sampleTargets} onDelete={() => undefined} />,
+    );
+    expect(deleteOnly).not.toContain(DEACTIVATE_LABEL);
+    expect((deleteOnly.match(new RegExp(DELETE_LABEL, 'g')) ?? []).length).toBe(2);
+  });
+
+  // negative — 두 콜백을 함께 주면 행마다 토글 + 삭제 2 개가 붙고, 토글이 먼저 온다(되돌릴 수
+  // 있는 동작이 파괴적 동작보다 앞).
+  it('onToggleActive 와 onDelete 를 함께 주면 행마다 토글·삭제 2 버튼이 순서대로 붙는다 (negative — 축 공존)', () => {
+    const buttons = collectLabeledButtons(
+      CollectionTargetList({
+        targets: [sampleTargets[0]],
+        onDelete: () => undefined,
+        onToggleActive: () => undefined,
+      }),
+    );
+    expect(buttons.map((b) => b.label)).toEqual([DEACTIVATE_LABEL, DELETE_LABEL]);
+  });
+
+  // negative — loading · error 분기에서는 onToggleActive 를 줘도 버튼이 렌더되지 않는다
+  // (분기 순서가 populated 에 도달하지 않는다).
+  it.each([
+    ['loading=true', { loading: true }, LOADING_TOKEN],
+    ['error truthy', { error: '조회에 실패했습니다' }, '조회에 실패했습니다'],
+  ])(
+    'onToggleActive 전달 + %s 이면 버튼 대신 상태 표시만 렌더한다 (negative — 분기 우선순위)',
+    (_label, extra, token) => {
+      const html = renderToStaticMarkup(
+        <CollectionTargetList
+          targets={sampleTargets}
+          onToggleActive={() => undefined}
+          {...extra}
+        />,
+      );
+      expect(html).not.toContain('<button');
+      expect(html).toContain(token);
+    },
+  );
+
+  // negative — 빈 목록에서는 onToggleActive 를 줘도 버튼이 0 개다(행이 없으므로 — 경계값).
+  it('onToggleActive 전달 + 빈 목록이면 버튼 0 개이고 빈 상태 문구만 렌더한다 (negative — 경계값)', () => {
+    const html = renderToStaticMarkup(
+      <CollectionTargetList targets={[]} onToggleActive={() => undefined} />,
+    );
+    expect(html).not.toContain('<button');
+    expect(html).toContain(DEFAULT_EMPTY);
+  });
+
+  // negative — 토글 버튼 도입 후에도 표시 축(span 개수·비활성 표식)은 그대로다(표시 회귀 0).
+  // 비활성 행은 표식이 '비활성' 이고 라벨이 '활성화' 라 두 문자열이 겹치지 않는지도 함께 잠근다.
+  it('onToggleActive 전달이 기존 표시 축을 바꾸지 않는다 (negative — 표시 회귀 0)', () => {
+    const inactiveRow = [{ ...sampleTargets[0], active: false }];
+    const withToggle = renderToStaticMarkup(
+      <CollectionTargetList targets={inactiveRow} onToggleActive={() => undefined} />,
+    );
+    const readOnly = renderToStaticMarkup(
+      <CollectionTargetList targets={inactiveRow} />,
+    );
+    const spanCount = (html: string) => (html.match(/<span>/g) ?? []).length;
+    expect(spanCount(withToggle)).toBe(spanCount(readOnly));
+    expect(withToggle).toContain(`<span>${INACTIVE_BADGE}</span>`);
+    expect(withToggle).toContain(`>${ACTIVATE_LABEL}</button>`);
+  });
+
+  // negative — id 가 빈 문자열인 계약 위반 row 여도 렌더는 throw 하지 않고, 클릭은 그 값을 그대로
+  // 콜백에 넘긴다(판정은 컨테이너 러너 몫 — 목록은 값을 교정하지 않는다).
+  it('id 가 빈 문자열인 row 도 throw 없이 렌더하고 그 값을 그대로 토글 콜백에 넘긴다 (negative — 계약 위반 입력)', () => {
+    const onToggleActive = vi.fn();
+    const broken = [{ ...sampleTargets[0], id: '' }];
+    expect(() =>
+      renderToStaticMarkup(
+        <CollectionTargetList targets={broken} onToggleActive={onToggleActive} />,
+      ),
+    ).not.toThrow();
+    collectLabeledButtons(
+      CollectionTargetList({ targets: broken, onToggleActive }),
+    )[0]?.onClick?.();
+    expect(onToggleActive).toHaveBeenCalledWith('', false);
+  });
+
+  // negative — active 가 boolean 이 아닌 계약 위반 값(문자열 등)이어도 `!== false` 기준이라
+  // 활성으로 흡수되고 throw 하지 않는다(목록은 값을 판정하지 않는다).
+  it.each([
+    ['문자열 "false"', 'false'],
+    ['숫자 0', 0],
+    ['null', null],
+  ])(
+    'active 가 %s 인 계약 위반 row 도 활성으로 흡수해 렌더한다 (negative — type mismatch)',
+    (_label, value) => {
+      const onToggleActive = vi.fn();
+      const broken = [
+        { ...sampleTargets[0], active: value } as unknown as CollectionTargetRow,
+      ];
+      const buttons = collectLabeledButtons(
+        CollectionTargetList({ targets: broken, onToggleActive }),
+      );
+      expect(buttons[0]?.label).toBe(DEACTIVATE_LABEL);
+      buttons[0]?.onClick?.();
+      expect(onToggleActive).toHaveBeenCalledWith('t1', false);
+    },
+  );
 });
