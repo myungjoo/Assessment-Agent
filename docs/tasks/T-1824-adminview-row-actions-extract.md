@@ -2,7 +2,7 @@
 id: T-1824
 title: AdminView 의 ServiceIdentity 행별 액션 helper 군을 별도 모듈로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 independentStream: adminview-god-component-refactor
@@ -14,6 +14,8 @@ estimatedDiff: 620
 estimatedFiles: 2
 sizeExempt: true
 exemptReason: "pure-extraction — 동작 변경 0 · 신규 로직 0 LOC · 기존 spec 6 개가 import 경로까지 무수정으로 통과. 삭제 290 + 추가 약 320 이 전부 이동량이라 LOC 은 위험도에 비례하지 않는다. 파일 수 2 개로 파일 cap (≤ 5) 은 예외 없이 준수."
+created: 2026-08-31
+completed: 2026-08-31T12:53:55Z
 plannerNote: "P6 / PLAN 183 행 AdminView god component 부채의 첫 실분할 — T-1822 가 연 순수 추출 카테고리의 최초 적용"
 ---
 
