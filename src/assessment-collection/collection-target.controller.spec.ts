@@ -1,20 +1,22 @@
 // CollectionTargetController spec — T-1814(골격 + 조회 tier 2 route) · T-1815(POST 등록
-// route) · T-1816(PATCH 부분 수정 route) acceptance 박제.
+// route) · T-1816(PATCH 부분 수정 route) · T-1817(DELETE 등록 해제 route) acceptance 박제.
 //
-// 네 handler(GET 목록 · GET 단건 · POST 등록 · PATCH 부분 수정) 모두 순수 위임이라 spec 도
-// 그 분량에 맞춰 좁게 간다 (ServiceIdentityController spec 의 관례만 승계 — mock service
-// 위임 검증 + decorator metadata drift guard).
+// 다섯 handler(GET 목록 · GET 단건 · POST 등록 · PATCH 부분 수정 · DELETE 등록 해제) 모두
+// 순수 위임이라 spec 도 그 분량에 맞춰 좁게 간다 (ServiceIdentityController spec 의 관례만
+// 승계 — mock service 위임 검증 + decorator metadata drift guard).
 // 구성: (1) 위임 동작 — mock service 로 happy / error / negative, (2) metadata 박제 —
 // controller base path · route method · guard stack 순서 · @Roles tier · controller-scope
-// ValidationPipe 옵션 3 종 · 미배선 handler(DELETE) 부재.
+// ValidationPipe 옵션 3 종 · @HttpCode 부착/부재 · 배선된 handler 목록 전량.
 //
-// R-112 분기 축 메모: `findAll` · `findById` · `create` · `update` 어느 쪽에도 **조건
-// 분기가 없다**(넷 다 service 로의 무가공 위임 한 줄) — 코드 분기 test 는 해당 없음이다.
+// R-112 분기 축 메모: `findAll` · `findById` · `create` · `update` · `remove` 어느 쪽에도
+// **조건 분기가 없다**(다섯 다 service 로의 무가공 위임 한 줄) — 코드 분기 test 는 해당
+// 없음이다.
 // 대신 ADR-0059 §Decision 5 GET 행이 규정한 두 경로("0 row → 빈 배열 200, 예외 아님" 과
 // "row 존재 → 배열 1+"), POST 행의 두 입력 경로(optional 필드가 있는 body / 필수 3 필드만
-// 있는 body), PATCH 행의 두 입력 경로(빈 객체 `{}` merge patch / 여러 필드 body)를 각각
-// test 로 고정하고, 나머지 분기 축은 metadata 케이스(route method · path param 축 ·
-// @Roles tier · guard 순서 · @HttpCode 부재 · 미배선 handler 부재)로 대체 배치한다.
+// 있는 body), PATCH 행의 두 입력 경로(빈 객체 `{}` merge patch / 여러 필드 body), DELETE
+// 행의 입력 경로 고정(`:id` 무가공 전달)을 각각 test 로 고정하고, 나머지 분기 축은
+// metadata 케이스(route method · path param 축 · @Roles tier · guard 순서 · @HttpCode
+// 부착/부재 · 배선 handler 목록)로 대체 배치한다.
 import {
   ConflictException,
   NotFoundException,
@@ -76,8 +78,8 @@ function buildUpdateDto(
 }
 
 // service mock — 5 메서드를 모두 깔아두고, 각 handler 가 자기 위임 대상 외 메서드를 전혀
-// 부르지 않음을 negative 로 고정한다(본 slice 까지 배선된 route 는 4 개라 delete 는 여전히
-// 절대 불림 없음).
+// 부르지 않음을 negative 로 고정한다(본 slice 로 5 route 전량이 배선돼 `delete` 도 DELETE
+// handler 의 위임 대상이 됐다).
 function buildServiceMock() {
   return {
     findAll: jest.fn(),
@@ -204,8 +206,9 @@ describe("CollectionTargetController (위임 동작)", () => {
     expect(result.some((row) => !row.active)).toBe(true);
   });
 
-  // negative — throw 후 후속 처리 0. 미배선 tier service 메서드 호출 0 으로 단락 확인.
-  it("negative: service throw 시 후속 처리 없이 단락한다 (미배선 메서드 호출 0)", async () => {
+  // negative — throw 후 후속 처리 0. 위임 대상 외 편집 tier service 메서드 호출 0 으로
+  // 단락을 확인한다(5 route 전량 배선 후에도 조회 handler 는 편집 메서드를 부르지 않는다).
+  it("negative: service throw 시 후속 처리 없이 단락한다 (위임 대상 외 메서드 호출 0)", async () => {
     serviceMock.findById.mockRejectedValue(new NotFoundException("x"));
 
     await expect(controller.findById("target-1")).rejects.toBeInstanceOf(
@@ -448,6 +451,81 @@ describe("CollectionTargetController (위임 동작)", () => {
     expect(serviceMock.create).not.toHaveBeenCalled();
     expect(serviceMock.delete).not.toHaveBeenCalled();
   });
+
+  // happy path 5 (DELETE) — id 를 그대로 넘기고, service 가 돌려준 **삭제된 row 를 응답
+  // 으로 흘리지 않는다**(§Decision 5 DELETE 행 "body 없음"). 반환은 undefined 여야 한다.
+  it("DELETE 등록 해제: id 를 그대로 service.delete 에 넘기고 삭제 row 를 반환하지 않는다", async () => {
+    const deleted = buildTargetFixture();
+    serviceMock.delete.mockResolvedValue(deleted);
+
+    const result = await controller.remove("target-1");
+
+    expect(result).toBeUndefined();
+    expect(result).not.toBe(deleted);
+    expect(serviceMock.delete).toHaveBeenCalledWith("target-1");
+    expect(serviceMock.delete).toHaveBeenCalledTimes(1);
+  });
+
+  // error path 7 — `:id` row 부재의 NotFoundException(오류 표 d 행 — service 의 `P2025`
+  // 변환)을 흡수 · 변환 없이 그대로 전파.
+  it("DELETE 등록 해제: service 의 NotFoundException 을 변환·흡수 없이 그대로 전파한다", async () => {
+    const error = new NotFoundException("collection target not found: missing");
+    serviceMock.delete.mockRejectedValue(error);
+
+    await expect(controller.remove("missing")).rejects.toBe(error);
+    // 실패 경로에서도 인자는 무가공 전달 — id 원문 그대로.
+    expect(serviceMock.delete).toHaveBeenCalledWith("missing");
+  });
+
+  // error path 8 — HttpException 이 아닌 일반 Error 도 동일하게 raw forward
+  // (remove 경로에도 try/catch 가 없음의 증명 — service 의 raw propagate 축).
+  it("DELETE 등록 해제: 일반 Error 도 그대로 전파한다 (controller 에 try/catch 없음)", async () => {
+    const error = new Error("db down");
+    serviceMock.delete.mockRejectedValue(error);
+
+    await expect(controller.remove("target-1")).rejects.toBe(error);
+  });
+
+  // negative (a) — remove 는 service.delete 를 정확히 1 회, 인자 1 개로만 호출하고
+  // 다른 service 메서드는 전혀 건드리지 않는다.
+  it("negative (a): remove 가 service.delete 를 정확히 1 회 호출하고 다른 메서드는 호출 0 이다", async () => {
+    serviceMock.delete.mockResolvedValue(buildTargetFixture());
+
+    await controller.remove("target-1");
+
+    expect(serviceMock.delete).toHaveBeenCalledTimes(1);
+    expect(serviceMock.delete.mock.calls[0]).toHaveLength(1);
+    expect(serviceMock.findAll).not.toHaveBeenCalled();
+    expect(serviceMock.findById).not.toHaveBeenCalled();
+    expect(serviceMock.create).not.toHaveBeenCalled();
+    expect(serviceMock.update).not.toHaveBeenCalled();
+  });
+
+  // negative (b) — path param 무가공 전달. 빈 문자열 · 공백 포함 id 도 trim · 형식 검증 ·
+  // 기본값 없이 그대로 넘어간다(검증을 controller 가 재구현하지 않는다).
+  it("negative (b): DELETE 도 빈 문자열 · 공백 포함 id 를 가공 없이 그대로 전달한다", async () => {
+    serviceMock.delete.mockResolvedValue(buildTargetFixture());
+
+    await controller.remove("");
+    await controller.remove("  target-1  ");
+
+    expect(serviceMock.delete).toHaveBeenNthCalledWith(1, "");
+    expect(serviceMock.delete).toHaveBeenNthCalledWith(2, "  target-1  ");
+  });
+
+  // negative (c) — delete 가 throw 하면 후속 처리 없이 단락한다(다른 service 메서드 0).
+  it("negative (c): delete throw 시 다른 service 메서드를 호출하지 않고 단락한다", async () => {
+    serviceMock.delete.mockRejectedValue(new NotFoundException("missing"));
+
+    await expect(controller.remove("missing")).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+
+    expect(serviceMock.findAll).not.toHaveBeenCalled();
+    expect(serviceMock.findById).not.toHaveBeenCalled();
+    expect(serviceMock.create).not.toHaveBeenCalled();
+    expect(serviceMock.update).not.toHaveBeenCalled();
+  });
 });
 
 describe("CollectionTargetController (route · guard · pipe metadata)", () => {
@@ -525,8 +603,8 @@ describe("CollectionTargetController (route · guard · pipe metadata)", () => {
   });
 
   // negative (d) 후반 — guard stack 순서 고정. JwtAuthGuard(401) → RolesGuard(403) 순.
-  // 4 route 가 같은 stack 을 같은 순서로 공유한다(tier 만 다르다).
-  it("negative (d-2): 4 handler 모두에 @UseGuards(JwtAuthGuard, RolesGuard) 가 이 순서로 부착돼 있다", () => {
+  // 5 route 가 같은 stack 을 같은 순서로 공유한다(tier 만 다르다).
+  it("negative (d-2): 5 handler 모두에 @UseGuards(JwtAuthGuard, RolesGuard) 가 이 순서로 부착돼 있다", () => {
     expect(
       Reflect.getMetadata(
         "__guards__",
@@ -549,6 +627,12 @@ describe("CollectionTargetController (route · guard · pipe metadata)", () => {
       Reflect.getMetadata(
         "__guards__",
         CollectionTargetController.prototype.update,
+      ),
+    ).toEqual([JwtAuthGuard, RolesGuard]);
+    expect(
+      Reflect.getMetadata(
+        "__guards__",
+        CollectionTargetController.prototype.remove,
       ),
     ).toEqual([JwtAuthGuard, RolesGuard]);
   });
@@ -621,17 +705,70 @@ describe("CollectionTargetController (route · guard · pipe metadata)", () => {
     ).toBeUndefined();
   });
 
-  // negative (f) — 지금까지 배선된 public 핸들러는 4 개(findAll · findById · create ·
-  // update)이고 **DELETE route 는 아직 미배선**이다. prototype 의 메서드 목록을 통째로
-  // 고정해 후속 slice 가 route 를 얹을 때 본 test 가 의도적으로 fail 하도록 둔다
-  // (후속 slice 의 회귀 신호 — T-1814 → T-1815 → T-1816 도 같은 방식으로 갱신됐다).
-  it("negative (f): public 핸들러가 정확히 findAll · findById · create · update 4 개뿐이다 (DELETE 미배선)", () => {
+  // negative (d) — DELETE 등록 해제 route 의 metadata drift guard. tier 가 편집
+  // tier("Admin")이고 method 는 DELETE · path 는 ':id' 임을 고정한다. tier 가 조회와 같은
+  // "User" 로 미끄러지면 편집 권한 회귀이므로 여기서 잡는다.
+  it("negative (d-7): remove 가 DELETE ':id' 이고 @Roles(\"Admin\") 편집 tier 이다", () => {
+    const reflector = new Reflector();
+
+    expect(
+      Reflect.getMetadata(
+        "method",
+        CollectionTargetController.prototype.remove,
+      ),
+    ).toBe(RequestMethod.DELETE);
+    expect(
+      Reflect.getMetadata("path", CollectionTargetController.prototype.remove),
+    ).toBe(":id");
+
+    const roles = reflector.get<string[]>(
+      ROLES_METADATA_KEY,
+      CollectionTargetController.prototype.remove,
+    );
+    expect(roles).toEqual(["Admin"]);
+    // 조회 tier 로의 미끄러짐 차단 — 편집 권한 회귀 guard.
+    expect(roles).not.toContain("User");
+  });
+
+  // negative (d) — 성공 status 204 는 `@Delete` 기본값(200)이 아니므로 `@HttpCode(204)` 가
+  // **실제로 박혀 있어야** 한다(§Decision 5 DELETE 행). 동시에 나머지 4 handler 는
+  // 여전히 @HttpCode 부재 — 기본값 status 유지 회귀 guard 를 겸한다.
+  it("negative (d-8): remove 에만 @HttpCode(204) 가 붙어 있고 나머지 4 handler 는 부재다", () => {
+    const httpCodeOf = (name: string): unknown =>
+      Reflect.getMetadata(
+        "__httpCode__",
+        (
+          CollectionTargetController.prototype as unknown as Record<
+            string,
+            unknown
+          >
+        )[name] as object,
+      );
+
+    expect(httpCodeOf("remove")).toBe(204);
+    expect(httpCodeOf("findAll")).toBeUndefined();
+    expect(httpCodeOf("findById")).toBeUndefined();
+    expect(httpCodeOf("create")).toBeUndefined();
+    expect(httpCodeOf("update")).toBeUndefined();
+  });
+
+  // negative (f) — §Decision 5 route 표 5 행이 전량 배선돼 public 핸들러는 5 개(findAll ·
+  // findById · create · remove · update)다. prototype 의 메서드 목록을 통째로 고정해
+  // 의도치 않은 route 추가 · 삭제를 회귀로 잡는다(T-1814 → T-1815 → T-1816 → T-1817 이
+  // 같은 방식으로 갱신돼 왔고, 본 slice 로 목록이 완결됐다).
+  it("negative (f): public 핸들러가 정확히 findAll · findById · create · update · remove 5 개다 (5 route 전량 배선)", () => {
     const methods = Object.getOwnPropertyNames(
       CollectionTargetController.prototype,
     ).filter((name) => name !== "constructor");
 
-    expect(methods.sort()).toEqual(["create", "findAll", "findById", "update"]);
-    // 각 handler 의 route method 도 함께 고정 — DELETE 는 어디에도 없다.
+    expect(methods.sort()).toEqual([
+      "create",
+      "findAll",
+      "findById",
+      "remove",
+      "update",
+    ]);
+    // 각 handler 의 route method 도 함께 고정 — DELETE 가 정확히 1 개 존재한다.
     const methodOf = (name: string): unknown =>
       Reflect.getMetadata(
         "method",
@@ -649,9 +786,13 @@ describe("CollectionTargetController (route · guard · pipe metadata)", () => {
         RequestMethod.GET,
         RequestMethod.POST,
         RequestMethod.PATCH,
+        RequestMethod.DELETE,
       ].sort(),
     );
     expect(methods.map(methodOf)).toContain(RequestMethod.PATCH);
-    expect(methods.map(methodOf)).not.toContain(RequestMethod.DELETE);
+    expect(methods.map(methodOf)).toContain(RequestMethod.DELETE);
+    expect(
+      methods.map(methodOf).filter((m) => m === RequestMethod.DELETE),
+    ).toHaveLength(1);
   });
 });
