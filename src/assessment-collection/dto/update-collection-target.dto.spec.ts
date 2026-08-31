@@ -6,9 +6,12 @@
 // 검증 축(ADR-0059 §Decision 5 PATCH 행 · §Decision 4 필드 표 · §Decision 2 credential 경계):
 //   - happy: 빈 객체 `{}` / 단일 필드 / 5 필드 전량 payload 각각 0 error.
 //   - error path: 전달된 필드가 계약을 위반할 때(빈 endpoint · 문자열 active) error.
-//   - 분기: @IsOptional · @IsNotEmpty · @MaxLength · @IsArray ·
-//     @IsString({ each: true }) · @IsBoolean 각 decorator 별 1+ 케이스.
-//   - negative: 빈 값 · 공백만 · 길이 초과 · 배열 아님 · 원소 타입 불일치 · null · type 불일치.
+//   - 분기: @ValidateIf · @IsNotEmpty · @MaxLength · @IsArray ·
+//     @IsString({ each: true }) · @IsBoolean 각 decorator 별 1+ 케이스. 특히 @ValidateIf
+//     의 두 분기 — 값이 `undefined` 면 skip(0 error), `null` 이면 skip 하지 않음.
+//   - negative: 빈 값 · 공백만 · 길이 초과 · 배열 아님 · 원소 타입 불일치 · 명시적 null ·
+//     type 불일치. **명시적 `null` 은 5 필드 전량에서 거절**(400) 계약이다 — @IsOptional
+//     이 null 까지 skip 하던 종전 계약을 T-1818 이 @ValidateIf 로 뒤집었다.
 //   - drift guard: 정체성 축(`type` · `instanceKey`, §Decision 5)과 credential 계열
 //     (`token` · `password` · `apiKey`, §Decision 2)이 허용 축이 아님을 고정.
 import { plainToInstance } from "class-transformer";
@@ -87,7 +90,7 @@ describe("UpdateCollectionTargetDto", () => {
   // --------------------------------------------------------------------
   // 분기 cover — decorator 별 1+ 케이스
   // --------------------------------------------------------------------
-  it("미전달 필드는 나머지 decorator 가 평가되지 않는다 (분기 — @IsOptional)", () => {
+  it("미전달 필드는 나머지 decorator 가 평가되지 않는다 (분기 — @ValidateIf skip)", () => {
     const dto = plainToInstance(UpdateCollectionTargetDto, { active: true });
     expect(validateSync(dto)).toEqual([]);
     // 미전달 축은 undefined 로 남아 repository update 의 "미변경" 대상이 된다.
@@ -97,7 +100,45 @@ describe("UpdateCollectionTargetDto", () => {
     expect(dto.spaces).toBeUndefined();
   });
 
-  it("endpoint 를 전달하면 @IsNotEmpty 가 평가된다 (분기 — @IsOptional 반대편)", () => {
+  it("키가 있어도 값이 undefined 면 skip 되어 0 error 다 (분기 — @ValidateIf 참 분기)", () => {
+    // merge patch 의 "미전달 = 미변경" 계약은 키 존재 여부가 아니라 값이 undefined 인지로
+    // 판정된다. JSON body 에는 undefined 가 없지만 내부 호출 경로에서 명시적 undefined 가
+    // 실릴 수 있어 그 축을 고정한다.
+    expect(
+      violations({
+        endpoint: undefined,
+        orgs: undefined,
+        repos: undefined,
+        spaces: undefined,
+        active: undefined,
+      }),
+    ).toEqual([]);
+  });
+
+  it("값이 null 이면 skip 되지 않아 후속 decorator 가 평가된다 (분기 — @ValidateIf 거짓 분기)", () => {
+    // @IsOptional 이었다면 0 error 였을 payload 다. @ValidateIf 는 undefined 만 skip 하므로
+    // null 은 @IsString / @IsArray / @IsBoolean 으로 흘러가 위반이 된다.
+    const properties = validateSync(
+      plainToInstance(UpdateCollectionTargetDto, {
+        endpoint: null,
+        orgs: null,
+        repos: null,
+        spaces: null,
+        active: null,
+      }),
+    )
+      .map((e) => e.property)
+      .sort();
+    expect(properties).toEqual([
+      "active",
+      "endpoint",
+      "orgs",
+      "repos",
+      "spaces",
+    ]);
+  });
+
+  it("endpoint 를 전달하면 @IsNotEmpty 가 평가된다 (분기 — @ValidateIf 반대편)", () => {
     expect(violations({ endpoint: "github.com" })).toEqual([]);
     expect(violations({ endpoint: "" })).toEqual(
       expect.arrayContaining(["isNotEmpty"]),
@@ -162,14 +203,39 @@ describe("UpdateCollectionTargetDto", () => {
     );
   });
 
-  it("⑥ spaces 가 null 이면 @IsOptional 이 검증을 skip 한다 (negative — 계약 고정)", () => {
-    // @IsOptional 은 undefined 와 null 을 **둘 다** skip 한다. 따라서 명시적 null 은
-    // DTO 층에서 걸리지 않고 repository 로 내려간다(`CollectionTargetUpdateInput` 의
-    // optional 경계와 동일). null 로의 삭제 semantic 을 400 으로 거절하려면
-    // UpdateServiceIdentityDto 처럼 @ValidateIf 로 바꿔야 하며, 그 판단은 controller
-    // slice 의 오류 계약(§Decision 5 오류 표 e 행) 확정 시점 몫이다. 본 test 는 그때까지
-    // 현재 계약을 고정해 조용한 drift 를 드러낸다.
-    expect(violations({ spaces: null })).toEqual([]);
+  it("⑥ spaces 가 null 이면 isArray 위반이다 (negative — 명시적 null 거절)", () => {
+    // T-1818 이 @IsOptional → @ValidateIf 교체로 확정한 계약이다. 종전 @IsOptional 은
+    // undefined 와 null 을 **둘 다** skip 해서 명시적 null 이 DTO 를 통과해 repository 로
+    // 내려갔고, 그만큼 ADR-0059 §Decision 5 오류 표 e 행(형식 검증 실패 = 400)이 샜다.
+    // 이제 null 은 skip 대상이 아니라 @IsArray 위반이며 ValidationPipe 가 400 을 낸다
+    // (UpdateServiceIdentityDto 선례와 동일). null 로의 삭제 semantic 은 지원하지 않는다.
+    expect(violations({ spaces: null })).toEqual(
+      expect.arrayContaining(["isArray"]),
+    );
+  });
+
+  it("⑥-a endpoint 가 null 이면 isString 위반이다 (negative — 명시적 null 거절)", () => {
+    expect(violations({ endpoint: null })).toEqual(
+      expect.arrayContaining(["isString"]),
+    );
+  });
+
+  it("⑥-b orgs 가 null 이면 isArray 위반이다 (negative — 명시적 null 거절)", () => {
+    expect(violations({ orgs: null })).toEqual(
+      expect.arrayContaining(["isArray"]),
+    );
+  });
+
+  it("⑥-c repos 가 null 이면 isArray 위반이다 (negative — 명시적 null 거절)", () => {
+    expect(violations({ repos: null })).toEqual(
+      expect.arrayContaining(["isArray"]),
+    );
+  });
+
+  it("⑥-d active 가 null 이면 isBoolean 위반이다 (negative — 명시적 null 거절)", () => {
+    expect(violations({ active: null })).toEqual(
+      expect.arrayContaining(["isBoolean"]),
+    );
   });
 
   it("⑥' spaces 원소가 null 이면 isString 위반 (negative — 원소 타입 불일치)", () => {
