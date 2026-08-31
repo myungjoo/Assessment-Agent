@@ -2,7 +2,7 @@
 id: T-1819
 title: Add CollectionTarget to the truncateAll table list
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-070, REQ-072, REQ-073]
 independentStream: collection-target-backend
@@ -99,3 +99,16 @@ spec 이 같은 commit 에서 함께 갱신돼야 한다 (helper 1 개 + drift g
 - `7 도메인 테이블` 주석이 stale 로 남는 4 개 spec(`persons.e2e-spec.ts`,
   `groups.smoke-spec.ts`, `parts.smoke-spec.ts`, `persons.smoke-spec.ts`) 의 표기 정정 — 인접
   PR 의 nit-closure 로 흡수 가능.
+
+## Result
+
+**DONE** (2026-08-31T06:49:04Z, [PR #1431](https://github.com/myungjoo/Assessment-Agent/pull/1431) → main `92bdcfb8`, reviewer round 1 APPROVE — finding 0).
+
+[db-truncate.ts](../../test/helpers/db-truncate.ts) 의 `TRUNCATE_TABLES` 명단에 `"CollectionTarget"` 을
+8 번째 원소로 append 하고, 기존 7 원소의 값·순서는 그대로 두었다(2 파일 `+78/-11`). 주석의 테이블 개수
+표기를 7 → 8 로 정정하면서 T-0208 의 `"PermissionDeniedRecord"` 추가 관례대로 추가 근거
+(`@@unique([type, instanceKey])` 로 인한 test 간 state leak 차단)를 병기했다. colocated drift guard
+spec 의 `toEqual` 을 8 원소로 갱신하고 negative 4 종(중복 1 회 · 7 원소 prefix · 맨몸 토큰 부재 ·
+길이 8)을 더해, `ADR-0059 §Follow-ups (d)` e2e 가 `P2002` → 409 를 잔여 row 발 409 와 섞이지 않게
+검증할 수 있는 격리 전제를 세웠다. `src/` · `prisma/` 무변경이라 전역 coverage 영향 0
+(463 suite / 13404 test green, line 99.94% · function 100%).
