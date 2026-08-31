@@ -269,6 +269,8 @@ describe('AdminView 삭제 배선 (T-1828 컨테이너)', () => {
   // negative — 초기 렌더에는 삭제 오류 alert 가 없다(빈 alert 잔존 0).
   it('초기 렌더에는 삭제 오류 alert 가 없다 (negative — 빈 alert 미렌더)', () => {
     const { html } = renderAdmin('Admin');
+    // 오류 state 가 undefined 면 alert div 자체가 렌더되지 않는다(빈 alert 잔존 0).
+    expect(html).not.toContain('<div role="alert"></div>');
     expect(html).not.toContain('삭제에 실패');
   });
 

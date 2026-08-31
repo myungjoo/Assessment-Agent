@@ -288,6 +288,7 @@ describe('CollectionTargetList', () => {
     );
     expect(html).not.toContain(INACTIVE_BADGE);
   });
+
   // ── T-1828 삭제 진입점 (onDelete optional prop) ──────────────────────────────
 
   // happy-path — onDelete 전달 시 각 행에 삭제 버튼(<button type="button">)이 행 수만큼 렌더된다.
