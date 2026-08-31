@@ -2037,6 +2037,78 @@ async function runDeleteCollectionTarget(
   }
 }
 
+// 수집 대상 활성/비활성 토글(PATCH) + state-전이 로직에 주입하는 deps(T-1829 — 위
+// DeleteCollectionTargetDeps 를 1:1 mirror 하되 PATCH 계약에 맞춘다). in-flight 표현이 boolean
+// 이 아니라 **진행 중 id** 인 것도 같은 이유다 — 토글은 행 단위 액션이라 어느 행이 진행 중인지가
+// 화면 표시에 필요하다. 발사 primitive 가 apiClient.request 인 것도 삭제 축과 같다(route 1 개뿐 —
+// per-resource client 모듈 추출은 task Out of Scope).
+interface ToggleCollectionTargetActiveDeps {
+  // PATCH 발사기 — (path, options) 시그니처는 apiClient.request 와 같다(테스트는 mock 주입).
+  patch: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 토글 진행 중인 행 id — truthy 면 미발사(이중 PATCH·경합 가드). 어느 행이든 하나가
+  // 진행 중이면 전체를 잠근다(재조회가 목록 전체를 갈아끼우므로 행별 병렬 토글은 무의미).
+  togglingId: string | undefined;
+  setTogglingId: (next: string | undefined) => void;
+  setToggleError: (next: string | undefined) => void;
+  // 목록 권위 재조회(useApiResource 의 reload) — 토글 성공 후 호출한다.
+  reloadTargets: () => void;
+}
+
+// 수집 대상 활성/비활성 토글 PATCH /api/collection-targets/:id + state-전이를 캡슐화한 순수
+// async 러너(T-1829 — runDeleteCollectionTarget 을 1:1 mirror). backend 는
+// collection-target.controller `@Patch(":id")` + `@Roles("Admin")` 이고, DTO(update-collection-target)
+// 의 `active?: boolean` 축만 실어 보낸다(정체성 축 type/instanceKey 는 body 금지 계약).
+// ADR-0059 §Decision 5 의 "일시 제외는 삭제가 아니라 active=false PATCH" 를 실제로 발사하는 지점.
+// 동작:
+//  - 빈/공백뿐/비문자열 id → 미발사(잘못된 path·400 확정 요청을 네트워크 전에 차단).
+//  - togglingId 보유(이전 토글 미완) → 미발사(이중 PATCH·state 경합 차단).
+//  - 발사 시 진행 id on + 직전 error 비움 → PATCH(id 는 encodeURIComponent 안전 인코딩) →
+//    성공(목록 권위 재조회 — 응답 body 는 소비하지 않는다. 낙관 갱신 없음) /
+//    실패(문구 표면화 — throw 없이) → 진행 id off(공통 finally).
+async function runToggleCollectionTargetActive(
+  id: string,
+  nextActive: boolean,
+  deps: ToggleCollectionTargetActiveDeps,
+): Promise<void> {
+  // 비정상 호출 가드 — 비문자열(undefined·숫자 등 계약 위반 입력)은 trim 이 없으므로 typeof 로
+  // 먼저 잠그고, 빈/공백뿐 id 도 trim 후 빈 문자열이면 차단한다(경계값 — `/api/...//` 회피).
+  const targetId = typeof id === 'string' ? id.trim() : '';
+  if (!targetId) {
+    return;
+  }
+  // 동시 재호출 가드 — 진행 중인 행이 하나라도 있으면 미발사(이중 PATCH·state 경합 차단).
+  if (deps.togglingId) {
+    return;
+  }
+  deps.setTogglingId(targetId);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 문구가 남지 않도록).
+  deps.setToggleError(undefined);
+  try {
+    // PATCH — body 는 허용 축 중 active 하나뿐이다. 목록이 넘겨준 **다음 상태**를 그대로 싣기
+    // 때문에 여기서 현재 상태를 다시 계산하지 않는다(화면이 본 상태와 요청이 어긋날 여지 0).
+    // 응답 body(갱신된 row)는 소비하지 않고 재조회로 권위 목록을 받으므로, 계약을 어긴 shape 가
+    // 와도 여기서 throw 하지 않는다.
+    await deps.patch(
+      `${COLLECTION_TARGETS_PATH}/${encodeURIComponent(targetId)}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: nextActive }),
+      },
+    );
+    // 성공 — 권위 목록 재조회(토글된 행의 표시가 재조회로 바뀐다 — 낙관 갱신 없음).
+    deps.reloadTargets();
+  } catch (e) {
+    // 실패 — 문구를 안전 표시(throw 없이). 400 검증 / 403 Admin 미만 / 404 row 부재(P2025) /
+    // 5xx / 네트워크 0 모두 동일 경로다. 재조회는 하지 않는다(실패 시 목록 그대로 유지).
+    deps.setToggleError(deps.describeError(e));
+  } finally {
+    deps.setTogglingId(undefined);
+  }
+}
+
 // 수정 PATCH + state-전이 로직에 주입하는 deps(T-1768 — CreateServiceIdentityDeps 를 1:1 mirror).
 // 발사 primitive 가 client 의 updateServiceIdentity(기본 주입, 테스트는 mock)인 것은 item path
 // 조립과 body 화이트리스트(externalId 단일)가 그 함수 책임이기 때문이다(ADR-0058 §Decision 3 —
@@ -4670,6 +4742,31 @@ function AdminView({
     [deletingCollectionTargetId, reloadCollectionTargets],
   );
 
+  // 토글 진행 중인 행 id + 실패 문구(T-1829) — 삭제 축 state 를 재사용하지 않고 별도로 둔다.
+  // 재사용하면 삭제 실패 문구와 토글 실패 문구가 한 자리를 다퉈 어느 동작이 실패했는지 구분되지
+  // 않고, 한 행의 삭제가 다른 행의 토글까지 잠그는 과잉 가드가 된다.
+  const [togglingCollectionTargetId, setTogglingCollectionTargetId] = useState<
+    string | undefined
+  >(undefined);
+  const [toggleCollectionTargetError, setToggleCollectionTargetError] =
+    useState<string | undefined>(undefined);
+
+  // 토글 실 mutation 핸들러(T-1829) — 러너에 deps 를 주입해 호출만 한다. 목록이 넘겨준
+  // nextActive 를 그대로 러너에 전달한다(컨테이너가 현재 상태를 다시 계산하지 않는다 —
+  // handleDeleteCollectionTarget 동형이되 인자가 2 개).
+  const handleToggleCollectionTargetActive = useCallback(
+    (id: string, nextActive: boolean) =>
+      runToggleCollectionTargetActive(id, nextActive, {
+        patch: request,
+        describeError: toErrorMessage,
+        togglingId: togglingCollectionTargetId,
+        setTogglingId: setTogglingCollectionTargetId,
+        setToggleError: setToggleCollectionTargetError,
+        reloadTargets: reloadCollectionTargets,
+      }),
+    [togglingCollectionTargetId, reloadCollectionTargets],
+  );
+
   // 선택 파트 상태(T-1156) — controlled lift-up(컨테이너 소유). 파트 관리 섹션의 파트 선택
   // <select> 가 이 값을 갱신하고, 값이 있을 때만 소속 인원을 조건부 조회한다(selectedGroupId 동형).
   const [selectedPartId, setSelectedPartId] = useState<string>(
@@ -5959,12 +6056,23 @@ function AdminView({
              에게는 콜백을 내리지 않아 버튼 자체가 렌더되지 않는다(403 확정 컨트롤 미노출 —
              등록 폼 gating 과 동형). 목록 본체는 종전대로 gating 바깥에 남는다. */
           onDelete={isAdmin ? handleDeleteCollectionTarget : undefined}
+          /* 활성/비활성 토글 진입점(T-1829) — backend `@Patch(":id")` 가 `@Roles("Admin")` 이라
+             non-Admin 에게는 콜백을 내리지 않아 버튼 자체가 렌더되지 않는다(REQ-073 RBAC
+             게이팅 — 403 확정 컨트롤 미노출). 목록 본체는 종전대로 gating 바깥에 남는다. */
+          onToggleActive={
+            isAdmin ? handleToggleCollectionTargetActive : undefined
+          }
         />
         {/* 삭제 실패 문구(T-1828) — 목록·등록 폼과 별도 축이라 섹션 안 독립 alert 로 노출한다
             (등록 폼의 error props 와 섞이면 어느 동작이 실패했는지 구분되지 않는다). 값이
             없으면 미렌더라 정상 화면에는 빈 alert 가 남지 않는다. */}
         {deleteCollectionTargetError ? (
           <div role="alert">{deleteCollectionTargetError}</div>
+        ) : null}
+        {/* 토글 실패 문구(T-1829) — 삭제 문구와 별도 alert 다(같은 자리를 쓰면 어느 동작이
+            실패했는지 구분되지 않는다). 값이 없으면 미렌더라 정상 화면에 빈 alert 는 없다. */}
+        {toggleCollectionTargetError ? (
+          <div role="alert">{toggleCollectionTargetError}</div>
         ) : null}
         {/* 등록 폼(T-1826, ADR-0059 §Follow-ups (e) 편집 축) — POST /api/collection-targets 가
             `@Roles("Admin")` 편집 tier 라 isAdmin 이 true 일 때만 렌더한다(non-Admin 에게
@@ -6030,6 +6138,7 @@ export {
   runCreateServiceIdentity,
   runCreateCollectionTarget,
   runDeleteCollectionTarget,
+  runToggleCollectionTargetActive,
   runUpdateServiceIdentity,
   runDeleteServiceIdentity,
   runSetPrimaryServiceIdentity,
