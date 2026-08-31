@@ -2,7 +2,7 @@
 id: T-1823
 title: CollectionTarget 오류 계약 5 행을 e2e 로 고정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-070, REQ-072, REQ-073]
 independentStream: collection-target-registration
@@ -14,6 +14,7 @@ estimatedFiles: 1
 sizeExempt: true
 exemptReason: "error-contract-indivisible — ADR-0059 §Decision 5 오류 표 a~e 5 행은 한 계약이고, 나눠 자르면 부트스트랩·seed 보일러플레이트 약 90 LOC 이 두 파일에 복제된다. 파일 수 1 개로 파일 cap 은 여유."
 created: 2026-08-31
+completed: 2026-08-31T10:57:33Z
 plannerNote: "P5 / ADR-0059 §Follow-ups (d) — T-1819 격리 전제 머지 후 오류 표 5 행을 실 HTTP 로 고정하는 e2e 1 파일"
 ---
 
@@ -65,6 +66,15 @@ issue-still-relevant pre-check (`origin/main` tip `092ff2fb`): `test/e2e/collect
 
 `tester → implementer` (본 slice 는 test 파일 1 개가 산출물 전부라 tester 가 주 작성자, implementer 는 spec 이 red 를 낼 때 원인 분류만 — 수정은 Out of Scope)
 
+## Result
+
+- **DONE** (2026-08-31T10:57:33Z) — [PR #1432](https://github.com/myungjoo/Assessment-Agent/pull/1432) squash 머지 → main `99a1ea54`.
+- 신규 `test/e2e/collection-targets.e2e-spec.ts` 1 파일 `+454/-0`. `src/` · `prisma/` · `package.json` · CI workflow 무변경 — 전역 coverage 변동 0.
+- ADR-0059 `§Decision 5` route 표 5 행 + 오류 표 a~e 5 행을 실 guard stack · 실 ValidationPipe · 실 PostgreSQL 위에서 고정. 400 negative 는 7 케이스(미허용 `type` · 빈 `instanceKey` · 256 자/255 자 경계 · 미정의 필드 · 배열 원소 type · `PATCH` 정체성 축 · 명시적 `null` vs 빈 `{}`).
+- e2e red 0 — 오류 표 5 행이 실 코드 위에서 그대로 green 이라 `src/` 결함 발견 없음 (Out of Scope 의 "red 면 BLOCKED" 분기 미발동).
+- 실측 454 LOC 이 `estimatedDiff` 330 을 상회했으나 `sizeExempt: true` 이며 파일 수 1 개로 파일 cap 여유. 초과분은 header 책임 경계 주석 + 400 negative 확장분.
+- reviewer round 1 APPROVE (finding 0), 4-게이트 PASS, CI 전량 green (e2e step 포함).
+
 ## Follow-ups
 
-(작성 시점 비어 있음)
+(없음 — e2e red 0)
