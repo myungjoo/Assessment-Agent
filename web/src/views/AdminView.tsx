@@ -120,6 +120,11 @@ import type { UserRow } from '../components/UserList';
 // 타입에 재사용한다(PartRow / UserRow 차용 convention 동형 — 별도 api client 모듈 신설 0).
 import CollectionTargetList from '../components/CollectionTargetList';
 import type { CollectionTargetRow } from '../components/CollectionTargetList';
+// 수집 대상 등록 폼 마운트 대상(T-1826, ADR-0059 §Follow-ups (e) 편집 축) — 목록 아래에
+// Admin+ 일 때만 렌더한다(POST 가 `@Roles("Admin")` 편집 tier).
+import CollectionTargetAddForm, {
+  COLLECTION_TARGET_TYPES,
+} from '../components/CollectionTargetAddForm';
 // T-1711 (REQ-067) — 사용자 추가 폼의 아이디·비밀번호 조건 사전 안내 문구. 여기서 문구를 새로
 // 쓰지 않고 SuperAdmin 초기 셋업 폼(T-1710)이 이미 export 한 상수를 재사용한다 — 두 화면이 같은
 // backend 계약(POST /api/users 의 AddUserDto: @IsEmail + @IsNotEmpty + @MinLength)을 쓰므로
@@ -191,6 +196,11 @@ const COLLECTION_TARGET_HEADING = '수집 대상 관리';
 // REQ-070 의도를 살려, 목록이 비어 있는 것이 오류가 아니라 아직 등록이 없다는 정상 상태임을
 // 한국어로 명시한다(EMPTY_PART_PERSON_TEXT 동형 convention).
 const EMPTY_COLLECTION_TARGET_TEXT = '등록된 수집 대상이 없습니다';
+
+// 허용 type 값의 string 배열 view(T-1826) — 정본은 CollectionTargetAddForm 의 상수(그 자체가
+// backend DTO @IsIn 과 동기)다. readonly 튜플 그대로는 `includes(임의 string)` 가 타입 오류라
+// 판정용으로만 넓힌 별칭을 둔다(값 복제 0 — 상수를 두 곳에 적으면 갈라진다).
+const COLLECTION_TARGET_TYPE_VALUES: readonly string[] = COLLECTION_TARGET_TYPES;
 
 // 사용자 추가 폼 조건 안내 <p> 의 고유 DOM id(T-1711, REQ-067) — 대응 입력의 aria-describedby 가
 // 이 값을 가리켜 스크린리더에서도 입력 전에 조건이 함께 읽힌다. 문구 본문은 SuperAdmin 셋업 폼과
@@ -1890,6 +1900,80 @@ async function runCreateServiceIdentity(
     deps.setCreating(false);
   }
 }
+
+// 수집 대상 등록(POST) body 의 3 허용 축 묶음(T-1826) — backend CreateCollectionTargetDto 의
+// 필수 3 필드와 1:1 이다. optional 4 축(`orgs`/`repos`/`spaces`/`active`)은 미전달로 DB
+// default 에 위임하고, `id`/`createdAt`/`updatedAt`/token 계열은 애초에 이 타입에 없으므로
+// forbidNonWhitelisted 400 이 나는 경로 자체가 없다(ADR-0059 §Decision 2 credential 경계).
+type CollectionTargetInput = {
+  type: string;
+  instanceKey: string;
+  endpoint: string;
+};
+
+// 등록 POST + state-전이 로직에 주입하는 deps(T-1826 — CreateServiceIdentityDeps 를 1:1
+// mirror). 발사 primitive 가 apiClient.request 인 것은 본 slice 가 route 1 개뿐이라 per-resource
+// client 모듈을 아직 두지 않기 때문이다(task Out of Scope — 5 route 가 다 붙는 시점에 추출 판단).
+interface CreateCollectionTargetDeps {
+  // POST 발사기 — (path, options) 시그니처는 apiClient.request 와 같다(테스트는 mock 주입).
+  post: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 create in-flight 여부 — true 면 미발사(이중 POST·경합 가드).
+  creating: boolean;
+  setCreating: (next: boolean) => void;
+  setCreateError: (next: string | undefined) => void;
+  // 목록 권위 재조회(useApiResource 의 reload) / 성공 후 입력 초기화.
+  reloadTargets: () => void;
+  resetInput: () => void;
+}
+
+// 등록 POST /api/collection-targets(body `{ type, instanceKey, endpoint }`) + state-전이를
+// 캡슐화한 순수 async 러너(T-1826 — runCreateServiceIdentity mirror). 3 no-op 가드(허용 밖
+// type / 입력 미완 / in-flight) 뒤, 진행 on + 직전 error 비움 → POST → 성공(입력 초기화 +
+// 목록 재조회) / 실패(문구 표면화 — throw 없이) → 진행 off(공통).
+async function runCreateCollectionTarget(
+  input: CollectionTargetInput,
+  deps: CreateCollectionTargetDeps,
+): Promise<void> {
+  // 필수 2 필드 방어 — 하나라도 비면(공백뿐 포함) 미발사(400 확정 요청을 네트워크 전에 차단).
+  const instanceKey = input?.instanceKey?.trim();
+  const endpoint = input?.endpoint?.trim();
+  if (!instanceKey || !endpoint) {
+    return;
+  }
+  // type 방어 — @IsIn 허용 밖(빈 값·소문자·미지원 종류)이면 미발사. 폼 <select> 가 2 option
+  // 뿐이지만 러너는 컨테이너 state 를 그대로 받으므로 값 자체를 여기서 한 번 더 잠근다.
+  const type = input?.type;
+  if (!COLLECTION_TARGET_TYPE_VALUES.includes(type)) {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 create 미완 중이면 미발사(이중 POST·state 경합 차단).
+  if (deps.creating) {
+    return;
+  }
+  deps.setCreating(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리).
+  deps.setCreateError(undefined);
+  try {
+    // POST — 201 Created. 응답 body 는 소비하지 않고 재조회로 권위 목록을 받는다(낙관 추가
+    // 없음). 그래서 응답이 배열·null 등 예상 밖 shape 여도 여기서 throw 하지 않는다.
+    await deps.post(COLLECTION_TARGETS_PATH, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, instanceKey, endpoint }),
+    });
+    deps.resetInput();
+    deps.reloadTargets();
+  } catch (e) {
+    // 실패 — 문구를 안전 표시(throw 없이). 400·403·409 중복·5xx·네트워크 0 모두 동일 경로.
+    // 재조회·입력은 건드리지 않는다(입력 유지 — 사용자가 다시 타이핑하지 않아도 되게).
+    deps.setCreateError(deps.describeError(e));
+  } finally {
+    deps.setCreating(false);
+  }
+}
+
 // 수정 PATCH + state-전이 로직에 주입하는 deps(T-1768 — CreateServiceIdentityDeps 를 1:1 mirror).
 // 발사 primitive 가 client 의 updateServiceIdentity(기본 주입, 테스트는 mock)인 것은 item path
 // 조립과 body 화이트리스트(externalId 단일)가 그 함수 책임이기 때문이다(ADR-0058 §Decision 3 —
@@ -4437,6 +4521,9 @@ function AdminView({
     data: collectionTargetData,
     loading: collectionTargetLoading,
     error: collectionTargetError,
+    // 등록(POST) 성공 후 권위 재조회 수단(T-1826) — 같은 path 를 다시 부르는 hook 내장
+    // reload 라 nonce-aware 빌더로 갈아끼우지 않고도 목록이 최신화된다(추가 fetch 0).
+    reload: reloadCollectionTargets,
   } = useApiResource<CollectionTargetRow[]>(COLLECTION_TARGETS_PATH);
 
   // 응답 body 정상화(T-1825 negative ⑤) — controller 계약은 배열이지만 proxy 오동작·계약 위반
@@ -4447,6 +4534,54 @@ function AdminView({
     () =>
       Array.isArray(collectionTargetData) ? collectionTargetData : [],
     [collectionTargetData],
+  );
+
+  // 등록 3 controlled input(T-1826) — type 은 <select> 라 초기값을 허용 첫 값으로 두어
+  // 사용자가 아무것도 고르지 않아도 유효한 상태에서 시작한다(빈 값 → @IsIn 400 회피).
+  // 성공 후 세 값을 초기 상태로 되돌린다(연속 등록 시 직전 값 잔존 방지).
+  const [collectionTargetTypeInput, setCollectionTargetTypeInput] =
+    useState<string>(COLLECTION_TARGET_TYPES[0]);
+  const [collectionTargetInstanceKeyInput, setCollectionTargetInstanceKeyInput] =
+    useState<string>('');
+  const [collectionTargetEndpointInput, setCollectionTargetEndpointInput] =
+    useState<string>('');
+  // 등록 in-flight 플래그(폼 loading + 동시 재호출 가드 겸용)와 실패 문구(폼 상단 안전 표시).
+  const [creatingCollectionTarget, setCreatingCollectionTarget] =
+    useState<boolean>(false);
+  const [createCollectionTargetError, setCreateCollectionTargetError] =
+    useState<string | undefined>(undefined);
+
+  // 등록 실 mutation 핸들러(T-1826) — 러너에 deps 를 주입해 호출만 한다. 입력 3 축·in-flight
+  // 를 deps 배열에 포함해 stale 없이 최신 값으로 발사한다(handleCreateServiceIdentity 동형).
+  const handleCreateCollectionTarget = useCallback(
+    () =>
+      runCreateCollectionTarget(
+        {
+          type: collectionTargetTypeInput,
+          instanceKey: collectionTargetInstanceKeyInput,
+          endpoint: collectionTargetEndpointInput,
+        },
+        {
+          post: request,
+          describeError: toErrorMessage,
+          creating: creatingCollectionTarget,
+          setCreating: setCreatingCollectionTarget,
+          setCreateError: setCreateCollectionTargetError,
+          reloadTargets: reloadCollectionTargets,
+          resetInput: () => {
+            setCollectionTargetTypeInput(COLLECTION_TARGET_TYPES[0]);
+            setCollectionTargetInstanceKeyInput('');
+            setCollectionTargetEndpointInput('');
+          },
+        },
+      ),
+    [
+      collectionTargetTypeInput,
+      collectionTargetInstanceKeyInput,
+      collectionTargetEndpointInput,
+      creatingCollectionTarget,
+      reloadCollectionTargets,
+    ],
   );
 
   // 선택 파트 상태(T-1156) — controlled lift-up(컨테이너 소유). 파트 관리 섹션의 파트 선택
@@ -5735,6 +5870,23 @@ function AdminView({
           error={collectionTargetError}
           emptyMessage={EMPTY_COLLECTION_TARGET_TEXT}
         />
+        {/* 등록 폼(T-1826, ADR-0059 §Follow-ups (e) 편집 축) — POST /api/collection-targets 가
+            `@Roles("Admin")` 편집 tier 라 isAdmin 이 true 일 때만 렌더한다(non-Admin 에게
+            보이면 403 이 확정된 컨트롤을 노출하는 셈). 위 목록은 GET 이 `@Roles("User")` 라
+            종전대로 gating 바깥에 그대로 둔다 — 읽기 축 회귀 0. */}
+        {isAdmin ? (
+          <CollectionTargetAddForm
+            type={collectionTargetTypeInput}
+            instanceKey={collectionTargetInstanceKeyInput}
+            endpoint={collectionTargetEndpointInput}
+            onTypeChange={setCollectionTargetTypeInput}
+            onInstanceKeyChange={setCollectionTargetInstanceKeyInput}
+            onEndpointChange={setCollectionTargetEndpointInput}
+            onSubmit={handleCreateCollectionTarget}
+            loading={creatingCollectionTarget}
+            error={createCollectionTargetError}
+          />
+        ) : null}
       </section>
     </section>
   );
@@ -5780,6 +5932,7 @@ export {
   runCreatePerson,
   extractCreatedPersonId,
   runCreateServiceIdentity,
+  runCreateCollectionTarget,
   runUpdateServiceIdentity,
   runDeleteServiceIdentity,
   runSetPrimaryServiceIdentity,
