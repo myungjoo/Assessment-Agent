@@ -3,7 +3,7 @@
 // 책임 (T-0052 — ADR-0004 §Cleanup 정책 박제):
 //   - ADR-0004 §Decision 의 cleanup 정책 박제: 각 test 후 모든 도메인 테이블을
 //     TRUNCATE ... RESTART IDENTITY CASCADE 로 초기화하여 test 간 격리 보장.
-//   - prisma.$executeRawUnsafe 1 회 호출 — 단일 SQL 문 안에 7 테이블 동시 처리
+//   - prisma.$executeRawUnsafe 1 회 호출 — 단일 SQL 문 안에 8 테이블 동시 처리
 //     (race 안전 + statement timing 단축).
 //   - RESTART IDENTITY: serial/identity sequence reset → 다음 test 의 id 가 1 부터.
 //   - CASCADE: foreign key 의 ON DELETE 동작 자동 처리 — Person ↔ ServiceIdentity
@@ -13,13 +13,17 @@
 //
 // 테이블 명단 (prisma/migrations/ 의 CREATE TABLE 문 기준 PascalCase quoted identifier):
 //   "Person", "ServiceIdentity", "Group", "Part", "PersonGroupMembership", "User",
-//   "PermissionDeniedRecord"
+//   "PermissionDeniedRecord", "CollectionTarget"
 // User 추가 (T-0087) — RBAC 첫 production 적용 endpoint (users.e2e-spec.ts) 의
 // afterEach 격리. email @unique 의 cross-test 충돌 방지.
 // PermissionDeniedRecord 추가 (T-0208) — append-only standalone audit 테이블.
 // 후속 권한 거부 round-trip smoke 의 afterEach 격리 (테이블 간 state leak 0). FK /
 // relation 부재 (ADR-0022 §5) 라 CASCADE 동반 truncate 대상은 아니나, 본 테이블에
 // 직접 seed 하는 smoke 의 격리를 위해 명단에 추가.
+// CollectionTarget 추가 (T-1819) — @@unique([type, instanceKey]) 가 걸려 있어
+// 앞 test 가 남긴 row 가 뒤 test 의 등록을 의도치 않은 409 (P2002) 로 깨뜨린다.
+// ADR-0059 §Follow-ups (d) e2e 의 격리 전제 — FK / relation 은 0 이라
+// CASCADE 파급은 없고, 본 테이블에 직접 seed 하는 e2e 격리만이 목적이다.
 //
 // 사용 예시 (T-0053 머지 시점부터 활용):
 //   afterEach(async () => {
@@ -36,10 +40,11 @@ import type { PrismaService } from "../../src/persistence/prisma.service";
 // 에서 jest.fn() 1 개로 검증 가능.
 export type TruncatableClient = Pick<PrismaService, "$executeRawUnsafe">;
 
-// TRUNCATE 대상 7 테이블 (PascalCase quoted identifier — prisma default mapping).
+// TRUNCATE 대상 8 테이블 (PascalCase quoted identifier — prisma default mapping).
 // const 로 노출하여 spec 에서 substring 검증 anchor 로 활용.
 // T-0087: "User" 추가 — RBAC 첫 production 적용 endpoint 의 e2e 가 User 테이블에
 // SuperAdmin / target user seed → afterEach 격리 필수.
+// T-1819: "CollectionTarget" 추가 — 상세 근거는 위 명단 주석 참조.
 export const TRUNCATE_TABLES: readonly string[] = [
   '"Person"',
   '"ServiceIdentity"',
@@ -48,9 +53,10 @@ export const TRUNCATE_TABLES: readonly string[] = [
   '"PersonGroupMembership"',
   '"User"',
   '"PermissionDeniedRecord"',
+  '"CollectionTarget"',
 ];
 
-// truncateAll — 7 테이블 전체를 1 SQL 문으로 TRUNCATE.
+// truncateAll — 8 테이블 전체를 1 SQL 문으로 TRUNCATE.
 // 호출자 책임: prisma 가 connection 된 상태일 것 (PrismaService.onModuleInit
 // 완료 후). connection 미수립 시 $executeRawUnsafe 가 reject → 본 함수도 reject.
 export async function truncateAll(prisma: TruncatableClient): Promise<void> {
