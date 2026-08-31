@@ -2,7 +2,9 @@
 id: T-1826
 title: AdminView 수집 대상 등록 폼 신설 + POST 배선
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1435
+completedAt: 2026-08-31T16:55:39Z
 commitMode: pr
 coversReq: [REQ-070, REQ-072]
 estimatedDiff: 460
@@ -71,4 +73,10 @@ plannerNote: "P6/ADR-0059 §Follow-ups (e) 편집 축 첫 조각. cap-bend pre-j
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 추가한다.)
+- `docs/architecture/api.md` 에 `/api/collection-targets` 5 route 가 미등재다 (T-1814~T-1817 backend slice 에서 누락된 선행 부채). reviewer 가 MINOR finding 으로 지적했고 본 slice 범위 밖이라 별도 `direct` doc task 로 큐잉한다.
+- 실측 diff 가 `estimatedDiff: 460` 을 초과한 +867 LOC 였다 (파일 수 4 는 cap 안, `sizeExempt: true`). 초과분 대부분이 R-112 spec 이라 제품 코드는 cap 안이지만, planner 의 UI slice 추정치 산출식이 spec 배수를 과소평가한다는 신호다.
+- 편집 축 잔여 조각 — `PATCH` 수정 폼 · `DELETE` 삭제 버튼 · `active` 토글 · `orgs`/`repos`/`spaces` 배열 입력 UI.
+
+## Result (2026-08-31)
+
+`CollectionTargetAddForm.tsx` 신설 + `AdminView` 에 `POST /api/collection-targets` 배선 (성공 시 입력 초기화 + `useApiResource.reload()` 재조회). 폼은 `isAdmin` gating 안, 목록은 gating 바깥 유지. 신규 spec 71 건 포함 web 전량 3149 건 green. PR [#1435](https://github.com/myungjoo/Assessment-Agent/pull/1435) reviewer APPROVE round=1 (BLOCKER 0 / MAJOR 0 / MINOR 2) · CI green · squash 머지.
