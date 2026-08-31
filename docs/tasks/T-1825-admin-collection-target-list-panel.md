@@ -2,7 +2,9 @@
 id: T-1825
 title: AdminView 에 수집 대상(CollectionTarget) 목록 패널 신설 + 마운트
 phase: P6
-status: PENDING
+status: DONE
+prNumber: 1434
+completedAt: 2026-08-31T15:02:45Z
 commitMode: pr
 coversReq: [REQ-070, REQ-072]
 estimatedDiff: 440
@@ -72,3 +74,13 @@ plannerNote: "P6/ADR-0059 §Follow-ups (e) 화면 축 첫 조각. cap-bend pre-j
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 추가한다.)
+
+## Result (2026-08-31)
+
+**DONE** — [PR #1434](https://github.com/myungjoo/Assessment-Agent/pull/1434) → main `2fe1b581` (squash), 4 파일 `+639/-0`. reviewer round 2 APPROVE(round 1 MINOR 2 건을 본 PR 안에서 closure — CLAUDE.md §3 Nit-in-PR closure), 4-게이트 PASS.
+
+- `web/src/components/CollectionTargetList.tsx` 신설 — `ServiceIdentityList` 동형 controlled presentational. 분기 순서 `loading → error → empty → populated` 고정, `CollectionTargetRow` 같은 파일 named export.
+- `web/src/views/AdminView.tsx` 마운트 — `useApiResource` 1 회 조회를 `Array.isArray` 로 정상화해 `isAdmin` gating **바깥** 섹션에 내려보낸다(`GET /api/collection-targets` 는 `@Roles("User")` 조회 tier).
+- spec 2 개 27 case 신규 — happy / error(`role="alert"` · 비-2xx 500) / 분기 4 종 우선순위 / negative 5 종(round 2 에서 빈 문자열 · 비-배열 경계 2 건 가산). web 109 파일 3,078 test 전량 green, build 성공.
+- `src/` · `prisma/` · `test/` · `package.json` · `.github/workflows/` 무변경이라 전역 coverage 변동 0(백엔드 463 suite / 13,404 test green).
+- 실측 `+639 LOC` 로 `estimatedDiff` 440 초과 — 초과분 전량 spec 이고 제품 코드는 206 LOC(300 상한 내). `sizeExempt: true` 이며 PR 본문 · review 에 공시했다.
