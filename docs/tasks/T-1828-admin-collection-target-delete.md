@@ -2,7 +2,7 @@
 id: T-1828
 title: AdminView 수집 대상 행별 삭제 버튼 신설 + DELETE 배선
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-072, REQ-073]
 independentStream: collection-target-admin-ui
@@ -17,6 +17,7 @@ estimatedFiles: 4
 sizeExempt: true
 exemptReason: "cap-bend pre-justified: R-112 4-카테고리 cover backbone × 1.5 = 480 LOC. 직전 동형 slice T-1826(등록 폼 + POST 배선, 4 파일) 이 실측 +867 LOC 였고 초과분 대부분이 R-112 spec 이었다 — 제품 코드는 약 110 LOC 로 cap 안. 파일 수 4 로 파일 cap(≤ 5) 은 예외 없이 준수."
 created: 2026-09-01
+completed: 2026-08-31T20:54:28Z
 plannerNote: "P6 / ADR-0059 §Follow-ups (e) 편집 축 셋째 조각 — 읽기(T-1825)·등록(T-1826) 다음의 DELETE 1 동작"
 ---
 
@@ -72,3 +73,7 @@ plannerNote: "P6 / ADR-0059 §Follow-ups (e) 편집 축 셋째 조각 — 읽기
 ## Follow-ups
 
 (생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append 한다.)
+
+## Result (2026-08-31)
+
+`CollectionTargetList` 에 optional `onDelete` prop + 조건부 행별 삭제 버튼을 신설하고, `AdminView` 에 `runDeleteCollectionTarget` 러너 (비문자열 · 공백 id 미발사 · in-flight id 가드 · `encodeURIComponent` · 204 body 미소비 · 실패 시 throw 0 · `finally` 해제) 와 `deletingCollectionTargetId` / `deleteCollectionTargetError` state 를 배선했다. `onDelete={isAdmin ? handleDeleteCollectionTarget : undefined}` 로 REQ-073 RBAC gating 을 같이 박제했다. 4 파일 +532/-2, 신규 spec 60 건 포함 web 전량 3192 건 green · 루트 `pnpm test:cov` 13404 건 green (line · function 80% 게이트 통과, `src/` 무변경). PR [#1436](https://github.com/myungjoo/Assessment-Agent/pull/1436) reviewer APPROVE round=1 (BLOCKER 0 / MINOR 0, nit 2 건은 `358db8d7` 로 본 PR 내 closure) · CI green · squash 머지 (`7e5858c6`).
