@@ -2,8 +2,9 @@
 id: T-1829
 title: AdminView 수집 대상 행별 활성/비활성 토글 + PATCH { active } 배선
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1437
 coversReq: [REQ-072, REQ-073]
 independentStream: collection-target-admin-ui
 dependsOn: [T-1828]
@@ -84,3 +85,7 @@ api.md doc-sync([T-1827](T-1827-api-md-collection-target-routes-doc-sync.md)).
 ## Follow-ups
 
 (생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append 한다.)
+
+## Result (2026-08-31)
+
+`CollectionTargetList` 에 optional `onToggleActive` prop + `isRowActive` 순수 함수 + 상태 파생 라벨 (비활성화 / 활성화) 토글 버튼 (삭제 버튼 앞) 을 신설하고, `AdminView` 에 `runToggleCollectionTargetActive` 러너 (`PATCH` + body `{ active }` + 재조회 + 실패 시 throw 0 + `finally` 해제) 와 진행 id · 오류 state 를 배선했다. `onToggleActive={isAdmin ? handler : undefined}` 로 REQ-073 RBAC gating 을 같이 박제했다. 4 파일 +664/-4 (제품 코드 +151/-4, 나머지는 신규 spec 56 건), web 전량 3251 건 green · 루트 `pnpm test:cov` 13404 건 green (line · function 80% 게이트 통과, `src/` 무변경). PR [#1437](https://github.com/myungjoo/Assessment-Agent/pull/1437) reviewer APPROVE round=1 (BLOCKER 0 / MINOR 1 — `estimatedDiff: 450` 대비 실측 664 로 다음 mirror slice 추정치 상향 권고, 차단 사유 아님) · CI green · squash 머지 (`cbb37dcd`).
