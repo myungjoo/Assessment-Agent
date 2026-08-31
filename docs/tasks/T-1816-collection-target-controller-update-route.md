@@ -2,7 +2,9 @@
 id: T-1816
 title: Add the PATCH update route to CollectionTargetController
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-08-31T02:02:12Z
+prNumber: 1428
 commitMode: pr
 coversReq: [REQ-070, REQ-072, REQ-073]
 independentStream: collection-target-backend
