@@ -2,7 +2,7 @@
 id: T-1817
 title: Add the DELETE route to CollectionTargetController
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-070, REQ-072, REQ-073]
 independentStream: collection-target-backend
@@ -14,6 +14,9 @@ estimatedDiff: 210
 estimatedFiles: 2
 created: 2026-08-31
 plannerNote: ADR-0059 Follow-ups (c) 여섯째 조각 — 편집 tier 잔여 DELETE 1 route 로 5 route 표 완결
+completedAt: 2026-08-31T03:56:27Z
+prNumber: 1429
+mergeCommit: 2c82ba83
 ---
 
 # T-1817 — Add the DELETE route to CollectionTargetController
@@ -72,4 +75,12 @@ route 1 개 = slice 1 개 절단은 [ServiceIdentityController](../../src/user/s
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 발견한 인접 작업을 여기에 append)
+- reviewer MINOR M1 — [api.md](../architecture/api.md) 의 `CollectionTarget` route 표를 5 route 전량으로 doc-sync. `ADR-0059 §Follow-ups (f)` 소관(direct doc slice)이며 본 route 머지로 착수 조건이 충족됐다.
+- reviewer MINOR M2 — 실 HTTP `204` 를 고정하는 e2e 부재. `ADR-0059 §Follow-ups (d)` 소관(5 route 오류 표 5 행 일괄 고정)으로 그대로 이월.
+- `{ "endpoint": null }` 오류 계약 정정(T-1813 reviewer MINOR M2, `@IsOptional` → `@ValidateIf`) — DTO + DTO spec 2 파일 독립 slice 로 계속 이월.
+
+## Result
+
+**DONE** (2026-08-31T03:56:27Z, [PR #1429](https://github.com/myungjoo/Assessment-Agent/pull/1429) → main `2c82ba83`, reviewer round 1 APPROVE).
+
+`CollectionTargetController` 에 `@Delete(":id")` + `@HttpCode(204)` + `@Roles("Admin")` handler `remove` 1 개를 배선해 `ADR-0059 §Decision 5` route 표 5 행을 완결했다. 순수 위임(`Promise<void>` · `service.delete(id)` 1 회 · id 가공 0 · try/catch 0)이며 service · repository · DTO · module · schema 는 1 LOC 도 건드리지 않았다(2 파일 `+209/-38`). colocated spec 에 DELETE 9 종 test 를 더하고 `negative (f)` prototype 핸들러 목록을 4 → 5 로 뒤집어 controller line · branch · function coverage 100% 를 유지했다(전체 463 suite / 13393 test green).
