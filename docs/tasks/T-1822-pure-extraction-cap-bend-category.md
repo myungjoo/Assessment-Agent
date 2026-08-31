@@ -2,7 +2,7 @@
 id: T-1822
 title: Add a pure-extraction refactor category to the planner cap-bend table
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: []
 independentStream: driver-process-reform
