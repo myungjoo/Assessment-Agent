@@ -2,7 +2,7 @@
 id: T-1818
 title: Reject explicit null in UpdateCollectionTargetDto via @ValidateIf
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-070, REQ-072, REQ-073]
 independentStream: collection-target-backend
@@ -14,6 +14,9 @@ estimatedDiff: 180
 estimatedFiles: 2
 created: 2026-08-31
 plannerNote: ADR-0059 (c) 잔여 결함 — @IsOptional 이 null 을 skip 해 §Decision 5 오류 표 e 행(400) 이 새는 축을 e2e (d) 이전에 확정
+completedAt: 2026-08-31T04:49:19Z
+prNumber: 1430
+mergeCommit: 78efa42d
 ---
 
 # T-1818 — UpdateCollectionTargetDto 의 명시적 `null` 을 `@ValidateIf` 로 400 화
@@ -73,4 +76,11 @@ reviewer MINOR M2 로 외화된 `{ "endpoint": null }` 오류 계약은 세 slic
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 발견한 인접 작업을 여기에 적는다.)
+- `CreateCollectionTargetDto` 의 `@IsOptional` 4 필드(`orgs` · `repos` · `spaces` · `active`) 도 같은 `null` skip 축을 갖는다. 다만 create 는 "미전달 = 기본값" 성격이라 `null` 거절이 자명하지 않아 별도 slice 로 판단을 분리한다.
+- 실 HTTP 400 을 supertest 로 고정하는 e2e — `ADR-0059 §Follow-ups (d)` 소관으로 그대로 이월.
+
+## Result
+
+**DONE** (2026-08-31T04:49:19Z, [PR #1430](https://github.com/myungjoo/Assessment-Agent/pull/1430) → main `78efa42d`, reviewer round 1 APPROVE).
+
+`UpdateCollectionTargetDto` 5 필드의 `@IsOptional()` 을 `@ValidateIf((_o, value) => value !== undefined)` 로 교체해, class-validator 가 `undefined` 만 skip 하고 **명시적 `null` 은 검증에 태우도록** 계약을 정정했다(`+19/-8`). 이로써 `{ "endpoint": null }` · `{ "active": null }` 이 DTO 를 통과해 repository / Prisma 층까지 내려가던 `ADR-0059 §Decision 5` 오류 표 `e` 행 누수가 막히고, merge patch 미전달 = 미변경 불변(빈 객체 0 error)은 그대로 보존된다. `src/user/dto/update-service-identity.dto.ts` 선례를 승계했다. spec 을 `+79/-13` 확장해 5 필드 `null` 각 1+ · 원소 `null` 회귀 · drift guard 를 더해 DTO line · branch · function coverage 100% 를 유지했다(전체 463 suite / 13399 test green).
