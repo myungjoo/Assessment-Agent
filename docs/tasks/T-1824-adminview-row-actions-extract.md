@@ -87,5 +87,6 @@ plannerNote: "P6 / PLAN 183 행 AdminView god component 부채의 첫 실분할 
 
 ## Follow-ups
 
+- **보강 0 — 기존 spec 이 전량 cover.** 6 개 spec 의 71 개 case (flags 7 · bridge 7 · props 13 · slot 12 · edit-entry 20 · mount 12) 가 이동한 6 함수의 happy-path · error path · 분기 (귀속 가능/불가 id · gate 소유/미소유 · 확인 단계 on/off · 진행 중 여부) · negative (빈 문자열 · 공백뿐 id · 비문자열 id · sentinel 물듦 · 다른 행 진행의 격리 · 순수성) 를 이미 전부 덮어, 기존 spec 파일 수정 0 으로 통과했다.
 - (예고) AdminView 행 좌표 pointer drift 정정 — 본 slice 가 `2271 행` ~ `2560 행` 을 걷어내면 그 아래 좌표가 약 290 행 앞당겨진다. [docs/requirements.md](../requirements.md) `97 행` REQ-078 (`5591 행` · `5606 행` · `5610 행` · `5617 행` · `5622 행` · `5645 행`) 과 `98 행` REQ-079 (`1702 행` · `1768 행` · `3013 행` · `3066 행` · `3716 행` · `3999 행`) 가 대상이며, `1702 행` · `1768 행` 처럼 이동 구간보다 위인 좌표는 불변이다. `direct` doc-sync slice 1 건으로 처리.
 - (예고) 기존 spec 6 개의 import 경로를 새 모듈로 재지정하고 AdminView 의 해당 re-export 항목을 제거하는 정리 slice (5 파일 · 기계적).
