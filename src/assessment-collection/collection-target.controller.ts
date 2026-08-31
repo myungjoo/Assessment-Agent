@@ -4,17 +4,19 @@
 //
 // §Decision 5 의 route 표는 5 행(GET 목록 · GET 단건 · POST · PATCH · DELETE)이지만 한
 // commit 에 다 담으면 spec 포함 분량이 CLAUDE.md §3 cap 을 확실히 넘긴다. 그래서
-// ServiceIdentityController 의 절단 선례(T-1748 골격+GET → T-1749 POST → …)를 승계해
-// route 1 개 = slice 1 개로 쪼갠다. T-1814 가 골격 + 조회 tier(`User+`) 2 route 를 얹었고,
-// 본 slice(T-1815)는 그 위에 **편집 tier 의 POST 등록 route 1 개**만 추가한다.
+// ServiceIdentityController 의 절단 선례(T-1748 골격+GET → T-1749 POST → T-1750 PATCH
+// → …)를 승계해 route 1 개 = slice 1 개로 쪼갠다. T-1814 가 골격 + 조회 tier(`User+`)
+// 2 route 를, T-1815 가 POST 등록 route 를 얹었고, 본 slice(T-1816)는 그 위에
+// **편집 tier 의 PATCH 부분 수정 route 1 개**만 추가한다.
 //
-// route (지금까지 배선한 3 행):
-//   - GET  /api/collection-targets     → findAll  (200, 0 row 면 빈 배열)
-//   - GET  /api/collection-targets/:id → findById (200, 부재는 service 가 404)
-//   - POST /api/collection-targets     → create   (201, 중복은 service 가 409)
+// route (지금까지 배선한 4 행):
+//   - GET   /api/collection-targets     → findAll  (200, 0 row 면 빈 배열)
+//   - GET   /api/collection-targets/:id → findById (200, 부재는 service 가 404)
+//   - POST  /api/collection-targets     → create   (201, 중복은 service 가 409)
+//   - PATCH /api/collection-targets/:id → update   (200, 부재는 service 가 404)
 //
-// 남은 편집 2 route(PATCH · DELETE — 마찬가지로 `@Roles("Admin")`)는 후속 slice 로
-// 남긴다(§Follow-ups (c) 잔여).
+// 남은 편집 1 route(DELETE — 마찬가지로 `@Roles("Admin")`, 성공 status 204)는 후속
+// slice 로 남긴다(§Follow-ups (c) 잔여).
 //
 // flat path 채택 근거는 §Decision 5 — 상위 소유 resource 가 없는 최상위 개념이라
 // ADR-0058 의 nested(`personId` 소유 관계) 형태를 쓰지 않는다.
@@ -24,9 +26,9 @@
 // 골격 단계에서 미리 확정해 둔 덕분에 본 slice 는 `CreateCollectionTargetDto` 를 body 로
 // 받기만 하면 controller-scope 설정 변경 0 으로 §Decision 5 오류 표 e 행(400)이 성립한다.
 //
-// RBAC (§Decision 5 권한 열 — 조회 User+ / 편집 Admin+): 3 route 모두
+// RBAC (§Decision 5 권한 열 — 조회 User+ / 편집 Admin+): 4 route 모두
 // `@UseGuards(JwtAuthGuard, RolesGuard)` 를 같은 순서로 달되 tier 만 다르다 — 조회 2 route
-// 는 `@Roles("User")`, 등록(POST)은 편집 tier 라 `@Roles("Admin")`.
+// 는 `@Roles("User")`, 편집 2 route(POST · PATCH)는 `@Roles("Admin")`.
 // RolesGuard 의 기존 escalation(ROLE_HIERARCHY)으로 Admin 등 상위 role 은 통과한다.
 // 인증 부재 → 401(오류 표 a), 권한 미달 → 403(오류 표 b)이며 둘 다 guard layer 라
 // 도메인 오류 변환보다 먼저 발생한다. 새 auth 결정 0.
@@ -38,8 +40,8 @@
 // `HttpException` 형태(`{ statusCode, message, error }`)를 유지하고 커스텀 envelope 를
 // 도입하지 않는다(§Decision 5 말미). 그 외 오류도 흡수하지 않는다.
 //
-// 책임 경계 (Out of Scope): service / repository / DTO 로직 변경 0 · PATCH · DELETE 2
-// route 0 · pagination / 정렬 / 필터 query param 0 · credential 마스킹 0(DB 에 credential
+// 책임 경계 (Out of Scope): service / repository / DTO 로직 변경 0 · DELETE route 0 ·
+// pagination / 정렬 / 필터 query param 0 · credential 마스킹 0(DB 에 credential
 // 열 자체가 없다, §Decision 2) · e2e / smoke spec 0 · api.md · requirements.md doc-sync 0
 // (§Follow-ups (f) — 5 route 전량 배선 후).
 import {
@@ -47,6 +49,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   UseGuards,
   UsePipes,
@@ -60,6 +63,7 @@ import { RolesGuard } from "../auth/roles.guard";
 
 import { CollectionTargetService } from "./collection-target.service";
 import { CreateCollectionTargetDto } from "./dto/create-collection-target.dto";
+import { UpdateCollectionTargetDto } from "./dto/update-collection-target.dto";
 
 @Controller("api/collection-targets")
 @UsePipes(
@@ -120,5 +124,37 @@ export class CollectionTargetController {
     @Body() dto: CreateCollectionTargetDto,
   ): Promise<CollectionTarget> {
     return this.service.create(dto);
+  }
+
+  // PATCH /api/collection-targets/:id — 등록된 수집 대상의 부분 수정(REQ-073).
+  // 성공 status 는 **200 OK** 이며 NestJS `@Patch` 의 기본값이라 `@HttpCode` 를 붙이지
+  // 않는다(§Decision 5 PATCH 행). 기본값과 같은 값을 중복 선언하면 후일 기본값과 어긋난
+  // 채 방치될 위험만 생긴다 — ServiceIdentityController.update 선례와 동일한 판단이다.
+  //
+  // body 는 `UpdateCollectionTargetDto` 5 필드(`endpoint` · `orgs` · `repos` · `spaces` ·
+  // `active`) 전량 optional 인 RFC-7396 merge patch 다. 빈 객체 `{}` 도 valid 하며(미전달
+  // 필드는 보존, Prisma 가 `@updatedAt` 만 갱신) 그 판단은 DTO · service 계약이라 여기서
+  // 재구현하지 않는다.
+  //
+  // 정체성 축(`type` · `instanceKey`)을 걸러내는 로직도 두지 않는다 — 두 필드는 애초에
+  // `UpdateCollectionTargetDto` 의 허용 축이 아니라 controller-scope ValidationPipe 의
+  // `forbidNonWhitelisted` 가 400 을 내는 구조다(§Decision 5 PATCH 행 · 오류 표 e 행).
+  // 여기서 직접 제거하면 그 400 게이트가 조용히 열린다.
+  //
+  // `:id` row 부재의 `P2025` → 404 변환은 service 소관이라(오류 표 d 행) 재구현하지 않고,
+  // try/catch 0 — 그 외 오류도 흡수 없이 그대로 전파한다.
+  //
+  // 편집 tier 라 `@Roles("Admin")`(조회 2 route 의 `"User"` 와 다름, §Decision 5 권한 열).
+  // 순수 위임 — `id` 를 trim · 형식 검증 없이, DTO 를 복제 · 필드 추가 · 기본값 주입 없이
+  // 동일 참조로 넘기고 반환 row 도 그대로 돌려주므로 **본 handler 에 조건 분기가 없다**
+  // (R-112 분기 축은 spec 의 입력 경로 2 종 + metadata 케이스로 대체 배치).
+  @Patch(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
+  async update(
+    @Param("id") id: string,
+    @Body() dto: UpdateCollectionTargetDto,
+  ): Promise<CollectionTarget> {
+    return this.service.update(id, dto);
   }
 }

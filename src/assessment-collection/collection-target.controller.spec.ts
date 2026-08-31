@@ -1,19 +1,20 @@
 // CollectionTargetController spec — T-1814(골격 + 조회 tier 2 route) · T-1815(POST 등록
-// route) acceptance 박제.
+// route) · T-1816(PATCH 부분 수정 route) acceptance 박제.
 //
-// 세 handler(GET 목록 · GET 단건 · POST 등록) 모두 순수 위임이라 spec 도 그 분량에 맞춰
-// 좁게 간다 (ServiceIdentityController spec 의 관례만 승계 — mock service 위임 검증 +
-// decorator metadata drift guard).
+// 네 handler(GET 목록 · GET 단건 · POST 등록 · PATCH 부분 수정) 모두 순수 위임이라 spec 도
+// 그 분량에 맞춰 좁게 간다 (ServiceIdentityController spec 의 관례만 승계 — mock service
+// 위임 검증 + decorator metadata drift guard).
 // 구성: (1) 위임 동작 — mock service 로 happy / error / negative, (2) metadata 박제 —
 // controller base path · route method · guard stack 순서 · @Roles tier · controller-scope
-// ValidationPipe 옵션 3 종 · 미배선 handler(PATCH · DELETE) 부재.
+// ValidationPipe 옵션 3 종 · 미배선 handler(DELETE) 부재.
 //
-// R-112 분기 축 메모: `findAll` · `findById` · `create` 어느 쪽에도 **조건 분기가 없다**
-// (셋 다 service 로의 무가공 위임 한 줄) — 코드 분기 test 는 해당 없음이다. 대신 ADR-0059
-// §Decision 5 GET 행이 규정한 두 경로("0 row → 빈 배열 200, 예외 아님" 과 "row 존재 →
-// 배열 1+"), POST 행의 두 입력 경로(optional 필드가 있는 body / 필수 3 필드만 있는 body)
-// 를 각각 test 로 고정하고, 나머지 분기 축은 metadata 케이스(route method · path param
-// 축 · @Roles tier · guard 순서 · 미배선 handler 부재)로 대체 배치한다.
+// R-112 분기 축 메모: `findAll` · `findById` · `create` · `update` 어느 쪽에도 **조건
+// 분기가 없다**(넷 다 service 로의 무가공 위임 한 줄) — 코드 분기 test 는 해당 없음이다.
+// 대신 ADR-0059 §Decision 5 GET 행이 규정한 두 경로("0 row → 빈 배열 200, 예외 아님" 과
+// "row 존재 → 배열 1+"), POST 행의 두 입력 경로(optional 필드가 있는 body / 필수 3 필드만
+// 있는 body), PATCH 행의 두 입력 경로(빈 객체 `{}` merge patch / 여러 필드 body)를 각각
+// test 로 고정하고, 나머지 분기 축은 metadata 케이스(route method · path param 축 ·
+// @Roles tier · guard 순서 · @HttpCode 부재 · 미배선 handler 부재)로 대체 배치한다.
 import {
   ConflictException,
   NotFoundException,
@@ -29,6 +30,7 @@ import { RolesGuard } from "../auth/roles.guard";
 import { CollectionTargetController } from "./collection-target.controller";
 import type { CollectionTargetService } from "./collection-target.service";
 import { CreateCollectionTargetDto } from "./dto/create-collection-target.dto";
+import { UpdateCollectionTargetDto } from "./dto/update-collection-target.dto";
 
 // CollectionTarget fixture — schema.prisma 의 10 컬럼을 전부 채운다(type 단언 없이 채워
 // schema drift 를 컴파일로 잡는 service.spec 과 같은 형태).
@@ -64,9 +66,18 @@ function buildCreateDto(
   });
 }
 
+// UpdateCollectionTargetDto fixture — 5 필드 전량 optional 이라 기본은 **빈 객체 `{}`**
+// (merge patch 의 no-field 요청) 이고 인자로 필드를 얹는다. Create 쪽과 같은 이유로 DTO
+// class 인스턴스를 쓴다 — 허용 축이 바뀌면 컴파일에서 잡힌다.
+function buildUpdateDto(
+  overrides: Partial<UpdateCollectionTargetDto> = {},
+): UpdateCollectionTargetDto {
+  return Object.assign(new UpdateCollectionTargetDto(), overrides);
+}
+
 // service mock — 5 메서드를 모두 깔아두고, 각 handler 가 자기 위임 대상 외 메서드를 전혀
-// 부르지 않음을 negative 로 고정한다(본 slice 까지 배선된 route 는 3 개라 update / delete
-// 는 여전히 절대 불림 없음).
+// 부르지 않음을 negative 로 고정한다(본 slice 까지 배선된 route 는 4 개라 delete 는 여전히
+// 절대 불림 없음).
 function buildServiceMock() {
   return {
     findAll: jest.fn(),
@@ -311,6 +322,132 @@ describe("CollectionTargetController (위임 동작)", () => {
     expect(serviceMock.update).not.toHaveBeenCalled();
     expect(serviceMock.delete).not.toHaveBeenCalled();
   });
+
+  // happy path 4 (PATCH) — id 와 DTO 를 가공 없이 넘기고 갱신 row 를 그대로 반환.
+  it("PATCH 부분 수정: id 와 DTO 를 그대로 service.update 에 넘기고 갱신 row 를 그대로 반환한다", async () => {
+    const dto = buildUpdateDto({ endpoint: "https://github.example.com" });
+    const updated = buildTargetFixture({
+      endpoint: "https://github.example.com",
+    });
+    serviceMock.update.mockResolvedValue(updated);
+
+    const result = await controller.update("target-1", dto);
+
+    // 반환도 인자도 동일 참조 — 복제 · 재조립 0 (negative (b)).
+    expect(result).toBe(updated);
+    expect(serviceMock.update).toHaveBeenCalledWith("target-1", dto);
+  });
+
+  // 입력 경로 축 1 — 빈 객체 `{}` (merge patch 의 no-field 요청) 도 그대로 통과한다.
+  // handler 에 조건 분기가 없으므로 "분기 cover" 는 입력 경로 고정으로 대체한다 —
+  // controller 가 빈 body 를 400 · no-op 으로 가로채지 않음을 여기서 못박는다.
+  it("PATCH 부분 수정: 빈 객체 body 도 가로채지 않고 그대로 service 로 전달한다", async () => {
+    const dto = buildUpdateDto();
+    serviceMock.update.mockResolvedValue(buildTargetFixture());
+
+    await controller.update("target-1", dto);
+
+    const passed = serviceMock.update.mock.calls[0]?.[1] as
+      | UpdateCollectionTargetDto
+      | undefined;
+    expect(passed).toBe(dto);
+    // 5 필드 전량 미전달(undefined) 그대로 — controller 가 `active: true` 같은 기본값을
+    // 채워 넣거나 빈 body 를 400 · no-op 으로 가로채지 않았다. (DTO class 인스턴스라
+    // 선언된 5 필드가 own property 로는 존재하지만 값은 전부 undefined 다.)
+    expect(Object.values(passed ?? {}).every((v) => v === undefined)).toBe(
+      true,
+    );
+    expect(passed?.endpoint).toBeUndefined();
+    expect(passed?.active).toBeUndefined();
+    expect(serviceMock.update).toHaveBeenCalledTimes(1);
+  });
+
+  // 입력 경로 축 2 — 여러 필드를 담은 body 도 필드 선별 · 기본값 주입 없이 그대로 통과.
+  it("PATCH 부분 수정: 여러 필드를 담은 body 도 선별·기본값 주입 없이 그대로 전달한다", async () => {
+    const dto = buildUpdateDto({
+      endpoint: "https://wiki.example.com",
+      orgs: [],
+      repos: ["acme/api"],
+      spaces: ["ENG"],
+      active: false,
+    });
+    serviceMock.update.mockResolvedValue(buildTargetFixture());
+
+    await controller.update("target-2", dto);
+
+    const passed = serviceMock.update.mock.calls[0]?.[1] as
+      | UpdateCollectionTargetDto
+      | undefined;
+    expect(passed).toBe(dto);
+    expect(passed?.repos).toEqual(["acme/api"]);
+    expect(passed?.active).toBe(false);
+  });
+
+  // error path 5 — `:id` row 부재의 NotFoundException(오류 표 d 행)을 흡수 없이 전파.
+  it("PATCH 부분 수정: service 의 NotFoundException 을 변환·흡수 없이 그대로 전파한다", async () => {
+    const error = new NotFoundException("collection target not found: missing");
+    const dto = buildUpdateDto({ active: false });
+    serviceMock.update.mockRejectedValue(error);
+
+    await expect(controller.update("missing", dto)).rejects.toBe(error);
+    // 실패 경로에서도 인자는 무가공 전달 — id 원문 + DTO 동일 참조 (reviewer N1).
+    expect(serviceMock.update).toHaveBeenCalledWith("missing", dto);
+    expect(serviceMock.update.mock.calls[0]?.[1]).toBe(dto);
+  });
+
+  // error path 6 — HttpException 이 아닌 일반 Error 도 동일하게 raw forward
+  // (update 경로에도 try/catch 가 없음의 증명).
+  it("PATCH 부분 수정: 일반 Error 도 그대로 전파한다 (controller 에 try/catch 없음)", async () => {
+    const error = new Error("db down");
+    serviceMock.update.mockRejectedValue(error);
+
+    await expect(controller.update("target-1", buildUpdateDto())).rejects.toBe(
+      error,
+    );
+  });
+
+  // negative (a) — update 는 service.update 를 정확히 1 회, 인자 2 개로만 호출하고
+  // 다른 service 메서드는 건드리지 않는다.
+  it("negative (a): update 가 service.update 를 정확히 1 회 호출하고 다른 메서드는 호출 0 이다", async () => {
+    serviceMock.update.mockResolvedValue(buildTargetFixture());
+
+    await controller.update("target-1", buildUpdateDto());
+
+    expect(serviceMock.update).toHaveBeenCalledTimes(1);
+    expect(serviceMock.update.mock.calls[0]).toHaveLength(2);
+    expect(serviceMock.findAll).not.toHaveBeenCalled();
+    expect(serviceMock.findById).not.toHaveBeenCalled();
+    expect(serviceMock.create).not.toHaveBeenCalled();
+    expect(serviceMock.delete).not.toHaveBeenCalled();
+  });
+
+  // negative (b) — path param 무가공 전달. 빈 문자열 · 공백 포함 id 도 trim · 형식 검증 ·
+  // 기본값 없이 그대로 넘어간다. 정체성 축(`type` · `instanceKey`) 제거 로직도 없다 —
+  // 두 축은 DTO 허용 축이 아니라 ValidationPipe 의 forbidNonWhitelisted 소관이다.
+  it("negative (b): 빈 문자열 · 공백 포함 id 도 가공 없이 그대로 service 로 전달한다", async () => {
+    const dto = buildUpdateDto({ active: true });
+    serviceMock.update.mockResolvedValue(buildTargetFixture());
+
+    await controller.update("", dto);
+    await controller.update("  target-1  ", dto);
+
+    expect(serviceMock.update).toHaveBeenNthCalledWith(1, "", dto);
+    expect(serviceMock.update).toHaveBeenNthCalledWith(2, "  target-1  ", dto);
+  });
+
+  // negative (c) — update 가 throw 하면 후속 처리 없이 단락한다(다른 service 메서드 0).
+  it("negative (c): update throw 시 다른 service 메서드를 호출하지 않고 단락한다", async () => {
+    serviceMock.update.mockRejectedValue(new NotFoundException("missing"));
+
+    await expect(
+      controller.update("missing", buildUpdateDto()),
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(serviceMock.findAll).not.toHaveBeenCalled();
+    expect(serviceMock.findById).not.toHaveBeenCalled();
+    expect(serviceMock.create).not.toHaveBeenCalled();
+    expect(serviceMock.delete).not.toHaveBeenCalled();
+  });
 });
 
 describe("CollectionTargetController (route · guard · pipe metadata)", () => {
@@ -388,8 +525,8 @@ describe("CollectionTargetController (route · guard · pipe metadata)", () => {
   });
 
   // negative (d) 후반 — guard stack 순서 고정. JwtAuthGuard(401) → RolesGuard(403) 순.
-  // 3 route 가 같은 stack 을 같은 순서로 공유한다(tier 만 다르다).
-  it("negative (d-2): 3 handler 모두에 @UseGuards(JwtAuthGuard, RolesGuard) 가 이 순서로 부착돼 있다", () => {
+  // 4 route 가 같은 stack 을 같은 순서로 공유한다(tier 만 다르다).
+  it("negative (d-2): 4 handler 모두에 @UseGuards(JwtAuthGuard, RolesGuard) 가 이 순서로 부착돼 있다", () => {
     expect(
       Reflect.getMetadata(
         "__guards__",
@@ -406,6 +543,12 @@ describe("CollectionTargetController (route · guard · pipe metadata)", () => {
       Reflect.getMetadata(
         "__guards__",
         CollectionTargetController.prototype.create,
+      ),
+    ).toEqual([JwtAuthGuard, RolesGuard]);
+    expect(
+      Reflect.getMetadata(
+        "__guards__",
+        CollectionTargetController.prototype.update,
       ),
     ).toEqual([JwtAuthGuard, RolesGuard]);
   });
@@ -444,17 +587,51 @@ describe("CollectionTargetController (route · guard · pipe metadata)", () => {
     ).toBeUndefined();
   });
 
-  // negative (f) — 지금까지 배선된 public 핸들러는 3 개(findAll · findById · create)이고
-  // **PATCH · DELETE 2 route 는 아직 미배선**이다. prototype 의 메서드 목록을 통째로
+  // negative (d) — PATCH 부분 수정 route 의 metadata drift guard. tier 가 편집
+  // tier("Admin")이고 method 는 PATCH · path 는 ':id' 임을 고정한다. tier 가 조회와 같은
+  // "User" 로 미끄러지면 편집 권한 회귀이므로 여기서 잡는다.
+  it("negative (d-5): update 가 PATCH ':id' 이고 @Roles(\"Admin\") 편집 tier 이다", () => {
+    const reflector = new Reflector();
+
+    expect(
+      Reflect.getMetadata(
+        "method",
+        CollectionTargetController.prototype.update,
+      ),
+    ).toBe(RequestMethod.PATCH);
+    expect(
+      Reflect.getMetadata("path", CollectionTargetController.prototype.update),
+    ).toBe(":id");
+    expect(
+      reflector.get<string[]>(
+        ROLES_METADATA_KEY,
+        CollectionTargetController.prototype.update,
+      ),
+    ).toEqual(["Admin"]);
+  });
+
+  // negative (d) — 성공 status 는 NestJS `@Patch` 기본값 200 이므로 `@HttpCode` 를 붙이지
+  // 않는다(ADR-0059 §Decision 5 PATCH 행). httpCode metadata 부재로 그 사실을 고정한다.
+  it("negative (d-6): update 에 @HttpCode 가 붙어 있지 않다 (200 은 @Patch 기본값)", () => {
+    expect(
+      Reflect.getMetadata(
+        "__httpCode__",
+        CollectionTargetController.prototype.update,
+      ),
+    ).toBeUndefined();
+  });
+
+  // negative (f) — 지금까지 배선된 public 핸들러는 4 개(findAll · findById · create ·
+  // update)이고 **DELETE route 는 아직 미배선**이다. prototype 의 메서드 목록을 통째로
   // 고정해 후속 slice 가 route 를 얹을 때 본 test 가 의도적으로 fail 하도록 둔다
-  // (후속 slice 의 회귀 신호 — T-1814 → T-1815 도 같은 방식으로 갱신됐다).
-  it("negative (f): public 핸들러가 정확히 findAll · findById · create 3 개뿐이다 (PATCH · DELETE 미배선)", () => {
+  // (후속 slice 의 회귀 신호 — T-1814 → T-1815 → T-1816 도 같은 방식으로 갱신됐다).
+  it("negative (f): public 핸들러가 정확히 findAll · findById · create · update 4 개뿐이다 (DELETE 미배선)", () => {
     const methods = Object.getOwnPropertyNames(
       CollectionTargetController.prototype,
     ).filter((name) => name !== "constructor");
 
-    expect(methods.sort()).toEqual(["create", "findAll", "findById"]);
-    // 각 handler 의 route method 도 함께 고정 — PATCH · DELETE 는 어디에도 없다.
+    expect(methods.sort()).toEqual(["create", "findAll", "findById", "update"]);
+    // 각 handler 의 route method 도 함께 고정 — DELETE 는 어디에도 없다.
     const methodOf = (name: string): unknown =>
       Reflect.getMetadata(
         "method",
@@ -467,9 +644,14 @@ describe("CollectionTargetController (route · guard · pipe metadata)", () => {
       );
 
     expect(methods.map(methodOf).sort()).toEqual(
-      [RequestMethod.GET, RequestMethod.GET, RequestMethod.POST].sort(),
+      [
+        RequestMethod.GET,
+        RequestMethod.GET,
+        RequestMethod.POST,
+        RequestMethod.PATCH,
+      ].sort(),
     );
-    expect(methods.map(methodOf)).not.toContain(RequestMethod.PATCH);
+    expect(methods.map(methodOf)).toContain(RequestMethod.PATCH);
     expect(methods.map(methodOf)).not.toContain(RequestMethod.DELETE);
   });
 });
