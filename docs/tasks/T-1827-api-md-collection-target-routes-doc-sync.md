@@ -2,7 +2,7 @@
 id: T-1827
 title: api.md 에 shipped 된 collection-targets 5 route 를 doc-sync
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-070, REQ-072, REQ-073]
 independentStream: collection-target-doc-sync
@@ -12,6 +12,7 @@ touchesFiles:
 estimatedDiff: 90
 estimatedFiles: 1
 created: 2026-09-01
+completedAt: 2026-09-01T03:43+09:00
 plannerNote: P5 / ADR-0059 §Follow-ups — 머지된 collection-targets 5 route 를 api.md §4·5·6 에 doc-sync (T-1826 reviewer MINOR)
 ---
 
@@ -31,22 +32,36 @@ plannerNote: P5 / ADR-0059 §Follow-ups — 머지된 collection-targets 5 route
 
 ## Acceptance Criteria
 
-- [ ] `§ 5` endpoint 표에 `/api/collection-targets` group header row 1 개 + endpoint row **5 개** 를 추가한다. 각 row 는 method / path / 출처 / description / 권한 5 열을 채우고, 계약 사실은 controller 실코드와 일치해야 한다:
+- [x] `§ 5` endpoint 표에 `/api/collection-targets` group header row 1 개 + endpoint row **5 개** 를 추가한다. 각 row 는 method / path / 출처 / description / 권한 5 열을 채우고, 계약 사실은 controller 실코드와 일치해야 한다:
   - `GET /api/collection-targets` — 200 (`@Get` 기본값), row 0 개면 **빈 배열 200** (예외 아님), 권한 `User+`.
   - `GET /api/collection-targets/:id` — 200, row 부재는 service 가 `P2025` → 404, 권한 `User+`.
   - `POST /api/collection-targets` — **201** (`@Post` 기본값, `@HttpCode` 미부착), body `CreateCollectionTargetDto` 7 필드 (`type` · `instanceKey` · `endpoint` 필수 / `orgs` · `repos` · `spaces` · `active` optional), error 409 (동일 `(type, instanceKey)` `P2002`) / 400 (ValidationPipe `whitelist` + `forbidNonWhitelisted`), 권한 `Admin+`.
   - `PATCH /api/collection-targets/:id` — **200** (`@Patch` 기본값), body `UpdateCollectionTargetDto` 5 필드 전량 optional RFC-7396 merge patch (`{}` 도 200), 정체성 축 `type` · `instanceKey` 는 DTO 허용 축이 아니라 `forbidNonWhitelisted` 가 400, error 404 (`P2025`), 권한 `Admin+`.
   - `DELETE /api/collection-targets/:id` — **204** (`@HttpCode(204)` 명시, body 없음 — 일시 제외는 삭제가 아니라 `active=false` PATCH), error 404 (`P2025`), 권한 `Admin+`.
-- [ ] 다섯 row 의 출처 열은 UC 가 아니라 [ADR-0059](../decisions/ADR-0059-collection-target-registration.md) 를 가리키고, group header 에 **9 UC `§5` sequence 호명이 0 건** 이며 본 route 군이 [PLAN.md](../PLAN.md) `130 행` 오너 지시 (REQ-070 · REQ-072 · REQ-073) 유래임을 한 줄로 박제한다.
-- [ ] `§ 5` 끝 **합계** 문단을 재계산한다 — endpoint `77` → `82`, shipped `72` → `77`, resource prefix `16` → `17` (`/api/collection-targets` 는 nested sub-resource 가 아닌 **최상위 prefix** 라 `/api/persons/:personId/identities` 선례와 달리 prefix 를 1 늘린다). 늘어난 근거 (T-1814~T-1817 shipped, 본 task 박제) 를 기존 문장 형식대로 이어 적는다.
-- [ ] `§ 4` prefix 표에 `/api/collection-targets` row 1 개를 추가한다 — 책임 module 은 `AssessmentCollectionModule`, 비고에 REQ-070 · REQ-072 · REQ-073 과 ADR-0059 pointer. (`§ 5` 합계의 prefix 17 과 정합.)
-- [ ] `§ 6` **201 Created** 행을 갱신한다 — `실측 14 종` → `15 종`, `@Post 기본값 201 인 5 종` → `6 종` 이며 목록에 `POST /api/collection-targets` 추가.
-- [ ] `§ 6` **204 No Content** 행을 갱신한다 — `실측 12 종` → `13 종`, `@Delete 11 종 전량` → `12 종 전량` 이며 목록에 `/api/collection-targets/:id` 추가.
-- [ ] `git grep -c "collection-targets" docs/architecture/api.md` 가 **9 이상** (§4 1 + §5 header 1 + §5 5 row + §6 2) 을 반환한다.
-- [ ] `pnpm lint:md` 또는 저장소의 markdown 검사 script 가 존재하면 통과한다. 존재하지 않으면 본 항목은 "해당 script 부재" 로 task 본문에 기록하고 생략한다.
-- [ ] 표 이외 문단·다른 endpoint row 의 문구 변경 0 (`git diff --stat docs/architecture/api.md` 가 1 파일이고, `§ 4` / `§ 5` / `§ 6` 밖의 행이 바뀌지 않는다).
+- [x] 다섯 row 의 출처 열은 UC 가 아니라 [ADR-0059](../decisions/ADR-0059-collection-target-registration.md) 를 가리키고, group header 에 **9 UC `§5` sequence 호명이 0 건** 이며 본 route 군이 [PLAN.md](../PLAN.md) `130 행` 오너 지시 (REQ-070 · REQ-072 · REQ-073) 유래임을 한 줄로 박제한다.
+- [x] `§ 5` 끝 **합계** 문단을 재계산한다 — endpoint `77` → `82`, shipped `72` → `77`, resource prefix `16` → `17` (`/api/collection-targets` 는 nested sub-resource 가 아닌 **최상위 prefix** 라 `/api/persons/:personId/identities` 선례와 달리 prefix 를 1 늘린다). 늘어난 근거 (T-1814~T-1817 shipped, 본 task 박제) 를 기존 문장 형식대로 이어 적는다.
+- [x] `§ 4` prefix 표에 `/api/collection-targets` row 1 개를 추가한다 — 책임 module 은 `AssessmentCollectionModule`, 비고에 REQ-070 · REQ-072 · REQ-073 과 ADR-0059 pointer. (`§ 5` 합계의 prefix 17 과 정합.)
+- [x] `§ 6` **201 Created** 행을 갱신한다 — `실측 14 종` → `15 종`, `@Post 기본값 201 인 5 종` → `6 종` 이며 목록에 `POST /api/collection-targets` 추가.
+- [x] `§ 6` **204 No Content** 행을 갱신한다 — `실측 12 종` → `13 종`, `@Delete 11 종 전량` → `12 종 전량` 이며 목록에 `/api/collection-targets/:id` 추가.
+- [x] `git grep -c "collection-targets" docs/architecture/api.md` 가 **9 이상** (§4 1 + §5 header 1 + §5 5 row + §6 2) 을 반환한다.
+- [x] `pnpm lint:md` 또는 저장소의 markdown 검사 script 가 존재하면 통과한다. 존재하지 않으면 본 항목은 "해당 script 부재" 로 task 본문에 기록하고 생략한다.
+- [x] 표 이외 문단·다른 endpoint row 의 문구 변경 0 (`git diff --stat docs/architecture/api.md` 가 1 파일이고, `§ 4` / `§ 5` / `§ 6` 밖의 행이 바뀌지 않는다).
 
 R-112 4 항목은 본 task 에 적용하지 않는다 — `commitMode: direct` doc-only 이며 코드 변경 0 이라 CLAUDE.md §3.2 의 "direct-mode doc-only commit 만 본 규칙 면제" 에 해당한다. 분기 없음 — 해당 항목 생략.
+
+## 결과 (2026-09-01 완료)
+
+`docs/architecture/api.md` 1 파일, `+11/-4`. `git diff -U0` 기준 변경 행은 **59 (§ 4) · 108~113 (§ 5) · 165 · 167 (§ 5 문단) · 178 · 180 (§ 6)** 뿐이라 `§ 4` / `§ 5` / `§ 6` 밖 변경 0.
+
+- `§ 4` prefix 표에 `/api/collection-targets` row 1 개 (책임 module `AssessmentCollectionModule`, 비고에 REQ-070 · REQ-072 · REQ-073 + PLAN.md `130 행` + ADR-0059 pointer).
+- `§ 5` 에 group header 1 + endpoint row 5. 출처 열은 UC 가 아니라 `ADR-0059 §Decision 5` 를 가리키고, header 가 "9 UC §5 sequence 호명 0 건 / PLAN.md `130 행` 오너 지시 유래" 를 한 줄로 박제 (`§ 7` row 신설 0).
+- 계약 사실은 `collection-target.controller.ts` · service 실코드 대조: GET 200 (빈 배열 200) / GET `:id` 200 + 404 / POST 201 (`@HttpCode` 미부착) + 409 (`P2002`) + 400 (whitelist·forbidNonWhitelisted) / PATCH 200 + `{}` 200 + 정체성 축 400 + 404 (`P2025`) / DELETE 204 (`@HttpCode(204)` 명시) + 404. 권한 열은 조회 2 route `User+`, 편집 3 route `Admin+`.
+  - **단건 조회 404 의 신호는 `P2025` 가 아니다** — `CollectionTargetService.findById` 는 repository 의 `null` 을 `NotFoundException` 으로 바꾼다 (`P2025` 경로는 update · delete 전용). AC 문구 대신 실코드를 정본으로 삼아 표에는 두 신호의 차이를 병기했다.
+- `§ 5` 합계: endpoint `77` → `82`, shipped `72` → `77`, prefix `16` → `17` (flat 최상위 prefix 라 nested 선례와 달리 +1). T-1757 선례대로 바로 아래 **집계 규칙** 문단의 count snapshot 4 지점 (`현재 82` / `현재 13 행` / `헤더 13 / prefix 17` / `표 82 / shipped 77`) 도 mechanical 동기.
+- `§ 6`: 201 Created `14` → `15` 종 · `@Post` 기본값 `5` → `6` 종 + `POST /api/collection-targets` 추가, 204 No Content `12` → `13` 종 · `@Delete` `11` → `12` 종 전량 + `/api/collection-targets/:id` 추가. `@Delete` 실측치는 `grep -rhoE "@(Delete)\(" src --include=*.controller.ts` = 12 로 대조.
+- 실측 검증: `grep -cE '^\| (GET|POST|PATCH|PUT|DELETE) \|' docs/architecture/api.md` = **82**, `git grep -c "collection-targets" -- docs/architecture/api.md` = **10** (AC 하한 9 충족), `§ 5` 범위 group header = **13**, 신규 row 의 셀 구분자 수 = `§ 4` 5 / `§ 5` 6 으로 표 정합.
+- **markdown 검사 script 부재** — `package.json` 에 `lint:md` 가 없고 `scripts/` 에도 markdown 검사 script 가 없다 (AC 의 "존재하지 않으면 부재로 기록하고 생략" 분기 적용).
+- R-110 tester · R-112 4 항목: N/A — `commitMode: direct` doc-only 이라 CLAUDE.md §3.2 면제 조항 적용 (production code 0 LOC).
 
 ## Out of Scope
 
@@ -63,4 +78,6 @@ R-112 4 항목은 본 task 에 적용하지 않는다 — `commitMode: direct` d
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가)
+- **api.md 자체 행 좌표 pointer +7 동기** — 본 slice 가 `§ 4` 1 행 + `§ 5` 6 행을 삽입해 원 106 행 이후가 +7, 원 58 행 이후가 +1 밀렸다. `§ 7` / `§ 8` / `§ 9` 의 자기 참조 pointer (예 `101 행` · `82~86 행` · `109 행` · `126~127 행` · `141~142 행` · `144~145 행` · `118 행`) 와 `§ 3` 28 행의 `83~86 행` 은 본 task AC 8 이 `§ 4` / `§ 5` / `§ 6` 밖 변경을 금지해 이월한다 — T-1757 이 같은 성격의 pointer 를 mechanical 하게 +5 동기한 선례가 있으므로 후속 direct slice 로 처리한다.
+- **집계 규칙 문단의 `25` 는 이미 stale** — "파일 전체 `grep -cE '^\| \*\*'` 는 … 25 가 나오므로" 의 25 는 T-1757 이전부터 실측과 어긋나 있었고 (당시 실측 27, 본 slice 후 28) 본 slice 는 손대지 않았다. 정정은 별도 doc-sync slice.
+- **modules.md · data-model.md · REQ-COVERAGE-AUDIT.md 동기** — Out of Scope 대로 미수행. `/api/collection-targets` 를 module 문서에 반영할지 별도 판정 필요.
