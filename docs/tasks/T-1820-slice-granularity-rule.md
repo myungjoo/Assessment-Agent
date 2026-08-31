@@ -2,7 +2,7 @@
 id: T-1820
 title: Forbid consumer-less helper slices in CLAUDE.md task sizing rule
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: []
 independentStream: driver-process-reform
