@@ -114,6 +114,12 @@ import type { PartRow } from '../components/PartList';
 // UserRow 를 그대로 조회 제네릭·props 타입에 재사용한다(PartRow 차용 convention 동형).
 import UserList from '../components/UserList';
 import type { UserRow } from '../components/UserList';
+// 수집 대상 목록 마운트 대상(T-1825, ADR-0059 §Follow-ups (e)) — default CollectionTargetList 와
+// 그 파일이 정본으로 들고 있는 named CollectionTargetRow 타입을 함께 가져온다. AdminView 에는
+// 로컬 CollectionTargetRow 가 없어 이름 충돌이 없으므로 named 타입을 그대로 조회 제네릭·props
+// 타입에 재사용한다(PartRow / UserRow 차용 convention 동형 — 별도 api client 모듈 신설 0).
+import CollectionTargetList from '../components/CollectionTargetList';
+import type { CollectionTargetRow } from '../components/CollectionTargetList';
 // T-1711 (REQ-067) — 사용자 추가 폼의 아이디·비밀번호 조건 사전 안내 문구. 여기서 문구를 새로
 // 쓰지 않고 SuperAdmin 초기 셋업 폼(T-1710)이 이미 export 한 상수를 재사용한다 — 두 화면이 같은
 // backend 계약(POST /api/users 의 AddUserDto: @IsEmail + @IsNotEmpty + @MinLength)을 쓰므로
@@ -167,6 +173,24 @@ const USERS_PATH = '/api/users';
 // 사용자 관리 섹션 heading 문구(T-1159) — 사용자 목록을 담는 별도 섹션의 제목(PART_HEADING 동형).
 // §12 한국어. <h2> 로 렌더하며, 섹션 aria-label 은 다른 섹션과 구분되도록 "… 섹션" 접미를 붙인다.
 const USER_HEADING = '사용자 관리';
+
+// 수집 대상 조회 path(T-1825) — 고정 endpoint(GET /api/collection-targets, collection-target.
+// controller `@Get()` 이 `@Roles("User")` 조회 tier 로 CollectionTarget 배열을 envelope 없이
+// 직반환하고 row 0 개면 빈 배열이다 — ADR-0059 §Decision 5). AdminView 는 수집 대상을 전혀
+// 조회하지 않아 재사용할 fetch 가 없으므로 신규 상수로 둔다. 등록·수정 slice 가 아직 없어
+// refresh nonce 빌더 없이 단순 상수 path 로 조회한다(PARTS_PATH / USERS_PATH 동형 —
+// nonce-aware 빌더 전환은 후속 편집 slice 책임). personId 같은 필수 query 없음.
+const COLLECTION_TARGETS_PATH = '/api/collection-targets';
+
+// 수집 대상 관리 섹션 heading 문구(T-1825) — 수집 대상 목록을 담는 별도 섹션의 제목
+// (USER_HEADING 동형). §12 한국어. aria-label 겸 <h2> 로 재사용해 보조기술이 섹션 경계를
+// 인식하게 한다.
+const COLLECTION_TARGET_HEADING = '수집 대상 관리';
+
+// 수집 대상이 0 건일 때의 빈 상태 문구(T-1825, REQ-070) — "빈 상태에서 막히지 않게" 라는
+// REQ-070 의도를 살려, 목록이 비어 있는 것이 오류가 아니라 아직 등록이 없다는 정상 상태임을
+// 한국어로 명시한다(EMPTY_PART_PERSON_TEXT 동형 convention).
+const EMPTY_COLLECTION_TARGET_TEXT = '등록된 수집 대상이 없습니다';
 
 // 사용자 추가 폼 조건 안내 <p> 의 고유 DOM id(T-1711, REQ-067) — 대응 입력의 aria-describedby 가
 // 이 값을 가리켜 스크린리더에서도 입력 전에 조건이 함께 읽힌다. 문구 본문은 SuperAdmin 셋업 폼과
@@ -4403,6 +4427,28 @@ function AdminView({
     error: partError,
   } = useApiResource<PartRow[]>(partsPath);
 
+  // 수집 대상 목록 조회(GET /api/collection-targets, T-1825 — ADR-0059 §Follow-ups (e) 화면 축
+  // 첫 조각) — useApiResource 신규 호출 **1 회**다. AdminView 는 수집 대상을 전혀 조회하지 않아
+  // 재사용할 기존 fetch 가 없으므로 신규 호출이 정당하고, 같은 path 를 두 번 부르지 않는다
+  // (double-fetch 금지 — 아래 섹션이 이 한 호출의 data/loading/error 를 그대로 props 로 쓴다).
+  // 변수명에 collectionTarget prefix 를 붙여 파트/사용자/그룹 조회 상태와 섞이지 않게 분리한다
+  // (partLoading/partError 동형). 등록·수정 slice 가 아직 없어 refresh nonce 없이 상수 path 다.
+  const {
+    data: collectionTargetData,
+    loading: collectionTargetLoading,
+    error: collectionTargetError,
+  } = useApiResource<CollectionTargetRow[]>(COLLECTION_TARGETS_PATH);
+
+  // 응답 body 정상화(T-1825 negative ⑤) — controller 계약은 배열이지만 proxy 오동작·계약 위반
+  // 으로 `null` 이나 객체가 오면 `targets.length` 접근이 throw 한다. 여기서 배열 여부를 한 번만
+  // 판정해 비-배열은 빈 배열로 흡수하고, 목록은 빈 상태 안내를 그대로 보여준다(화면이 통째로
+  // 죽는 대신 "등록된 수집 대상이 없습니다" 로 안전 착지 — REQ-070 의 막히지 않는 빈 상태).
+  const collectionTargets = useMemo<CollectionTargetRow[]>(
+    () =>
+      Array.isArray(collectionTargetData) ? collectionTargetData : [],
+    [collectionTargetData],
+  );
+
   // 선택 파트 상태(T-1156) — controlled lift-up(컨테이너 소유). 파트 관리 섹션의 파트 선택
   // <select> 가 이 값을 갱신하고, 값이 있을 때만 소속 인원을 조건부 조회한다(selectedGroupId 동형).
   const [selectedPartId, setSelectedPartId] = useState<string>(
@@ -5670,6 +5716,24 @@ function AdminView({
           emptyMessage={
             selectedPartId ? EMPTY_PART_PERSON_TEXT : NO_PART_SELECTED_TEXT
           }
+        />
+      </section>
+      {/* 수집 대상 관리(T-1825 마운트, ADR-0059 §Follow-ups (e), REQ-070/REQ-072) — 파트 관리
+          섹션 뒤, 최외곽 </section> 앞에 새 읽기 축 섹션을 추가한다. 위 useApiResource
+          <CollectionTargetRow[]>(COLLECTION_TARGETS_PATH) **한 호출**의 data/loading/error 를
+          그대로 CollectionTargetList 로 내려보낸다(ADR-0041 Decision 1 — 컴포넌트는 fetch 를
+          모른다). data 는 위에서 Array.isArray 로 정상화한 collectionTargets 를 쓰므로 미조회/
+          진행 중/실패/비-배열 응답 어디서도 throw 하지 않는다.
+          gating — backend GET 이 `@Roles("User")` 조회 tier 이고 본 섹션에는 편집 컨트롤이
+          없으므로 isAdmin gating **바깥**에 둔다(403 유발 0 — 등록·수정·삭제 폼이 붙는 후속
+          편집 slice 가 그 컨트롤에만 Admin+ gating 을 얹는다). */}
+      <section aria-label={COLLECTION_TARGET_HEADING}>
+        <h2>{COLLECTION_TARGET_HEADING}</h2>
+        <CollectionTargetList
+          targets={collectionTargets}
+          loading={collectionTargetLoading}
+          error={collectionTargetError}
+          emptyMessage={EMPTY_COLLECTION_TARGET_TEXT}
         />
       </section>
     </section>
