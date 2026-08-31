@@ -206,8 +206,9 @@ describe("CollectionTargetController (위임 동작)", () => {
     expect(result.some((row) => !row.active)).toBe(true);
   });
 
-  // negative — throw 후 후속 처리 0. 미배선 tier service 메서드 호출 0 으로 단락 확인.
-  it("negative: service throw 시 후속 처리 없이 단락한다 (미배선 메서드 호출 0)", async () => {
+  // negative — throw 후 후속 처리 0. 위임 대상 외 편집 tier service 메서드 호출 0 으로
+  // 단락을 확인한다(5 route 전량 배선 후에도 조회 handler 는 편집 메서드를 부르지 않는다).
+  it("negative: service throw 시 후속 처리 없이 단락한다 (위임 대상 외 메서드 호출 0)", async () => {
     serviceMock.findById.mockRejectedValue(new NotFoundException("x"));
 
     await expect(controller.findById("target-1")).rejects.toBeInstanceOf(
