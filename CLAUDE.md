@@ -22,7 +22,7 @@ prompt 후반부에 박힌 hard rule 의 attention drift 누락을 막기 위해
 5. **STATE single-writer** — `STATE.json` / journal / counters 는 driver / planner / notifier 만 write. counter 는 origin+1 read-modify-write. → §9.
 6. **Commit trail blob 표준 포맷** — 모든 commit (direct · pr) 본문에 trail blob 포함. 헤더 / 키는 영어, 값 / 본문은 한국어. `notes` / `coverage` ≤ 2 줄. → §11.
 7. **언어 정책** — commit subject · body / 코드 주석 / PR comment / 문서 본문 = 한국어. 식별자 / enum / commit type prefix / 명령어 / 경로 / status 토큰 = 영어. → §12.
-8. **1 task = 1 commit / 1 fire = 1 task** — task 크기 ≤ 300 LOC / 5 파일. 다른 주제는 즉시 고치지 말고 task 의 Follow-ups 에. cron 1 fire 1 task 후 종료. **기본 OFF — 실험적 multi-task fire 는 §2.5**. → §3 + [docs/LOOP.md](docs/LOOP.md) §1 [7].
+8. **1 task = 1 commit / 1 fire = 1 task** — task 크기 ≤ 300 LOC / 5 파일, 하한은 소비처 동반 의무 (helper 단독 slice 금지). 다른 주제는 즉시 고치지 말고 task 의 Follow-ups 에. cron 1 fire 1 task 후 종료. **기본 OFF — 실험적 multi-task fire 는 §2.5**. → §3 + [docs/LOOP.md](docs/LOOP.md) §1 [7].
 
 historical 사고 증거 (룰이 박힌 이유): PR-5/6/7 reviewer 우회 / T-0007 PR-8 source≠target / T-0003 jest.roots catch 누락 / T-0001 task-too-large / T-0009 PR-10 spec check — [docs/progress/](docs/progress/) journal 참조.
 
@@ -113,6 +113,12 @@ historical 사고 증거 (룰이 박힌 이유): PR-5/6/7 reviewer 우회 / T-00
 
 - **1 task = 1 commit** (README 109행). PR 사용 여부는 아래 commit mode를 따른다.
 - **Task 크기 상한**: diff ≤ 300 LOC, 변경 파일 ≤ 5개. 초과 예상 시 planner가 task를 split한다.
+- **소비처 동반 의무 (slice 하한, 2026-08-31 오너 지시 박제)** — 위 상한이 "한 slice 가 얼마나 커도 되는가" 만 정하는 반면, 본 룰은 "무엇이 한 slice 인가" 의 **하한**을 정한다. 절단면은 diff 크기가 아니라 **기능**이어야 한다.
+  - **원칙** — 순수 helper / factory / 어댑터를 신설하는 slice 는 **그 helper 를 실제로 호출하는 소비처 배선을 같은 PR 에 포함**한다. 소비처가 없는 helper 단독 PR 은 금지 — 호출자가 없는 helper 는 동작 변화가 0 이라 reviewer 도 CI 도 실제 회귀를 검증할 수 없고, 검증은 소비처가 붙는 다음 slice 로 계속 미뤄진다.
+  - **예외** — 소비처까지 넣으면 cap (300 LOC / 5 파일) 을 넘긴다는 점이 **task 파일에 수치로 제시된** 경우 (`estimatedDiff` / `estimatedFiles` 와 그 산출 근거) 에만 분리를 허용한다. 이때 helper slice 의 `Follow-ups` 에 소비처 slice 를 **어느 파일의 어느 배선인지까지 명시해 박제**한다 — "다음 slice 로 미룬다" 는 서술만으로는 부족하다.
+  - **판정 주체** — planner 가 task 생성 시 판정한다 (cap 안에 들어오면 helper 와 소비처를 한 task 로 묶는다). 위반은 reviewer 가 **MINOR finding** 으로 catch 한다 — §12 언어 정책 위반과 같은 등급이며 BLOCKER 가 아니다.
+  - **사례** — [ADR-0058](docs/decisions/ADR-0058-service-identity-management-api.md) `§Follow-ups (d)` 의 T-1770 ~ T-1777 은 "AdminView 에 ServiceIdentity 행별 액션 버튼을 마운트한다" 는 한 기능에 PR 8 건을 썼고, 같은 기간 실측에서 PR 당 제품 코드는 평균 63 LOC 에 그쳤다. 이미 머지된 slice 의 소급 통합은 하지 않고 이후 slice 부터 본 룰을 적용한다.
+  - **아래 두 룰과의 관계** — 본 룰은 바로 아래 "다른 주제는 즉시 고치지 않는다" 룰 및 "Nit-in-PR closure 의무" 와 충돌하지 않는다: helper 와 그 소비처는 **다른 주제가 아니라 한 주제의 두 조각**이라 애초에 그 룰들이 말하는 "다른 주제" 에 해당하지 않으며, 구분선은 "같은 기능을 완성하는 조각인가" 이다 (그렇다면 같은 PR, 아니면 `Follow-ups`).
 - 한 task 작업 중 다른 주제(linter 의견, 보이는 버그 등)가 보여도 **즉시 고치지 않는다**. planner에게 follow-up task 생성을 요청하거나 task 파일의 `Follow-ups` 섹션에 적어둔다.
 - **Nit-in-PR closure 의무 (15-step §11 차용, T-0148 박제)** — 위 follow-up 룰의 예외: **reviewer 가 APPROVE 했어도 Nit / Low-priority finding 이 남아있고, cap (300 LOC / 5 파일) 안에서 처리 가능하면 본 PR 안에서 완결**. 다음 4 종 fix 가 해당:
   1. Test case 추가 (R-112 충분 cover 부족 — reviewer 가 nit 으로 분류했어도).
