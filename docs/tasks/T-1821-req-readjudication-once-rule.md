@@ -2,7 +2,7 @@
 id: T-1821
 title: Restrict REQ re-adjudication to a single post-implementation pass
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: []
 independentStream: driver-process-reform
