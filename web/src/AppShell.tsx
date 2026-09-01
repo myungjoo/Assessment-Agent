@@ -145,8 +145,9 @@ export function buildSetupErrorLines(failure: SignupFailure | null): string[] {
 }
 
 // 위 줄 배열을 폼 error 한 줄 문자열로 잇는다 (T-1714 계약 유지).
-// AdminView 축(CREATE_USER_ERROR_SEPARATOR) 이 아직 단일 문자열 표현을 쓰고 있어 본 변환도
-// 그대로 남긴다 — 두 축이 모두 줄 단위로 전환되면 제거 가능 여부를 재평가한다(T-1834 Follow-up).
+// T-1834 이후 AppShell 안에는 호출자가 없지만, 단일 문자열 표현을 쓰는 소비처(폼의 error
+// prop 경로)가 아직 살아 있으므로 named export 계약을 유지한다 — REQ-084 의 나머지 축까지
+// 줄 단위로 전환된 뒤 제거 가능 여부를 재평가한다(T-1834 Follow-up).
 export function buildSetupErrorMessage(failure: SignupFailure | null): string {
   return buildSetupErrorLines(failure).join(SETUP_ERROR_SEPARATOR);
 }
