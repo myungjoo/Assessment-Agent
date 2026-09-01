@@ -17,7 +17,9 @@
 // 도달 경로가 없던 'admin' 분기를 살린다(REQ-070 slice 1). T-1720 은 그 내비게이션에
 // 등급 차등을 얹는다(REQ-073 slice 3): 인증 후 `fetchCurrentUser()`(T-1718) 로 현재
 // 사용자 등급을 1 회 적재하고, `canEditAssessmentTargets`(T-1719) 판정으로 편집 동선
-// 항목('관리')을 필터한다 — User 등급에게는 조회 동선만 남는다. 새 dependency 0 —
+// 항목('관리')을 필터한다 — User 등급에게는 조회 동선만 남는다. T-1834 는 셋업 실패
+// 사유를 한 문자열로 합쳐 내려보내던 배선을 줄 배열(buildSetupErrorLines → 폼 errorLines)
+// 로 바꿔 사유가 2 개 이상일 때의 줄 경계를 살린다(REQ-084). 새 dependency 0 —
 // react/react-dom + 브라우저 표준 fetch 만 사용한다(ADR-0040 §5 게이트).
 
 import { useEffect, useState } from 'react';
@@ -110,10 +112,9 @@ export function shouldLoadCurrentUser(
 const APP_TITLE = 'Assessment-Agent';
 
 // 셋업 실패 사유 줄들을 하나의 error 문자열로 이을 때 쓰는 구분자 (T-1714).
-// SuperAdminSetupForm 의 `error?: string` 제약 때문에 여러 줄을 한 문자열로 합쳐야 하는데,
-// 줄바꿈(\n)은 별도 CSS(white-space) 없이는 HTML 에서 접혀 사라진다 — 그 스타일 도입은
-// 본 slice Out of Scope 라, 접히지 않는 시각적 구분자를 쓴다. 각 줄의 사유 문장 자체는
-// 원문 그대로 보존하며 요약·병합하지 않는다(REQ-068 포괄 문구 금지).
+// T-1834 이후 실 표시 경로는 줄 배열(errorLines)을 쓰므로 이 구분자는 화면에 나타나지
+// 않는다 — 단일 문자열 표현이 필요한 호출자(buildSetupErrorMessage) 를 위해서만 남는다.
+// 각 줄의 사유 문장 자체는 원문 그대로 보존하며 요약·병합하지 않는다(REQ-068 포괄 문구 금지).
 const SETUP_ERROR_SEPARATOR = ' / ';
 
 // 사유를 하나도 얻지 못한 비정상 응답용 fallback (T-1714). 2xx 인데 role 도 failure 도
@@ -125,20 +126,30 @@ const SETUP_UNRESOLVED_MESSAGE =
 // 네트워크/5xx 등 throw 경로 문구 — 위 fallback 과 구분 가능해야 한다.
 const SETUP_THROWN_ERROR_MESSAGE = '셋업 중 오류가 발생했습니다.';
 
-// signupDetailed 가 준 축별 사유(SignupFailure)를 폼 error 한 줄 문자열로 변환한다 (T-1714).
-// 순수 함수로 분리해 named export 하는 이유: web 에 @testing-library/react 가 없어(ADR-0040 §5
-// 새-dep 게이트) 상호작용 렌더 test 가 불가하므로, 이 변환 규칙만은 단위로 검증 가능해야 한다.
-//  - failure 가 null(사유 미상) 또는 축이 전부 비어 있으면 → SETUP_UNRESOLVED_MESSAGE.
-//  - 그 외 → formatSignupFailure 의 줄들을 구분자로 이어 붙인다(각 줄 원문 보존).
-export function buildSetupErrorMessage(failure: SignupFailure | null): string {
+// signupDetailed 가 준 축별 사유(SignupFailure)를 폼에 내려보낼 줄 배열로 변환한다 (T-1834).
+// 사유 산출 로직의 정본은 이 함수 하나이며, 아래 buildSetupErrorMessage 는 이 결과를 잇기만
+// 한다(중복 구현 0). 순수 함수로 분리해 named export 하는 이유: web 에 @testing-library/react
+// 가 없어(ADR-0040 §5 새-dep 게이트) 상호작용 렌더 test 가 불가하므로, 이 변환 규칙만은
+// 단위로 검증 가능해야 한다.
+//  - failure 가 null(사유 미상) 또는 축이 전부 비어 있으면 → SETUP_UNRESOLVED_MESSAGE 한 줄.
+//  - 그 외 → formatSignupFailure 의 줄들을 그대로(원문 보존, 요약·병합 금지) 반환한다.
+export function buildSetupErrorLines(failure: SignupFailure | null): string[] {
   if (failure === null) {
-    return SETUP_UNRESOLVED_MESSAGE;
+    return [SETUP_UNRESOLVED_MESSAGE];
   }
   const lines = formatSignupFailure(failure);
   if (lines.length === 0) {
-    return SETUP_UNRESOLVED_MESSAGE;
+    return [SETUP_UNRESOLVED_MESSAGE];
   }
-  return lines.join(SETUP_ERROR_SEPARATOR);
+  return lines;
+}
+
+// 위 줄 배열을 폼 error 한 줄 문자열로 잇는다 (T-1714 계약 유지).
+// T-1834 이후 AppShell 안에는 호출자가 없지만, 단일 문자열 표현을 쓰는 소비처(폼의 error
+// prop 경로)가 아직 살아 있으므로 named export 계약을 유지한다 — REQ-084 의 나머지 축까지
+// 줄 단위로 전환된 뒤 제거 가능 여부를 재평가한다(T-1834 Follow-up).
+export function buildSetupErrorMessage(failure: SignupFailure | null): string {
+  return buildSetupErrorLines(failure).join(SETUP_ERROR_SEPARATOR);
 }
 
 // 인증 제출 위임 콜백 — wiring ②b(T-0380) 가 실 `auth.login` 을 주입한다.
@@ -155,6 +166,10 @@ interface AppShellProps {
   // setup 폼 초기 에러 문구 — 기본 미설정. error 전달 경로를 정적 렌더로 검증할
   // 수 있도록 초기값 주입을 허용한다.
   initialSetupError?: string;
+  // setup 폼 초기 에러 줄 목록 — 기본 미설정 (T-1834). 실 실패 경로(handleSetupSubmit)는
+  // 이벤트 발화가 필요해 정적 렌더로 볼 수 없으므로, errorLines 전달 배선을 검증할 수 있게
+  // 초기값 주입을 허용한다(initialSetupError 선례와 동형 — ADR-0041 Decision 1).
+  initialSetupErrorLines?: string[];
   // 초기 사용자 등급 — 기본 미설정(→ null, 적재 전 상태). renderToStaticMarkup 은
   // effect 를 실행하지 않아 fetchCurrentUser 적재 결과를 정적 렌더로 볼 수 없으므로,
   // 등급별 내비 렌더를 검증할 수 있도록 주입점을 연다(initialView ·
@@ -168,6 +183,7 @@ interface AppShellProps {
 function AppShell({
   initialView = 'login',
   initialSetupError,
+  initialSetupErrorLines,
   initialCurrentUser = null,
 }: AppShellProps = {}) {
   // 현재 view 상태 — 초기값 'login' (ADR-0041 Decision 1 인증 게이트 진입점).
@@ -185,6 +201,12 @@ function AppShell({
   const [setupPassword, setSetupPassword] = useState<string>('');
   const [setupLoading, setSetupLoading] = useState<boolean>(false);
   const [setupError, setSetupError] = useState<string | undefined>(initialSetupError);
+  // 셋업 실패 사유의 줄 단위 표현 (T-1834, REQ-084). 실패 경로는 이 state 를 갱신하고
+  // 폼이 줄마다 별도 element 로 렌더한다 — 단일 문자열 setupError 는 initialSetupError
+  // 정적 렌더 경로를 위해 그대로 남긴다(폼에서 errorLines 가 우선).
+  const [setupErrorLines, setSetupErrorLines] = useState<string[] | undefined>(
+    initialSetupErrorLines,
+  );
 
   // 현재 인증 사용자 등급 (T-1720, REQ-073) — 적재 전 상태는 null 이며, 그 상태의 판정은
   // "편집 권한 없음"(조회 전용)이다. 등급을 모르는 동안 편집 동선을 미리 보여주지 않는다.
@@ -221,6 +243,7 @@ function AppShell({
   // 라우터 없는 controlled 전환이다(ADR-0041 Decision 2). 진입 시 직전 에러를 비운다.
   const enterSetup = () => {
     setSetupError(undefined);
+    setSetupErrorLines(undefined);
     setView('superadmin-setup');
   };
 
@@ -236,18 +259,20 @@ function AppShell({
   const handleSetupSubmit = async () => {
     setSetupLoading(true);
     setSetupError(undefined);
+    setSetupErrorLines(undefined);
     try {
       const { role, failure } = await authSignupDetailed(setupUsername, setupPassword);
       if (typeof role === 'string') {
         // 셋업 성공 — 로그인 화면으로 재진입(셋업한 자격증명으로 로그인 유도).
         setView('login');
       } else {
-        // 실패 — 축별 구체 사유(또는 사유 미상 fallback)를 폼에 표시한다.
-        setSetupError(buildSetupErrorMessage(failure));
+        // 실패 — 축별 구체 사유(또는 사유 미상 fallback)를 줄 단위로 폼에 표시한다 (T-1834).
+        // 한 문자열로 합치지 않으므로 사유가 2 개 이상이어도 줄 경계가 보존된다(REQ-084).
+        setSetupErrorLines(buildSetupErrorLines(failure));
       }
     } catch {
-      // 네트워크/5xx 등 — 사용자에게 에러로 외화한다.
-      setSetupError(SETUP_THROWN_ERROR_MESSAGE);
+      // 네트워크/5xx 등 — 사용자에게 에러로 외화한다(줄이 하나뿐이어도 같은 경로를 쓴다).
+      setSetupErrorLines([SETUP_THROWN_ERROR_MESSAGE]);
     } finally {
       setSetupLoading(false);
     }
@@ -275,6 +300,7 @@ function AppShell({
             onSubmit={handleSetupSubmit}
             loading={setupLoading}
             error={setupError}
+            errorLines={setupErrorLines}
           />
         ) : (
           // 로그인 분기 — AuthGate 가 미인증/인증을 담당한다. 미인증: LoginForm,

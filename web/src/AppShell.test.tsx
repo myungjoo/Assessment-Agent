@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import AppShell, {
   AUTHED_NAV_ITEMS,
+  buildSetupErrorLines,
   buildSetupErrorMessage,
   isNavItemActive,
   shouldLoadCurrentUser,
@@ -10,6 +11,7 @@ import AppShell, {
 } from './AppShell';
 import type { View } from './AppShell';
 import type { CurrentUser } from './api/auth';
+import { SETUP_ERROR_LINE_CLASS } from './components/SuperAdminSetupForm';
 import { classifySignupFailure } from './api/signupError';
 import type { SignupFailure } from './api/signupError';
 
@@ -525,5 +527,176 @@ describe('AppShell 등급별 내비게이션 렌더 (T-1720)', () => {
     expect(source).toMatch(/canEditAssessmentTargets\(user\)/);
     // 항목 표식(editOnly)으로 필터하며 view 문자열을 함수 안에 하드코딩하지 않는다.
     expect(source).toMatch(/item\.editOnly === true/);
+  });
+});
+
+// R-112 — T-1834 셋업 실패 사유의 줄 단위 전달(REQ-084) 검증.
+// 종전 buildSetupErrorMessage 는 사유 줄들을 ' / ' 로 합쳐 폼의 error 한 칸에 밀어 넣었다 —
+// 사유가 2 개 이상이면 줄 경계가 사라진다. 본 slice 는 줄 배열을 정본으로 두고(buildSetupErrorLines)
+// 문자열 변환은 그 결과를 잇기만 하게 재정의했다. 실 제출 경로(handleSetupSubmit)는 이벤트
+// 발화가 필요해 정적 렌더로 볼 수 없으므로 ① 순수 함수 단위 검증 ② initialSetupErrorLines
+// 주입 정적 렌더 ③ 소스 문자열 drift guard 세 축으로 배선을 고정한다(T-1720 선례 승계).
+
+// 줄 element 의 안정 식별 토큰 (SuperAdminSetupForm SETUP_ERROR_LINE_CLASS 와 정합).
+const ERROR_LINE_OPEN_TAG = `<p class="${SETUP_ERROR_LINE_CLASS}">`;
+
+describe('buildSetupErrorLines (T-1834)', () => {
+  // happy-path — 409 중복 실패는 중복 전용 사유 한 줄이 된다(REQ-069 중복 축).
+  it('duplicate-username failure 를 중복 전용 사유 한 줄로 만든다 (happy-path)', () => {
+    const lines = buildSetupErrorLines(classifySignupFailure(409, '{"message":"Conflict"}'));
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain('아이디:');
+    expect(lines[0]).toContain('이미 등록된 아이디입니다');
+  });
+
+  // happy-path ② — 두 축이 동시에 위반이면 줄이 두 개로 나뉘고 원문이 각각 보존된다.
+  it('아이디·비밀번호 동시 위반을 두 줄로 나누고 원문을 보존한다 (happy-path — 줄 분리)', () => {
+    const lines = buildSetupErrorLines(
+      classifySignupFailure(
+        400,
+        JSON.stringify({
+          message: [
+            'email must be an email',
+            'password must be longer than or equal to 8 characters',
+          ],
+        }),
+      ),
+    );
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toContain('아이디:');
+    expect(lines[1]).toContain('비밀번호:');
+    // 한 줄 안에 두 축이 섞이면 줄 분리가 무의미해진다.
+    expect(lines[0]).not.toContain('비밀번호:');
+  });
+
+  // error path ① — failure 가 null(비정상 2xx) 이면 사유를 지어내지 않고 fallback 한 줄이다.
+  it('failure 가 null 이면 fallback 문구 한 줄을 반환한다 (error path — null 입력)', () => {
+    const lines = buildSetupErrorLines(null);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain(UNRESOLVED_TOKEN);
+  });
+
+  // error path ② — 축이 전부 비어 있는 failure 도 같은 fallback 한 줄이다(빈 배열 반환 금지).
+  it('축이 전부 비어 있으면 빈 배열이 아니라 fallback 한 줄을 반환한다 (error path — 빈 목록)', () => {
+    const empty: SignupFailure = { kind: 'unknown', username: [], password: [], other: [] };
+    const lines = buildSetupErrorLines(empty);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain(UNRESOLVED_TOKEN);
+  });
+
+  // 분기 — other 축만 있는 failure(축 미상 5xx 등)에서도 원문이 유실되지 않는다.
+  it('other 축만 있는 failure 의 원문도 한 줄로 보존한다 (분기 — 기타 축)', () => {
+    const lines = buildSetupErrorLines(classifySignupFailure(503, ''));
+    expect(lines.join('')).toContain('기타:');
+    expect(lines.join('')).toContain('응답 상태 503');
+    expect(lines.join('')).not.toContain(UNRESOLVED_TOKEN);
+  });
+
+  // negative ① — 어떤 줄 안에도 구분자 ' / ' 가 남아있지 않다(합침 잔재 0).
+  it('어떤 줄 안에도 구분자가 남지 않는다 (negative — 합침 잔재 0)', () => {
+    const failure = classifySignupFailure(
+      400,
+      JSON.stringify({
+        message: ['email must be an email', 'password must be longer than or equal to 8 characters'],
+      }),
+    );
+    for (const line of buildSetupErrorLines(failure)) {
+      expect(line).not.toContain(' / ');
+    }
+  });
+
+  // negative ② — 어떤 실패 경로에서도 오너 금지 포괄 문구가 줄에 나타나지 않는다(REQ-068).
+  it('어떤 실패 경로에서도 금지된 포괄 문구를 만들지 않는다 (negative — REQ-068 금지 문구)', () => {
+    const candidates = [
+      buildSetupErrorLines(classifySignupFailure(409, '')),
+      buildSetupErrorLines(classifySignupFailure(400, '{"message":["email must be an email"]}')),
+      buildSetupErrorLines(classifySignupFailure(400, 'not-json')),
+      buildSetupErrorLines(classifySignupFailure(500, '')),
+      buildSetupErrorLines(null),
+    ];
+    for (const lines of candidates) {
+      // 줄이 하나도 없으면 사용자에게 아무 안내도 못 하므로 빈 배열 자체를 금지한다.
+      expect(lines.length).toBeGreaterThan(0);
+      expect(lines.join(' ')).not.toContain(FORBIDDEN_GENERIC_MESSAGE);
+    }
+  });
+
+  // negative ③ — 사용자가 입력한 비밀번호 값이 줄에 섞이지 않는다(민감값 노출 금지).
+  it('줄에 사용자가 입력한 비밀번호 값이 섞이지 않는다 (negative — 민감값 미노출)', () => {
+    const secret = 'sup3rSecretPw!';
+    const lines = buildSetupErrorLines(
+      classifySignupFailure(
+        400,
+        JSON.stringify({ message: ['password must be longer than or equal to 8 characters'] }),
+      ),
+    );
+    expect(lines.join(' ')).not.toContain(secret);
+  });
+
+  // 중복 구현 금지 — 문자열 변환은 줄 배열을 잇기만 한다(두 함수가 따로 사유를 만들지 않는다).
+  it('buildSetupErrorMessage 는 줄 배열을 구분자로 이은 결과와 항상 같다 (계약 — 단일 정본)', () => {
+    const failures: Array<SignupFailure | null> = [
+      classifySignupFailure(409, ''),
+      classifySignupFailure(400, '{"message":["email must be an email"]}'),
+      classifySignupFailure(503, ''),
+      null,
+    ];
+    for (const failure of failures) {
+      expect(buildSetupErrorMessage(failure)).toBe(buildSetupErrorLines(failure).join(' / '));
+    }
+  });
+});
+
+describe('AppShell 셋업 오류 줄 단위 렌더 (T-1834)', () => {
+  // happy-path — 줄 배열을 주입하면 폼이 줄마다 별도 element 로 렌더한다(합침 0).
+  it('initialSetupErrorLines 주입 시 줄마다 별도 element 로 렌더한다 (happy-path)', () => {
+    const html = renderToStaticMarkup(
+      <AppShell
+        initialView="superadmin-setup"
+        initialSetupErrorLines={['아이디: 이미 등록된 아이디입니다.', '비밀번호: 최소 8자 이상']}
+      />,
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).toContain(`${ERROR_LINE_OPEN_TAG}아이디: 이미 등록된 아이디입니다.</p>`);
+    expect(html).toContain(`${ERROR_LINE_OPEN_TAG}비밀번호: 최소 8자 이상</p>`);
+    // 종전처럼 한 줄로 합쳐졌다면 이 단언이 깨진다.
+    expect(html).not.toContain('아이디: 이미 등록된 아이디입니다. / 비밀번호: 최소 8자 이상');
+  });
+
+  // 분기 — 줄 배열이 비어 있으면 기존 단일 문자열 경로(initialSetupError)가 그대로 동작한다.
+  it('줄 배열이 비어 있으면 initialSetupError 문자열 경로로 렌더한다 (분기 — 문자열 fallback 무회귀)', () => {
+    const html = renderToStaticMarkup(
+      <AppShell
+        initialView="superadmin-setup"
+        initialSetupError="셋업 실패"
+        initialSetupErrorLines={[]}
+      />,
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('셋업 실패');
+    expect(html).not.toContain(SETUP_ERROR_LINE_CLASS);
+  });
+
+  // negative — 둘 다 미주입이면 셋업 화면에 오류 영역이 없다(빈 alert 미렌더).
+  it('오류 주입이 없으면 셋업 화면에 alert 영역이 없다 (negative — 빈 alert 미렌더)', () => {
+    const html = renderToStaticMarkup(<AppShell initialView="superadmin-setup" />);
+    expect(html).toContain('초기 셋업');
+    expect(html).not.toContain('role="alert"');
+  });
+
+  // drift guard — 실 실패 경로의 state 갱신·폼 배선은 이벤트 발화가 필요해 정적 렌더로
+  // 볼 수 없으므로 소스 문자열로 대조한다(T-1720 drift guard 선례).
+  it('소스에서 실패 경로가 줄 배열 state 를 갱신하고 폼에 errorLines 로 내려간다 (drift guard)', () => {
+    const source = readFileSync(new URL('./AppShell.tsx', import.meta.url), 'utf8');
+    // 실패 분기가 줄 배열 정본 helper 로 state 를 갱신한다.
+    expect(source).toMatch(/setSetupErrorLines\(buildSetupErrorLines\(failure\)\)/);
+    // throw 경로도 같은 줄 배열 경로를 쓴다.
+    expect(source).toMatch(/setSetupErrorLines\(\[SETUP_THROWN_ERROR_MESSAGE\]\)/);
+    // 소비처 배선 — 폼에 errorLines prop 으로 내려간다.
+    expect(source).toMatch(/errorLines=\{setupErrorLines\}/);
+    // 단일 문자열 변환은 줄 배열을 잇기만 한다(사유 산출 로직 중복 0).
+    expect(source).toMatch(/buildSetupErrorLines\(failure\)\.join\(SETUP_ERROR_SEPARATOR\)/);
+    // 실패 표시를 다시 단일 문자열 state 로 되돌리는 회귀 감시.
+    expect(source).not.toMatch(/setSetupError\(buildSetupErrorMessage\(/);
   });
 });

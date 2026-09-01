@@ -4,8 +4,10 @@ import SuperAdminSetupForm, {
   PASSWORD_HINT_ID,
   PASSWORD_HINT_TEXT,
   PASSWORD_MIN_LENGTH,
+  SETUP_ERROR_LINE_CLASS,
   USERNAME_HINT_ID,
   USERNAME_HINT_TEXT,
+  hasErrorLines,
 } from './SuperAdminSetupForm';
 import type { SuperAdminSetupFormProps } from './SuperAdminSetupForm';
 
@@ -21,6 +23,20 @@ const extractInput = (html: string, name: string): string => {
   const matched = html.match(new RegExp(`<input[^>]*name="${name}"[^>]*>`));
   return matched === null ? '' : matched[0];
 };
+
+// role="alert" 영역의 내용만 잘라낸다 (T-1834) — 폼 전체 markup 에는 controlled input 의
+// value 가 그대로 들어있으므로, "오류 안내가 입력값을 노출하지 않는다" 는 alert 영역으로
+// 범위를 좁혀야 한다. alert 안에는 중첩 <div> 가 없어 첫 </div> 가 곧 닫는 태그다.
+const extractAlert = (html: string): string => {
+  const matched = html.match(/<div role="alert">([\s\S]*?)<\/div>/);
+  return matched === null ? '' : matched[1];
+};
+
+// 줄 element 하나의 완전한 markup — 두 줄이 같은 텍스트 노드로 합쳐지지 않았음을 단언한다.
+const LINE_OPEN_TAG = `<p class="${SETUP_ERROR_LINE_CLASS}">`;
+const lineMarkup = (text: string): string => `${LINE_OPEN_TAG}${text}</p>`;
+// 두 줄 사이의 element 경계 — 이 경계가 사라지면 줄들이 합쳐졌다는 뜻이다.
+const LINE_BOUNDARY = `</p>${LINE_OPEN_TAG}`;
 
 // R-112 — R-84(Auth/RBAC) 최초 부트스트랩 SuperAdmin 초기 셋업 폼(ADR-0040 §2 인증 흐름) 검증.
 // LoginForm.test.tsx / DifficultyModelSelector.test.tsx 와 동일 패턴: jsdom·@testing-library
@@ -291,5 +307,218 @@ describe('SuperAdminSetupForm', () => {
     // 두 안내는 서로 다른 id 를 쓴다 — 교차 연결 방지.
     expect(USERNAME_HINT_ID).not.toBe(PASSWORD_HINT_ID);
     expect(extractInput(html, 'username')).not.toContain(PASSWORD_HINT_ID);
+  });
+});
+
+// R-112 — T-1834 여러 줄 오류 안내의 줄 단위 표시(REQ-084) 검증.
+// 종전에는 상위(AppShell)가 사유 줄들을 ' / ' 로 합쳐 error 한 칸에 밀어 넣어, 사유가 2 개
+// 이상이면 어디서 한 줄이 끝나는지 구분할 수 없었다. 본 slice 는 errorLines prop 으로 줄
+// 경계를 markup 에 남긴다 — CSS 없이 element 분리만으로 구분한다(스타일 도입 Out of Scope).
+describe('SuperAdminSetupForm errorLines (T-1834)', () => {
+  // happy-path — 두 줄을 주면 줄마다 별도 element 로, 원문 그대로 렌더된다.
+  it('errorLines 두 줄을 줄마다 별도 element 로 원문 그대로 렌더한다 (happy-path)', () => {
+    const lines = ['아이디: 이미 등록된 아이디입니다.', '비밀번호: 최소 8자 이상이어야 합니다.'];
+    const html = renderToStaticMarkup(
+      <SuperAdminSetupForm username="root" password="secret" {...callbacks} errorLines={lines} />,
+    );
+    expect(html).toContain('role="alert"');
+    // 각 줄이 자기 element 를 가진다 — 두 줄이 한 문자열로 합쳐지지 않았다는 직접 증거.
+    expect(html).toContain(lineMarkup(lines[0]));
+    expect(html).toContain(lineMarkup(lines[1]));
+  });
+
+  // happy-path ② — 줄 수만큼의 줄 element 가 나온다(누락·중복 0).
+  it('줄 수만큼의 줄 element 를 렌더한다 (happy-path — 줄 수 보존)', () => {
+    const lines = ['첫째 줄', '둘째 줄', '셋째 줄'];
+    const alert = extractAlert(
+      renderToStaticMarkup(
+        <SuperAdminSetupForm username="root" password="secret" {...callbacks} errorLines={lines} />,
+      ),
+    );
+    expect(alert.split(LINE_OPEN_TAG)).toHaveLength(lines.length + 1);
+    for (const line of lines) {
+      expect(alert).toContain(lineMarkup(line));
+    }
+  });
+
+  // error path — 사유 미상 fallback 처럼 한 줄만 와도 alert 가 정상 렌더된다.
+  it('한 줄만 전달돼도 alert 영역에 그 줄이 렌더된다 (error path — 단일 사유)', () => {
+    const fallback = '셋업 응답을 해석하지 못했습니다.';
+    const alert = extractAlert(
+      renderToStaticMarkup(
+        <SuperAdminSetupForm
+          username="root"
+          password="secret"
+          {...callbacks}
+          errorLines={[fallback]}
+        />,
+      ),
+    );
+    expect(alert).toContain(lineMarkup(fallback));
+  });
+
+  // 분기 (가) — errorLines 가 비어있지 않으면 error 문자열보다 우선한다(우선순위 계약).
+  it('errorLines 가 있으면 error 문자열보다 우선한다 (분기 가 — errorLines 우선)', () => {
+    const html = renderToStaticMarkup(
+      <SuperAdminSetupForm
+        username="root"
+        password="secret"
+        {...callbacks}
+        error="합쳐진 한 줄 문구"
+        errorLines={['줄 하나', '줄 둘']}
+      />,
+    );
+    expect(html).toContain(lineMarkup('줄 하나'));
+    expect(html).toContain(lineMarkup('줄 둘'));
+    // 우선순위가 뒤집히면 이 단언이 깨진다 — error 문자열은 렌더되지 않는다.
+    expect(html).not.toContain('합쳐진 한 줄 문구');
+  });
+
+  // 분기 (나) — errorLines 가 빈 배열이면 기존 error 문자열 경로로 되돌아간다(무회귀).
+  it('errorLines 가 빈 배열이면 error 문자열이 그대로 렌더된다 (분기 나 — 문자열 fallback)', () => {
+    const html = renderToStaticMarkup(
+      <SuperAdminSetupForm
+        username="root"
+        password="secret"
+        {...callbacks}
+        error="셋업에 실패했습니다"
+        errorLines={[]}
+      />,
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('셋업에 실패했습니다');
+    // 문자열 경로에서는 줄 element 를 만들지 않는다.
+    expect(html).not.toContain(SETUP_ERROR_LINE_CLASS);
+  });
+
+  // 분기 (나') — errorLines 미전달 + error 문자열 도 같은 문자열 경로다.
+  it('errorLines 미전달 + error 문자열이면 문자열 경로로 렌더한다 (분기 나 — 미전달)', () => {
+    const html = renderToStaticMarkup(
+      <SuperAdminSetupForm username="root" password="secret" {...callbacks} error="실패" />,
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).not.toContain(SETUP_ERROR_LINE_CLASS);
+  });
+
+  // 분기 (다) — 둘 다 없으면 alert 자체를 렌더하지 않는다(빈 alert 가 자리를 차지하지 않는다).
+  it('errorLines·error 둘 다 없으면 alert 영역을 렌더하지 않는다 (분기 다 — 미렌더)', () => {
+    const html = renderToStaticMarkup(
+      <SuperAdminSetupForm username="root" password="secret" {...callbacks} />,
+    );
+    expect(html).not.toContain('role="alert"');
+    expect(html).not.toContain(SETUP_ERROR_LINE_CLASS);
+  });
+
+  // negative ① — 빈 배열만 오면(문자열 error 도 없음) 빈 alert 를 렌더하지 않는다(경계값).
+  it('errorLines=[] 단독이면 빈 alert 를 렌더하지 않는다 (negative — 빈 배열 경계값)', () => {
+    const html = renderToStaticMarkup(
+      <SuperAdminSetupForm username="root" password="secret" {...callbacks} errorLines={[]} />,
+    );
+    expect(html).not.toContain('role="alert"');
+  });
+
+  // negative ② — 줄이 1 개뿐일 때 구분자 ' / ' 가 출력에 섞이지 않는다(합침 회귀 감시).
+  it('줄이 1 개일 때 구분자가 출력에 섞이지 않는다 (negative — 구분자 잔재 0)', () => {
+    const alert = extractAlert(
+      renderToStaticMarkup(
+        <SuperAdminSetupForm
+          username="root"
+          password="secret"
+          {...callbacks}
+          errorLines={['아이디: 이미 등록된 아이디입니다.']}
+        />,
+      ),
+    );
+    expect(alert).not.toContain(' / ');
+  });
+
+  // negative ③ — 줄이 2 개 이상일 때도 두 줄이 하나의 텍스트 노드로 이어붙지 않는다.
+  it('두 줄이 하나의 텍스트 노드로 합쳐지지 않는다 (negative — 합침 금지)', () => {
+    const alert = extractAlert(
+      renderToStaticMarkup(
+        <SuperAdminSetupForm
+          username="root"
+          password="secret"
+          {...callbacks}
+          errorLines={['앞줄', '뒷줄']}
+        />,
+      ),
+    );
+    // 이어붙은 형태('앞줄뒷줄' 또는 '앞줄 / 뒷줄')는 어디에도 나타나면 안 된다.
+    expect(alert).not.toContain('앞줄뒷줄');
+    expect(alert).not.toContain('앞줄 / 뒷줄');
+    // 두 줄 사이에 element 경계가 존재한다.
+    expect(alert).toContain(LINE_BOUNDARY);
+  });
+
+  // negative ④ — 사용자가 입력한 비밀번호 값이 오류 안내 영역에 새지 않는다(기존 패턴 승계).
+  it('오류 안내 영역에 password props 값이 새지 않는다 (negative — 민감값 미노출)', () => {
+    const secret = 'SuperSecretValue99';
+    const alert = extractAlert(
+      renderToStaticMarkup(
+        <SuperAdminSetupForm
+          username="root@example.com"
+          password={secret}
+          {...callbacks}
+          errorLines={['비밀번호: 최소 8자 이상이어야 합니다.']}
+        />,
+      ),
+    );
+    expect(alert).not.toContain(secret);
+  });
+
+  // negative ⑤ — 타입을 우회해 undefined·공백 줄이 섞여도 throw 없이 렌더된다.
+  it('undefined·공백 줄이 섞여도 throw 없이 렌더한다 (negative — 타입 우회 입력)', () => {
+    const dirty = ['정상 줄', undefined as unknown as string, '   ', ''];
+    expect(() =>
+      renderToStaticMarkup(
+        <SuperAdminSetupForm username="root" password="secret" {...callbacks} errorLines={dirty} />,
+      ),
+    ).not.toThrow();
+    const html = renderToStaticMarkup(
+      <SuperAdminSetupForm username="root" password="secret" {...callbacks} errorLines={dirty} />,
+    );
+    expect(html).toContain(lineMarkup('정상 줄'));
+  });
+
+  // negative ⑥ — 타입을 우회해 배열이 아닌 값이 와도 throw 없이 문자열 경로로 되돌아간다.
+  it('errorLines 가 배열이 아니면 throw 없이 문자열 경로로 되돌아간다 (negative — 비배열 입력)', () => {
+    const html = renderToStaticMarkup(
+      <SuperAdminSetupForm
+        username="root"
+        password="secret"
+        {...callbacks}
+        error="문자열 경로"
+        errorLines={'합쳐진 문구' as unknown as string[]}
+      />,
+    );
+    expect(html).toContain('문자열 경로');
+    expect(html).not.toContain(SETUP_ERROR_LINE_CLASS);
+  });
+});
+
+describe('hasErrorLines (T-1834)', () => {
+  // happy-path — 값이 있는 배열이면 줄 단위 렌더 경로를 택한다.
+  it('비어있지 않은 배열이면 true 다 (happy-path)', () => {
+    expect(hasErrorLines(['한 줄'])).toBe(true);
+    expect(hasErrorLines(['줄 하나', '줄 둘'])).toBe(true);
+  });
+
+  // 분기 — 빈 배열은 렌더할 값이 없으므로 false 다.
+  it('빈 배열이면 false 다 (분기 — 빈 목록)', () => {
+    expect(hasErrorLines([])).toBe(false);
+  });
+
+  // 분기 — 미전달(undefined) 도 false 다.
+  it('undefined 면 false 다 (분기 — 미전달)', () => {
+    expect(hasErrorLines(undefined)).toBe(false);
+  });
+
+  // error path / negative — 타입을 우회한 비배열 입력에도 throw 없이 false 다.
+  it('배열이 아닌 값에도 throw 없이 false 를 반환한다 (error path — 타입 우회 입력)', () => {
+    expect(() => hasErrorLines('문자열' as unknown as string[])).not.toThrow();
+    expect(hasErrorLines('문자열' as unknown as string[])).toBe(false);
+    expect(hasErrorLines(null as unknown as string[])).toBe(false);
+    expect(hasErrorLines(42 as unknown as string[])).toBe(false);
   });
 });
