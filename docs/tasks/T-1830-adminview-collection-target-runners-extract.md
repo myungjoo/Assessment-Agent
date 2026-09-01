@@ -108,4 +108,16 @@ issue-still-relevant pre-check (planner, `origin/main` `9fd0e116`): `git grep ad
 
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append 한다.)
+- **spec 보강 0 — 기존 spec 이 전량 cover** (T-1830 실측). 이동한 3 러너의 happy-path · error path ·
+  분기 · negative 를 기존 spec 3 개가 이미 전부 덮고 있어 한 줄도 보강하지 않았다: 등록은 3 no-op
+  가드(허용 밖 `type` 3 종 · 필수 입력 미완 5 종 · in-flight) + `input` 자체 부재 4 종 + reject 4 종
+  + 예상 밖 성공 shape 4 종, 삭제/토글은 빈·공백뿐·비문자열 id 미발사 + 이중 클릭 미발사 +
+  `encodeURIComponent` 인코딩 + 재발화 시 직전 문구 초기화 + `finally` 진행 해제, 토글은
+  `active` true/false 다음 상태 양쪽까지 갖췄다. 즉 순수 추출 조건 (c) 를 spec 수정 0 으로 충족했다.
+- ADR-0059 `§Follow-ups (e)` 의 **값 편집 폼**(`endpoint` · `orgs` · `repos` · `spaces`) slice 는
+  `runUpdateCollectionTarget` 을 AdminView 가 아니라 본 모듈
+  ([web/src/views/adminCollectionTargetRunners.ts](../../web/src/views/adminCollectionTargetRunners.ts))
+  에 추가한다 — 그래야 AdminView 가 다시 자라지 않는다.
+- AdminView 는 본 slice 로 6,223 → 6,002 줄이 됐지만 여전히 god component 다. 다음 순수 추출 후보는
+  인스턴스 접근 · LLM provider · schedule helper 군이며, PLAN `183 행` 부채 축의 셋째 slice 로
+  planner 가 별도 큐잉한다 (본 slice 는 범위를 넓히지 않는다).
