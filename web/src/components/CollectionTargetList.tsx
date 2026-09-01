@@ -203,10 +203,6 @@ function CollectionTargetList({
             {/* active === false 인 행에만 비활성 표식을 붙인다 — true/누락 행은 활성으로 본다
                 (schema 기본값 true 정합). 본 컴포넌트는 값을 교정하지 않고 그대로 반영한다. */}
             {active ? null : <span>{INACTIVE_BADGE_TEXT}</span>}
-            {/* onToggleActive 가 주어졌을 때만 활성/비활성 토글 버튼을 렌더한다(T-1829). 라벨은
-                현재 상태에서 파생하고, 콜백에는 **다음 상태**(현재의 반대)를 함께 넘긴다 —
-                컨테이너 러너가 PATCH `{ active: nextActive }` 를 그대로 조립할 수 있게 하려는
-                것이다. 삭제 버튼 앞에 두어 되돌릴 수 있는 동작이 파괴적 동작보다 먼저 오게 한다. */}
             {/* 값 편집 축(T-1831) — 편집 중인 행에는 인라인 입력 + 저장/취소를, 그 외 행에는
                 onEditStart 가 주어졌을 때만 "편집" 버튼을 렌더한다. 진입 버튼과 폼이 한 행에
                 동시에 뜨지 않도록 삼항으로 배타 분기한다. 요청·진행 상태·오류 문구는 여전히
@@ -241,6 +237,10 @@ function CollectionTargetList({
                 {EDIT_LABEL}
               </button>
             ) : null}
+            {/* onToggleActive 가 주어졌을 때만 활성/비활성 토글 버튼을 렌더한다(T-1829). 라벨은
+                현재 상태에서 파생하고, 콜백에는 **다음 상태**(현재의 반대)를 함께 넘긴다 —
+                컨테이너 러너가 PATCH `{ active: nextActive }` 를 그대로 조립할 수 있게 하려는
+                것이다. 삭제 버튼 앞에 두어 되돌릴 수 있는 동작이 파괴적 동작보다 먼저 오게 한다. */}
             {onToggleActive ? (
               <button
                 type="button"

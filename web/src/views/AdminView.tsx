@@ -5919,7 +5919,9 @@ function AdminView({
           /* 값 편집(endpoint) 진입점 + 인라인 폼 배선(T-1831) — backend `@Patch(":id")` 가
              `@Roles("Admin")` 이라 non-Admin 에게는 편집 콜백을 일체 내리지 않아 버튼·폼이
              렌더되지 않는다(REQ-073 RBAC 게이팅 — 403 확정 컨트롤 미노출). editingId 도
-             Admin 일 때만 내려 non-Admin 화면에서 폼이 뜰 경로 자체를 없앤다. */
+             Admin 일 때만 내려 non-Admin 화면에서 폼이 뜰 경로 자체를 없앤다. 값·입력 변경·
+             취소 3 props 는 gating 하지 않는데, 폼이 뜨는 조건(editingId 일치)이 이미 Admin
+             에서만 성립해 non-Admin 에게는 호출될 경로가 없는 inert 값이기 때문이다. */
           onEditStart={isAdmin ? handleStartEditCollectionTarget : undefined}
           editingId={isAdmin ? editingCollectionTargetId : undefined}
           editEndpoint={collectionTargetEndpointEditInput}
