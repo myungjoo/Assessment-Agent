@@ -31,6 +31,7 @@ import AdminView from './views/AdminView';
 import {
   fetchCurrentUser,
   login as authLogin,
+  logout as authLogout,
   signupDetailed as authSignupDetailed,
 } from './api/auth';
 import type { CurrentUser } from './api/auth';
@@ -107,6 +108,22 @@ export function shouldLoadCurrentUser(
 ): boolean {
   return isAuthedView(view) && (currentUser === null || currentUser === undefined);
 }
+
+// 로그아웃 컨트롤을 지금 노출해야 하는지 판정한다 (T-1837, REQ-081).
+// 인증 후 view 에서만 true — 판정 근거는 기존 `isAuthedView` 하나이며 view 문자열
+// ('dashboard' 등)을 여기에 다시 하드코딩하지 않는다(판정 규칙 정본 1 곳). 미인증
+// view('login' · 'superadmin-setup')와 타입을 우회한 런타임 입력(빈 문자열 · undefined
+// 등)은 모두 false 이며 throw 하지 않는다.
+// 순수 함수로 분리해 named export 하는 이유: web 에 @testing-library/react 가 없어
+// (ADR-0040 §5 새-dep 게이트) 클릭 상호작용 test 가 불가하므로 노출 규칙만은 단위로
+// 검증 가능해야 한다(shouldLoadCurrentUser 선례와 동형).
+export function shouldShowLogout(view: View): boolean {
+  return isAuthedView(view);
+}
+
+// 로그아웃 컨트롤의 식별 className — 정적 렌더 단언의 기준 토큰이다. 전역 CSS 는 본
+// slice 의 Out of Scope 라 className 부여까지만 한다.
+const LOGOUT_CLASS = 'app-shell-logout';
 
 // 헤더에 표시할 전역 식별 토큰 — App.test/AppShell.test 의 happy-path 단언 기준.
 const APP_TITLE = 'Assessment-Agent';
@@ -212,6 +229,13 @@ function AppShell({
   // "편집 권한 없음"(조회 전용)이다. 등급을 모르는 동안 편집 동선을 미리 보여주지 않는다.
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(initialCurrentUser);
 
+  // 세션 세대 번호 (T-1837, REQ-081) — 로그아웃할 때마다 1 증가하며 AuthGate 의 key 로
+  // 쓰인다. AuthGate 는 `authenticated` 를 자기 useState 로 소유하고 `initialAuthenticated`
+  // 는 mount 시점 초기값일 뿐이라(AuthGate.tsx 47~50 행), prop 을 내려보내는 것만으로는
+  // 이미 인증된 게이트를 되돌릴 수 없다. key 를 바꿔 remount 시키는 것이 AuthGate.tsx 를
+  // 수정하지 않고 그 내부 상태를 초기화하는 유일한 경로다.
+  const [sessionEpoch, setSessionEpoch] = useState<number>(0);
+
   // 인증 후 진입 시 등급을 1 회 적재한다. 조회 실패(5xx·네트워크 reject)는 삼켜서
   // null(조회 전용)을 유지한다 — 실패를 이유로 편집 권한을 부여하지 않는 fail-safe 이며
   // 렌더도 깨지 않는다. cancel 플래그로 언마운트/재진입 경쟁 상태의 늦은 setState 를 막는다.
@@ -237,6 +261,21 @@ function AppShell({
   // 인증 성공 시 view 전환 — 인증 후 기본 view('dashboard')로 무라우터 전환한다.
   const handleAuthenticated = () => {
     setView(DEFAULT_AUTHED_VIEW);
+  };
+
+  // 로그아웃 핸들러 (T-1837, REQ-081) — 세션을 실제로 끝낸다.
+  // `authLogout()` 의 반환값(서버 쿠키 정리 확인 여부)과 **무관하게** 클라이언트 세션을
+  // 정리한다: ① 적재된 등급을 null 로 되돌리고(다음 로그인 사용자의 등급이 새지 않도록)
+  // ② view 를 미인증 진입점 'login' 으로 전환하며 ③ sessionEpoch 를 올려 AuthGate 를
+  // remount 해 그 내부 `authenticated` 를 초기화한다. helper 가 실패를 false 로 흡수하고
+  // throw 하지 않으므로(api/auth.ts logout) 여기에 catch 분기를 두지 않는다.
+  // ② 이후 view 가 'login' 이면 shouldLoadCurrentUser 가 false 라 GET /api/auth/me
+  // 재적재 루프도 생기지 않는다.
+  const handleLogout = async () => {
+    await authLogout();
+    setCurrentUser(null);
+    setView('login');
+    setSessionEpoch((epoch) => epoch + 1);
   };
 
   // 미인증 화면에서 초기 셋업 모드로 진입하는 트리거 — login↔setup 전환은 주입형
@@ -307,13 +346,20 @@ function AppShell({
           // 인증: children(view 별 실 컨테이너). setup 진입 트리거(enterSetup)를
           // 미인증 화면에 controlled 콜백으로 노출한다(새 라우터 0).
           <AuthGate
+            // T-1837 — 세션 세대 번호를 key 로 준다. 로그아웃이 이 값을 올리면 AuthGate 가
+            // remount 되어 자기 useState 로 소유한 `authenticated` 가 초기값으로 되돌아간다
+            // (AuthGate.tsx 수정 0). 로그아웃 전까지는 값이 불변이라 기존 동작도 불변이다.
+            key={sessionEpoch}
             onLogin={onLogin}
             onAuthenticated={handleAuthenticated}
             // 인증 후 view 로 진입한다는 것은 이미 인증됐다는 뜻이므로 그대로 초기
             // 인증 여부로 내려보낸다 — 내비게이션·인증 후 화면을 @testing-library 없이
             // 정적 렌더로 검증 가능하게 하는 주입점이다(AuthGate.initialAuthenticated
             // 패턴, ADR-0041 Decision 1). 기본값 'login' 에서는 false 라 미인증 동작 불변.
-            initialAuthenticated={isAuthedView(initialView)}
+            // T-1837 — 근거를 initialView 에서 현재 view 로 바꾼다. mount 시점에는
+            // view === initialView 라 기존 동작이 그대로 보존되고, 로그아웃으로 remount 될
+            // 때는 이미 view 가 'login' 이라 재-mount 된 게이트가 미인증으로 시작한다.
+            initialAuthenticated={isAuthedView(view)}
           >
             {/* 인증 후 내비게이션 (T-1717) — AuthGate children 안에 두어 미인증 단계에서는
                 구조적으로 렌더되지 않는다(AuthGate 가 미인증이면 children 을 렌더하지 않음).
@@ -333,6 +379,20 @@ function AppShell({
                   {item.label}
                 </button>
               ))}
+              {/* 로그아웃 동선 (T-1837, REQ-081) — AUTHED_NAV_ITEMS 목록에는 넣지 않는다.
+                  등급 필터(visibleNavItems)의 대상이 아니라 인증되면 등급과 무관하게 항상
+                  보여야 하는 세션 종료 컨트롤이기 때문이다. */}
+              {shouldShowLogout(view) ? (
+                <button
+                  type="button"
+                  className={LOGOUT_CLASS}
+                  onClick={() => {
+                    void handleLogout();
+                  }}
+                >
+                  로그아웃
+                </button>
+              ) : null}
             </nav>
             {/* 인증 후 슬롯 — view 분기. 'dashboard' 는 DashboardView(wiring ③a),
                 'admin' 은 AdminView(wiring ④a)를 렌더한다('login' 은 AuthGate 가
