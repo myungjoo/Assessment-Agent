@@ -236,3 +236,108 @@ export async function runToggleCollectionTargetActive(
     deps.setTogglingId(undefined);
   }
 }
+
+// 수집 대상 값 편집(PATCH) 부분 갱신 body(T-1831) — backend UpdateCollectionTargetDto 의 허용 축
+// 중 본 slice 가 화면에 올린 `endpoint` 1 축만 optional 로 둔다. 배열 3 축(orgs/repos/spaces)은
+// 다음 slice 가 **필드만 늘려** 같은 러너에 실어 보낼 수 있게 타입을 부분 갱신 객체로 잡았다
+// (러너 재작성 0). 정체성 축(type · instanceKey)은 애초에 이 타입에 없다 — ADR-0059 §Decision 5
+// 가 "변경은 DELETE + POST" 로 못박았고 body 에 실으면 forbidNonWhitelisted 400 이 확정이다.
+type CollectionTargetPatch = {
+  endpoint?: string;
+};
+
+// 값 편집 PATCH + state-전이 로직에 주입하는 deps(T-1831 — 위 ToggleCollectionTargetActiveDeps
+// 를 1:1 mirror 하되 편집 폼 계약에 맞춘다). in-flight 표현이 진행 중 id 인 것도 같은 이유고,
+// 토글 축 state 를 재사용하지 않는 이유도 같다(어느 동작이 실패했는지 문구가 섞이지 않게).
+// 편집 축에만 있는 축은 `onUpdated` 하나뿐이다 — 성공 시 편집 폼을 닫아야 하는데 그 폼 state 는
+// 컨테이너 소유라 러너가 콜백으로 알린다(실패 시에는 호출하지 않아 입력이 유지된다).
+interface UpdateCollectionTargetDeps {
+  // PATCH 발사기 — (path, options) 시그니처는 apiClient.request 와 같다(테스트는 mock 주입).
+  patch: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 편집 저장 진행 중인 행 id — truthy 면 미발사(이중 PATCH·경합 가드). 어느 행이든 하나가
+  // 진행 중이면 전체를 잠근다(재조회가 목록 전체를 갈아끼우므로 행별 병렬 저장은 무의미).
+  updatingId: string | undefined;
+  setUpdatingId: (next: string | undefined) => void;
+  setUpdateError: (next: string | undefined) => void;
+  // 목록 권위 재조회(useApiResource 의 reload) — 저장 성공 후 호출한다.
+  reloadTargets: () => void;
+  // 성공 후 편집 폼 종료(선택) — 미전달이어도 러너는 정상 동작한다(폼 없이 러너만 쓰는 호출부).
+  onUpdated?: () => void;
+}
+
+// 수집 대상 값 편집 PATCH /api/collection-targets/:id + state-전이를 캡슐화한 순수 async 러너
+// (T-1831 — runToggleCollectionTargetActive 를 1:1 mirror). backend 는 collection-target.
+// controller `@Patch(":id")` + `@Roles("Admin")` 이고 body 는 UpdateCollectionTargetDto 의
+// 허용 축만 담는다. ADR-0059 §Decision 5 의 "잘못 입력한 endpoint 는 삭제·재등록이 아니라 PATCH
+// 로 고친다" 를 실제로 발사하는 지점이다.
+// 동작:
+//  - 빈/공백뿐/비문자열 id → 미발사(잘못된 path·400 확정 요청을 네트워크 전에 차단).
+//  - patch 가 객체가 아니거나 적용할 키 0 개 → 미발사(의미 없는 PATCH 왕복 차단).
+//  - endpoint 가 전달됐는데 trim 후 빈 문자열 → 미발사(@IsNotEmpty 400 확정 요청 차단).
+//    전송값은 trim 한 값이다(앞뒤 공백이 그대로 저장돼 URL 이 깨지는 것을 막는다).
+//  - updatingId 보유(이전 저장 미완) → 미발사(이중 PATCH·state 경합 차단).
+//  - 발사 시 진행 id on + 직전 error 비움 → PATCH(id 는 encodeURIComponent 안전 인코딩) →
+//    성공(권위 재조회 + onUpdated 로 편집 폼 종료 — 낙관 갱신 없음) /
+//    실패(문구 표면화 — throw 없이, 입력·폼 유지) → 진행 id off(공통 finally).
+export async function runUpdateCollectionTarget(
+  id: string,
+  patch: CollectionTargetPatch,
+  deps: UpdateCollectionTargetDeps,
+): Promise<void> {
+  // 비정상 호출 가드 — 비문자열(undefined·숫자 등 계약 위반 입력)은 trim 이 없으므로 typeof 로
+  // 먼저 잠그고, 빈/공백뿐 id 도 trim 후 빈 문자열이면 차단한다(경계값 — `/api/...//` 회피).
+  const targetId = typeof id === 'string' ? id.trim() : '';
+  if (!targetId) {
+    return;
+  }
+  // 적용할 축 조립 — 값 축마다 "전달됐는가" 와 "전달된 값이 유효한가" 를 따로 본다. endpoint 가
+  // 아예 없으면 이번 PATCH 의 대상이 아니고(다음 slice 의 배열 축만 실릴 수 있다), 전달됐는데
+  // 공백뿐이면 400 이 확정이므로 네트워크 전에 막는다(빈 body 로 축소하지 않는다 — 사용자가
+  // 지우려던 값이 조용히 무시되는 대신 아무 일도 일어나지 않게 한다).
+  const body: CollectionTargetPatch = {};
+  if (patch && typeof patch === 'object') {
+    if (typeof patch.endpoint === 'string') {
+      const endpoint = patch.endpoint.trim();
+      if (!endpoint) {
+        return;
+      }
+      body.endpoint = endpoint;
+    }
+  }
+  // 적용할 키가 0 개면 미발사 — 아무것도 바꾸지 않는 PATCH 왕복(과 그로 인한 재조회)을 차단한다.
+  if (Object.keys(body).length === 0) {
+    return;
+  }
+  // 동시 재호출 가드 — 진행 중인 행이 하나라도 있으면 미발사(이중 PATCH·state 경합 차단).
+  if (deps.updatingId) {
+    return;
+  }
+  deps.setUpdatingId(targetId);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 문구가 남지 않도록).
+  deps.setUpdateError(undefined);
+  try {
+    // PATCH — body 는 위에서 조립한 허용 축만 담는다(merge patch 라 미전달 축은 서버가 보존).
+    // 응답 body(갱신된 row)는 소비하지 않고 재조회로 권위 목록을 받으므로, 계약을 어긴 shape 가
+    // 와도 여기서 throw 하지 않는다.
+    await deps.patch(
+      `${COLLECTION_TARGETS_PATH}/${encodeURIComponent(targetId)}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+    );
+    // 성공 — 권위 목록 재조회 후 편집 폼을 닫는다(onUpdated 는 optional 이라 없으면 건너뛴다).
+    deps.reloadTargets();
+    deps.onUpdated?.();
+  } catch (e) {
+    // 실패 — 문구를 안전 표시(throw 없이). 400 검증 / 403 Admin 미만 / 404 row 부재(P2025) /
+    // 5xx / 네트워크 0 모두 동일 경로다. 재조회·폼 종료는 하지 않는다(입력 유지 — 사용자가
+    // 고쳐 쓰던 값을 잃지 않게).
+    deps.setUpdateError(deps.describeError(e));
+  } finally {
+    deps.setUpdatingId(undefined);
+  }
+}

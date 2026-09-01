@@ -20,6 +20,12 @@ const DELETE_LABEL = '삭제';
 // 활성/비활성 토글 버튼 라벨(구현의 DEACTIVATE_LABEL / ACTIVATE_LABEL 과 정합, T-1829).
 const DEACTIVATE_LABEL = '비활성화';
 const ACTIVATE_LABEL = '활성화';
+// 값 편집 축 라벨·입력 이름(구현의 EDIT_LABEL / SAVE_LABEL / CANCEL_LABEL /
+// EDIT_INPUT_LABEL 과 정합, T-1831).
+const EDIT_LABEL = '편집';
+const SAVE_LABEL = '저장';
+const CANCEL_LABEL = '취소';
+const EDIT_INPUT_LABEL = 'endpoint 수정';
 
 // renderToStaticMarkup 은 이벤트를 발화하지 않으므로(jsdom 미도입 — ADR-0040 §5 게이트) onDelete
 // 클릭 콜백은 컴포넌트가 반환한 React element 트리를 순회해 button 의 onClick 을 수동 호출하는
@@ -106,6 +112,67 @@ const sampleTargets: CollectionTargetRow[] = [
     active: true,
   },
 ];
+
+
+// 편집 축 검증(T-1831)은 버튼의 disabled 와 <input> 의 controlled props 까지 봐야 하므로 위
+// 두 수집기와 달리 element 종류를 가리지 않고 필요한 props 를 함께 회수하는 수집기를 둔다.
+function collectEditNodes(node: ReactNode): {
+  buttons: Array<{
+    label: string;
+    disabled?: boolean;
+    onClick?: (...args: unknown[]) => void;
+  }>;
+  inputs: Array<{
+    label?: string;
+    value?: string;
+    onChange?: (event: { target: { value: string } }) => void;
+  }>;
+} {
+  const buttons: Array<{
+    label: string;
+    disabled?: boolean;
+    onClick?: (...args: unknown[]) => void;
+  }> = [];
+  const inputs: Array<{
+    label?: string;
+    value?: string;
+    onChange?: (event: { target: { value: string } }) => void;
+  }> = [];
+  const walk = (current: ReactNode): void => {
+    if (Array.isArray(current)) {
+      current.forEach(walk);
+      return;
+    }
+    if (!isValidElement(current)) {
+      return;
+    }
+    const element = current as {
+      type: unknown;
+      props: Record<string, unknown> & { children?: ReactNode };
+    };
+    if (element.type === 'button') {
+      buttons.push({
+        label: String(element.props.children ?? ''),
+        disabled: element.props.disabled as boolean | undefined,
+        onClick: element.props.onClick as
+          | ((...args: unknown[]) => void)
+          | undefined,
+      });
+    }
+    if (element.type === 'input') {
+      inputs.push({
+        label: element.props['aria-label'] as string | undefined,
+        value: element.props.value as string | undefined,
+        onChange: element.props.onChange as
+          | ((event: { target: { value: string } }) => void)
+          | undefined,
+      });
+    }
+    walk(element.props.children);
+  };
+  walk(node);
+  return { buttons, inputs };
+}
 
 describe('CollectionTargetList', () => {
   // happy-path — targets 2 건 → <ul>/<li> 2 개 + 각 행의 type·instanceKey·endpoint 렌더.
@@ -589,4 +656,238 @@ describe('CollectionTargetList', () => {
       expect(onToggleActive).toHaveBeenCalledWith('t1', false);
     },
   );
+
+  // -- T-1831 값 편집(endpoint) 축 (onEditStart / editingId / 폼 controlled props) --
+
+  // happy-path — onEditStart 전달 시 각 행에 "편집" 버튼이 행 수만큼 렌더된다.
+  it('onEditStart 전달 시 각 행에 편집 버튼을 행 수만큼 렌더한다 (happy-path — T-1831)', () => {
+    const html = renderToStaticMarkup(
+      <CollectionTargetList
+        targets={sampleTargets}
+        onEditStart={() => undefined}
+      />,
+    );
+    expect(
+      (html.match(new RegExp(`>${EDIT_LABEL}</button>`, 'g')) ?? []).length,
+    ).toBe(sampleTargets.length);
+  });
+
+  // happy-path — 편집 클릭 시 (id, 현재 endpoint) 2 인자로 호출한다(현재 값 동봉 계약).
+  it('편집 클릭 시 (id, 현재 endpoint) 2 인자로 onEditStart 를 호출한다 (happy-path — 현재 값 동봉)', () => {
+    const onEditStart = vi.fn();
+    const { buttons } = collectEditNodes(
+      CollectionTargetList({ targets: sampleTargets, onEditStart }),
+    );
+    buttons.filter((b) => b.label === EDIT_LABEL)[1]?.onClick?.();
+    expect(onEditStart).toHaveBeenCalledWith('t2', 'https://conf.example.com');
+    expect(onEditStart).toHaveBeenCalledTimes(1);
+  });
+
+  // 분기 / negative — onEditStart 미전달이면 편집 버튼이 0 개다(하위 호환 — 읽기 축 회귀 0).
+  it('onEditStart 미전달 시 편집 버튼을 렌더하지 않는다 (분기 — 하위 호환 / negative)', () => {
+    const readOnly = renderToStaticMarkup(
+      <CollectionTargetList targets={sampleTargets} />,
+    );
+    expect(readOnly).not.toContain(EDIT_LABEL);
+    // 삭제·토글만 준 기존 마운트에도 편집 버튼이 섞이지 않는다(선행 slice 회귀 0).
+    const others = renderToStaticMarkup(
+      <CollectionTargetList
+        targets={sampleTargets}
+        onDelete={() => undefined}
+        onToggleActive={() => undefined}
+      />,
+    );
+    expect(others).not.toContain(`>${EDIT_LABEL}</button>`);
+  });
+
+  // 분기 — editingId 와 같은 행에만 인라인 폼이 뜨고, 나머지 행은 편집 버튼 그대로다.
+  it('editingId 와 일치하는 행에만 폼을 렌더하고 나머지 행은 편집 버튼이다 (분기 — 행 격리)', () => {
+    const { buttons, inputs } = collectEditNodes(
+      CollectionTargetList({
+        targets: sampleTargets,
+        onEditStart: () => undefined,
+        editingId: 't1',
+        editEndpoint: 'https://new.example.com',
+      }),
+    );
+    expect(inputs).toHaveLength(1);
+    expect(inputs[0]?.value).toBe('https://new.example.com');
+    expect(inputs[0]?.label).toBe(EDIT_INPUT_LABEL);
+    // 편집 중인 행에는 편집 버튼 대신 저장·취소가, 다른 행에는 편집 버튼이 남는다.
+    expect(buttons.map((b) => b.label)).toEqual([
+      SAVE_LABEL,
+      CANCEL_LABEL,
+      EDIT_LABEL,
+    ]);
+  });
+
+  // 분기 / negative — editingId 가 어떤 행과도 일치하지 않으면 폼이 0 개다(경계값).
+  it.each([
+    ['어떤 행과도 불일치', 'no-such-row'],
+    ['빈 문자열', ''],
+    ['undefined', undefined],
+  ])(
+    'editingId 가 %s 면 인라인 폼을 렌더하지 않는다 (분기 / negative — 불일치)',
+    (_label, editingId) => {
+      const { inputs, buttons } = collectEditNodes(
+        CollectionTargetList({
+          targets: sampleTargets,
+          onEditStart: () => undefined,
+          editingId,
+        }),
+      );
+      expect(inputs).toHaveLength(0);
+      expect(buttons.every((b) => b.label === EDIT_LABEL)).toBe(true);
+    },
+  );
+
+  // 분기 — editBusy 면 저장 버튼이 disabled 다(이중 발사 화면 차단). 취소는 잠기지 않는다.
+  it.each([
+    ['true', true, true],
+    ['false', false, false],
+    ['미전달', undefined, false],
+  ])(
+    'editBusy 가 %s 면 저장 버튼 disabled 는 %s 다 (분기 — 이중 저장 차단)',
+    (_label, editBusy, expected) => {
+      const { buttons } = collectEditNodes(
+        CollectionTargetList({
+          targets: sampleTargets,
+          editingId: 't1',
+          editBusy: editBusy as boolean | undefined,
+        }),
+      );
+      const save = buttons.find((b) => b.label === SAVE_LABEL);
+      const cancel = buttons.find((b) => b.label === CANCEL_LABEL);
+      expect(save?.disabled).toBe(expected);
+      // 취소는 진행 중에도 열려 있어야 한다(disabled prop 자체를 주지 않는다 — 막힌
+      // 사용자가 빠져나갈 길 보존).
+      expect(cancel?.disabled).toBeUndefined();
+    },
+  );
+
+  // happy-path — 저장 클릭은 row.id 로, 취소 클릭은 인자 없이 호출된다.
+  it('저장 클릭은 row.id 로, 취소 클릭은 인자 없이 콜백을 호출한다 (happy-path — 폼 콜백)', () => {
+    const onEditSubmit = vi.fn();
+    const onEditCancel = vi.fn();
+    const { buttons } = collectEditNodes(
+      CollectionTargetList({
+        targets: sampleTargets,
+        editingId: 't2',
+        onEditSubmit,
+        onEditCancel,
+      }),
+    );
+    buttons.find((b) => b.label === SAVE_LABEL)?.onClick?.();
+    buttons.find((b) => b.label === CANCEL_LABEL)?.onClick?.();
+    expect(onEditSubmit).toHaveBeenCalledWith('t2');
+    expect(onEditCancel).toHaveBeenCalledWith();
+  });
+
+  // happy-path / negative — 입력 변경은 변경된 문자열을 그대로 콜백에 넘긴다(trim·검증은 컨테이너 몫).
+  it.each([
+    ['일반 URL', 'https://x.example.com'],
+    ['공백뿐', '   '],
+    ['빈 문자열', ''],
+  ])(
+    '입력이 %s 로 바뀌면 그 값을 그대로 onEditEndpointChange 에 넘긴다 (happy-path / negative)',
+    (_label, next) => {
+      const onEditEndpointChange = vi.fn();
+      const { inputs } = collectEditNodes(
+        CollectionTargetList({
+          targets: sampleTargets,
+          editingId: 't1',
+          editEndpoint: 'old',
+          onEditEndpointChange,
+        }),
+      );
+      inputs[0]?.onChange?.({ target: { value: next } });
+      expect(onEditEndpointChange).toHaveBeenCalledWith(next);
+    },
+  );
+
+  // negative — 폼 콜백 3 종을 하나도 주지 않아도 렌더·클릭·입력이 throw 하지 않는다(optional).
+  it('폼 콜백 미전달 상태에서 클릭·입력해도 throw 하지 않는다 (negative — optional 경로)', () => {
+    const tree = CollectionTargetList({
+      targets: sampleTargets,
+      editingId: 't1',
+    });
+    expect(() => renderToStaticMarkup(tree)).not.toThrow();
+    const { buttons, inputs } = collectEditNodes(tree);
+    expect(() => buttons.forEach((b) => b.onClick?.())).not.toThrow();
+    expect(() =>
+      inputs[0]?.onChange?.({ target: { value: 'x' } }),
+    ).not.toThrow();
+  });
+
+  // negative — editEndpoint 미전달이면 controlled 입력이 빈 문자열이다(uncontrolled 경고 회피).
+  it('editEndpoint 미전달 시 입력 값은 빈 문자열이다 (negative — 경계값)', () => {
+    const { inputs } = collectEditNodes(
+      CollectionTargetList({ targets: sampleTargets, editingId: 't1' }),
+    );
+    expect(inputs[0]?.value).toBe('');
+  });
+
+  // negative — endpoint 가 없는 계약 위반 row 도 편집 진입이 throw 하지 않고 값을 그대로 넘긴다
+  // (목록은 값을 교정하지 않는다 — 판정은 컨테이너 러너 몫).
+  it('endpoint 누락 row 의 편집 클릭도 throw 없이 값을 그대로 넘긴다 (negative — 계약 위반 입력)', () => {
+    const onEditStart = vi.fn();
+    const broken = [
+      {
+        ...sampleTargets[0],
+        endpoint: undefined,
+      } as unknown as CollectionTargetRow,
+    ];
+    const { buttons } = collectEditNodes(
+      CollectionTargetList({ targets: broken, onEditStart }),
+    );
+    expect(() => buttons[0]?.onClick?.()).not.toThrow();
+    expect(onEditStart).toHaveBeenCalledWith('t1', undefined);
+  });
+
+  // negative — loading / error / 빈 목록 분기에서는 편집 props 를 줘도 폼·버튼이 렌더되지 않는다
+  // (분기 우선순위 — 삭제·토글 축과 동일 기준).
+  it.each([
+    ['loading', { loading: true }, LOADING_TOKEN],
+    ['error', { error: '조회 실패' }, '조회 실패'],
+    ['빈 목록', { targets: [] }, DEFAULT_EMPTY],
+  ])(
+    '편집 props 전달 + %s 이면 폼 대신 상태 표시만 렌더한다 (negative — 분기 우선순위)',
+    (_label, override, token) => {
+      const html = renderToStaticMarkup(
+        <CollectionTargetList
+          targets={sampleTargets}
+          onEditStart={() => undefined}
+          editingId="t1"
+          editEndpoint="x"
+          {...(override as object)}
+        />,
+      );
+      expect(html).not.toContain('<button');
+      expect(html).not.toContain('<input');
+      expect(html).toContain(token);
+    },
+  );
+
+  // negative — 편집 축 도입 후에도 표시 축(span 개수)과 삭제·토글 버튼 배선은 그대로다.
+  it('편집 축을 얹어도 표시 축·삭제·토글 배선이 그대로다 (negative — 선행 slice 회귀 0)', () => {
+    const spanCount = (html: string) => (html.match(/<span>/g) ?? []).length;
+    const base = renderToStaticMarkup(
+      <CollectionTargetList
+        targets={sampleTargets}
+        onDelete={() => undefined}
+        onToggleActive={() => undefined}
+      />,
+    );
+    const withEdit = renderToStaticMarkup(
+      <CollectionTargetList
+        targets={sampleTargets}
+        onDelete={() => undefined}
+        onToggleActive={() => undefined}
+        onEditStart={() => undefined}
+      />,
+    );
+    expect(spanCount(withEdit)).toBe(spanCount(base));
+    expect(withEdit).toContain(`>${DELETE_LABEL}</button>`);
+    expect(withEdit).toContain(`>${DEACTIVATE_LABEL}</button>`);
+  });
 });
