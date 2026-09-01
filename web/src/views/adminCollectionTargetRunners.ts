@@ -244,7 +244,74 @@ export async function runToggleCollectionTargetActive(
 // 가 "변경은 DELETE + POST" 로 못박았고 body 에 실으면 forbidNonWhitelisted 400 이 확정이다.
 type CollectionTargetPatch = {
   endpoint?: string;
+  // 범위 배열 3 축(T-1832) — backend UpdateCollectionTargetDto `57~71 행` 의 `@IsArray()` 허용
+  // 축과 1:1 이다. 세 축 모두 optional 이라 미전달 축은 merge patch 로 서버가 보존하고, **빈
+  // 배열은 유효한 값**이다(범위를 전부 비우는 편집 — 축 누락과 구분된다). type 별로 어느 축이
+  // 쓰이는지(GITHUB → orgs·repos / CONFLUENCE → spaces)는 화면이 가르고, 러너는 실린 축을
+  // 그대로 싣는다(러너가 type 을 다시 판정하면 화면과 어긋날 여지가 생긴다).
+  orgs?: string[];
+  repos?: string[];
+  spaces?: string[];
 };
+
+// 범위 배열 3 축의 필드명(T-1832) — 러너의 body 조립 루프와 화면의 입력 렌더가 **같은 목록**을
+// 보게 하려고 한 곳에 둔다(두 곳에 적으면 축이 하나 늘 때 갈라진다). 순서는 화면 표시 순서다.
+export const COLLECTION_TARGET_SCOPE_FIELDS = ['orgs', 'repos', 'spaces'] as const;
+// 위 상수에서 파생한 축 이름 union — 컴포넌트 콜백 인자 타입의 정본이다.
+export type CollectionTargetScopeField =
+  (typeof COLLECTION_TARGET_SCOPE_FIELDS)[number];
+const SCOPE_FIELDS: readonly CollectionTargetScopeField[] =
+  COLLECTION_TARGET_SCOPE_FIELDS;
+
+// type 별로 실제 의미가 있는 범위 축 매핑(T-1832) — schema 사실(ADR-0059 §Consequences (c))
+// 그대로다: GITHUB 대상은 org·repo 범위를, CONFLUENCE 대상은 space 범위를 쓴다. 알 수 없는/
+// 누락 type 은 빈 목록이라 아무 축도 싣지 않는다.
+// 목록 컴포넌트(CollectionTargetList)는 같은 매핑을 **표시용** 으로 따로 갖는다 — 선행 spec 들이
+// 그 컴포넌트를 통째로 vi.mock 하는 표면이라 본 모듈을 값 import 시키면 mock 표면이 러너까지
+// 번지기 때문이다. 두 벌이 갈라지지 않는지는 T-1832 spec 의 drift 가드 케이스가 잠근다.
+export const COLLECTION_TARGET_SCOPE_FIELDS_BY_TYPE: Record<
+  string,
+  readonly CollectionTargetScopeField[]
+> = {
+  GITHUB: ['orgs', 'repos'],
+  CONFLUENCE: ['spaces'],
+};
+
+// 편집 중인 행의 type 에서 요청에 실을 범위 축 목록을 고른다(순수 함수 · throw 0). 비문자열 ·
+// 누락 · 미등록 type 은 빈 배열이라 호출부가 방어 코드를 두지 않아도 된다.
+export function scopeFieldsForCollectionTargetType(
+  type?: string,
+): readonly CollectionTargetScopeField[] {
+  if (typeof type !== 'string') {
+    return [];
+  }
+  return COLLECTION_TARGET_SCOPE_FIELDS_BY_TYPE[type] ?? [];
+}
+
+// 범위 배열 3 축의 콤마 목록 입력 → 문자열 배열 파싱(T-1832, 순수 함수 · throw 0).
+// 화면은 `orgs` · `repos` · `spaces` 를 "a, b, c" 한 줄로 편집시키므로 전송 직전에 배열로
+// 되돌려야 한다. 규칙은 셋 다 같다 — 콤마로 나눠 각 원소 trim → 빈 원소 제거(연속 콤마 ·
+// 꼬리 콤마 흡수) → **앞선 것 우선**으로 중복 제거(사용자가 적은 순서를 보존한다).
+// 비문자열 입력(undefined · 숫자 · 배열 등 계약 위반)은 빈 배열로 흡수해 호출부가 방어 코드를
+// 두지 않아도 되게 한다. 빈 배열 결과 자체가 유효한 값이라 여기서 미발사 판정을 하지 않는다
+// (그 판정은 호출부 몫 — 러너는 배열이면 그대로 싣는다).
+export function parseScopeInput(raw: string): string[] {
+  if (typeof raw !== 'string') {
+    return [];
+  }
+  const seen = new Set<string>();
+  const parsed: string[] = [];
+  for (const piece of raw.split(',')) {
+    const value = piece.trim();
+    // 빈 원소(공백뿐 · 연속 콤마)는 버린다 — 서버에 빈 문자열 원소가 저장되지 않게.
+    if (!value || seen.has(value)) {
+      continue;
+    }
+    seen.add(value);
+    parsed.push(value);
+  }
+  return parsed;
+}
 
 // 값 편집 PATCH + state-전이 로직에 주입하는 deps(T-1831 — 위 ToggleCollectionTargetActiveDeps
 // 를 1:1 mirror 하되 편집 폼 계약에 맞춘다). in-flight 표현이 진행 중 id 인 것도 같은 이유고,
@@ -304,6 +371,17 @@ export async function runUpdateCollectionTarget(
         return;
       }
       body.endpoint = endpoint;
+    }
+    // 범위 배열 3 축(T-1832) — 축마다 "배열로 전달됐는가" 만 본다. 배열이면 빈 배열이어도 그대로
+    // 싣는다(범위를 전부 비우는 편집이 유효한 값이기 때문 — 여기서 빈 배열을 걸러내면 사용자가
+    // 지우려던 범위가 조용히 보존된다). 배열이 아닌 값(문자열 · 숫자 · null 등 계약 위반)은
+    // @IsArray() 400 이 확정이므로 네트워크 전에 무시한다(endpoint 의 "공백뿐이면 미발사" 와
+    // 판정이 다른 이유는 endpoint 는 축 자체가 필수 비-공백이고 배열 축은 빈 값이 합법이라서다).
+    for (const field of SCOPE_FIELDS) {
+      const value = patch[field];
+      if (Array.isArray(value)) {
+        body[field] = value;
+      }
     }
   }
   // 적용할 키가 0 개면 미발사 — 아무것도 바꾸지 않는 PATCH 왕복(과 그로 인한 재조회)을 차단한다.

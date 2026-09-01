@@ -4,6 +4,9 @@ import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import CollectionTargetList from './CollectionTargetList';
 import type { CollectionTargetRow } from './CollectionTargetList';
+// drift 가드용 — 화면의 type 별 범위 축과 요청에 실리는 축이 같은지 대조한다(T-1832). 값 import
+// 이지만 러너 모듈은 순수 함수만 노출하므로 dep 표면은 그대로 0 이다.
+import { scopeFieldsForCollectionTargetType } from '../views/adminCollectionTargetRunners';
 
 // R-112 — T-1825 (ADR-0059 §Follow-ups (e)) 수집 대상 표시 축 컴포넌트 검증.
 // ServiceIdentityList.test.tsx 와 동일 패턴: jsdom · @testing-library 없이 react-dom/server 의
@@ -26,6 +29,10 @@ const EDIT_LABEL = '편집';
 const SAVE_LABEL = '저장';
 const CANCEL_LABEL = '취소';
 const EDIT_INPUT_LABEL = 'endpoint 수정';
+// 범위 배열 3 축 입력의 접근 가능한 이름(구현의 SCOPE_INPUT_LABELS 와 정합, T-1832).
+const ORGS_INPUT_LABEL = 'orgs 수정';
+const REPOS_INPUT_LABEL = 'repos 수정';
+const SPACES_INPUT_LABEL = 'spaces 수정';
 
 // renderToStaticMarkup 은 이벤트를 발화하지 않으므로(jsdom 미도입 — ADR-0040 §5 게이트) onDelete
 // 클릭 콜백은 컴포넌트가 반환한 React element 트리를 순회해 button 의 onClick 을 수동 호출하는
@@ -889,5 +896,202 @@ describe('CollectionTargetList', () => {
     expect(spanCount(withEdit)).toBe(spanCount(base));
     expect(withEdit).toContain(`>${DELETE_LABEL}</button>`);
     expect(withEdit).toContain(`>${DEACTIVATE_LABEL}</button>`);
+  });
+  // -- T-1832 범위 배열 3 축(orgs/repos/spaces) 인라인 편집 --
+
+  // happy-path / 분기 — GITHUB 행은 orgs·repos 2 입력만, CONFLUENCE 행은 spaces 1 입력만 뜬다.
+  it.each([
+    ['GITHUB', 't1', [ORGS_INPUT_LABEL, REPOS_INPUT_LABEL]],
+    ['CONFLUENCE', 't2', [SPACES_INPUT_LABEL]],
+  ])(
+    'type=%s 인 편집 행에는 그 type 의 범위 입력만 렌더한다 (happy-path / 분기 — type 별 축)',
+    (_label, editingId, expected) => {
+      const { inputs } = collectEditNodes(
+        CollectionTargetList({
+          targets: sampleTargets,
+          editingId,
+          onEditScopeChange: () => undefined,
+        }),
+      );
+      // endpoint 입력이 항상 첫 입력이고 그 뒤로 범위 입력이 따른다.
+      expect(inputs.map((i) => i.label)).toEqual([
+        EDIT_INPUT_LABEL,
+        ...(expected as string[]),
+      ]);
+    },
+  );
+
+  // 분기 / negative — 알 수 없는/누락 type 은 범위 입력 0 개다(endpoint 만 편집).
+  it.each([
+    ['알 수 없는 값', 'JIRA'],
+    ['빈 문자열', ''],
+    ['누락', undefined],
+  ])(
+    'type 이 %s 인 행은 범위 입력을 렌더하지 않는다 (분기 / negative — 미지원 type)',
+    (_label, type) => {
+      const rows = [
+        { ...sampleTargets[0], type } as unknown as CollectionTargetRow,
+      ];
+      const { inputs } = collectEditNodes(
+        CollectionTargetList({
+          targets: rows,
+          editingId: 't1',
+          onEditScopeChange: () => undefined,
+        }),
+      );
+      expect(inputs.map((i) => i.label)).toEqual([EDIT_INPUT_LABEL]);
+    },
+  );
+
+  // 분기 / negative — onEditScopeChange 미전달이면 범위 입력이 아예 없다(하위 호환 — T-1831
+  // 마운트가 글자 그대로 보존된다).
+  it('onEditScopeChange 미전달 시 범위 입력을 렌더하지 않는다 (분기 — 하위 호환 / negative)', () => {
+    const { inputs } = collectEditNodes(
+      CollectionTargetList({
+        targets: sampleTargets,
+        editingId: 't1',
+        editEndpoint: 'https://x.example.com',
+        editScopes: { orgs: 'acme', repos: 'acme/web' },
+      }),
+    );
+    expect(inputs.map((i) => i.label)).toEqual([EDIT_INPUT_LABEL]);
+  });
+
+  // happy-path — 범위 입력의 controlled 값은 editScopes 의 대응 필드를 그대로 표시한다.
+  it('범위 입력은 editScopes 의 대응 값을 그대로 표시한다 (happy-path — controlled)', () => {
+    const { inputs } = collectEditNodes(
+      CollectionTargetList({
+        targets: sampleTargets,
+        editingId: 't1',
+        editScopes: { orgs: 'acme, beta', repos: 'acme/web', spaces: 'ENG' },
+        onEditScopeChange: () => undefined,
+      }),
+    );
+    const byLabel = (label: string) => inputs.find((i) => i.label === label);
+    expect(byLabel(ORGS_INPUT_LABEL)?.value).toBe('acme, beta');
+    expect(byLabel(REPOS_INPUT_LABEL)?.value).toBe('acme/web');
+    // GITHUB 행이라 spaces 입력은 애초에 없다(값이 있어도 렌더되지 않는다).
+    expect(byLabel(SPACES_INPUT_LABEL)).toBeUndefined();
+  });
+
+  // happy-path — 변경 시 (축 이름, 바뀐 문자열) 2 인자로 콜백을 호출한다.
+  it.each([
+    [ORGS_INPUT_LABEL, 'orgs', 'acme, beta'],
+    [REPOS_INPUT_LABEL, 'repos', 'acme/web'],
+  ])(
+    '%s 입력 변경은 (%s, 값) 2 인자로 onEditScopeChange 를 호출한다 (happy-path — 축 식별)',
+    (label, field, next) => {
+      const onEditScopeChange = vi.fn();
+      const { inputs } = collectEditNodes(
+        CollectionTargetList({
+          targets: sampleTargets,
+          editingId: 't1',
+          onEditScopeChange,
+        }),
+      );
+      inputs
+        .find((i) => i.label === label)
+        ?.onChange?.({ target: { value: next } });
+      expect(onEditScopeChange).toHaveBeenCalledWith(field, next);
+      expect(onEditScopeChange).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  // negative — 빈 문자열·공백뿐·콤마뿐 입력도 그대로 넘긴다(파싱·검증은 컨테이너 러너 몫).
+  it.each([
+    ['빈 문자열', ''],
+    ['공백뿐', '   '],
+    ['콤마뿐', ',,,'],
+  ])(
+    '범위 입력이 %s 로 바뀌어도 값을 그대로 넘긴다 (negative — 정상화 금지)',
+    (_label, next) => {
+      const onEditScopeChange = vi.fn();
+      const { inputs } = collectEditNodes(
+        CollectionTargetList({
+          targets: sampleTargets,
+          editingId: 't2',
+          onEditScopeChange,
+        }),
+      );
+      inputs
+        .find((i) => i.label === SPACES_INPUT_LABEL)
+        ?.onChange?.({ target: { value: next } });
+      expect(onEditScopeChange).toHaveBeenCalledWith('spaces', next);
+    },
+  );
+
+  // negative — editScopes 미전달/부분 전달이어도 controlled 값이 빈 문자열이다(uncontrolled 경고 회피).
+  it.each([
+    ['미전달', undefined],
+    ['빈 객체', {}],
+    ['다른 축만 채움', { spaces: 'ENG' }],
+  ])(
+    'editScopes 가 %s 면 범위 입력 값은 빈 문자열이다 (negative — 경계값)',
+    (_label, editScopes) => {
+      const { inputs } = collectEditNodes(
+        CollectionTargetList({
+          targets: sampleTargets,
+          editingId: 't1',
+          editScopes: editScopes as { orgs?: string },
+          onEditScopeChange: () => undefined,
+        }),
+      );
+      expect(inputs.find((i) => i.label === ORGS_INPUT_LABEL)?.value).toBe('');
+      expect(inputs.find((i) => i.label === REPOS_INPUT_LABEL)?.value).toBe('');
+    },
+  );
+
+  // negative — 편집 중이 아닌 행에는 범위 입력이 붙지 않는다(행 격리 — 폼은 한 행에만).
+  it('편집 중이 아닌 행에는 범위 입력이 붙지 않는다 (negative — 행 격리)', () => {
+    const { inputs } = collectEditNodes(
+      CollectionTargetList({
+        targets: sampleTargets,
+        onEditStart: () => undefined,
+        onEditScopeChange: () => undefined,
+      }),
+    );
+    expect(inputs).toHaveLength(0);
+  });
+
+  // negative / drift 가드 — 화면이 렌더하는 범위 축이 러너의 wire 축 매핑과 정확히 같다.
+  // 두 모듈이 같은 매핑을 따로 갖는 이유는 구현 주석에 적혀 있고(mock 표면 격리), 그 두 벌이
+  // 갈라지면 사용자가 편집한 축이 요청에 실리지 않는 결함이 되므로 여기서 잠근다.
+  it.each(['GITHUB', 'CONFLUENCE', 'JIRA'])(
+    'type=%s 의 화면 범위 축이 러너의 wire 축 매핑과 일치한다 (negative — drift 가드)',
+    (type) => {
+      const rows = [{ ...sampleTargets[0], type }];
+      const { inputs } = collectEditNodes(
+        CollectionTargetList({
+          targets: rows,
+          editingId: 't1',
+          onEditScopeChange: () => undefined,
+        }),
+      );
+      // endpoint 입력을 뺀 나머지가 범위 축이다(라벨 규칙 `<축> 수정`).
+      const rendered = inputs
+        .map((i) => i.label)
+        .filter((label) => label !== EDIT_INPUT_LABEL)
+        .map((label) => String(label).replace(' 수정', ''));
+      expect(rendered).toEqual([...scopeFieldsForCollectionTargetType(type)]);
+    },
+  );
+
+  // negative — 범위 축을 얹어도 저장·취소 버튼과 삭제·토글 배선은 그대로다(선행 slice 회귀 0).
+  it('범위 축을 얹어도 저장·취소·삭제·토글 배선이 그대로다 (negative — 선행 slice 회귀 0)', () => {
+    const { buttons } = collectEditNodes(
+      CollectionTargetList({
+        targets: sampleTargets,
+        editingId: 't1',
+        onEditStart: () => undefined,
+        onDelete: () => undefined,
+        onToggleActive: () => undefined,
+        onEditScopeChange: () => undefined,
+      }),
+    );
+    const labels = buttons.map((b) => b.label);
+    expect(labels).toContain(SAVE_LABEL);
+    expect(labels).toContain(CANCEL_LABEL);
+    expect(labels).toContain(DELETE_LABEL);
+    expect(labels).toContain(DEACTIVATE_LABEL);
   });
 });

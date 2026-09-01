@@ -68,6 +68,34 @@ const CANCEL_LABEL = '취소';
 // 입력에 라벨 요소를 따로 두지 않고 aria-label 로 이름을 준다 — 행 안 인라인이라 <label> 을 붙이면
 // 행 레이아웃이 길어지고, 접근성상 필요한 것은 "이름이 있는가" 이지 시각 라벨 자체가 아니다.
 const EDIT_INPUT_LABEL = 'endpoint 수정';
+// 범위 배열 3 축 입력의 접근 가능한 이름(T-1832) — endpoint 입력과 같은 관례(`<축> 수정`)를 쓴다.
+// 값은 콤마 목록 한 줄이고, 배열 ↔ 문자열 변환은 컨테이너(prefill)와 러너(parseScopeInput) 몫이다.
+const SCOPE_INPUT_LABELS: Record<CollectionTargetScopeField, string> = {
+  orgs: 'orgs 수정',
+  repos: 'repos 수정',
+  spaces: 'spaces 수정',
+};
+// type 별로 화면에 노출할 범위 축(T-1832) — schema 사실(ADR-0059 §Consequences (c)) 그대로다:
+// GITHUB 대상은 org·repo 범위를, CONFLUENCE 대상은 space 범위를 쓴다. 목록에 없는/누락 type 은
+// 범위 입력을 0 개 렌더해(endpoint 만 편집) 알 수 없는 축이 화면에 새지 않게 한다.
+// 이 매핑은 **표시 책임**이라 컴포넌트에 둔다 — 러너는 실린 축을 그대로 싣고 type 을 다시
+// 판정하지 않는다(두 곳이 다르게 판정하면 화면과 요청이 어긋난다).
+const SCOPE_FIELDS_BY_TYPE: Record<string, readonly CollectionTargetScopeField[]> = {
+  GITHUB: ['orgs', 'repos'],
+  CONFLUENCE: ['spaces'],
+};
+
+// 범위 배열 축 이름 union(T-1832) — 콜백 인자·controlled 값 객체의 키 타입 정본이다. 러너 모듈이
+// 같은 3 축을 body 조립용 상수로 갖지만 그쪽을 import 하지는 않는다: 본 파일은 fetch·러너를 모르는
+// presentational 컴포넌트이고(파일 머리 경계), 선행 spec 들이 본 컴포넌트를 vi.mock 으로 갈아끼우고
+// 있어 모듈 간 값 의존을 새로 만들면 그 mock 표면이 러너까지 번진다.
+type CollectionTargetScopeField = 'orgs' | 'repos' | 'spaces';
+
+// 편집 중인 행의 type 에서 노출할 범위 축 목록을 고른다(순수 함수). 알 수 없는/누락 type 은 빈
+// 배열이라 호출부가 범위 입력을 아예 렌더하지 않는다(throw 0 — 목록은 값을 판정하지 않는다).
+function scopeFieldsForType(type?: string): readonly CollectionTargetScopeField[] {
+  return (type && SCOPE_FIELDS_BY_TYPE[type]) || [];
+}
 
 // 행의 활성 여부 판정(순수 함수) — `active` 필드가 누락돼도 schema 기본값(true) 대로 활성으로
 // 본다. 즉 `false` 만 비활성이고 `true`·`undefined` 는 활성이다(INACTIVE_BADGE 분기와 동일 기준).
@@ -133,6 +161,15 @@ interface CollectionTargetListProps {
   // 저장 in-flight 플래그 — true 면 저장 버튼을 disabled 로 두어 이중 발사를 화면에서도 막는다
   // (러너의 in-flight 가드와 이중 방어). 취소는 잠그지 않는다(막힌 사용자가 빠져나갈 길 보존).
   editBusy?: boolean;
+  // ── 범위 배열 3 축 편집 controlled props (선택, T-1832) ──────────────────────
+  // props 를 축마다 늘리지 않고 2 개만 더한다(값 객체 1 + 변경 콜백 1) — 축이 늘어도 시그니처가
+  // 흔들리지 않고, 컨테이너 state 도 객체 하나로 유지된다.
+  // 각 축의 controlled 값(콤마 목록 문자열). 미전달 축은 빈 문자열로 표시한다.
+  editScopes?: { orgs?: string; repos?: string; spaces?: string };
+  // 범위 입력 변경 콜백 — `(축 이름, 바뀐 문자열)` 로 호출한다. 파싱·검증은 컨테이너 러너 몫이라
+  // 여기서는 입력값을 그대로 넘긴다(endpoint 축 계약 동형). **미전달이면 범위 입력을 아예
+  // 렌더하지 않는다** — 편집할 수 없는 입력을 보여주지 않기 위함이자 선행 slice 하위 호환이다.
+  onEditScopeChange?: (field: CollectionTargetScopeField, next: string) => void;
 }
 
 // 수집 대상 목록. 분기 순서는 선례와 동일하게 loading → error → empty → populated 로 고정한다
@@ -151,6 +188,8 @@ function CollectionTargetList({
   onEditSubmit,
   onEditCancel,
   editBusy,
+  editScopes,
+  onEditScopeChange,
 }: CollectionTargetListProps) {
   // [1] loading 우선 — 조회가 진행 중이면 직전 error 나 잔여 targets 가 남아 있어도 그것을
   // 현재 사실처럼 보여줘선 안 되므로 로딩 표시만 렌더한다.
@@ -214,6 +253,21 @@ function CollectionTargetList({
                   value={editEndpoint ?? ''}
                   onChange={(e) => onEditEndpointChange?.(e.target.value)}
                 />
+                {/* 범위 배열 축 입력(T-1832) — 행의 type 이 쓰는 축만, 그리고 변경 콜백이
+                    주어졌을 때만 렌더한다(하위 호환 — 선행 slice 마운트 회귀 0). 값은 콤마
+                    목록 한 줄이고 배열 변환은 컨테이너·러너 몫이라 여기서는 그대로 넘긴다. */}
+                {onEditScopeChange
+                  ? scopeFieldsForType(row.type).map((field) => (
+                      <input
+                        key={field}
+                        aria-label={SCOPE_INPUT_LABELS[field]}
+                        value={editScopes?.[field] ?? ''}
+                        onChange={(e) =>
+                          onEditScopeChange(field, e.target.value)
+                        }
+                      />
+                    ))
+                  : null}
                 {/* 저장 — editBusy 면 disabled 로 이중 발사를 화면에서도 막는다. */}
                 <button
                   type="button"
@@ -266,5 +320,9 @@ function CollectionTargetList({
 
 // export convention 은 LlmProviderConfigList 승계 — row 타입 정본과 props 타입은 named type
 // export, 컴포넌트는 default export.
-export type { CollectionTargetRow, CollectionTargetListProps };
+export type {
+  CollectionTargetRow,
+  CollectionTargetListProps,
+  CollectionTargetScopeField,
+};
 export default CollectionTargetList;
