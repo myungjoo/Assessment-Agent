@@ -751,6 +751,9 @@ describe('AppShell 로그아웃 동선 렌더 (T-1837)', () => {
     expect(html).toContain(LOGOUT_TOKEN);
     expect(html).toContain(LOGOUT_LABEL);
     expect(logoutTokenCount(html)).toBe(1);
+    // reviewer N1 — 버튼이 type="button" 으로 렌더되는지까지 고정한다. 속성이 빠지면
+    // 폼 안으로 옮겨질 때 암묵 submit 으로 동작하는 회귀가 생긴다.
+    expect(html).toMatch(new RegExp(`<button type="button" class="${LOGOUT_TOKEN}"`));
   });
 
   // 분기 — 관리 화면에서도 동일하게 노출된다(특정 view 전용이 아님).
