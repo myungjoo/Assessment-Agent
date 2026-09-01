@@ -134,6 +134,7 @@ import {
   runCreateCollectionTarget,
   runDeleteCollectionTarget,
   runToggleCollectionTargetActive,
+  runUpdateCollectionTarget,
 } from './adminCollectionTargetRunners';
 // T-1711 (REQ-067) — 사용자 추가 폼의 아이디·비밀번호 조건 사전 안내 문구. 여기서 문구를 새로
 // 쓰지 않고 SuperAdmin 초기 셋업 폼(T-1710)이 이미 export 한 상수를 재사용한다 — 두 화면이 같은
@@ -4556,6 +4557,70 @@ function AdminView({
     [togglingCollectionTargetId, reloadCollectionTargets],
   );
 
+  // 값 편집(endpoint) 축 state 4 개(T-1831) — 편집 중인 행 id · 그 행의 endpoint 입력 · 저장
+  // 진행 중인 행 id · 실패 문구. 토글·삭제 축 state 를 재사용하지 않는 이유는 같다 — 한 자리를
+  // 다투면 어느 동작이 실패했는지 구분되지 않고, 한 행의 저장이 다른 행의 토글까지 잠근다.
+  const [editingCollectionTargetId, setEditingCollectionTargetId] = useState<
+    string | undefined
+  >(undefined);
+  const [
+    collectionTargetEndpointEditInput,
+    setCollectionTargetEndpointEditInput,
+  ] = useState<string>('');
+  const [updatingCollectionTargetId, setUpdatingCollectionTargetId] = useState<
+    string | undefined
+  >(undefined);
+  const [updateCollectionTargetError, setUpdateCollectionTargetError] =
+    useState<string | undefined>(undefined);
+
+  // 편집 시작(T-1831) — 목록이 넘겨준 **현재 endpoint** 를 그대로 prefill 한다(컨테이너가 목록을
+  // 다시 뒤지지 않는다 — 화면이 본 값과 편집 시작 값이 어긋날 여지 0). 직전 실패 문구도 함께
+  // 비워 다른 행의 오류가 새 편집 화면에 남지 않게 한다.
+  const handleStartEditCollectionTarget = useCallback(
+    (id: string, currentEndpoint: string) => {
+      setEditingCollectionTargetId(id);
+      setCollectionTargetEndpointEditInput(currentEndpoint ?? '');
+      setUpdateCollectionTargetError(undefined);
+    },
+    [],
+  );
+
+  // 편집 취소(T-1831) — 편집 state 만 비운다(진행 중 요청은 러너의 finally 가 정리하므로 여기서
+  // 건드리지 않는다). 실패 문구도 함께 지워 닫힌 폼의 오류가 섹션에 남지 않게 한다.
+  const handleCancelEditCollectionTarget = useCallback(() => {
+    setEditingCollectionTargetId(undefined);
+    setCollectionTargetEndpointEditInput('');
+    setUpdateCollectionTargetError(undefined);
+  }, []);
+
+  // 편집 저장 실 mutation 핸들러(T-1831) — 러너에 deps 를 주입해 호출만 한다. body 는 편집 입력
+  // 1 축뿐이고(정체성 축 금지 계약), 성공 시 onUpdated 로 편집 폼을 닫는다(실패 시에는 닫지 않아
+  // 사용자가 고쳐 쓰던 값이 유지된다 — handleToggleCollectionTargetActive 동형).
+  const handleSubmitEditCollectionTarget = useCallback(
+    (id: string) =>
+      runUpdateCollectionTarget(
+        id,
+        { endpoint: collectionTargetEndpointEditInput },
+        {
+          patch: request,
+          describeError: toErrorMessage,
+          updatingId: updatingCollectionTargetId,
+          setUpdatingId: setUpdatingCollectionTargetId,
+          setUpdateError: setUpdateCollectionTargetError,
+          reloadTargets: reloadCollectionTargets,
+          onUpdated: () => {
+            setEditingCollectionTargetId(undefined);
+            setCollectionTargetEndpointEditInput('');
+          },
+        },
+      ),
+    [
+      collectionTargetEndpointEditInput,
+      updatingCollectionTargetId,
+      reloadCollectionTargets,
+    ],
+  );
+
   // 선택 파트 상태(T-1156) — controlled lift-up(컨테이너 소유). 파트 관리 섹션의 파트 선택
   // <select> 가 이 값을 갱신하고, 값이 있을 때만 소속 인원을 조건부 조회한다(selectedGroupId 동형).
   const [selectedPartId, setSelectedPartId] = useState<string>(
@@ -5851,6 +5916,19 @@ function AdminView({
           onToggleActive={
             isAdmin ? handleToggleCollectionTargetActive : undefined
           }
+          /* 값 편집(endpoint) 진입점 + 인라인 폼 배선(T-1831) — backend `@Patch(":id")` 가
+             `@Roles("Admin")` 이라 non-Admin 에게는 편집 콜백을 일체 내리지 않아 버튼·폼이
+             렌더되지 않는다(REQ-073 RBAC 게이팅 — 403 확정 컨트롤 미노출). editingId 도
+             Admin 일 때만 내려 non-Admin 화면에서 폼이 뜰 경로 자체를 없앤다. 값·입력 변경·
+             취소 3 props 는 gating 하지 않는데, 폼이 뜨는 조건(editingId 일치)이 이미 Admin
+             에서만 성립해 non-Admin 에게는 호출될 경로가 없는 inert 값이기 때문이다. */
+          onEditStart={isAdmin ? handleStartEditCollectionTarget : undefined}
+          editingId={isAdmin ? editingCollectionTargetId : undefined}
+          editEndpoint={collectionTargetEndpointEditInput}
+          onEditEndpointChange={setCollectionTargetEndpointEditInput}
+          onEditSubmit={isAdmin ? handleSubmitEditCollectionTarget : undefined}
+          onEditCancel={handleCancelEditCollectionTarget}
+          editBusy={updatingCollectionTargetId !== undefined}
         />
         {/* 삭제 실패 문구(T-1828) — 목록·등록 폼과 별도 축이라 섹션 안 독립 alert 로 노출한다
             (등록 폼의 error props 와 섞이면 어느 동작이 실패했는지 구분되지 않는다). 값이
@@ -5862,6 +5940,11 @@ function AdminView({
             실패했는지 구분되지 않는다). 값이 없으면 미렌더라 정상 화면에 빈 alert 는 없다. */}
         {toggleCollectionTargetError ? (
           <div role="alert">{toggleCollectionTargetError}</div>
+        ) : null}
+        {/* 편집 저장 실패 문구(T-1831) — 삭제·토글 문구와 또 별도 alert 다(어느 동작이 실패했는지
+            구분되게). 값이 없으면 미렌더라 정상 화면에 빈 alert 는 남지 않는다. */}
+        {updateCollectionTargetError ? (
+          <div role="alert">{updateCollectionTargetError}</div>
         ) : null}
         {/* 등록 폼(T-1826, ADR-0059 §Follow-ups (e) 편집 축) — POST /api/collection-targets 가
             `@Roles("Admin")` 편집 tier 라 isAdmin 이 true 일 때만 렌더한다(non-Admin 에게

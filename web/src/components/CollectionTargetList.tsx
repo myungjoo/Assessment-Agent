@@ -59,6 +59,15 @@ const DELETE_LABEL = '삭제';
 // ADR-0059 §Decision 5 의 "일시 제외는 삭제가 아니라 active=false PATCH" 를 화면에 박제한 것이다.
 const DEACTIVATE_LABEL = '비활성화';
 const ACTIVATE_LABEL = '활성화';
+// 값 편집(endpoint) 축 라벨 3 종 + 입력의 접근 가능한 이름(T-1831). 진입("편집") → 인라인
+// 입력 → "저장"/"취소" 의 3 상태를 한 행 안에서 처리한다. 별도 컴포넌트 파일을 만들지 않는 이유는
+// 행 단위 진입점이라 목록 밖에 자리가 없기 때문이다(삭제·토글 버튼 선례 동형 — task Out of Scope).
+const EDIT_LABEL = '편집';
+const SAVE_LABEL = '저장';
+const CANCEL_LABEL = '취소';
+// 입력에 라벨 요소를 따로 두지 않고 aria-label 로 이름을 준다 — 행 안 인라인이라 <label> 을 붙이면
+// 행 레이아웃이 길어지고, 접근성상 필요한 것은 "이름이 있는가" 이지 시각 라벨 자체가 아니다.
+const EDIT_INPUT_LABEL = 'endpoint 수정';
 
 // 행의 활성 여부 판정(순수 함수) — `active` 필드가 누락돼도 schema 기본값(true) 대로 활성으로
 // 본다. 즉 `false` 만 비활성이고 `true`·`undefined` 는 활성이다(INACTIVE_BADGE 분기와 동일 기준).
@@ -103,6 +112,27 @@ interface CollectionTargetListProps {
   // 목록이 보고 있는 행 상태와 요청이 어긋날 여지가 없다. 미전달 시 버튼 미렌더(하위 호환 —
   // non-Admin 마운트). 실 PATCH · in-flight · 오류 문구는 상위 컨테이너 몫이다(onDelete 동형).
   onToggleActive?: (id: string, nextActive: boolean) => void;
+  // ── 값 편집(endpoint) 축 controlled props (선택, T-1831) ──────────────────────
+  // 전부 optional 이라 하나도 주지 않으면 렌더·동작이 종전과 글자 그대로 같다(선행 slice 회귀 0).
+  // 편집 진입 콜백 — 주어졌을 때만 각 행에 "편집" 버튼을 렌더하고, 클릭 시 `(row.id, 현재
+  // endpoint)` 2 인자로 호출한다. **현재 값을 함께 넘기는 것** 이 계약의 핵심이다(onToggleActive
+  // 의 "다음 상태 동봉" 과 동형) — 컨테이너가 목록을 다시 뒤져 prefill 값을 계산하지 않아도 되고,
+  // 화면이 보고 있는 값과 편집 시작 값이 어긋날 여지가 없다.
+  onEditStart?: (id: string, currentEndpoint: string) => void;
+  // 현재 편집 중인 행 id — 이 값과 `row.id` 가 같은 행에서만 인라인 폼을 렌더한다(그 외 행은
+  // 종전대로 "편집" 버튼). 컨테이너 소유 state 라 목록은 값을 보관하지 않는다.
+  editingId?: string;
+  // 편집 입력의 controlled 값 — 컨테이너 state 를 그대로 표시한다(목록은 입력을 보관하지 않는다).
+  editEndpoint?: string;
+  // 입력 변경 콜백 — 변경된 문자열을 그대로 넘긴다(trim·검증은 컨테이너 러너 몫).
+  onEditEndpointChange?: (next: string) => void;
+  // 저장 콜백 — 클릭 시 `row.id` 로 호출한다(실 PATCH·진행 상태·오류 문구는 컨테이너 몫).
+  onEditSubmit?: (id: string) => void;
+  // 취소 콜백 — 편집 state 를 비우는 것은 컨테이너 책임이라 인자 없이 호출한다.
+  onEditCancel?: () => void;
+  // 저장 in-flight 플래그 — true 면 저장 버튼을 disabled 로 두어 이중 발사를 화면에서도 막는다
+  // (러너의 in-flight 가드와 이중 방어). 취소는 잠그지 않는다(막힌 사용자가 빠져나갈 길 보존).
+  editBusy?: boolean;
 }
 
 // 수집 대상 목록. 분기 순서는 선례와 동일하게 loading → error → empty → populated 로 고정한다
@@ -114,6 +144,13 @@ function CollectionTargetList({
   emptyMessage,
   onDelete,
   onToggleActive,
+  onEditStart,
+  editingId,
+  editEndpoint,
+  onEditEndpointChange,
+  onEditSubmit,
+  onEditCancel,
+  editBusy,
 }: CollectionTargetListProps) {
   // [1] loading 우선 — 조회가 진행 중이면 직전 error 나 잔여 targets 가 남아 있어도 그것을
   // 현재 사실처럼 보여줘선 안 되므로 로딩 표시만 렌더한다.
@@ -145,6 +182,10 @@ function CollectionTargetList({
         // 행의 현재 활성 여부(T-1829) — 비활성 표식 분기와 토글 라벨·다음 상태가 **같은 기준**을
         // 쓰도록 한 번만 계산한다(표식은 비활성인데 라벨은 활성인 어긋남 0).
         const active = isRowActive(row);
+        // 이 행이 편집 중인가(T-1831) — `editingId` 가 없거나 다른 행을 가리키면 false 라
+        // 폼은 정확히 한 행에만 뜬다. 편집 진입점(onEditStart) 이 없어도 편집 중일 수는 있어
+        // 두 조건을 독립으로 둔다(컨테이너가 진입점을 내리는 조건과 폼 표시 조건은 별개).
+        const editingRow = editingId !== undefined && editingId === row.id;
         return (
           <li key={row.id}>
             {/* type 은 대상 분류라 항상 표시한다. */}
@@ -162,6 +203,40 @@ function CollectionTargetList({
             {/* active === false 인 행에만 비활성 표식을 붙인다 — true/누락 행은 활성으로 본다
                 (schema 기본값 true 정합). 본 컴포넌트는 값을 교정하지 않고 그대로 반영한다. */}
             {active ? null : <span>{INACTIVE_BADGE_TEXT}</span>}
+            {/* 값 편집 축(T-1831) — 편집 중인 행에는 인라인 입력 + 저장/취소를, 그 외 행에는
+                onEditStart 가 주어졌을 때만 "편집" 버튼을 렌더한다. 진입 버튼과 폼이 한 행에
+                동시에 뜨지 않도록 삼항으로 배타 분기한다. 요청·진행 상태·오류 문구는 여전히
+                컨테이너 몫이라 여기서는 controlled 값 표시와 콜백 호출만 한다. */}
+            {editingRow ? (
+              <>
+                <input
+                  aria-label={EDIT_INPUT_LABEL}
+                  value={editEndpoint ?? ''}
+                  onChange={(e) => onEditEndpointChange?.(e.target.value)}
+                />
+                {/* 저장 — editBusy 면 disabled 로 이중 발사를 화면에서도 막는다. */}
+                <button
+                  type="button"
+                  disabled={editBusy === true}
+                  onClick={() => onEditSubmit?.(row.id)}
+                >
+                  {SAVE_LABEL}
+                </button>
+                {/* 취소 — 진행 중에도 잠그지 않는다(사용자가 빠져나갈 길 보존). */}
+                <button type="button" onClick={() => onEditCancel?.()}>
+                  {CANCEL_LABEL}
+                </button>
+              </>
+            ) : onEditStart ? (
+              /* 편집 진입 — 현재 endpoint 를 함께 넘겨 컨테이너가 prefill 을 다시 계산하지
+                 않게 한다(onToggleActive 의 "다음 상태 동봉" 계약과 동형). */
+              <button
+                type="button"
+                onClick={() => onEditStart(row.id, row.endpoint)}
+              >
+                {EDIT_LABEL}
+              </button>
+            ) : null}
             {/* onToggleActive 가 주어졌을 때만 활성/비활성 토글 버튼을 렌더한다(T-1829). 라벨은
                 현재 상태에서 파생하고, 콜백에는 **다음 상태**(현재의 반대)를 함께 넘긴다 —
                 컨테이너 러너가 PATCH `{ active: nextActive }` 를 그대로 조립할 수 있게 하려는
