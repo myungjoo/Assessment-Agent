@@ -2,7 +2,7 @@
 id: T-1834
 title: SuperAdmin 셋업 폼 오류 안내를 줄 단위로 구분 표시 (REQ-084 setup 축)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-084]
 estimatedDiff: 390
@@ -68,3 +68,10 @@ plannerNote: "P6 PLAN 133 행 ⑤ (REQ-084) 첫 slice — setup 폼 여러 줄 �
 - REQ-084 의 나머지 축: AdminView 사용자 추가 실패 문구(`CREATE_USER_ERROR_SEPARATOR`, [AdminView.tsx](../../web/src/views/AdminView.tsx) `2235 행`)도 줄 단위 렌더로 전환 + drift-guard spec 갱신 — 별도 slice.
 - 위 전환이 끝나면 `SETUP_ERROR_SEPARATOR` / `buildSetupErrorMessage` 제거 가능 여부 재평가.
 - PLAN `133 행` ⑤ 조각 완결 후 REQ-084 재판정 + PLAN 마커 갱신 (`direct` 1 회).
+
+## Result (2026-09-01)
+
+- **DONE** — PR [#1441](https://github.com/myungjoo/Assessment-Agent/pull/1441) squash merge `3f407684` (round 1, reviewer APPROVE comment 외부 존재 · PR CI 2/2 pass · integrator self-check — §3.3 4-게이트 충족).
+- 변경 4 파일 `+482/-20`. `SuperAdminSetupForm` 에 `errorLines?: string[]` prop 과 `hasErrorLines` 가드를 신설해 줄마다 별도 element 로 렌더하고(우선순위 `errorLines` > `error` > 미렌더), `AppShell` 은 `buildSetupErrorLines` 를 사유 정본으로 두고 `buildSetupErrorMessage` 를 join 형태로 재정의해 실패 · throw 경로를 `setupErrorLines` state 로 통일 후 폼에 배선했다(§3 소비처 동반 의무 준수 — helper 단독 slice 아님).
+- 신규 케이스 happy 4 · error 3 · 분기 7 · negative 10 + 소스 drift guard 1 로 R-112 4 종 cover. web 116 파일 3,476 test green, 루트 463 suite 13,404 test green (line · function ≥ 80% 게이트 통과).
+- `estimatedDiff` 390 대비 `+482` 이나 초과분은 전부 colocated spec LOC (제품 코드 ~100 LOC) 이고 `sizeExempt: true` 사전 정당화 + 파일 cap(≤ 5) 준수.
