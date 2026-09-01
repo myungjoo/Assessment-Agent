@@ -7,6 +7,7 @@ import AppShell, {
   buildSetupErrorMessage,
   isNavItemActive,
   shouldLoadCurrentUser,
+  shouldShowLogout,
   visibleNavItems,
 } from './AppShell';
 import type { View } from './AppShell';
@@ -698,5 +699,135 @@ describe('AppShell 셋업 오류 줄 단위 렌더 (T-1834)', () => {
     expect(source).toMatch(/buildSetupErrorLines\(failure\)\.join\(SETUP_ERROR_SEPARATOR\)/);
     // 실패 표시를 다시 단일 문자열 state 로 되돌리는 회귀 감시.
     expect(source).not.toMatch(/setSetupError\(buildSetupErrorMessage\(/);
+  });
+});
+
+// 로그아웃 컨트롤의 안정 식별 토큰 (AppShell 의 LOGOUT_CLASS 와 정합).
+const LOGOUT_TOKEN = 'app-shell-logout';
+const LOGOUT_LABEL = '로그아웃';
+
+// 렌더 결과에서 로그아웃 버튼 토큰이 등장한 횟수 — 중복 렌더 감시용.
+function logoutTokenCount(html: string): number {
+  return html.split(LOGOUT_TOKEN).length - 1;
+}
+
+describe('shouldShowLogout (T-1837)', () => {
+  // happy-path — 인증 후 view 에서는 노출한다.
+  it('인증 후 view 에서 true 를 반환한다 (happy-path / 분기 다 — true)', () => {
+    expect(shouldShowLogout('dashboard')).toBe(true);
+    expect(shouldShowLogout('admin')).toBe(true);
+  });
+
+  // 분기 (라) — 미인증 view 에서는 노출하지 않는다.
+  it('미인증 view(login · superadmin-setup)에서 false 를 반환한다 (분기 라 — false)', () => {
+    expect(shouldShowLogout('login')).toBe(false);
+    expect(shouldShowLogout('superadmin-setup')).toBe(false);
+  });
+
+  // negative / error path — 타입을 우회한 런타임 입력도 throw 없이 false 다.
+  it('View 가 아닌 값을 넘겨도 throw 없이 false 다 (negative — 타입 우회 입력)', () => {
+    expect(() => shouldShowLogout('' as View)).not.toThrow();
+    expect(shouldShowLogout('' as View)).toBe(false);
+    expect(shouldShowLogout(undefined as unknown as View)).toBe(false);
+    expect(shouldShowLogout(42 as unknown as View)).toBe(false);
+  });
+
+  // negative — 판정 근거가 AUTHED_NAV_ITEMS(isAuthedView) 하나임을 고정한다.
+  // 항목 목록에 있는 view 는 모두 true, 그 밖은 false — view 문자열 재하드코딩 감시.
+  it('AUTHED_NAV_ITEMS 의 view 는 모두 true 이고 그 밖은 false 다 (negative — 판정 근거 이중화 금지)', () => {
+    for (const item of AUTHED_NAV_ITEMS) {
+      expect(shouldShowLogout(item.view)).toBe(true);
+    }
+    expect(shouldShowLogout('login')).toBe(false);
+  });
+});
+
+describe('AppShell 로그아웃 동선 렌더 (T-1837)', () => {
+  // happy-path — 인증 후 정적 렌더에 로그아웃 버튼이 정확히 1 개 있다.
+  it('initialView=dashboard 렌더에 로그아웃 버튼이 1 개 존재한다 (happy-path)', () => {
+    const html = renderToStaticMarkup(
+      <AppShell initialView="dashboard" initialCurrentUser={ADMIN_USER} />,
+    );
+    expect(html).toContain(LOGOUT_TOKEN);
+    expect(html).toContain(LOGOUT_LABEL);
+    expect(logoutTokenCount(html)).toBe(1);
+  });
+
+  // 분기 — 관리 화면에서도 동일하게 노출된다(특정 view 전용이 아님).
+  it('initialView=admin 렌더에도 로그아웃 버튼이 존재한다 (분기 — 인증 후 공통 동선)', () => {
+    const html = renderToStaticMarkup(
+      <AppShell initialView="admin" initialCurrentUser={ADMIN_USER} />,
+    );
+    expect(html).toContain(LOGOUT_TOKEN);
+  });
+
+  // 분기 — 등급 필터 대상이 아니다. 편집 권한이 없는 User 등급에도 노출된다.
+  it('User 등급 주입 렌더에도 로그아웃 버튼이 존재한다 (분기 — 등급 필터 비대상)', () => {
+    const html = renderToStaticMarkup(
+      <AppShell initialView="dashboard" initialCurrentUser={userWithRole('User')} />,
+    );
+    expect(html).toContain(LOGOUT_TOKEN);
+    // 편집 동선은 여전히 필터된다 — 로그아웃 추가가 등급 차등을 무너뜨리지 않는다.
+    expect(html).not.toContain(ADMIN_ITEM_TOKEN);
+  });
+
+  // negative ① — 미인증 로그인 화면에는 로그아웃 컨트롤이 없다.
+  it('initialView=login 렌더에 로그아웃 토큰과 라벨이 모두 부재한다 (negative — 미인증 노출 0)', () => {
+    const html = renderToStaticMarkup(<AppShell initialView="login" />);
+    expect(html).not.toContain(LOGOUT_TOKEN);
+    expect(html).not.toContain(LOGOUT_LABEL);
+  });
+
+  // negative ② — 초기 셋업 단계(미인증)에도 노출되지 않는다.
+  it('initialView=superadmin-setup 렌더에도 로그아웃 토큰이 부재한다 (negative — 셋업 단계 노출 0)', () => {
+    const html = renderToStaticMarkup(<AppShell initialView="superadmin-setup" />);
+    expect(html).not.toContain(LOGOUT_TOKEN);
+    expect(html).not.toContain(LOGOUT_LABEL);
+  });
+
+  // negative ③ — 로그아웃 마크업에 사용자 자격증명 문자열이 새지 않는다.
+  it('인증 후 렌더에 사용자 email·id 문자열이 노출되지 않는다 (negative — 자격증명 유출 0)', () => {
+    const user = userWithRole('Admin');
+    const html = renderToStaticMarkup(
+      <AppShell initialView="dashboard" initialCurrentUser={user} />,
+    );
+    expect(html).toContain(LOGOUT_TOKEN);
+    expect(html).not.toContain(user.email);
+    expect(html).not.toContain(user.id);
+    expect(html).not.toContain('password');
+  });
+
+  // negative ④ — 로그아웃 버튼은 AUTHED_NAV_ITEMS 목록에 섞이지 않는다(등급 필터 오염 방지).
+  it('AUTHED_NAV_ITEMS 에 로그아웃 항목이 섞여 있지 않다 (negative — 목록 오염 방지)', () => {
+    expect(viewsOf(AUTHED_NAV_ITEMS)).toEqual(['dashboard', 'admin']);
+    for (const item of AUTHED_NAV_ITEMS) {
+      expect(item.label).not.toBe(LOGOUT_LABEL);
+    }
+  });
+
+  // negative ⑤ — 로그아웃 직후 상태(view='login' + 사용자 미적재)에서 GET /api/auth/me
+  // 재적재 루프가 생기지 않는다. shouldLoadCurrentUser 가 false 를 유지해야 한다.
+  it("로그아웃 직후 상태(view='login', currentUser=null)에서 재적재하지 않는다 (negative — 재적재 루프 0)", () => {
+    expect(shouldLoadCurrentUser('login', null)).toBe(false);
+    expect(shouldLoadCurrentUser('login', undefined)).toBe(false);
+  });
+
+  // drift guard — 클릭 상호작용 test 가 불가하므로(ADR-0040 §5 새-dep 게이트) 소스
+  // 문자열로 세션 종료 배선 3 종을 대조한다(T-1717 · T-1834 drift guard 선례).
+  it('소스에서 로그아웃 핸들러가 세션 상태 3 종을 초기화한다 (drift guard)', () => {
+    const source = readFileSync(new URL('./AppShell.tsx', import.meta.url), 'utf8');
+    // helper 를 await 한다 — 반환값 분기 없이 아래 정리를 항상 수행한다.
+    expect(source).toMatch(/await authLogout\(\);/);
+    // ① 등급 초기화 ② 미인증 view 복귀 ③ AuthGate remount 를 위한 세대 증가.
+    expect(source).toMatch(/setCurrentUser\(null\);/);
+    expect(source).toMatch(/setView\('login'\);/);
+    expect(source).toMatch(/setSessionEpoch\(\(epoch\) => epoch \+ 1\);/);
+    // AuthGate 내부 authenticated 초기화 경로 — key remount + 현재 view 기준 초기값.
+    expect(source).toMatch(/key=\{sessionEpoch\}/);
+    expect(source).toMatch(/initialAuthenticated=\{isAuthedView\(view\)\}/);
+    // 버튼 클릭이 실제로 핸들러로 귀결되는지.
+    expect(source).toMatch(/void handleLogout\(\);/);
+    // 회귀 감시 — 초기값 근거가 initialView 로 되돌아가면 remount 가 무력화된다.
+    expect(source).not.toMatch(/initialAuthenticated=\{isAuthedView\(initialView\)\}/);
   });
 });

@@ -19,6 +19,8 @@ import { classifySignupFailure, type SignupFailure } from './signupError';
 
 const LOGIN_PATH = '/api/auth/login';
 const REFRESH_PATH = '/api/auth/refresh';
+// 세션 종료 endpoint 경로 (T-1837, REQ-081) — REFRESH_PATH 선례와 동형으로 상수화한다.
+const LOGOUT_PATH = '/api/auth/logout';
 const SIGNUP_PATH = '/api/users';
 const ME_PATH = '/api/auth/me';
 
@@ -55,6 +57,26 @@ async function refresh(): Promise<boolean> {
       return false;
     }
     // 401 외 에러도 false 로 흡수 — 세션 만료 정책은 호출측이 단일 분기로 처리.
+    return false;
+  }
+}
+
+// 세션 종료 helper (T-1837, REQ-081) — `POST /api/auth/logout`(src/auth/auth.controller.ts
+// 의 이미 shipped 된 handler) 을 호출해 서버가 발급한 access/refresh 쿠키를 지우게 한다.
+// 성공(2xx)이면 true, 그 외(401 · 5xx · 네트워크 실패로 인한 ApiError)는 모두 false 로
+// 흡수한다 — throw 하지 않는다.
+//
+// 흡수하는 이유: 클라이언트 측 세션 정리(사용자 상태 초기화 · 로그인 화면 복귀)는 서버
+// 응답과 무관하게 반드시 진행돼야 한다. 로그아웃을 누른 사용자를 서버 오류를 이유로
+// 인증된 화면에 붙잡아 두는 것이 훨씬 나쁜 결과이기 때문이다. 따라서 반환값은 "서버 쪽
+// 쿠키 정리까지 확인됐는가" 라는 정보값일 뿐, 호출측의 정리 수행 여부를 좌우하지 않는다
+// (refresh 의 false 흡수 선례와 동형).
+async function logout(): Promise<boolean> {
+  try {
+    // 204(No Content) 응답도 apiClient.parseBody 가 text() 로 안전하게 처리한다.
+    await request(LOGOUT_PATH, { method: 'POST' });
+    return true;
+  } catch {
     return false;
   }
 }
@@ -177,5 +199,5 @@ async function fetchCurrentUser(): Promise<CurrentUser | null> {
   return { id, email, role };
 }
 
-export { fetchCurrentUser, login, refresh, signup, signupDetailed };
+export { fetchCurrentUser, login, logout, refresh, signup, signupDetailed };
 export type { CurrentUser, SignupResult };

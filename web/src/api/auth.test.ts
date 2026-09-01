@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchCurrentUser, login, refresh, signup, signupDetailed } from './auth';
+import {
+  fetchCurrentUser,
+  login,
+  logout,
+  refresh,
+  signup,
+  signupDetailed,
+} from './auth';
 import { ApiError } from './apiClient';
 import { formatSignupFailure } from './signupError';
 
@@ -498,5 +505,90 @@ describe('auth.fetchCurrentUser', () => {
   it('fetch 가 throw 하면(status 0) ApiError 전파 (negative — 네트워크)', async () => {
     fetchSpy.mockRejectedValueOnce(new Error('offline'));
     await expect(fetchCurrentUser()).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+// R-112 — 세션 종료 helper(T-1837, REQ-081) 검증.
+// logout 은 어떤 실패에도 throw 하지 않고 boolean 으로 흡수하는 계약이므로,
+// (가) 성공 (나) 실패 흡수 두 분기와 그 안의 개별 실패 사유를 각각 cover 한다.
+describe('auth.logout', () => {
+  let fetchSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // happy-path — 204(No Content) 응답 시 true 이고, POST /api/auth/logout 을
+  // credentials 동반으로 정확히 1 회 호출한다.
+  it('204 응답 시 true 를 반환하고 POST /api/auth/logout 을 1 회 호출한다 (happy-path)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(204, '', ''));
+    const ok = await logout();
+    expect(ok).toBe(true);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [path, init] = fetchSpy.mock.calls[0];
+    expect(path).toBe('/api/auth/logout');
+    expect(init.method).toBe('POST');
+    expect(init.credentials).toBe('same-origin');
+  });
+
+  // 분기 (가) 보강 — 2xx 이기만 하면 body 형식과 무관하게 true 다.
+  it('200 JSON 응답에도 true 를 반환한다 (분기 가 — 성공)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(200, { ok: true }));
+    await expect(logout()).resolves.toBe(true);
+  });
+
+  // error path / 분기 (나) — 5xx ApiError 를 false 로 흡수하고 throw 하지 않는다.
+  it('500 응답을 false 로 흡수하고 throw 하지 않는다 (error path — 5xx)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(500, 'server boom', 'text/plain'));
+    await expect(logout()).resolves.toBe(false);
+  });
+
+  // error path / 분기 (나) — 네트워크 실패(ApiError status 0) 도 false 흡수.
+  it('fetch 가 throw 해도 false 를 반환한다 (error path — 네트워크 실패)', async () => {
+    fetchSpy.mockRejectedValueOnce(new Error('offline'));
+    await expect(logout()).resolves.toBe(false);
+  });
+
+  // negative — 401 에서도 false 다. apiClient 의 401→refresh→retry 경로를 타지만
+  // refresh 도 401 이면 거기서 끝나므로 fetch 호출은 2 회로 유한하다(무한 루프 0).
+  it('401 응답에도 false 이고 fetch 호출이 2 회로 끝난다 (negative — refresh 재시도 무한 루프 없음)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(401, 'unauthorized', 'text/plain'));
+    fetchSpy.mockResolvedValueOnce(mockResponse(401, 'unauthorized', 'text/plain'));
+    await expect(logout()).resolves.toBe(false);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  // negative — 403(권한 부족) 도 흡수한다. 클라이언트 세션 정리는 그대로 진행돼야 한다.
+  it('403 응답도 false 로 흡수한다 (negative — 권한 부족)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(403, 'forbidden', 'text/plain'));
+    await expect(logout()).resolves.toBe(false);
+  });
+
+  // negative — body 가 비고 content-type 헤더 자체가 없어도 파싱 예외 0.
+  it('body 가 비고 content-type 이 없어도 파싱 예외 없이 true 다 (negative — 빈 응답 파싱)', async () => {
+    const noContentType = {
+      ok: true,
+      status: 204,
+      headers: { get: () => null },
+      json: async () => {
+        throw new Error('should not parse json');
+      },
+      text: async () => '',
+    };
+    fetchSpy.mockResolvedValueOnce(noContentType);
+    await expect(logout()).resolves.toBe(true);
+  });
+
+  // negative — 실패 흡수가 예외를 삼키는 것이지 재시도 폭주를 만드는 것이 아님을
+  // 호출 횟수로 고정한다(5xx 는 refresh 를 트리거하지 않으므로 1 회).
+  it('5xx 실패에서 재시도 없이 fetch 를 1 회만 호출한다 (negative — 재시도 폭주 없음)', async () => {
+    fetchSpy.mockResolvedValueOnce(mockResponse(503, 'unavailable', 'text/plain'));
+    await expect(logout()).resolves.toBe(false);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 });
