@@ -2,7 +2,7 @@
 id: T-1838
 title: 웹 부트 세션 복원 — GET /api/auth/me hydration 으로 새로고침 인증 유지 (REQ-082)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-082]
 estimatedDiff: 320
@@ -15,6 +15,9 @@ touchesFiles:
   - web/src/AppShell.tsx
   - web/src/AppShell.test.tsx
 created: 2026-09-02
+completedAt: 2026-09-01T16:55:02Z
+prNumber: 1444
+mergeCommit: cd071b25
 plannerNote: "P6 PLAN 133 행 ③ (REQ-082) 세션 복원 — fetchCurrentUser·sessionEpoch 는 이미 있고 없는 것은 부트 hydration 배선. cap-bend pre-justified: R-112 backbone × 1.5 = 320 LOC, T-1837 패턴."
 ---
 
