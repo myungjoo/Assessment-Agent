@@ -9749,7 +9749,22 @@ describe('AdminView — 사용자 추가 폼 조건 사전 안내 (T-1711, REQ-0
       expect(line).not.toContain('&&');
     });
     // 실패 alert 는 종전대로 조건부 그대로다(안내를 alert 분기 안으로 옮기지 않았다).
-    expect(source).toContain('{createUserError ? <p role="alert">{createUserError}</p> : null}');
+    // T-1835 이후 그 조건부는 "줄 배열 우선 → 문자열 fallback → 미렌더" 3 분기다 — 줄 배열
+    // 분기가 소스에서 사라지면(= 한 줄 합침으로 되돌아가면) 아래 단언이 fail 한다(REQ-084 drift guard).
+    expect(source).toContain('hasCreateUserErrorLines(createUserErrorLines) ? (');
+    expect(source).toContain('className={CREATE_USER_ERROR_LINE_CLASS}');
+    expect(source).toContain(') : createUserError ? (');
+    expect(source).toContain('<p role="alert">{createUserError}</p>');
+  });
+
+  // 분기(c, T-1835) — 실패가 없는 초기 렌더에서는 줄 단위 alert 도 문자열 alert 도 뜨지 않는다
+  // (표시 3 분기 중 "둘 다 없음" 축을 실 정적 렌더로 고정 — 빈 alert 가 자리를 차지하지 않는다).
+  it('실패가 없으면 사용자 추가 실패 줄 element 를 하나도 렌더하지 않는다 (분기 — 미렌더 축)', () => {
+    const section = renderUserSection({
+      [USERS]: { data: USER_ROWS, loading: false, error: undefined },
+    });
+    expect(section).not.toContain('admin-create-user-error-line');
+    expect(section).not.toContain('superadmin-setup-error-line');
   });
 
   // 분기(b) — 비-Admin 등급이면 섹션 자체가 미마운트라 안내도 노출 0(fail-closed).
