@@ -2,7 +2,7 @@
 id: T-1837
 title: 웹 로그아웃 동선 배선 — auth.logout helper + AppShell 세션 종료 (REQ-081)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-081]
 estimatedDiff: 390
@@ -42,17 +42,17 @@ plannerNote: "P6 PLAN 133 행 ② (REQ-081) 로그아웃 — backend endpoint �
 
 ## Acceptance Criteria
 
-- [ ] [web/src/api/auth.ts](../../web/src/api/auth.ts) 에 `logout(): Promise<boolean>` 을 신설하고 named export 에 추가한다 — `POST /api/auth/logout` 을 `request` 로 호출하고 2xx 면 `true`, 그 외(401·5xx·네트워크 `ApiError`)는 `false` 로 **흡수**한다(throw 0). 흡수 이유(클라이언트 측 세션 정리는 서버 응답과 무관하게 진행돼야 한다)를 주석으로 명시하고, 경로 문자열은 `LOGOUT_PATH` 상수로 둔다(`REFRESH_PATH` 선례와 동형).
-- [ ] [web/src/AppShell.tsx](../../web/src/AppShell.tsx) 에 `shouldShowLogout(view: View): boolean` 을 named export 순수 함수로 신설한다 — 인증 후 view 에서만 `true`(판정은 기존 `isAuthedView` 를 재사용하고 view 문자열을 다시 하드코딩하지 않는다), 미인증 view(`'login'` · `'superadmin-setup'`) 와 타입 우회 입력에는 `false`(throw 0).
-- [ ] AppShell 이 인증 후 내비게이션(`324 행` `<nav>`) 안에 로그아웃 버튼을 렌더한다 — `shouldShowLogout(view)` 가 `true` 일 때만, `type="button"` + 식별 가능한 className(`app-shell-logout`) + 한국어 라벨. `AUTHED_NAV_ITEMS` 목록에는 넣지 않는다(등급 필터 대상이 아니라 인증되면 항상 보이는 동선).
-- [ ] 로그아웃 핸들러가 세션을 실제로 끝낸다 — `logout()` 을 await 한 뒤 **반환값과 무관하게** ① `currentUser` 를 `null` 로 되돌리고 ② `view` 를 `'login'` 으로 전환하고 ③ `AuthGate` 의 내부 `authenticated` 를 초기화한다. ③ 은 `AuthGate` 에 `key={sessionEpoch}` 를 주어 remount 하는 방식으로 하고, 같은 commit 에서 `initialAuthenticated={isAuthedView(initialView)}` 를 `isAuthedView(view)` 로 바꾼다(mount 시점에는 `view === initialView` 라 기존 동작 불변임을 주석에 명시). `AuthGate.tsx` · `LoginForm.tsx` 는 수정하지 않는다.
-- [ ] 로그아웃 후 `shouldLoadCurrentUser` 재적재 루프가 생기지 않는지 확인한다 — `view === 'login'` 이면 `isAuthedView` 가 `false` 라 `GET /api/auth/me` 를 부르지 않는다는 점을 spec 으로 고정한다.
-- [ ] happy-path unit test 1+ — 신규 public symbol 각각: `logout()` 이 2xx 응답에 `true` 를 반환하고 `POST` + `/api/auth/logout` + `credentials` 동반으로 정확히 1 회 호출되는지, `shouldShowLogout('dashboard')`/`('admin')` 가 `true` 인지, 인증 후 정적 렌더에 로그아웃 버튼이 1 개 있는지.
-- [ ] error path unit test 1+ — `logout()` 이 5xx `ApiError` 와 네트워크 실패(status 0) 에서 각각 `false` 를 반환하고 throw 하지 않는지.
-- [ ] 분기 cover — (가) `logout()` 성공 (나) `logout()` 실패 흡수 (다) `shouldShowLogout` true (라) `shouldShowLogout` false 네 분기 각각 1+ test.
-- [ ] negative cases 충분 cover — 각 1+ test: 미인증 view(`'login'`)·셋업 view(`'superadmin-setup'`) 정적 렌더에 로그아웃 버튼 미노출 · 타입 우회 입력(빈 문자열 · `undefined`)에 `shouldShowLogout` 이 `false` 이고 throw 0 · `logout()` 이 401 에서도 `false` 반환(자동 refresh 재시도로 인한 무한 루프 없음, fetch 호출 횟수 단언) · 응답 body 가 비어 있어도(204 + no content-type) 파싱 예외 0 · 로그아웃 라벨/마크업에 사용자 자격증명 문자열이 새지 않음.
-- [ ] `pnpm --dir web test` 전량 green (기존 케이스 회귀 0), 루트 `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%).
-- [ ] `pnpm lint && pnpm build` green (web 빌드 `tsc --noEmit` 포함).
+- [x] [web/src/api/auth.ts](../../web/src/api/auth.ts) 에 `logout(): Promise<boolean>` 을 신설하고 named export 에 추가한다 — `POST /api/auth/logout` 을 `request` 로 호출하고 2xx 면 `true`, 그 외(401·5xx·네트워크 `ApiError`)는 `false` 로 **흡수**한다(throw 0). 흡수 이유(클라이언트 측 세션 정리는 서버 응답과 무관하게 진행돼야 한다)를 주석으로 명시하고, 경로 문자열은 `LOGOUT_PATH` 상수로 둔다(`REFRESH_PATH` 선례와 동형).
+- [x] [web/src/AppShell.tsx](../../web/src/AppShell.tsx) 에 `shouldShowLogout(view: View): boolean` 을 named export 순수 함수로 신설한다 — 인증 후 view 에서만 `true`(판정은 기존 `isAuthedView` 를 재사용하고 view 문자열을 다시 하드코딩하지 않는다), 미인증 view(`'login'` · `'superadmin-setup'`) 와 타입 우회 입력에는 `false`(throw 0).
+- [x] AppShell 이 인증 후 내비게이션(`324 행` `<nav>`) 안에 로그아웃 버튼을 렌더한다 — `shouldShowLogout(view)` 가 `true` 일 때만, `type="button"` + 식별 가능한 className(`app-shell-logout`) + 한국어 라벨. `AUTHED_NAV_ITEMS` 목록에는 넣지 않는다(등급 필터 대상이 아니라 인증되면 항상 보이는 동선).
+- [x] 로그아웃 핸들러가 세션을 실제로 끝낸다 — `logout()` 을 await 한 뒤 **반환값과 무관하게** ① `currentUser` 를 `null` 로 되돌리고 ② `view` 를 `'login'` 으로 전환하고 ③ `AuthGate` 의 내부 `authenticated` 를 초기화한다. ③ 은 `AuthGate` 에 `key={sessionEpoch}` 를 주어 remount 하는 방식으로 하고, 같은 commit 에서 `initialAuthenticated={isAuthedView(initialView)}` 를 `isAuthedView(view)` 로 바꾼다(mount 시점에는 `view === initialView` 라 기존 동작 불변임을 주석에 명시). `AuthGate.tsx` · `LoginForm.tsx` 는 수정하지 않는다.
+- [x] 로그아웃 후 `shouldLoadCurrentUser` 재적재 루프가 생기지 않는지 확인한다 — `view === 'login'` 이면 `isAuthedView` 가 `false` 라 `GET /api/auth/me` 를 부르지 않는다는 점을 spec 으로 고정한다.
+- [x] happy-path unit test 1+ — 신규 public symbol 각각: `logout()` 이 2xx 응답에 `true` 를 반환하고 `POST` + `/api/auth/logout` + `credentials` 동반으로 정확히 1 회 호출되는지, `shouldShowLogout('dashboard')`/`('admin')` 가 `true` 인지, 인증 후 정적 렌더에 로그아웃 버튼이 1 개 있는지.
+- [x] error path unit test 1+ — `logout()` 이 5xx `ApiError` 와 네트워크 실패(status 0) 에서 각각 `false` 를 반환하고 throw 하지 않는지.
+- [x] 분기 cover — (가) `logout()` 성공 (나) `logout()` 실패 흡수 (다) `shouldShowLogout` true (라) `shouldShowLogout` false 네 분기 각각 1+ test.
+- [x] negative cases 충분 cover — 각 1+ test: 미인증 view(`'login'`)·셋업 view(`'superadmin-setup'`) 정적 렌더에 로그아웃 버튼 미노출 · 타입 우회 입력(빈 문자열 · `undefined`)에 `shouldShowLogout` 이 `false` 이고 throw 0 · `logout()` 이 401 에서도 `false` 반환(자동 refresh 재시도로 인한 무한 루프 없음, fetch 호출 횟수 단언) · 응답 body 가 비어 있어도(204 + no content-type) 파싱 예외 0 · 로그아웃 라벨/마크업에 사용자 자격증명 문자열이 새지 않음.
+- [x] `pnpm --dir web test` 전량 green (기존 케이스 회귀 0), 루트 `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%).
+- [x] `pnpm lint && pnpm build` green (web 빌드 `tsc --noEmit` 포함).
 
 ## Out of Scope
 
@@ -70,3 +70,11 @@ plannerNote: "P6 PLAN 133 행 ② (REQ-081) 로그아웃 — backend endpoint �
 ## Follow-ups
 
 - (비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 추가)
+
+## 결과 (2026-09-01 완료)
+
+- PR [#1443](https://github.com/myungjoo/AA_S1/pull/1443) round 2 → squash merge `57ab7e41`, 브랜치 삭제됨. PR CI run `33522023020` (head `533cd55c`) conclusion=success.
+- 변경 4 파일 `+311/-3` — `auth.logout()` (`LOGOUT_PATH` 상수, 실패 흡수 throw 0) 신설 + `shouldShowLogout()` 순수 함수 신설 + 인증 후 `<nav>` 안 로그아웃 버튼 · `handleLogout` 세션 상태 3 종 초기화(`currentUser=null` · `view='login'` · `key={sessionEpoch}` 로 AuthGate remount) 배선.
+- 테스트: 기존 colocated spec 2 개 확장(`auth.test.ts` 8 건 · `AppShell.test.tsx` 10 건). web 3516 test · 루트 463 suite / 13404 test green, coverageThreshold 유지.
+- reviewer round 2 Nit N1 (`type="button"` 단언 보강) 은 CLAUDE.md `§3` Nit-in-PR closure 로 본 PR 안에서 닫았다.
+
