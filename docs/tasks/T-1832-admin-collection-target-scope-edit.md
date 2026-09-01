@@ -2,8 +2,9 @@
 id: T-1832
 title: AdminView 수집 대상 범위 배열 3 축(orgs·repos·spaces) 인라인 편집 + PATCH 배선
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1440
 coversReq: [REQ-070, REQ-072, REQ-073]
 independentStream: collection-target-admin-ui
 dependsOn: [T-1831]
@@ -122,4 +123,11 @@ export 한다(순수 함수, throw 0): 콤마로 나눠 각 원소 trim → 빈 
 
 ## Follow-ups
 
+- (reviewer MINOR, informational) 콤마 목록 UI 라 **원소 자체에 `,` 가 든 범위 값**은 접었다 펴는 과정에서 갈라진다. GitHub org/repo · Confluence space key 명명 규칙상 실현 가능성이 사실상 0 이라 본 PR cap 안에서 고치지 않았다 — 구분자 변경이 필요해지면 별도 slice 로 판정한다.
 - (planner 예약) 편집 축 3 slice(T-1831 · 본 slice) 머지 후 **1 회** 의 `direct` doc-sync — `docs/requirements.md` REQ-070 / REQ-072 / REQ-073 재판정 + `docs/architecture/api.md` 수집 대상 5 route 표 동기 + PLAN `130 행` 시스템 축 잔여 갱신(ADR-0059 `§Follow-ups (f)`).
+
+## Result (2026-09-01)
+
+`web/src/views/adminCollectionTargetRunners.ts` 에 콤마 목록 파싱 helper(`parseScopeInput`)와 `type` 별 축 매핑을 두고, `runUpdateCollectionTarget` 의 `patch` 에 배열 3 축(`orgs` · `repos` · `spaces`)을 실어 보내도록 확장했다 — 배열이면 **빈 배열도 그대로 발사**해 "범위 비우기" 를 표현하고, 배열 아닌 값은 body 에서 제외한다. 소비처는 같은 PR 에 동반했다: `CollectionTargetList` 는 props 2 개(`editScopes` · `onEditScopeChange`)만 늘려 이미 열려 있는 인라인 편집 폼 안에서 행 `type` 으로 입력을 가르고(GITHUB → `orgs`/`repos`, CONFLUENCE → `spaces`), `onEditStart` 시그니처는 불변으로 두었다. `AdminView` 는 state 1 개로 prefill · 갱신 · 리셋을 관장한다. 정체성 축(`type` · `instanceKey`)은 입력조차 만들지 않아 ADR-0059 `§Decision 5` 를 지켰고, 편집 콜백은 `isAdmin` 일 때만 내려 403 확정 컨트롤을 미노출한다(REQ-073).
+
+5 파일 `+1,113/-5` — `estimatedDiff: 850`(`sizeExempt: true` 사전 정당화) 대비 초과분은 spec LOC 이고 파일 cap(5)은 예외 없이 준수했다. 신규 spec `AdminView.collection-targets-scope-edit.test.tsx` 92 케이스로 R-112 4 종(happy / error path 400·403·404·5xx·네트워크 / 분기 러너 5 · 컴포넌트 4 · 컨테이너 6 / negative 빈 · 공백 · 콤마뿐 · 중복 · 비문자열 · 범위 비우기 · 이중 저장 · 문구 초기화 · `encodeURIComponent` · 응답 shape · non-Admin 미노출)을 덮었다. web 3,446 test(116 파일) green · 루트 `pnpm lint && pnpm build && pnpm test` 13,404 test green(`src/` 무변경이라 backend coverage 변동 0). PR [#1440](https://github.com/myungjoo/Assessment-Agent/pull/1440) reviewer APPROVE round=1 · CI green · squash 머지(`82a409d2`). 이로써 ADR-0059 `§Follow-ups (e)` 편집 축의 마지막 조각이 닫혔다.
