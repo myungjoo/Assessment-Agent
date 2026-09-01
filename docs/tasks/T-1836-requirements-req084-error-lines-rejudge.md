@@ -2,7 +2,7 @@
 id: T-1836
 title: REQ-084 줄 단위 오류 표시 arc 머지 후 재판정 + PLAN 133 행 ⑤ 조각 갱신
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-084]
 independentStream: req-084-error-lines
@@ -122,3 +122,12 @@ R-112 4 항목은 코드 변경 0 인 `direct` doc-only task 라 비해당 (분�
 - 본 재판정이 `DONE` 이면, join 파생 export 2 개 (`buildSetupErrorMessage` ·
   `describeCreateUserFailure`) 의 잔존 소비처를 실측해 제거 가능 여부를 판단하는 `pr` slice 검토
   (T-1834 Follow-up 승계 — drift-guard spec 이 이들을 참조하는지 함께 확인).
+
+## Result (2026-09-01)
+
+- **DONE** — `direct` commit [`b34af88d`](https://github.com/myungjoo/Assessment-Agent/commit/b34af88d) main push (문서 2 파일 `+2/-2`, PR·reviewer 불요 — §3.1 rule 1).
+- [requirements.md](../requirements.md) `103 행` REQ-084 를 `PLANNED` → **`DONE`** 으로 재판정했다. 근거 열에 두 축을 (a) 줄 배열 산출 정본 · (b) 컨테이너 state 배선 · (c) 렌더 분기 · (d) unit 위치 4 항목으로 파일 + 행 pointer 와 함께 박제했다 — 셋업 폼 축은 `AppShell.tsx` `136 행` `buildSetupErrorLines` → `303 행` `errorLines` prop → `SuperAdminSetupForm.tsx` `96 행` 분기, Admin 사용자 추가 축은 `AdminView.tsx` `2261 행` `describeCreateUserFailureLines` → `4803 행` state → `5553 행` 3 분기 렌더.
+- **join 파생 export 2 개는 표시 경로가 아님**을 명시했다 — `buildSetupErrorMessage` 는 `web/src` 내 호출자 0(spec 만 참조), `describeCreateUserFailure` 는 문자열 state 를 채우나 같은 실패 경로가 줄 배열도 항상 채우므로 `5553 행` 우선순위상 화면에 도달하지 않는다. 둘 다 단일 문자열 계약 호환용 잔존.
+- **다른 여러 줄 안내 표면 점검** — 사유가 2 개 이상 될 수 있는 생산자는 `signupError.ts` `114 행` `formatSignupFailure` 하나뿐이고 소비처도 위 두 축뿐이라 잔여 표면 0. `web/src` 의 나머지 `join(` 사용처는 데이터·요약 표시라 본 REQ 대상이 아니다.
+- [PLAN.md](../PLAN.md) `133 행` ⑤ 조각을 shipped 서술로 교체하고 T-1834 · T-1835 링크를 달았다. ①~④ 서술과 bullet 마커 `[ ]` 는 잔여가 남아 무변경.
+- 코드 변경 0 인 doc-only `direct` task 라 R-112 비해당 — 검증은 `git diff --stat` 2 파일 · 두 문서 서술 무모순 확인으로 대체했다.
