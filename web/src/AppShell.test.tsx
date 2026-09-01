@@ -960,6 +960,9 @@ describe('AppShell 부트 세션 복원 배선 (T-1838)', () => {
       /if\s*\(!shouldRestoreSession\(view,\s*restoreAttempted,\s*currentUser\)\)/,
     );
     expect(source).toMatch(/fetchCurrentUser\(\)/);
+    // reviewer N1 — 위 단언은 기존 등급 적재 effect 만으로도 통과하므로, 부트 effect 가
+    // 실제로 조회를 부르는지를 호출 개수(등급 적재 + 부트 복원 = 2 곳)로 고정한다.
+    expect(source.match(/void fetchCurrentUser\(\)/g) ?? []).toHaveLength(2);
     // 성공 경로 3 종 — 등급 적재 · view 전환 · AuthGate remount 세대 증가.
     expect(source).toMatch(/setCurrentUser\(user\);/);
     expect(source).toMatch(/setView\(restoredView\(user\)\);/);
@@ -969,6 +972,9 @@ describe('AppShell 부트 세션 복원 배선 (T-1838)', () => {
     expect(source).toMatch(/\.catch\(\(\)\s*=>\s*\{/);
     // 언마운트 경쟁 상태 방어.
     expect(source).toMatch(/cancelled\s*=\s*true/);
+    // reviewer N2 — 성공 경로의 늦은 setState 방어까지 고정한다. 이 조기 반환이 빠지면
+    // 복원 응답이 늦게 도착했을 때 사용자가 이동한 셋업 화면을 가로채는 회귀가 생긴다.
+    expect(source).toMatch(/if\s*\(cancelled\)\s*\{\s*return;/);
     // 판정 근거는 미인증 진입점 상수 하나다 — helper 안에 view 문자열 재하드코딩 금지.
     expect(source).toMatch(/const UNAUTHED_ENTRY_VIEW: View = 'login';/);
     expect(source).toMatch(/view === UNAUTHED_ENTRY_VIEW/);
