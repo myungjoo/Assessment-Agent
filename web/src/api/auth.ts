@@ -47,7 +47,9 @@ async function login(username: string, password: string): Promise<boolean> {
 }
 
 // 세션 갱신 helper — apiClient 내부 retry path 와 별개로 호출측이 명시적으로
-// refresh 가 필요할 때 사용한다 (예: GET /api/auth/me 부트 hydration — Out of Scope).
+// refresh 가 필요할 때 사용한다. 부트 hydration(GET /api/auth/me) 경로는 T-1838 이
+// AppShell 부트 effect 로 배선했고, 그 경로는 apiClient 의 401→refresh 재시도를 그대로
+// 쓰므로 이 helper 를 직접 부르지 않는다.
 async function refresh(): Promise<boolean> {
   try {
     await request(REFRESH_PATH, { method: 'POST' });
