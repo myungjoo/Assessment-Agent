@@ -2,7 +2,7 @@
 id: T-1835
 title: Admin 사용자 추가 실패 문구를 줄 단위로 구분 표시 (REQ-084 AdminView 축)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-084]
 estimatedDiff: 390
@@ -70,3 +70,11 @@ plannerNote: "P6 PLAN 133 행 ⑤ (REQ-084) 두 번째 slice — AdminView 사�
 
 - REQ-084 두 축(셋업 · Admin 사용자 추가)이 모두 줄 단위로 전환되면 REQ-084 재판정 + PLAN `133 행` ⑤ 조각 서술 갱신 (`direct` 1 회).
 - 두 화면의 줄 렌더 markup 이 사실상 동형이므로 공통 `<ErrorLines>` presentational 컴포넌트 추출 검토 (소비처 2 곳 동반).
+
+## Result (2026-09-01)
+
+- **DONE** — PR [#1442](https://github.com/myungjoo/Assessment-Agent/pull/1442) squash merge `c1d4b1f2` (round 1, reviewer APPROVE comment 외부 존재 · PR check 2/2 pass · integrator self-check — §3.3 4-게이트 충족).
+- 변경 3 파일 `+411/-20`. `describeCreateUserFailureLines` 를 실패 사유 정본으로 신설하고 기존 `describeCreateUserFailure` 를 그 join 파생으로 재정의해 구분자 정합 drift-guard 를 보존했다. `hasCreateUserErrorLines` 가드 · `CREATE_USER_ERROR_LINE_CLASS` 를 함께 두고, `CreateUserDeps` 에 줄 축 2 필드를 optional 로 더해 기존 deps literal 무회귀를 지켰다. 컨테이너에 `createUserErrorLines` state 를 배선하고 표시 지점을 3 분기(줄 배열 > 단일 문자열 > 미렌더)로 렌더한다 — §3 소비처 동반 의무 준수(helper 단독 slice 아님).
+- 신규 케이스 18 + 미렌더 축 1 + `AdminView.test.tsx` drift-guard 갱신으로 R-112 4 종 cover (happy · error · 분기 a~d · negative 8 종 · join 등가 고정). web 116 파일 3,495 test green, 루트 13,404 test green, lint · build(`tsc --noEmit` 포함) green (`src/` 무변경이라 backend coverage 변동 0).
+- `estimatedDiff` 390 대비 `+411` 이나 초과분은 전부 colocated spec LOC (제품 코드 ~100 LOC) 이고 `sizeExempt: true` 사전 정당화 + 파일 cap(≤ 5) 준수.
+- 잔여: REQ-084 재판정 + PLAN `133 행` ⑤ 마커 갱신 (§3.1 규칙 6 — 본 구현 머지 후 `direct` 1 회).
