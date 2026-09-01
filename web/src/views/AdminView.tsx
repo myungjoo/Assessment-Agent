@@ -131,11 +131,14 @@ import CollectionTargetAddForm, {
 // 도 그대로 산다. COLLECTION_TARGETS_PATH 도 정본을 1 개로 유지하려 여기서 가져온다(재선언 금지).
 import {
   COLLECTION_TARGETS_PATH,
+  parseScopeInput,
   runCreateCollectionTarget,
   runDeleteCollectionTarget,
   runToggleCollectionTargetActive,
   runUpdateCollectionTarget,
+  scopeFieldsForCollectionTargetType,
 } from './adminCollectionTargetRunners';
+import type { CollectionTargetScopeField } from './adminCollectionTargetRunners';
 // T-1711 (REQ-067) — 사용자 추가 폼의 아이디·비밀번호 조건 사전 안내 문구. 여기서 문구를 새로
 // 쓰지 않고 SuperAdmin 초기 셋업 폼(T-1710)이 이미 export 한 상수를 재사용한다 — 두 화면이 같은
 // backend 계약(POST /api/users 의 AddUserDto: @IsEmail + @IsNotEmpty + @MinLength)을 쓰므로
@@ -199,6 +202,41 @@ const COLLECTION_TARGET_HEADING = '수집 대상 관리';
 // REQ-070 의도를 살려, 목록이 비어 있는 것이 오류가 아니라 아직 등록이 없다는 정상 상태임을
 // 한국어로 명시한다(EMPTY_PART_PERSON_TEXT 동형 convention).
 const EMPTY_COLLECTION_TARGET_TEXT = '등록된 수집 대상이 없습니다';
+
+// 범위 배열 3 축 편집 입력의 초기/리셋 값(T-1832) — 편집 진입 전·취소 후·저장 성공 후 모두 이
+// 값으로 되돌린다(직전 행의 범위가 다음 편집 화면에 남지 않게). 세 축을 빈 문자열로 두는 것이
+// "범위 없음" 의 표시이자 controlled 입력의 uncontrolled 경고 회피다.
+const EMPTY_COLLECTION_TARGET_SCOPE_INPUT: Record<
+  CollectionTargetScopeField,
+  string
+> = { orgs: '', repos: '', spaces: '' };
+
+// 범위 배열(문자열 배열)을 편집 입력 한 줄로 접는 구분자(T-1832) — 목록 표시(CollectionTargetList
+// SCOPE_SEPARATOR)와 같은 ', ' 라 화면에서 보던 문자열이 그대로 편집 입력에 들어온다.
+const SCOPE_EDIT_SEPARATOR = ', ';
+
+// 범위 배열 → 편집 입력 문자열(T-1832, 순수 함수 · throw 0). `undefined` · 빈 배열 · 배열이
+// 아닌 계약 위반 값은 모두 빈 문자열로 접어, 편집 폼이 어떤 응답 shape 에서도 깨지지 않게 한다
+// (parseScopeInput 의 역방향 — 접은 뒤 다시 파싱하면 같은 배열로 돌아온다).
+function foldScopeForEdit(values?: string[]): string {
+  return Array.isArray(values) ? values.join(SCOPE_EDIT_SEPARATOR) : '';
+}
+
+// 편집 중인 행의 type + 범위 입력 3 필드 → PATCH body 에 실을 범위 축 부분 객체(T-1832, 순수
+// 함수 · throw 0). type 이 쓰는 축만 담으므로 GITHUB 은 `{ orgs, repos }`, CONFLUENCE 는
+// `{ spaces }`, 알 수 없는/누락 type 은 `{}` 다(범위 축 없이 endpoint 만 발사 — 화면에 범위
+// 입력이 없던 것과 정확히 같다). 입력이 비어 있으면 빈 배열이 실려 "범위를 전부 지우는 편집" 이
+// 그대로 발사된다(축 누락이 아니다 — 러너가 배열이면 그대로 싣는 계약과 짝).
+function buildScopePatch(
+  type: string | undefined,
+  input: Record<CollectionTargetScopeField, string>,
+): Partial<Record<CollectionTargetScopeField, string[]>> {
+  const patch: Partial<Record<CollectionTargetScopeField, string[]>> = {};
+  for (const field of scopeFieldsForCollectionTargetType(type)) {
+    patch[field] = parseScopeInput(input?.[field] ?? '');
+  }
+  return patch;
+}
 
 // 사용자 추가 폼 조건 안내 <p> 의 고유 DOM id(T-1711, REQ-067) — 대응 입력의 aria-describedby 가
 // 이 값을 가리켜 스크린리더에서도 입력 전에 조건이 함께 읽힌다. 문구 본문은 SuperAdmin 셋업 폼과
@@ -4573,14 +4611,41 @@ function AdminView({
   const [updateCollectionTargetError, setUpdateCollectionTargetError] =
     useState<string | undefined>(undefined);
 
-  // 편집 시작(T-1831) — 목록이 넘겨준 **현재 endpoint** 를 그대로 prefill 한다(컨테이너가 목록을
-  // 다시 뒤지지 않는다 — 화면이 본 값과 편집 시작 값이 어긋날 여지 0). 직전 실패 문구도 함께
-  // 비워 다른 행의 오류가 새 편집 화면에 남지 않게 한다.
+  // 범위 배열 3 축 편집 입력(T-1832) — 축마다 state 를 두지 않고 3 필드 문자열 객체 **하나**로
+  // 둔다(축이 늘어도 state 수가 늘지 않고, 편집 시작·취소·성공의 리셋도 한 줄이다). 값은 화면이
+  // 보여주는 그대로의 콤마 목록 문자열이고, 배열 변환은 저장 직전 parseScopeInput 이 한다.
+  const [collectionTargetScopeEditInput, setCollectionTargetScopeEditInput] =
+    useState<Record<CollectionTargetScopeField, string>>(
+      EMPTY_COLLECTION_TARGET_SCOPE_INPUT,
+    );
+
+  // 편집 시작(T-1831 + T-1832) — 목록이 넘겨준 **현재 endpoint** 를 그대로 prefill 한다(컨테이너가
+  // 목록을 다시 뒤지지 않는다 — 화면이 본 값과 편집 시작 값이 어긋날 여지 0). 직전 실패 문구도
+  // 함께 비워 다른 행의 오류가 새 편집 화면에 남지 않게 한다.
+  // 범위 3 축은 예외적으로 컨테이너가 `collectionTargets` 를 id 로 찾아 prefill 한다 —
+  // `onEditStart` 시그니처(id, currentEndpoint)를 바꾸지 않기 위해서다(선행 slice spec 이 인자
+  // 2 개 정확 일치를 잠그고 있고, 배열 3 개를 인자로 더 매다는 것은 계약을 무겁게 만든다).
+  // 행을 못 찾거나 배열 축이 없으면 빈 문자열이라 편집은 "범위 없음" 에서 시작한다(throw 0).
   const handleStartEditCollectionTarget = useCallback(
     (id: string, currentEndpoint: string) => {
       setEditingCollectionTargetId(id);
       setCollectionTargetEndpointEditInput(currentEndpoint ?? '');
+      const row = collectionTargets.find((target) => target?.id === id);
+      setCollectionTargetScopeEditInput({
+        orgs: foldScopeForEdit(row?.orgs),
+        repos: foldScopeForEdit(row?.repos),
+        spaces: foldScopeForEdit(row?.spaces),
+      });
       setUpdateCollectionTargetError(undefined);
+    },
+    [collectionTargets],
+  );
+
+  // 범위 입력 변경(T-1832) — 축 이름별로 해당 필드만 갱신한다(다른 축의 입력이 초기화되지 않게
+  // 이전 state 를 펼쳐 유지). 파싱·검증은 저장 시점 몫이라 여기서는 값을 그대로 담는다.
+  const handleChangeCollectionTargetScope = useCallback(
+    (field: CollectionTargetScopeField, next: string) => {
+      setCollectionTargetScopeEditInput((prev) => ({ ...prev, [field]: next }));
     },
     [],
   );
@@ -4590,6 +4655,9 @@ function AdminView({
   const handleCancelEditCollectionTarget = useCallback(() => {
     setEditingCollectionTargetId(undefined);
     setCollectionTargetEndpointEditInput('');
+    // 범위 입력도 함께 비운다(T-1832) — 남겨두면 다른 행을 편집할 때 직전 행의 범위가 잠깐
+    // 보이거나, prefill 이 없는 축에 이전 값이 그대로 실릴 수 있다.
+    setCollectionTargetScopeEditInput(EMPTY_COLLECTION_TARGET_SCOPE_INPUT);
     setUpdateCollectionTargetError(undefined);
   }, []);
 
@@ -4600,7 +4668,16 @@ function AdminView({
     (id: string) =>
       runUpdateCollectionTarget(
         id,
-        { endpoint: collectionTargetEndpointEditInput },
+        {
+          endpoint: collectionTargetEndpointEditInput,
+          // 범위 축(T-1832) — 편집 중인 행의 type 이 쓰는 축만 파싱해 싣는다(화면에 없던 축을
+          // 요청에 실으면 사용자가 보지 못한 값이 저장된다). 파싱 결과가 빈 배열이어도 그대로
+          // 실어 "범위를 전부 지우는 편집" 이 발사되게 한다(축 누락과 구분 — 러너 계약).
+          ...buildScopePatch(
+            collectionTargets.find((target) => target?.id === id)?.type,
+            collectionTargetScopeEditInput,
+          ),
+        },
         {
           patch: request,
           describeError: toErrorMessage,
@@ -4611,11 +4688,17 @@ function AdminView({
           onUpdated: () => {
             setEditingCollectionTargetId(undefined);
             setCollectionTargetEndpointEditInput('');
+            // 범위 입력도 성공 시 함께 비운다(T-1832 — 취소 경로와 같은 리셋).
+            setCollectionTargetScopeEditInput(
+              EMPTY_COLLECTION_TARGET_SCOPE_INPUT,
+            );
           },
         },
       ),
     [
       collectionTargetEndpointEditInput,
+      collectionTargetScopeEditInput,
+      collectionTargets,
       updatingCollectionTargetId,
       reloadCollectionTargets,
     ],
@@ -5929,6 +6012,15 @@ function AdminView({
           onEditSubmit={isAdmin ? handleSubmitEditCollectionTarget : undefined}
           onEditCancel={handleCancelEditCollectionTarget}
           editBusy={updatingCollectionTargetId !== undefined}
+          /* 범위 배열 3 축 편집 배선(T-1832) — 변경 콜백은 편집 진입점과 같은 기준으로 Admin
+             일 때만 내린다(같은 `@Roles("Admin")` PATCH — 403 확정 컨트롤 미노출, REQ-073).
+             콜백이 없으면 목록이 범위 입력을 아예 렌더하지 않으므로 non-Admin 화면에는 입력
+             자체가 없다. 값(editScopes)은 gating 하지 않는데, 입력이 뜨는 조건이 이미 Admin
+             에서만 성립해 non-Admin 에게는 inert 값이기 때문이다(editEndpoint 동형). */
+          editScopes={collectionTargetScopeEditInput}
+          onEditScopeChange={
+            isAdmin ? handleChangeCollectionTargetScope : undefined
+          }
         />
         {/* 삭제 실패 문구(T-1828) — 목록·등록 폼과 별도 축이라 섹션 안 독립 alert 로 노출한다
             (등록 폼의 error props 와 섞이면 어느 동작이 실패했는지 구분되지 않는다). 값이
@@ -6011,6 +6103,10 @@ export {
   runCreateCollectionTarget,
   runDeleteCollectionTarget,
   runToggleCollectionTargetActive,
+  // 범위 배열 편집(T-1832)의 순수 helper 2 종 — 컨테이너 state 는 정적 렌더에서 관측되지 않아
+  // prefill 접기/축 조립 규칙을 단위로 잠그려면 export 가 필요하다(선례: extractCreatedPersonId).
+  foldScopeForEdit,
+  buildScopePatch,
   runUpdateServiceIdentity,
   runDeleteServiceIdentity,
   runSetPrimaryServiceIdentity,
