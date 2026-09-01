@@ -421,6 +421,30 @@ describe('AdminView — 사용자 추가 실패 사유 줄 단위 표시 (T-1835
     // optional 축을 주입하지 않았으므로 줄 배열 setter 는 한 번도 호출되지 않는다.
     expect(seen.lines).toEqual([]);
   });
+  it('negative ⑧ — 실패 1 건당 describeError 를 정확히 1 회만 호출한다(줄 축 추가로 중복 호출 0)', async () => {
+    let describeCalls = 0;
+    const deps: CreateUserDeps = {
+      create: async () => {
+        throw new ApiError(500, 'boom');
+      },
+      describeError: (e) => {
+        describeCalls += 1;
+        return describeCreateUserFailure(e);
+      },
+      describeErrorLines: undefined,
+      isConflict: () => false,
+      creating: false,
+      setCreating: () => {},
+      setCreateError: () => {},
+      setCreateErrorLines: () => {},
+      bumpRefresh: () => {},
+      resetInput: () => {},
+    };
+
+    await runCreateUser(EMAIL, PASSWORD, deps);
+
+    expect(describeCalls).toBe(1);
+  });
 });
 
 describe('AdminView — 사용자 추가 실패 줄 단위 렌더 배선 drift guard (T-1835)', () => {

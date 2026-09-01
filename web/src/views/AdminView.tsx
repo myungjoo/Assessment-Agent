@@ -2324,9 +2324,12 @@ async function runCreateUser(
       // 중복은 축이 하나뿐이라 줄 배열도 같은 문구 1 줄이다(문자열 축과 내용 동일).
       deps.setCreateErrorLines?.([USER_DUPLICATE_ERROR]);
     } else {
-      deps.setCreateError(deps.describeError(e));
+      // describeError 는 한 번만 호출한다 — 줄 배열 fallback 에서 다시 부르면 같은 입력에
+      // 대해 호출 횟수가 2 배가 되어 호출 수를 세는 기존 spec 과 어긋난다.
+      const message = deps.describeError(e);
+      deps.setCreateError(message);
       deps.setCreateErrorLines?.(
-        deps.describeErrorLines ? deps.describeErrorLines(e) : [deps.describeError(e)],
+        deps.describeErrorLines ? deps.describeErrorLines(e) : [message],
       );
     }
   } finally {
