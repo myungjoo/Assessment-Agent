@@ -2,8 +2,9 @@
 id: T-1830
 title: AdminView 의 수집 대상 러너 군을 별도 모듈로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1438
 coversReq: [REQ-070, REQ-072, REQ-073]
 independentStream: adminview-god-component-refactor
 dependsOn: [T-1829]
@@ -132,3 +133,7 @@ issue-still-relevant pre-check (planner, `origin/main` `9fd0e116`): `git grep ad
 - AdminView 는 본 slice 로 6,223 → 6,002 줄이 됐지만 여전히 god component 다. 다음 순수 추출 후보는
   인스턴스 접근 · LLM provider · schedule helper 군이며, PLAN `183 행` 부채 축의 셋째 slice 로
   planner 가 별도 큐잉한다 (본 slice 는 범위를 넓히지 않는다).
+
+## Result (2026-09-01)
+
+`web/src/views/adminCollectionTargetRunners.ts` 를 신설해 AdminView 의 수집 대상 러너 군 (러너 3 + deps 타입 4 + 상수 2) 을 본문 재작성 0 으로 이동했다. 이동 207 줄은 `export` 키워드 3 개를 뺀 나머지가 diff 상 1:1 일치이며, AdminView 는 단방향 import 만 하고 파일 끝 `export { ... }` 목록은 무변경이라 기존 spec 3 개가 **import 경로 수정 0** 으로 통과했다 (순수 추출 조건 (a)(b)(c) 충족). AdminView 는 6,223 → **6,002 줄**. 4 파일 `+428/-222`, web 114 파일 3,255 test green · 루트 `pnpm test:cov` 463 파일 13,404 test green (line · function 80% 게이트 통과, `src/` 무변경이라 전역 coverage 변동 0). PR [#1438](https://github.com/myungjoo/Assessment-Agent/pull/1438) reviewer APPROVE round=2 · CI green · squash 머지 (`b3af6c35`). AC "새 spec 파일 신설 금지" 는 CI `기본 검사` 의 [check-spec-presence.sh](../../scripts/check-spec-presence.sh) 가 신규 production `.ts` 에 동반 spec 을 강제해 round 2 에서 **이탈 1 건** — 기존 spec 복제 0 의 모듈 경계 spec 4 케이스만 신설했고 사유는 `Follow-ups` 에 박제했다 (R-111 CI green 우선).
