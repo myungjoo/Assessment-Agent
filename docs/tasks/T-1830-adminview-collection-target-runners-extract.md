@@ -114,6 +114,17 @@ issue-still-relevant pre-check (planner, `origin/main` `9fd0e116`): `git grep ad
   + 예상 밖 성공 shape 4 종, 삭제/토글은 빈·공백뿐·비문자열 id 미발사 + 이중 클릭 미발사 +
   `encodeURIComponent` 인코딩 + 재발화 시 직전 문구 초기화 + `finally` 진행 해제, 토글은
   `active` true/false 다음 상태 양쪽까지 갖췄다. 즉 순수 추출 조건 (c) 를 spec 수정 0 으로 충족했다.
+- **AC "새 spec 파일 신설 금지" 로부터의 불가피한 이탈 1 건 (round 2)** — CI `기본 검사` 의
+  [scripts/check-spec-presence.sh](../../scripts/check-spec-presence.sh) 가 **신규 production
+  `*.ts` 에 동반 spec 을 강제** 해 red 였다 (T-1824 의 추출 모듈은 확장자가 `.tsx` 라 이 게이트의
+  검사 대상이 아니었고, 본 모듈은 JSX 가 없어 `.ts` 라서 걸린다). R-111 CI green 은 우회 불가
+  절대 규칙이므로 `web/src/views/adminCollectionTargetRunners.test.ts` 를 신설했다. 단 기존 spec
+  3 개의 케이스를 복제하지 않고, 그 3 개가 볼 수 없는 **새 모듈 자신의 공개 표면**(직접 import 경로의
+  export 계약 · 정상 발사 · 실패 흡수 · 미발사 가드) 만 4 케이스로 검증한다 — 이동 전에는 존재할 수
+  없던 검증이라 중복이 아니다. 기존 spec 3 개는 여전히 **한 줄도 수정하지 않았다**.
+- 후속으로 `check-spec-presence.sh` 의 검사 대상을 `.tsx` 까지 넓힐지(현재 `.tsx` 신규 production
+  파일은 spec 동반 의무를 우회한다 — T-1824 의 `adminServiceIdentityRowActions.tsx` 가 실제 사례)
+  planner 판단이 필요하다. 본 slice 범위 밖이라 여기 남긴다.
 - ADR-0059 `§Follow-ups (e)` 의 **값 편집 폼**(`endpoint` · `orgs` · `repos` · `spaces`) slice 는
   `runUpdateCollectionTarget` 을 AdminView 가 아니라 본 모듈
   ([web/src/views/adminCollectionTargetRunners.ts](../../web/src/views/adminCollectionTargetRunners.ts))
