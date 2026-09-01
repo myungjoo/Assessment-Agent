@@ -2,7 +2,7 @@
 id: T-1833
 title: 수집 대상 UI arc 머지 후 REQ-070 · REQ-072 · REQ-073 재판정 + PLAN 130 행 갱신
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-070, REQ-072, REQ-073]
 independentStream: collection-target-admin-ui
@@ -13,6 +13,8 @@ touchesFiles:
 estimatedDiff: 70
 estimatedFiles: 2
 created: 2026-09-01
+completedAt: 2026-09-01T06:44:00Z
+commit: 0f051388
 plannerNote: "P6 / PLAN 130 행 시스템 축 — T-1832 로 편집 arc 종결, §3.1 규칙 6 상 구현 머지 후 1 회 재판정"
 ---
 
@@ -76,10 +78,21 @@ issue-still-relevant pre-check (planner, `origin/main` `7bff75b7`): `requirement
 - PLAN `183 행` AdminView god component 부채 bullet 갱신 · PLAN 의 다른 bullet 손질.
 - 재판정 결과에 따른 후속 slice 의 task 파일 생성 — task 생성은 planner 몫이다. 본 task 는 `Follow-ups` 에 남기기만 한다.
 
+## Result
+
+- **DONE (direct, main `0f051388`) — REQ-070 · REQ-072 · REQ-073 3 row 를 실측 재판정해 모두 `PLANNED` → `DONE`, PLAN `130 행` 의 거짓 서술 갱신 + 마커 `[x]`.** 변경 파일 2 개(`docs/requirements.md` · `docs/PLAN.md`), `+4/-4`.
+- **REQ-072 (시스템 등록·편집) = DONE** — backend 5 route(`src/assessment-collection/collection-target.controller.ts` 의 `@Get()` · `@Get(":id")` · `@Post()` · `@Patch(":id")` · `@Delete(":id")`, [T-1814](T-1814-collection-target-controller-get-routes.md) ~ [T-1817](T-1817-collection-target-controller-delete-route.md)) 와 web 6 slice([T-1825](T-1825-admin-collection-target-list-panel.md) 목록 · [T-1826](T-1826-admin-collection-target-create-form.md) 등록 · [T-1828](T-1828-admin-collection-target-delete.md) 삭제 · [T-1829](T-1829-admin-collection-target-active-toggle.md) 활성 토글 · [T-1831](T-1831-admin-collection-target-endpoint-edit.md) endpoint · [T-1832](T-1832-admin-collection-target-scope-edit.md) 범위 3 축) 가 모두 shipped 임을 파일 · 심볼로 확인했다. 정체성 축(`type` · `instanceKey`) 은 미구현 잔여가 아니라 [ADR-0059](../decisions/ADR-0059-collection-target-registration.md) `§Decision 5` 의 **DELETE + POST 계약** 으로 적어 오기를 막았다.
+- **REQ-073 (Admin 편집 · User 조회) = DONE** — 층 ① backend `@Roles` tier 분리(조회 2 route `@Roles("User")` / 편집 3 route `@Roles("Admin")`), 층 ② web `isAdmin` gating(편집·삭제·토글 콜백을 `isAdmin ? handler : undefined` 로 내려 non-Admin 에게는 컨트롤 미렌더, 등록 폼은 통째 gating) 두 층을 모두 근거로 기재했다. 오류 계약 e2e 는 [T-1823](T-1823-collection-targets-error-contract-e2e.md).
+- **REQ-070 (빈 상태에서 막히지 않음) = DONE** — 우산 REQ 라 "빈 상태에서 나가는 길" 을 실측으로 두 갈래 확인했다: ① `web/src/views/DashboardView.tsx` `802 행` `if (!selectedPersonId)` 분기가 안내문(`97 행` `NO_PERSON_TEXT`)만이 아니라 `809 행` `{personSelector}` 를 **같은 분기 안에** 함께 렌더한다([T-1723](T-1723-dashboard-person-selector-wiring.md)), ② `web/src/AppShell.tsx` `65 행` `AUTHED_NAV_ITEMS` 의 `관리` 항목이 `298 행` `<nav aria-label="화면 이동">` 으로 DashboardView 와 같은 화면에 렌더돼 추가·편집 인터페이스로 가는 진입점이 존재한다. 근거가 실제로 있었으므로 `PARTIAL` 이 아니라 `DONE` 이다.
+- **PLAN `130 행`** — "시스템 축은 수집 대상 등록 모델·API·UI 가 부재하면 신설" 이라는 이미 거짓이 된 문장을 shipped 서술로 갈아끼우고, 3 row 가 모두 `DONE` 이므로 마커를 `[ ]` → `[x]` 로 승격했다(판정과 마커 무모순).
+- 표 무결성 확인 — 편집한 3 행의 `|` 개수(8 개 = 7 열)가 인접 정상 행과 일치한다. 행 범위 표기는 [CLAUDE.md](../../CLAUDE.md) `§12` 규약(물결 하나 · 단일 행 `89 행` · `L` prefix 금지) 준수. 코드 · spec · ADR 변경 0 이라 `commitMode: direct` 판정 유지.
+
 ## Suggested Sub-agents
 
 `implementer`
 
 ## Follow-ups
+- (driver bookkeeping) 본 task 파일의 frontmatter `status: DONE` · `## Result` 은 executor commit `0f051388` 이 AC "변경 파일 2 개" 를 지키기 위해 제외했고, driver bookkeeping commit 에서 처리했다.
+- [ADR-0059](../decisions/ADR-0059-collection-target-registration.md) `§Follow-ups (g)` env 병합 배선(`§Decision 3` union + env 우선)이 아직 미shipped 이고, `§Consequences (a)` 출처 표시(env 유래 vs DB row) · `(b)` `instanceKey` 후보 제시 UX 도 미구현 — planner 가 후속 arc 로 판단한다.
+- PLAN P6 에 남은 미완 bullet 은 `133 행` UI 기본기(R-187 ~ R-191) 하나뿐 — 다음 arc 후보.
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
