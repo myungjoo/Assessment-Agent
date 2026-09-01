@@ -2232,29 +2232,46 @@ async function runCreatePart(
 }
 
 // 사용자 추가 실패 사유 줄들을 하나의 error 문자열로 이을 때 쓰는 구분자 (T-1715).
-// 값은 AppShell 의 SETUP_ERROR_SEPARATOR 선례와 같다. 줄바꿈(\n)이 아닌 이유도 그쪽과 같다 —
-// 표시 지점이 `<p role="alert">{createUserError}</p>` 한 줄이라, \n 은 별도 CSS(white-space)
-// 없이는 HTML 에서 접혀 사라진다. 그 렌더 개편은 본 slice Out of Scope 이므로 접히지 않는
-// 시각적 구분자를 쓴다. 각 줄의 사유 문장 자체는 원문 그대로 보존하며 요약·병합하지 않는다
-// (REQ-068 포괄 문구 금지).
+// 값은 AppShell 의 SETUP_ERROR_SEPARATOR 선례와 같다. T-1835 이후 실 표시 경로는 줄 배열
+// (createUserErrorLines)을 쓰므로 이 구분자는 화면에 나타나지 않는다 — 단일 문자열 표현이
+// 필요한 호출자(describeCreateUserFailure)를 위해서만 남는다. 각 줄의 사유 문장 자체는
+// 원문 그대로 보존하며 요약·병합하지 않는다 (REQ-068 포괄 문구 금지).
 const CREATE_USER_ERROR_SEPARATOR = ' / ';
 
-// 사용자 추가 실패 표면을 화면 문구로 바꾸는 순수 함수 (T-1715 — REQ-068/REQ-069).
-// 400(AddUserDto 검증 실패)만 축별 구체 사유로 교체하고, 그 외 모든 입력은 종전 toErrorMessage
-// 결과를 그대로 돌려준다(동작 변화 0). 409(중복)는 러너의 isConflict 분기가 USER_DUPLICATE_ERROR
+// role="alert" 영역에 붙는 줄 element 의 안정 식별 className (T-1835) — SuperAdminSetupForm 의
+// SETUP_ERROR_LINE_CLASS 선례와 같은 취지로, 배선 drift guard 가 이 토큰으로 줄 element 를 짚는다.
+const CREATE_USER_ERROR_LINE_CLASS = 'admin-create-user-error-line';
+
+// 줄 단위 목록이 실제로 렌더할 값을 가졌는지 판정한다 (T-1835 — hasErrorLines mirror).
+// 타입을 우회한 비정상 입력(문자열·null 등)도 Array.isArray 로 걸러 throw 0 을 보장한다
+// (빈 배열 = 렌더 안 함).
+function hasCreateUserErrorLines(lines: string[] | undefined): boolean {
+  return Array.isArray(lines) && lines.length > 0;
+}
+
+// 사용자 추가 실패 표면을 화면 문구 **줄 배열** 로 바꾸는 순수 함수 (T-1835 — REQ-084).
+// 본 함수가 사유 산출의 정본이며, 아래 describeCreateUserFailure 는 이 결과를 잇기만 한다
+// (중복 구현 0 — AppShell 의 buildSetupErrorLines / buildSetupErrorMessage 쌍과 같은 형태).
+// 400(AddUserDto 검증 실패)만 축별 구체 사유 줄들로 교체하고, 그 외 모든 입력은 종전
+// toErrorMessage 결과 1 줄을 돌려준다. 409(중복)는 러너의 isConflict 분기가 USER_DUPLICATE_ERROR
 // 로 먼저 처리하므로 본 함수에 도달하지 않는다 — 도달하더라도 형식/길이 어휘를 섞지 않는다
 // (분류기가 409 를 중복 축으로만 매핑한다, REQ-069 구분 축).
 // ApiError.message 가 비-2xx 응답 body 원문이라는 apiClient 계약 위에서 성립한다.
-// 어떤 입력에도 throw 하지 않는다(분류기·formatter 모두 순수·무-throw).
+// 어떤 입력에도 throw 하지 않으며(분류기·formatter 모두 순수·무-throw) 항상 1 줄 이상을 준다.
+function describeCreateUserFailureLines(e: unknown): string[] {
+  if (e instanceof ApiError && e.status === 400) {
+    // 분류기가 400 에 대해 최소 1 줄을 보장하므로 결과가 빈 배열이 되지 않는다.
+    return formatSignupFailure(classifySignupFailure(e.status, e.message));
+  }
+  return [toErrorMessage(e)];
+}
+
+// 위 줄 배열을 단일 error 문자열로 잇는다 (T-1715 계약 유지 — 파생 표현).
+// 단일 문자열 표현을 쓰는 소비처(줄 배열 미주입 러너 경로)가 아직 살아 있으므로 named export
+// 계약을 유지한다 — 두 축이 모두 줄 단위로 전환된 뒤 제거 가능 여부를 재평가한다(T-1835 Follow-up).
 // (named export 는 파일 말미의 export 블록에서 한다 — 본 파일의 기존 helper 들과 같은 방식.)
 function describeCreateUserFailure(e: unknown): string {
-  if (e instanceof ApiError && e.status === 400) {
-    // 분류기가 400 에 대해 최소 1 줄을 보장하므로 결과가 빈 문자열이 되지 않는다.
-    return formatSignupFailure(classifySignupFailure(e.status, e.message)).join(
-      CREATE_USER_ERROR_SEPARATOR,
-    );
-  }
-  return toErrorMessage(e);
+  return describeCreateUserFailureLines(e).join(CREATE_USER_ERROR_SEPARATOR);
 }
 
 // 사용자 생성 POST + state-전이 deps(T-1160 — 위 CreatePartDeps 1:1 mirror, 필드 의미는 그쪽 주석).
@@ -2265,6 +2282,11 @@ interface CreateUserDeps {
   creating: boolean;
   setCreating: (next: boolean) => void;
   setCreateError: (next: string | undefined) => void;
+  // 실패 사유 줄 배열 축(T-1835, REQ-084) — optional 이라 기존 deps literal 은 그대로 유효하다.
+  // 둘 다 주입되면 러너가 문자열 error 와 **함께** 줄 배열도 표면화한다(문자열 축은 유지).
+  // describeErrorLines 가 없으면 [describeError(e)] 1 줄로 되돌아가 join 표현과 어긋나지 않는다.
+  describeErrorLines?: (e: unknown) => string[];
+  setCreateErrorLines?: (next: string[] | undefined) => void;
   bumpRefresh: () => void;
   resetInput: () => void;
 }
@@ -2286,6 +2308,8 @@ async function runCreateUser(
   }
   deps.setCreating(true);
   deps.setCreateError(undefined);
+  // 직전 시도의 줄 배열도 함께 비운다 — 안 비우면 성공/새 실패 뒤에도 옛 사유 줄이 남는다.
+  deps.setCreateErrorLines?.(undefined);
   try {
     await deps.create(USERS_PATH, {
       method: 'POST',
@@ -2297,8 +2321,13 @@ async function runCreateUser(
   } catch (e) {
     if (deps.isConflict(e)) {
       deps.setCreateError(USER_DUPLICATE_ERROR);
+      // 중복은 축이 하나뿐이라 줄 배열도 같은 문구 1 줄이다(문자열 축과 내용 동일).
+      deps.setCreateErrorLines?.([USER_DUPLICATE_ERROR]);
     } else {
       deps.setCreateError(deps.describeError(e));
+      deps.setCreateErrorLines?.(
+        deps.describeErrorLines ? deps.describeErrorLines(e) : [deps.describeError(e)],
+      );
     }
   } finally {
     deps.setCreating(false);
@@ -4766,6 +4795,11 @@ function AdminView({
   const [createUserError, setCreateUserError] = useState<string | undefined>(
     undefined,
   );
+  // 실패 사유 줄 배열(T-1835, REQ-084) — 표시 지점이 이쪽을 우선해 줄마다 별도 element 로 렌더한다.
+  // 문자열 축(createUserError)은 종전 계약대로 함께 유지된다(줄 배열 부재 시 fallback).
+  const [createUserErrorLines, setCreateUserErrorLines] = useState<
+    string[] | undefined
+  >(undefined);
 
   // 사용자 생성 실 mutation 핸들러(T-1160 — handleCreatePart mirror. 전이는 러너가 캡슐화).
   const handleCreateUser = useCallback(
@@ -4774,10 +4808,13 @@ function AdminView({
         create: request,
         // T-1715 — 400 만 축별 구체 사유로 교체(그 외 status 는 toErrorMessage 그대로).
         describeError: describeCreateUserFailure,
+        // T-1835 — 줄 배열이 사유 정본(위 describeError 는 그 join 파생).
+        describeErrorLines: describeCreateUserFailureLines,
         isConflict: (e: unknown) => e instanceof ApiError && e.status === 409,
         creating: creatingUser,
         setCreating: setCreatingUser,
         setCreateError: setCreateUserError,
+        setCreateErrorLines: setCreateUserErrorLines,
         bumpRefresh: () => setUsersRefreshNonce((n) => n + 1),
         resetInput: () => {
           setUserEmailInput('');
@@ -5505,7 +5542,25 @@ function AdminView({
               >
                 사용자 추가
               </button>
-              {createUserError ? <p role="alert">{createUserError}</p> : null}
+              {/* 실패 안내(T-1835, REQ-084) — 줄 단위 목록이 있으면 그것을 우선해 줄마다 별도
+                  element 로 렌더하고, 없을 때만 단일 문자열로 되돌아간다(둘 다 없으면 미렌더).
+                  줄 원문은 그대로 보존한다 — 합치거나 요약하지 않는다(REQ-068).
+                  index 를 key 에 섞는 이유: 같은 사유 문구가 두 줄에 반복될 수 있어 본문만으로는
+                  key 가 유일하지 않다. 목록은 재정렬되지 않으므로 index key 로 충분하다. */}
+              {hasCreateUserErrorLines(createUserErrorLines) ? (
+                <div role="alert">
+                  {(createUserErrorLines as string[]).map((line, index) => (
+                    <p
+                      key={`${String(index)}-${String(line)}`}
+                      className={CREATE_USER_ERROR_LINE_CLASS}
+                    >
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              ) : createUserError ? (
+                <p role="alert">{createUserError}</p>
+              ) : null}
             </div>
             {/* 역할 변경 실패 문구(T-1162) — 생성 실패 alert 와 별개 상태라 서로 섞이지 않는다. */}
             {changeRoleError ? <p role="alert">{changeRoleError}</p> : null}
@@ -6114,6 +6169,10 @@ export {
   runCreatePart,
   runCreateUser,
   describeCreateUserFailure,
+  // T-1835 — 줄 배열 정본 + 렌더 판정 helper + 줄 element className(모두 spec 단위 검증 대상).
+  describeCreateUserFailureLines,
+  hasCreateUserErrorLines,
+  CREATE_USER_ERROR_LINE_CLASS,
   runChangeRole,
   buildInstanceAccessPath,
   runGrantInstanceAccess,
