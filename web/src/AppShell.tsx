@@ -46,6 +46,12 @@ type View = 'login' | 'dashboard' | 'admin' | 'superadmin-setup';
 // 인증 후 기본 view — 로그인 성공 시 전환할 진입 화면.
 const DEFAULT_AUTHED_VIEW: View = 'dashboard';
 
+// 미인증 진입점 view (T-1838, REQ-082) — 부트 시작 화면이자 세션 복원 실패 시 머무는
+// 화면이다. 아래 세션 복원 판정 두 곳이 view 문자열('login')을 각자 하드코딩하지 않고
+// 이 상수 하나를 근거로 삼는다(판정 근거 정본 1 곳). 기존 리터럴 사용처(초기 prop
+// 기본값 · handleLogout 복귀)는 T-1837 drift guard 의 대조 대상이라 그대로 둔다.
+const UNAUTHED_ENTRY_VIEW: View = 'login';
+
 // 인증 후 내비게이션 항목 (T-1717, REQ-070 slice 1). 종전에는 `view === 'admin'` 분기가
 // 존재하는데도 인증 후 `setView('admin')` 을 호출하는 컨트롤이 코드베이스에 없어 AdminView
 // 가 도달 불가한 dead branch 였다 — 그래서 로그인 직후 대시보드 빈 상태에서 사용자가
@@ -119,6 +125,51 @@ export function shouldLoadCurrentUser(
 // 검증 가능해야 한다(shouldLoadCurrentUser 선례와 동형).
 export function shouldShowLogout(view: View): boolean {
   return isAuthedView(view);
+}
+
+// 부트 시 세션 복원을 지금 시도해야 하는지 판정한다 (T-1838, REQ-082).
+// 종전에는 새로고침하면 쿠키 세션이 아직 유효해도 무조건 로그인 화면으로 되돌아갔다 —
+// 부트 진입점이 미인증 고정이고 GET /api/auth/me 는 인증 후 view 에서만 불렸기 때문이다.
+// true 조건 셋(모두 충족해야 한다):
+//  ① 미인증 진입점 view 일 것 — 근거는 UNAUTHED_ENTRY_VIEW 상수 하나이며 view 문자열을
+//     여기에 다시 하드코딩하지 않는다. 셋업 view('superadmin-setup')는 사용자가 의도적으로
+//     들어온 화면이므로 false 다(부트 복원이 그 화면을 가로채지 않는다).
+//  ② 아직 복원을 시도하지 않았을 것 — 성공·실패 무관하게 1 회로 끝내 재시도 루프를 막는다.
+//     엄격 비교(=== false)라 타입을 우회한 입력(undefined · 숫자)은 "시도함" 쪽으로 안전하게
+//     쏠려 false 가 된다.
+//  ③ 적재된 사용자가 없을 것 — 이미 있으면 복원할 것이 없다(중복 조회 방지).
+// 타입을 우회한 런타임 입력(빈 문자열 · undefined · 숫자)에도 false 이며 throw 0.
+export function shouldRestoreSession(
+  view: View,
+  attempted: boolean,
+  currentUser: CurrentUser | null | undefined,
+): boolean {
+  return (
+    view === UNAUTHED_ENTRY_VIEW &&
+    attempted === false &&
+    (currentUser === null || currentUser === undefined)
+  );
+}
+
+// 세션 복원 결과로 도착할 view 를 판정한다 (T-1838, REQ-082).
+// 유효한 사용자 객체(id · email · role 이 모두 문자열 — fetchCurrentUser 의 반환 계약과
+// 동형)면 인증 후 기본 view, 그 밖(null · undefined · 비객체 · 필드 누락)이면 미인증
+// 진입점을 준다 — 사유를 지어내지 않고 미인증 상태를 유지하는 fail-safe 다.
+// 반환값은 기존 상수(DEFAULT_AUTHED_VIEW · UNAUTHED_ENTRY_VIEW)만 사용하며 throw 0.
+// URL 별 화면 복원은 무라우터 view enum(ADR-0041 Decision 2) 밖의 주제라 도착지는 하나다.
+export function restoredView(user: CurrentUser | null | undefined): View {
+  if (typeof user !== 'object' || user === null || Array.isArray(user)) {
+    return UNAUTHED_ENTRY_VIEW;
+  }
+  const { id, email, role } = user as {
+    id?: unknown;
+    email?: unknown;
+    role?: unknown;
+  };
+  if (typeof id !== 'string' || typeof email !== 'string' || typeof role !== 'string') {
+    return UNAUTHED_ENTRY_VIEW;
+  }
+  return DEFAULT_AUTHED_VIEW;
 }
 
 // 로그아웃 컨트롤의 식별 className — 정적 렌더 단언의 기준 토큰이다. 전역 CSS 는 본
@@ -235,6 +286,50 @@ function AppShell({
   // 이미 인증된 게이트를 되돌릴 수 없다. key 를 바꿔 remount 시키는 것이 AuthGate.tsx 를
   // 수정하지 않고 그 내부 상태를 초기화하는 유일한 경로다.
   const [sessionEpoch, setSessionEpoch] = useState<number>(0);
+
+  // 부트 세션 복원 시도 여부 (T-1838, REQ-082) — 성공·실패 어느 쪽이든 true 로 확정한다.
+  // 이 플래그가 없으면 복원 실패(세션 없음)가 곧바로 재시도 조건이 되어 GET /api/auth/me
+  // 무한 루프가 된다. handleLogout 은 이 값을 되돌리지 않는다 — 되돌리면 로그아웃 직후
+  // 아직 살아 있는 쿠키로 자동 재로그인되어 사용자가 세션을 끝낼 수 없다.
+  const [restoreAttempted, setRestoreAttempted] = useState<boolean>(false);
+
+  // 부트 시 세션을 1 회 복원한다 (T-1838, REQ-082). 미인증 진입점에서만 GET /api/auth/me
+  // 를 부르고, 살아 있는 세션이 있으면 ① 등급 적재 ② 인증 후 view 전환 ③ sessionEpoch
+  // 증가로 AuthGate remount(그 시점 initialAuthenticated={isAuthedView(view)} 가 true 라
+  // 로그인 폼 대신 인증 후 화면이 보인다) 를 한다. 실패(null · 401 · 5xx · 네트워크)는
+  // 사유를 지어내지 않고 조용히 흡수해 로그인 화면을 그대로 유지한다(오류 배너 0).
+  // cancelled 플래그는 등급 적재 effect 와 동형으로 언마운트 경쟁 상태의 늦은 setState 를 막는다.
+  useEffect(() => {
+    if (!shouldRestoreSession(view, restoreAttempted, currentUser)) {
+      return;
+    }
+    let cancelled = false;
+    void fetchCurrentUser()
+      .then((user) => {
+        if (cancelled) {
+          return;
+        }
+        // 성공 경로에서도 먼저 시도를 확정한다 — 세션이 없어(null) 복원하지 못한
+        // 경우에도 재시도 루프가 생기지 않아야 한다.
+        setRestoreAttempted(true);
+        if (user === null) {
+          return;
+        }
+        setCurrentUser(user);
+        setView(restoredView(user));
+        setSessionEpoch((epoch) => epoch + 1);
+      })
+      .catch(() => {
+        // 5xx · 네트워크 실패 — 사유를 지어내지 않고 미인증 화면을 유지하되, 시도만은
+        // 확정해 재조회 루프를 막는다.
+        if (!cancelled) {
+          setRestoreAttempted(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [view, restoreAttempted, currentUser]);
 
   // 인증 후 진입 시 등급을 1 회 적재한다. 조회 실패(5xx·네트워크 reject)는 삼켜서
   // null(조회 전용)을 유지한다 — 실패를 이유로 편집 권한을 부여하지 않는 fail-safe 이며

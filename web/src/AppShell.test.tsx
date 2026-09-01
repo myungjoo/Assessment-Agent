@@ -6,7 +6,9 @@ import AppShell, {
   buildSetupErrorLines,
   buildSetupErrorMessage,
   isNavItemActive,
+  restoredView,
   shouldLoadCurrentUser,
+  shouldRestoreSession,
   shouldShowLogout,
   visibleNavItems,
 } from './AppShell';
@@ -832,5 +834,152 @@ describe('AppShell 로그아웃 동선 렌더 (T-1837)', () => {
     expect(source).toMatch(/void handleLogout\(\);/);
     // 회귀 감시 — 초기값 근거가 initialView 로 되돌아가면 remount 가 무력화된다.
     expect(source).not.toMatch(/initialAuthenticated=\{isAuthedView\(initialView\)\}/);
+  });
+});
+
+// R-112 — T-1838 부트 세션 복원 hydration(REQ-082) 검증.
+// 실 부트 effect 는 정적 렌더(renderToStaticMarkup)로 발화되지 않고 web 에는
+// @testing-library/react 가 없으므로(ADR-0040 §5 새-dep 게이트), ① 순수 helper 단위 검증
+// ② 미인증 정적 렌더 무회귀 ③ 소스 문자열 drift guard 세 축으로 배선을 고정한다
+// (T-1720 · T-1834 · T-1837 선례 승계).
+
+describe('shouldRestoreSession (T-1838)', () => {
+  // happy-path / 분기 (가) — 미인증 진입점 + 미시도 + 미적재면 복원을 시도한다.
+  it('login view 이고 미시도 · 미적재면 true 다 (happy-path / 분기 가)', () => {
+    expect(shouldRestoreSession('login', false, null)).toBe(true);
+    expect(shouldRestoreSession('login', false, undefined)).toBe(true);
+  });
+
+  // 분기 (나) — 이미 한 번 시도했으면 다시 시도하지 않는다(재시도 루프 0).
+  it('이미 시도했으면 false 다 (분기 나 — 1 회 제한)', () => {
+    expect(shouldRestoreSession('login', true, null)).toBe(false);
+    expect(shouldRestoreSession('login', true, undefined)).toBe(false);
+  });
+
+  // 분기 (다) — 인증 후 view 는 복원 대상이 아니다(등급 적재 effect 소관).
+  it('인증 후 view 에서는 false 다 (분기 다 — 복원 대상 아님)', () => {
+    expect(shouldRestoreSession('dashboard', false, null)).toBe(false);
+    expect(shouldRestoreSession('admin', false, null)).toBe(false);
+  });
+
+  // 분기 (라) — 이미 사용자가 적재돼 있으면 복원할 것이 없다.
+  it('이미 사용자가 적재돼 있으면 false 다 (분기 라 — 중복 조회 방지)', () => {
+    expect(shouldRestoreSession('login', false, ADMIN_USER)).toBe(false);
+    expect(shouldRestoreSession('login', false, userWithRole('User'))).toBe(false);
+  });
+
+  // negative ① — 셋업 view 는 사용자가 의도적으로 들어온 화면이라 복원이 가로채지 않는다.
+  it("superadmin-setup view 에서는 false 다 (negative — 셋업 화면 가로채기 0)", () => {
+    expect(shouldRestoreSession('superadmin-setup', false, null)).toBe(false);
+    expect(shouldRestoreSession('superadmin-setup', false, undefined)).toBe(false);
+  });
+
+  // negative ② / error path — 타입을 우회한 view 입력도 throw 없이 false 다.
+  it('View 가 아닌 값을 넘겨도 throw 없이 false 다 (negative — 타입 우회 view)', () => {
+    expect(() => shouldRestoreSession('' as View, false, null)).not.toThrow();
+    expect(shouldRestoreSession('' as View, false, null)).toBe(false);
+    expect(shouldRestoreSession(undefined as unknown as View, false, null)).toBe(false);
+    expect(shouldRestoreSession(42 as unknown as View, false, null)).toBe(false);
+  });
+
+  // negative ③ — 타입을 우회한 시도 플래그는 "시도함" 쪽으로 안전하게 쏠린다.
+  it('attempted 가 boolean 이 아니면 false 다 (negative — 타입 우회 플래그 fail-safe)', () => {
+    expect(shouldRestoreSession('login', undefined as unknown as boolean, null)).toBe(false);
+    expect(shouldRestoreSession('login', 0 as unknown as boolean, null)).toBe(false);
+    expect(shouldRestoreSession('login', 'false' as unknown as boolean, null)).toBe(false);
+  });
+
+  // negative ④ — 로그아웃 직후(view='login' + 사용자 null)에도 시도 플래그가 true 라
+  // 자동 재로그인이 일어나지 않는다.
+  it('로그아웃 직후 상태에서는 복원을 재시도하지 않는다 (negative — 자동 재로그인 0)', () => {
+    expect(shouldRestoreSession('login', true, null)).toBe(false);
+  });
+});
+
+describe('restoredView (T-1838)', () => {
+  // happy-path / 분기 (마) — 유효한 사용자면 인증 후 기본 view 로 간다.
+  it('유효한 사용자 객체면 dashboard 를 반환한다 (happy-path / 분기 마)', () => {
+    expect(restoredView(ADMIN_USER)).toBe('dashboard');
+    expect(restoredView(userWithRole('User'))).toBe('dashboard');
+  });
+
+  // error path / 분기 (바) — 사용자가 없으면 미인증 진입점을 유지한다(throw 0).
+  it('null · undefined 면 throw 없이 login 을 반환한다 (error path / 분기 바)', () => {
+    expect(() => restoredView(null)).not.toThrow();
+    expect(restoredView(null)).toBe('login');
+    expect(restoredView(undefined)).toBe('login');
+  });
+
+  // negative ① — 비객체 body(문자열 · 배열)에 인증 후 view 를 주지 않는다.
+  it('비객체 사용자(문자열 · 배열)면 login 을 반환한다 (negative — 비객체 방어)', () => {
+    expect(restoredView('admin@example.com' as unknown as CurrentUser)).toBe('login');
+    expect(restoredView([] as unknown as CurrentUser)).toBe('login');
+    expect(restoredView(42 as unknown as CurrentUser)).toBe('login');
+  });
+
+  // negative ② — 빈 객체 · 필드 누락도 유효한 사용자가 아니다(fetchCurrentUser 계약 동형).
+  it('빈 객체 · 필드 누락이면 login 을 반환한다 (negative — 필드 계약 미충족)', () => {
+    expect(restoredView({} as unknown as CurrentUser)).toBe('login');
+    expect(restoredView({ id: 'u-1' } as unknown as CurrentUser)).toBe('login');
+    expect(
+      restoredView({ id: 'u-1', email: 'a@b.c', role: 7 } as unknown as CurrentUser),
+    ).toBe('login');
+  });
+
+  // negative ③ — 반환 view 는 기존 상수 두 개뿐이며 새 문자열을 지어내지 않는다.
+  it('반환값은 인증 후 기본 view 또는 미인증 진입점뿐이다 (negative — view 문자열 신설 0)', () => {
+    expect(viewsOf(AUTHED_NAV_ITEMS)).toContain(restoredView(ADMIN_USER));
+    expect(viewsOf(AUTHED_NAV_ITEMS)).not.toContain(restoredView(null));
+  });
+});
+
+describe('AppShell 부트 세션 복원 배선 (T-1838)', () => {
+  // negative — 미인증 진입 정적 렌더는 무회귀다(복원 전에는 인증 후 동선이 없다).
+  it('initialView=login 정적 렌더에 인증 후 내비·로그아웃이 부재한다 (negative — 무회귀)', () => {
+    const html = renderToStaticMarkup(<AppShell initialView="login" />);
+    expect(html).not.toContain(LOGOUT_TOKEN);
+    expect(html).not.toContain(ADMIN_ITEM_TOKEN);
+    expect(html).not.toContain('app-shell-nav-item-dashboard');
+    // 로그인 화면 자체는 그대로 렌더된다.
+    expect(html).toContain('초기 셋업');
+  });
+
+  // 중복 조회 감시 — 복원이 성공해 사용자가 채워지면 등급 적재 effect 는 다시 부르지 않는다.
+  it('복원 성공 후 상태에서는 등급 적재를 다시 하지 않는다 (분기 — GET /api/auth/me 1 회)', () => {
+    const restored = restoredView(ADMIN_USER);
+    expect(shouldLoadCurrentUser(restored, ADMIN_USER)).toBe(false);
+    // 반대로 복원 전(미적재) 인증 후 view 였다면 적재가 필요했다 — 대조군.
+    expect(shouldLoadCurrentUser(restored, null)).toBe(true);
+  });
+
+  // drift guard — 부트 effect 는 정적 렌더로 발화되지 않으므로 소스 문자열로 대조한다.
+  it('소스에서 부트 복원 effect 가 배선돼 있다 (drift guard)', () => {
+    const source = readFileSync(new URL('./AppShell.tsx', import.meta.url), 'utf8');
+    // 시도 게이트 + 실 조회 helper 호출.
+    expect(source).toMatch(
+      /if\s*\(!shouldRestoreSession\(view,\s*restoreAttempted,\s*currentUser\)\)/,
+    );
+    expect(source).toMatch(/fetchCurrentUser\(\)/);
+    // 성공 경로 3 종 — 등급 적재 · view 전환 · AuthGate remount 세대 증가.
+    expect(source).toMatch(/setCurrentUser\(user\);/);
+    expect(source).toMatch(/setView\(restoredView\(user\)\);/);
+    expect(source).toMatch(/setSessionEpoch\(\(epoch\) => epoch \+ 1\);/);
+    // 성공·실패 어느 쪽이든 시도를 확정한다(재시도 루프 0) + 실패 흡수 catch.
+    expect(source).toMatch(/setRestoreAttempted\(true\);/);
+    expect(source).toMatch(/\.catch\(\(\)\s*=>\s*\{/);
+    // 언마운트 경쟁 상태 방어.
+    expect(source).toMatch(/cancelled\s*=\s*true/);
+    // 판정 근거는 미인증 진입점 상수 하나다 — helper 안에 view 문자열 재하드코딩 금지.
+    expect(source).toMatch(/const UNAUTHED_ENTRY_VIEW: View = 'login';/);
+    expect(source).toMatch(/view === UNAUTHED_ENTRY_VIEW/);
+  });
+
+  // 회귀 감시 — handleLogout 이 시도 플래그를 되돌리면 로그아웃 즉시 자동 재로그인된다.
+  it('소스에서 로그아웃이 시도 플래그를 되돌리지 않는다 (negative — 자동 재로그인 회귀 감시)', () => {
+    const source = readFileSync(new URL('./AppShell.tsx', import.meta.url), 'utf8');
+    expect(source).not.toMatch(/setRestoreAttempted\(false\)/);
+    // AuthGate 초기 인증 여부 근거가 현재 view 임을 함께 고정한다 — 복원 remount 가
+    // 인증 후 화면으로 열리는 근거다(T-1837 배선 승계).
+    expect(source).toMatch(/initialAuthenticated=\{isAuthedView\(view\)\}/);
   });
 });
