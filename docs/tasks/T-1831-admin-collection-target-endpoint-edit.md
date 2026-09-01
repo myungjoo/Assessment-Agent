@@ -2,8 +2,9 @@
 id: T-1831
 title: AdminView 수집 대상 행별 endpoint 인라인 편집 + PATCH { endpoint } 배선
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1439
 coversReq: [REQ-070, REQ-072, REQ-073]
 independentStream: collection-target-admin-ui
 dependsOn: [T-1830]
@@ -95,15 +96,15 @@ issue-still-relevant pre-check (planner, `origin/main` `ebbf3717`): `git grep ru
 
 ## Acceptance Criteria
 
-- [ ] `runUpdateCollectionTarget` 이 `adminCollectionTargetRunners.ts` 에 추가되고 위 설계 계약대로 동작한다. AdminView 는 목록 진입점 · handler · 섹션 렌더까지 같은 PR 에서 배선돼, 화면에서 endpoint 편집이 실제로 발사된다(러너 단독 slice 아님).
-- [ ] **happy-path**: ① 러너가 정상 인자로 PATCH 1 회를 올바른 path(`/api/collection-targets/<encode(id)>`) · method · body(`{ endpoint: trim 값 }`) 로 발사하고 성공 시 재조회 + 편집 종료 콜백을 호출한다. ② 목록에서 "편집" 클릭 → 입력 변경 → "저장" 이 컨테이너 handler 를 거쳐 발사되는 배선 렌더 test 1+.
-- [ ] **error path**: 발사기 reject(400 · 403 · 404 · 5xx · 네트워크 0 표면) 시 오류 문구가 표면화되고 throw 0 · 재조회 미호출 · 진행 id 가 `finally` 로 해제된다는 test 1+.
-- [ ] **분기 cover**: 러너의 각 분기 — 미발사 가드 4 종(비문자열/빈 id, 빈 patch, 빈 `endpoint`, in-flight) · 성공 경로 · 실패 경로 · `onUpdated` 미전달(optional) 경로 — 마다 test 1+. 컴포넌트 분기 — 편집 콜백 미전달 시 버튼 미렌더 · `editingId` 불일치 행은 폼 미렌더 · 일치 행만 폼 렌더 · `editBusy` 시 저장 버튼 disabled — 마다 test 1+.
-- [ ] **negative cases 충분 cover**(단일 negative 금지 — 예외 분기마다): 공백뿐 id 미발사 · `undefined`/숫자 id 미발사 · `patch` 가 `undefined`/`{}` 일 때 미발사 · `endpoint` 가 공백뿐일 때 미발사 · 이중 저장 클릭(진행 중) 미발사 · 재발화 시 직전 오류 문구 초기화 · 실패 후에도 진행 해제 · 특수문자 id 의 `encodeURIComponent` 인코딩 · 예상 밖 응답 shape(배열 · null)에도 throw 0 · non-Admin 마운트에서 편집 버튼 미렌더(403 확정 컨트롤 미노출).
-- [ ] 기존 spec 회귀 0 — 수집 대상 관련 기존 spec 5 개(`collection-targets-mount` · `create` · `delete` · `active-toggle` · `adminCollectionTargetRunners.test.ts` · `CollectionTargetList.test.tsx`)가 **기존 케이스 수정 없이** 통과한다(새 props 는 전부 optional).
-- [ ] `pnpm --dir web test` green · `pnpm --dir web build` green(`tsc --noEmit` + `vite build`).
-- [ ] `pnpm lint && pnpm build && pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%). `src/` 무변경이라 backend coverage 변동 0 이어야 한다.
-- [ ] 변경 파일이 frontmatter `touchesFiles` 5 개를 넘지 않는다(파일 cap 준수 — 새 컴포넌트 파일 신설 금지).
+- [x] `runUpdateCollectionTarget` 이 `adminCollectionTargetRunners.ts` 에 추가되고 위 설계 계약대로 동작한다. AdminView 는 목록 진입점 · handler · 섹션 렌더까지 같은 PR 에서 배선돼, 화면에서 endpoint 편집이 실제로 발사된다(러너 단독 slice 아님).
+- [x] **happy-path**: ① 러너가 정상 인자로 PATCH 1 회를 올바른 path(`/api/collection-targets/<encode(id)>`) · method · body(`{ endpoint: trim 값 }`) 로 발사하고 성공 시 재조회 + 편집 종료 콜백을 호출한다. ② 목록에서 "편집" 클릭 → 입력 변경 → "저장" 이 컨테이너 handler 를 거쳐 발사되는 배선 렌더 test 1+.
+- [x] **error path**: 발사기 reject(400 · 403 · 404 · 5xx · 네트워크 0 표면) 시 오류 문구가 표면화되고 throw 0 · 재조회 미호출 · 진행 id 가 `finally` 로 해제된다는 test 1+.
+- [x] **분기 cover**: 러너의 각 분기 — 미발사 가드 4 종(비문자열/빈 id, 빈 patch, 빈 `endpoint`, in-flight) · 성공 경로 · 실패 경로 · `onUpdated` 미전달(optional) 경로 — 마다 test 1+. 컴포넌트 분기 — 편집 콜백 미전달 시 버튼 미렌더 · `editingId` 불일치 행은 폼 미렌더 · 일치 행만 폼 렌더 · `editBusy` 시 저장 버튼 disabled — 마다 test 1+.
+- [x] **negative cases 충분 cover**(단일 negative 금지 — 예외 분기마다): 공백뿐 id 미발사 · `undefined`/숫자 id 미발사 · `patch` 가 `undefined`/`{}` 일 때 미발사 · `endpoint` 가 공백뿐일 때 미발사 · 이중 저장 클릭(진행 중) 미발사 · 재발화 시 직전 오류 문구 초기화 · 실패 후에도 진행 해제 · 특수문자 id 의 `encodeURIComponent` 인코딩 · 예상 밖 응답 shape(배열 · null)에도 throw 0 · non-Admin 마운트에서 편집 버튼 미렌더(403 확정 컨트롤 미노출).
+- [x] 기존 spec 회귀 0 — 수집 대상 관련 기존 spec 5 개(`collection-targets-mount` · `create` · `delete` · `active-toggle` · `adminCollectionTargetRunners.test.ts` · `CollectionTargetList.test.tsx`)가 **기존 케이스 수정 없이** 통과한다(새 props 는 전부 optional).
+- [x] `pnpm --dir web test` green · `pnpm --dir web build` green(`tsc --noEmit` + `vite build`).
+- [x] `pnpm lint && pnpm build && pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%). `src/` 무변경이라 backend coverage 변동 0 이어야 한다.
+- [x] 변경 파일이 frontmatter `touchesFiles` 5 개를 넘지 않는다(파일 cap 준수 — 새 컴포넌트 파일 신설 금지).
 
 ## Out of Scope
 
@@ -121,3 +122,7 @@ issue-still-relevant pre-check (planner, `origin/main` `ebbf3717`): `git grep ru
 ## Follow-ups
 
 - (planner 예약) **배열 3 축 편집 slice** — 같은 인라인 폼에 `orgs` · `repos` · `spaces` 콤마 입력 3 개를 추가하고, 파싱 helper 는 [web/src/views/adminCollectionTargetRunners.ts](../../web/src/views/adminCollectionTargetRunners.ts) 에 두어(AdminView 를 다시 키우지 않는다) 본 slice 의 `runUpdateCollectionTarget(id, patch, deps)` `patch` 에 필드만 늘려 실어 보낸다. 노출 분기는 `CollectionTargetList.tsx` 의 편집 폼 안에서 행 `type` 으로 가른다(GITHUB → `orgs`/`repos`, CONFLUENCE → `spaces`).
+
+## Result (2026-09-01)
+
+`web/src/views/adminCollectionTargetRunners.ts` 에 `runUpdateCollectionTarget`(부분 갱신 `patch` 계약, 가드 4 종과 전이는 토글 축 러너를 1:1 mirror) 을 추가하고, 그 소비처인 `CollectionTargetList` 의 controlled 편집 props 7 개(전부 optional)와 `AdminView` 의 state 4 · handler 3 · 별도 alert 까지 **한 PR** 에 담아 §3 소비처 동반 의무를 지켰다. 편집 콜백은 `isAdmin` 일 때만 내려 403 이 확정된 컨트롤을 애초에 노출하지 않는다(REQ-073). 5 파일 `+1,039/-0` — 실측 diff 가 frontmatter `estimatedDiff: 560`(`sizeExempt: true` 사전 정당화) 을 넘었으나 초과분은 전부 spec LOC 이고 제품 코드는 261 LOC, 파일 cap(5) 은 예외 없이 준수했다(reviewer MINOR 기록). web 3,334 test green · 루트 `pnpm test:cov` 463 suite 13,404 test green(line · function 80% 게이트 통과, `src/` 무변경이라 backend coverage 변동 0). PR [#1439](https://github.com/myungjoo/Assessment-Agent/pull/1439) reviewer APPROVE round=2 · CI green · squash 머지(`85913f26`).
