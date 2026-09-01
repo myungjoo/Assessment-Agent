@@ -37,7 +37,25 @@ interface SuperAdminSetupFormProps {
   // 셋업 진행 중 플래그 — true 면 입력 충족 여부와 무관하게 submit 을 막는다(loading 우선 정책).
   loading?: boolean;
   // 셋업 실패 등 에러 문구 — truthy 면 role="alert" 영역에 렌더, 없으면 미렌더.
+  // errorLines 가 함께 전달되면 그쪽이 우선한다(아래 errorLines 주석 참조).
   error?: string;
+  // 셋업 실패 사유를 줄 단위로 받은 목록 (T-1834, REQ-084). 값이 있고 빈 배열이 아니면
+  // role="alert" 영역 안에서 줄마다 별도 element 로 렌더한다 — 한 문자열로 합치지 않으므로
+  // 사유가 2 개 이상이어도 사용자가 어디서 한 줄이 끝나는지 구분할 수 있다.
+  // 각 줄의 원문은 그대로 보존한다(요약·병합 금지 — REQ-068 선례).
+  // 우선순위: errorLines(비어있지 않음) > error 문자열 > 미렌더. 두 prop 이 동시에 오면
+  // 줄 단위 표현이 정보량이 더 많으므로 errorLines 를 택하고 error 는 렌더하지 않는다.
+  errorLines?: string[];
+}
+
+// role="alert" 영역에 붙는 줄 element 의 안정 식별 className — 상위 배선 drift guard 와
+// 접근성 검증이 이 토큰으로 줄 element 를 특정한다.
+export const SETUP_ERROR_LINE_CLASS = 'superadmin-setup-error-line';
+
+// 줄 단위 목록이 실제로 렌더할 값을 가졌는지 판정한다. 타입을 우회한 비정상 입력
+// (문자열·null 등)도 Array.isArray 로 걸러 throw 0 을 보장한다(빈 배열 = 렌더 안 함).
+export function hasErrorLines(errorLines: string[] | undefined): boolean {
+  return Array.isArray(errorLines) && errorLines.length > 0;
 }
 
 // SuperAdmin 초기 셋업 폼. 입력 미완(빈/공백뿐인 username·password) 또는 loading 중에는
@@ -51,6 +69,7 @@ function SuperAdminSetupForm({
   onSubmit,
   loading,
   error,
+  errorLines,
 }: SuperAdminSetupFormProps) {
   // 입력 미완 판정 — 공백만 입력한 경우도 빈 입력으로 본다(trim 후 빈 문자열이면 미완).
   // 초기 SuperAdmin 은 시스템 단일 관리자라 공백 자격증명 제출을 특히 방지한다.
@@ -71,8 +90,23 @@ function SuperAdminSetupForm({
       {/* 셋업 단계임을 알리는 제목 — LoginForm 과 구분되는 부트스트랩 단계 표시. */}
       <h2>SuperAdmin 초기 셋업</h2>
 
-      {/* 에러가 있을 때만 alert 영역을 렌더 — 빈 에러가 자리를 차지하지 않게 한다. */}
-      {error ? <div role="alert">{error}</div> : null}
+      {/* 에러가 있을 때만 alert 영역을 렌더 — 빈 에러가 자리를 차지하지 않게 한다.
+          줄 단위 목록(errorLines)이 있으면 그것을 우선해 줄마다 별도 element 로 렌더하고,
+          없을 때만 단일 문자열 error 로 되돌아간다(둘 다 없으면 alert 자체를 렌더하지 않음). */}
+      {hasErrorLines(errorLines) ? (
+        <div role="alert">
+          {/* 줄 원문을 그대로 보존한다 — 합치거나 요약하지 않는다(REQ-084 · REQ-068).
+              index 를 key 에 섞는 이유: 같은 사유 문구가 두 줄에 반복될 수 있어 본문만으로는
+              key 가 유일하지 않다. 목록은 재정렬되지 않으므로 index key 로 충분하다. */}
+          {(errorLines as string[]).map((line, index) => (
+            <p key={`${String(index)}-${String(line)}`} className={SETUP_ERROR_LINE_CLASS}>
+              {line}
+            </p>
+          ))}
+        </div>
+      ) : error ? (
+        <div role="alert">{error}</div>
+      ) : null}
 
       {/* 안내는 label 바깥에 둔다 — label 안에 넣으면 문구가 입력의 접근 가능 이름에 섞인다. */}
       <label>
