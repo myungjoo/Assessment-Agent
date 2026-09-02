@@ -2,7 +2,7 @@
 id: T-1843
 title: 평가 축 evaluate handler 에 RunStatus 배선 — begin + finally end (ADR-0060 (a2-2) 1/2)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-083]
 estimatedDiff: 340
@@ -11,6 +11,9 @@ estimatedFilesNote: assessment-evaluation.controller.ts + assessment-evaluation.
 sizeExempt: true
 exemptReason: "T-1842 실측(+330/-9 = spec 290 · controller 41 · module 8) 을 앵커로 한 항목별 산정. 본 task = 앵커 330 - module 8 - ctor 4 site 수정 24 - period 전용 builder 신설분 약 60 + makeController mock swap 30 + evaluate 본문 37 줄 finally 재들여쓰기(-37/+37 = 74) = 342 → 340. 파일 수 2 는 cap(5) 이내. 이보다 작게 자르면 배선만 있고 R-112 test 가 없는 slice 가 되어 §3.2 위반이며, 반대로 unevaluated-fill-run 까지 묶으면 재들여쓰기만 +86 LOC 늘어 426 이 된다"
 created: 2026-09-02
+completedAt: 2026-09-02T03:59:35Z
+prNumber: 1448
+mergeCommit: 041f7620
 independentStream: r78-polling
 dependsOn: [T-1842]
 touchesFiles: [src/assessment-evaluation/assessment-evaluation.controller.ts, src/assessment-evaluation/assessment-evaluation.controller.spec.ts]
