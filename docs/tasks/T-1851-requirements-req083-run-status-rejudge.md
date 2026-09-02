@@ -2,7 +2,7 @@
 id: T-1851
 title: REQ-083 실행 상태 조회 + 배너 polling 재판정 + PLAN 133 행 ④ 조각 갱신
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-083]
 independentStream: req-083-run-status-rejudge
@@ -13,6 +13,8 @@ touchesFiles:
 estimatedDiff: 90
 estimatedFiles: 2
 created: 2026-09-02
+completedAt: 2026-09-02T10:48:00Z
+resultCommit: 73f763ae
 plannerNote: "P6 / PLAN 133 행 ④ — ADR-0060 (a)~(e) 코드 chain + (f) 앞 절반 머지 완료, §3.1 규칙 6 상 구현 후 1 회 재판정"
 ---
 
