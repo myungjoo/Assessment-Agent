@@ -222,41 +222,63 @@ export class AssessmentEvaluationController {
   async evaluate(
     @Body() dto: EvaluateActivitiesDto,
   ): Promise<EvaluateResponse> {
-    // dto.activities 는 nested DTO 인스턴스 배열(class-transformer 결과)이지만 형식상
-    // Activity union 의 필드 집합과 정합한다(externalId/sourceType/instanceKey/author/
-    // timestamp/metadata + source-별 옵션 필드). orchestrator 는 `Activity[]` 시그니처를
-    // 요구하므로 unknown 을 거쳐 cast(런타임 변환 0 — 동일 객체 forward).
-    const activities = dto.activities as unknown as Activity[];
-    const results = await this.orchestrator.evaluateActivities(activities, {
-      modelId: dto.modelId,
-    });
+    // 평가 축 실행 상태 전이(T-1843, ADR-0060 §Decision 4) — T-1842 가 period() 에
+    // 확립한 shape 을 그대로 복제한다. handler **최상단**에서 begin 하고 try/finally 로
+    // 감싸 어떤 종료 경로에서도 end 가 정확히 1 회 짝지어지게 한다. begin 을 try
+    // **밖**에 두는 이유는 begin 이 던지면 finally 에 진입조차 하지 않아 "짝 없는 end"
+    // 가 원천적으로 생길 수 없기 때문이다(현 구현의 begin 은 던지지 않지만 배치로 그
+    // 불변식을 고정한다).
+    //
+    // 감싸는 범위를 cast · 위임 · context 조립 · mode 정규화 **전체**로 잡는 이유는
+    // `parseKstPeriodInput` 이 malformed periodStart 에 RangeError 로 **동기 throw**
+    // 하는 경로에서도 카운터가 stuck 되지 않게 하기 위함이다(period() 의 fail-closed
+    // 403 조기 차단 경로와 같은 성격). 마지막 위임(persist)을 await 로 받은 뒤 응답을
+    // 조립해 반환하므로 finally 는 언제나 위임 해소 **이후**에만 돈다 — "실행 중"
+    // 구간이 위임을 실제로 덮는다.
+    this.runStatus.begin("evaluation");
+    try {
+      // dto.activities 는 nested DTO 인스턴스 배열(class-transformer 결과)이지만 형식상
+      // Activity union 의 필드 집합과 정합한다(externalId/sourceType/instanceKey/author/
+      // timestamp/metadata + source-별 옵션 필드). orchestrator 는 `Activity[]` 시그니처를
+      // 요구하므로 unknown 을 거쳐 cast(런타임 변환 0 — 동일 객체 forward).
+      const activities = dto.activities as unknown as Activity[];
+      const results = await this.orchestrator.evaluateActivities(activities, {
+        modelId: dto.modelId,
+      });
 
-    // context 4-tuple 조립(ADR-0033 §51) — periodStart 만 string → Date 파싱, 나머지
-    // 3 종은 그대로 전사. R-9 입력 string → Date 변환은 raw `new Date(...)` 가 아니라
-    // `parseKstPeriodInput` 1 곳 경유다(ADR-0039 §Decision3 (d)/§Decision5) — offset
-    // 미명시 입력은 Asia/Seoul default 로 해석돼(예 `2026-06-10T15:00` → KST 15시 =
-    // `2026-06-10T06:00:00Z`) period() 경로의 좌표 해석과 정합한다. malformed 입력은
-    // helper 의 RangeError/TypeError 로 명시 거부(silent Invalid Date 진입 차단).
-    // 허용 literal 값 검증은 persist service 책임(DTO 는 형식만).
-    const context: EvaluationPersistContext = {
-      personId: dto.personId,
-      period: dto.period,
-      scope: dto.scope,
-      periodStart: parseKstPeriodInput(dto.periodStart),
-    };
+      // context 4-tuple 조립(ADR-0033 §51) — periodStart 만 string → Date 파싱, 나머지
+      // 3 종은 그대로 전사. R-9 입력 string → Date 변환은 raw `new Date(...)` 가 아니라
+      // `parseKstPeriodInput` 1 곳 경유다(ADR-0039 §Decision3 (d)/§Decision5) — offset
+      // 미명시 입력은 Asia/Seoul default 로 해석돼(예 `2026-06-10T15:00` → KST 15시 =
+      // `2026-06-10T06:00:00Z`) period() 경로의 좌표 해석과 정합한다. malformed 입력은
+      // helper 의 RangeError/TypeError 로 명시 거부(silent Invalid Date 진입 차단).
+      // 허용 literal 값 검증은 persist service 책임(DTO 는 형식만).
+      const context: EvaluationPersistContext = {
+        personId: dto.personId,
+        period: dto.period,
+        scope: dto.scope,
+        periodStart: parseKstPeriodInput(dto.periodStart),
+      };
 
-    // mode 정규화(ADR-0033 §3) — DTO 는 string surface 라 union 으로 좁힌다. 명시적
-    // "reeval" 만 reeval, 그 외(미지정 포함)는 기본값 "fill". 허용 외 값을 reeval 로
-    // 오인하지 않도록 "fill" 쪽으로 안전 fallback 한다.
-    const mode: PersistMode = dto.mode === "reeval" ? "reeval" : "fill";
+      // mode 정규화(ADR-0033 §3) — DTO 는 string surface 라 union 으로 좁힌다. 명시적
+      // "reeval" 만 reeval, 그 외(미지정 포함)는 기본값 "fill". 허용 외 값을 reeval 로
+      // 오인하지 않도록 "fill" 쪽으로 안전 fallback 한다.
+      const mode: PersistMode = dto.mode === "reeval" ? "reeval" : "fill";
 
-    const persisted = await this.persistService.persist(context, results, mode);
+      const persisted = await this.persistService.persist(
+        context,
+        results,
+        mode,
+      );
 
-    return {
-      assessmentId: persisted.assessmentId,
-      contributionCount: persisted.contributionCount,
-      results,
-    };
+      return {
+        assessmentId: persisted.assessmentId,
+        contributionCount: persisted.contributionCount,
+        results,
+      };
+    } finally {
+      this.runStatus.end("evaluation");
+    }
   }
 
   // normalizeKstPeriodStart — `dto.periodStart`(ISO string)을 `parseKstPeriodInput`
