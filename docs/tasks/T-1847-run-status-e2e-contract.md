@@ -2,7 +2,7 @@
 id: T-1847
 title: GET /api/run-status 계약을 e2e 로 고정
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-083]
 estimatedDiff: 360
@@ -61,3 +61,7 @@ pre-check 실측(origin/main `48115e61`): `ls test/e2e/ | grep -i run-status` �
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 append)
+
+## Result (2026-09-02)
+
+`DONE` — `pr` mode, PR [#1452](https://github.com/myungjoo/Assessment-Agent/pull/1452) → main `d87cb465`. `test/e2e/run-status.e2e-spec.ts` 1 파일 신설 `+372/-0`, production 코드 **0 LOC**. `ctx.moduleRef.get(RunStatusService)` 로 부트스트랩된 singleton 카운터를 직접 조작해 비실행 · 평가만 · 수집만 · 동시 4 상태를 실 HTTP 로 확인하고 매 test `try/finally` 원복 + `afterEach` drain 으로 상태 누수를 이중 차단했다. R-112 4 종 = happy 3 · error 2 · 분기 4 · negative 6 = **15 test**. reviewer round 1/7 APPROVE (BLOCKER 0 · MAJOR 0 · MINOR 0), CI 전 step green. `sizeExempt` 사전 수치 360 대비 실측 372 로 오차 3% — 파일 수 1 은 cap 준수.
