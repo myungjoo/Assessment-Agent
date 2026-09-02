@@ -17,6 +17,8 @@ import { SchedulerRegistry } from "@nestjs/schedule";
 import { Test, type TestingModule } from "@nestjs/testing";
 
 import { AppModule } from "./app.module";
+import { RunStatusController } from "./run-status/run-status.controller";
+import { RunStatusService } from "./run-status/run-status.service";
 import {
   CRON_TICK_HANDLER,
   CronScheduleController,
@@ -145,5 +147,88 @@ describe("AppModule (T-0415 SchedulingModule wiring)", () => {
   it("SchedulingModule import 후에도 부팅 직후 동적 cron job 이 0 개다 (회귀)", () => {
     const registry = moduleRef.get(SchedulerRegistry);
     expect(registry.getCronJobs().size).toBe(0);
+  });
+});
+// app.module.spec.ts — RunStatusModule root wiring 검증 (T-1846, ADR-0060 §Decision 2,
+// §Follow-ups (b), REQ-083).
+//
+// 책임: RunStatusModule 을 AppModule 에 import 하고 module 에 controllers 를 등록한 뒤
+// 조회 진입점(RunStatusController / RunStatusService) 이 root DI 그래프에서 주입 가능한지
+// (= GET /api/run-status 가 런타임에 살아있는지) 를 박제한다. AppModule import 와 module
+// controllers 등록 **둘 중 하나만 빠져도** 아래 get(RunStatusController) 가 red 다.
+//
+// R-112 충족 매핑:
+//  - happy-path: AppModule 컴파일 후 RunStatusController · RunStatusService 가 주입되고
+//    주입된 controller 의 handler 호출이 RunStatusSnapshot shape 을 반환한다.
+//  - error path / negative: 각 주입 결과가 undefined / null 이 아님(wiring 누락 시 NestJS
+//    가 주입 실패해 get() 이 throw 하므로 본 단언이 회귀를 catch).
+//  - flow / branch: 본 task 의 AppModule 변경은 선언적 import 1 줄이라 분기 코드가 없으므로
+//    "분기 없음 — flow/branch 항목은 부팅 직후 비실행 상태(active false) 단언으로 갈음"
+//    (축 조합 분기 자체는 run-status.controller.spec.ts 가 cover).
+//  - negative cases 충분 cover: (a) RunStatusController · (b) RunStatusService 각각
+//    not undefined/null 로 주입 대상별 분리 단언 + (c) 부팅 직후 두 축 모두 비실행이라는
+//    초기 계약 박제.
+describe("AppModule (T-1846 RunStatusModule wiring)", () => {
+  let moduleRef: TestingModule;
+
+  beforeAll(async () => {
+    // imports: [AppModule] 로 root DI 그래프 전체를 컴파일. RunStatusModule import 가
+    // 빠지거나 module 의 controllers 등록이 빠지면 아래 get() 단계가 throw 한다.
+    moduleRef = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+  });
+
+  afterAll(async () => {
+    await moduleRef?.close();
+  });
+
+  // happy-path 1: RunStatusController 가 root DI 그래프에서 주입 가능
+  // (= AppModule 등록 + module controllers 등록 양쪽이 모두 있어야 성립).
+  it("RunStatusController 가 root DI 그래프에서 주입 가능하다", () => {
+    const controller = moduleRef.get(RunStatusController);
+    expect(controller).toBeDefined();
+    expect(controller).toBeInstanceOf(RunStatusController);
+  });
+
+  // negative (a): RunStatusController 주입 결과가 undefined / null 이 아님
+  // (RunStatusModule 미import 회귀 catch).
+  it("주입된 RunStatusController 는 undefined 나 null 이 아니다", () => {
+    const controller = moduleRef.get(RunStatusController);
+    expect(controller).not.toBeUndefined();
+    expect(controller).not.toBeNull();
+  });
+
+  // negative (b): RunStatusService 도 root 그래프에서 resolve 가능
+  // (module 의 providers · exports 계약이 AppModule 경유로도 닫힘).
+  it("RunStatusService 가 root DI 그래프에서 resolve 가능하다", () => {
+    const service = moduleRef.get(RunStatusService);
+    expect(service).toBeDefined();
+    expect(service).toBeInstanceOf(RunStatusService);
+    expect(service).not.toBeNull();
+  });
+
+  // happy-path 2 / negative (c): 주입된 controller 의 handler 호출이 RunStatusSnapshot
+  // shape 을 반환하며 부팅 직후에는 두 축 모두 비실행이다(초기 계약).
+  it("주입된 RunStatusController 의 handler 가 부팅 직후 비실행 snapshot 을 반환한다", () => {
+    const controller = moduleRef.get(RunStatusController);
+
+    const snapshot = controller.status();
+
+    expect(Object.keys(snapshot).sort()).toEqual(
+      ["active", "collection", "evaluation", "observedAt"].sort(),
+    );
+    expect(snapshot.active).toBe(false);
+    expect(snapshot.evaluation).toEqual({
+      active: false,
+      runningCount: 0,
+      startedAt: null,
+    });
+    expect(snapshot.collection).toEqual({
+      active: false,
+      runningCount: 0,
+      startedAt: null,
+    });
+    expect(typeof snapshot.observedAt).toBe("string");
   });
 });
