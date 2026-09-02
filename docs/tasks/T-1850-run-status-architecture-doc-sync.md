@@ -2,7 +2,7 @@
 id: T-1850
 title: api.md + frontend-api-contract.md 를 shipped 된 GET /api/run-status 와 동기
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-083]
 independentStream: run-status-doc-sync
@@ -49,16 +49,16 @@ architecture doc 2 종은 아직 **미존재** 라고 말한다 — 본 slice �
 
 ## Acceptance Criteria
 
-- [ ] `docs/architecture/api.md` `§4` prefix 표에 `/api/run-status` 행 1 개 추가 — 책임 module `RunStatusModule`, 책임 UC 는 실측대로 표기 (UC §5 sequence 호명 0 이면 `/api/collection-targets` 행과 같은 표기 방식), 비고에 R-78 배너 데이터 소스 + [ADR-0060](../decisions/ADR-0060-evaluation-run-status-endpoint.md) · T-1841/T-1846 근거를 한 줄로 박제.
-- [ ] `§4` 서두의 "12 NestJS module … **신규 module 신설 0**" 서술이 새 행과 모순되지 않도록 **최소 한 문장** 으로 단서를 단다 — `RunStatusModule` 은 ADR-0060 이 신설한 module 이라 그 12 종 목록 밖이며 [modules.md](../architecture/modules.md) 전면 동기는 본 slice 밖(Follow-ups)임을 명시. 12 종 목록 자체를 다시 쓰지 않는다.
-- [ ] `§5` endpoint 표에 `GET | /api/run-status | … | User+` 행 1 개 추가 — description 은 ≤ 1 줄 압축 규칙을 지키되 (a) 요청 표면 0 (query · body · path param 없음) (b) 항상 200 (비실행도 `active: false` 200) (c) 응답 필드 (`active` · `evaluation`/`collection` 축별 `active`·`runningCount`·`startedAt` · `observedAt`) (d) 미인증 401 · tier 미달 403 은 guard 소관 (e) 박제 task/PR 를 포함. 배치는 표 안의 적절한 group (신설 group 헤더 1 행 허용).
-- [ ] `§5` 하단 **합계 문단**(`165 행`) 을 갱신 — endpoint 82 → 83 / shipped 77 → 78 / prefix 17 → 18 로 올리고, 늘어난 근거를 기존 문장 스타일대로 T-1850 조항으로 한 조각 덧붙인다 (기존 조항 삭제 0). prefix 증가 판정 근거(최상위 flat prefix 라 `/api/collection-targets` 선례와 동형)를 한 구절로 남긴다.
-- [ ] `docs/architecture/frontend-api-contract.md` `87 행` 표 행의 `**gap (§5) — 미존재**` 를 **shipped** 로 갱신 — `GET /api/run-status`, tier `User+`, 소비처 (`web/src/api/runStatus.ts` helper + `web/src/AppShell.tsx` 5 초 polling → `EvaluationGuardBanner`) 를 적는다.
-- [ ] 같은 파일 `§3.4` 서두의 "(a) 의 '실행 상태 조회' 가 **핵심 gap**" 서술을 shipped 서술로 교정.
-- [ ] 같은 파일 `§5` 목록에서 `1번` 항목(실행 상태 조회)을 제거하고 나머지 4 항목을 `1~4` 로 재번호. 본문 안의 gap 참조(`119 행` "R-78 배너 (§3.4, gap 1 선행 필요)" 및 `15~16 행` 의 gap 서술)도 잔여 4 항목 기준으로 일관되게 교정 — 문서 안에 "gap 1 = 실행 상태 조회" 라는 표현이 **한 곳도 남지 않아야** 한다 (`grep -n "실행 상태 조회" docs/architecture/frontend-api-contract.md` 결과가 전부 shipped 문맥).
-- [ ] 검증: `grep -n "run-status" docs/architecture/api.md` 가 §4 · §5 · 합계 3 지점에서 hit, `grep -n "gap (§5) — 미존재" docs/architecture/frontend-api-contract.md` 가 **0 hit**.
-- [ ] 코드 변경 0 — `git diff --name-only` 결과가 위 `touchesFiles` 2 개뿐.
-- [ ] [CLAUDE.md](../../CLAUDE.md) `§12` 언어 정책 준수 (본문 한국어 · path/식별자 영어) 및 `§12` 범위 표기 규약(`~` 하나 · `20 행` 형식 · `L` prefix 금지) 준수 — 본 2 파일은 규약 적용 범위(architecture 문서)다.
+- [x] `docs/architecture/api.md` `§4` prefix 표에 `/api/run-status` 행 1 개 추가 — 책임 module `RunStatusModule`, 책임 UC 는 실측대로 표기 (UC §5 sequence 호명 0 이면 `/api/collection-targets` 행과 같은 표기 방식), 비고에 R-78 배너 데이터 소스 + [ADR-0060](../decisions/ADR-0060-evaluation-run-status-endpoint.md) · T-1841/T-1846 근거를 한 줄로 박제.
+- [x] `§4` 서두의 "12 NestJS module … **신규 module 신설 0**" 서술이 새 행과 모순되지 않도록 **최소 한 문장** 으로 단서를 단다 — `RunStatusModule` 은 ADR-0060 이 신설한 module 이라 그 12 종 목록 밖이며 [modules.md](../architecture/modules.md) 전면 동기는 본 slice 밖(Follow-ups)임을 명시. 12 종 목록 자체를 다시 쓰지 않는다.
+- [x] `§5` endpoint 표에 `GET | /api/run-status | … | User+` 행 1 개 추가 — description 은 ≤ 1 줄 압축 규칙을 지키되 (a) 요청 표면 0 (query · body · path param 없음) (b) 항상 200 (비실행도 `active: false` 200) (c) 응답 필드 (`active` · `evaluation`/`collection` 축별 `active`·`runningCount`·`startedAt` · `observedAt`) (d) 미인증 401 · tier 미달 403 은 guard 소관 (e) 박제 task/PR 를 포함. 배치는 표 안의 적절한 group (신설 group 헤더 1 행 허용).
+- [x] `§5` 하단 **합계 문단**(`165 행`) 을 갱신 — endpoint 82 → 83 / shipped 77 → 78 / prefix 17 → 18 로 올리고, 늘어난 근거를 기존 문장 스타일대로 T-1850 조항으로 한 조각 덧붙인다 (기존 조항 삭제 0). prefix 증가 판정 근거(최상위 flat prefix 라 `/api/collection-targets` 선례와 동형)를 한 구절로 남긴다.
+- [x] `docs/architecture/frontend-api-contract.md` `87 행` 표 행의 `**gap (§5) — 미존재**` 를 **shipped** 로 갱신 — `GET /api/run-status`, tier `User+`, 소비처 (`web/src/api/runStatus.ts` helper + `web/src/AppShell.tsx` 5 초 polling → `EvaluationGuardBanner`) 를 적는다.
+- [x] 같은 파일 `§3.4` 서두의 "(a) 의 '실행 상태 조회' 가 **핵심 gap**" 서술을 shipped 서술로 교정.
+- [x] 같은 파일 `§5` 목록에서 `1번` 항목(실행 상태 조회)을 제거하고 나머지 4 항목을 `1~4` 로 재번호. 본문 안의 gap 참조(`119 행` "R-78 배너 (§3.4, gap 1 선행 필요)" 및 `15~16 행` 의 gap 서술)도 잔여 4 항목 기준으로 일관되게 교정 — 문서 안에 "gap 1 = 실행 상태 조회" 라는 표현이 **한 곳도 남지 않아야** 한다 (`grep -n "실행 상태 조회" docs/architecture/frontend-api-contract.md` 결과가 전부 shipped 문맥).
+- [x] 검증: `grep -n "run-status" docs/architecture/api.md` 가 §4 · §5 · 합계 3 지점에서 hit, `grep -n "gap (§5) — 미존재" docs/architecture/frontend-api-contract.md` 가 **0 hit**.
+- [x] 코드 변경 0 — `git diff --name-only` 결과가 위 `touchesFiles` 2 개뿐.
+- [x] [CLAUDE.md](../../CLAUDE.md) `§12` 언어 정책 준수 (본문 한국어 · path/식별자 영어) 및 `§12` 범위 표기 규약(`~` 하나 · `20 행` 형식 · `L` prefix 금지) 준수 — 본 2 파일은 규약 적용 범위(architecture 문서)다.
 
 ## Out of Scope
 
@@ -77,3 +77,13 @@ architecture doc 2 종은 아직 **미존재** 라고 말한다 — 본 slice �
 
 - (다음 slice 후보) `§Follow-ups (f)` 나머지 절반 — [requirements.md](../requirements.md) `102 행` REQ-083 status 를 (a) ~ (e) 실측(`src/run-status/*` · `test/e2e/run-status.e2e-spec.ts` · `web/src/api/runStatus.ts` · `web/src/AppShell.tsx`)에 맞춰 1 회 재판정 + [PLAN.md](../PLAN.md) `133 행` ④ 조각을 shipped 서술로 갱신 (② · ③ · ⑤ 조각과 동형, 선례 [T-1839](T-1839-requirements-req081-req082-session-rejudge.md)).
 - [modules.md](../architecture/modules.md) module 목록 drift 동기 — 문서 12 종 vs `src/` 실측 15 종(`export` · `import` · `permission-denied-record` · `user-instance-access` · `run-status` 등). 의존성 그래프 · Components 매핑까지 동반이라 별도 slice 로 크기 산정 필요.
+
+## Result
+
+**Status: DONE** — 2026-09-02T09:45Z, `commitMode: direct` 로 main `ebc4f545` 직접 push (PR 없음).
+
+- **변경 범위**: `docs/architecture/api.md` + `docs/architecture/frontend-api-contract.md` **2 파일 `+17/-15`** — `git diff --name-only` 가 `touchesFiles` 2 개뿐이라 코드 변경 0 이 실측으로 확인됐다. 사전 `estimatedDiff` 70 대비 실측 32 로 하회.
+- **api.md**: `§4` prefix 표에 `/api/run-status` 행 1 개(책임 module `RunStatusModule`) 추가하고, 서두의 "12 NestJS module … 신규 module 신설 0" 서술과 모순되지 않도록 `RunStatusModule` 이 [ADR-0060](../decisions/ADR-0060-evaluation-run-status-endpoint.md) 신설분이라 그 12 종 밖이며 [modules.md](../architecture/modules.md) 전면 동기는 본 slice 밖이라는 단서 1 문장을 달았다(12 종 목록 재작성 0). `§5` 에는 group 헤더 1 행과 `GET /api/run-status` 행 1 개를 넣어 요청 표면 0 · 항상 200 · 응답 필드 · 401/403 은 guard 소관을 한 줄로 압축했고, 합계 문단을 endpoint 82 → **83** / shipped 77 → **78** / prefix 17 → **18** 로 올리며 T-1850 조항을 덧붙였다(기존 조항 삭제 0).
+- **frontend-api-contract.md**: `87 행` 표 행의 `**gap (§5) — 미존재**` 를 shipped 로 갱신하며 endpoint · tier `User+` · 소비처 2 종(`web/src/api/runStatus.ts` helper + `web/src/AppShell.tsx` 5 초 polling → `EvaluationGuardBanner`)을 박았고, `§3.4` 서두의 "핵심 gap" 서술도 shipped 서술로 교정했다. `§5` gap 목록에서 `1번`(실행 상태 조회)을 제거하고 나머지를 `1~4` 로 재번호했으며, 본문의 `gap 1 선행 필요` 참조도 해소 서술로 바꿔 문서 안에 "gap 1 = 실행 상태 조회" 표현이 **0 곳** 남게 했다.
+- **검증**: doc-only 라 test 코드 추가 0 이고 AC 의 grep 3 종으로 대체했다 — `run-status` 가 api.md 의 `§4` · `§5` · 합계 3 지점에서 hit(총 5 hit), `gap (§5) — 미존재` **0 hit**, `gap 1` **0 hit**, 잔여 "실행 상태 조회" 4 hit 은 전부 shipped 문맥. driver 가 push 후 main `ebc4f545` 의 diff stat 과 grep 2 종을 독립 재확인했다.
+- **남은 조각**: `§Follow-ups (f)` 의 나머지 절반인 [requirements.md](../requirements.md) `102 행` REQ-083 재판정 + [PLAN.md](../PLAN.md) `133 행` ④ 조각 갱신은 [CLAUDE.md](../../CLAUDE.md) `§3.1` 규칙 6 대로 **별도 1 회** slice 로 남는다. `modules.md` 12 종 vs `src/` 15 종 선행 drift 동기도 별도 slice.
