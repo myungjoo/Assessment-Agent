@@ -650,44 +650,56 @@ export class AssessmentEvaluationController {
   async runUnevaluatedFill(
     @Body() dto: UnevaluatedFillRunRequestDto,
   ): Promise<UnevaluatedFillRunResult> {
-    // default modelId 의 server-side 해석 — caller 가 보낸 `dto.defaultModelId` 를
-    // 더 이상 읽지 않고(이 참조 제거로 chain item 2 의 DTO 필드 제거가 안전해진다),
-    // resolver 가 LlmProviderConfig DB row 의 modelId 를 단일-row 해석해 권위 있게
-    // 결정한다(ADR-0048 §Decision 1·2). 이 await 를 orchestrator 위임보다 **먼저**
-    // 두어, resolver 가 throw 하면(0-row / 2+row / 빈·non-string modelId) 평가 사슬에
-    // 아예 진입하지 않게 한다(비용 있는 LLM round-trip 전 fail-fast).
-    //
-    // HTTP status 매핑(ADR-0048 §Out of scope — 503/500/400 중 controller wiring 이
-    // 503 으로 박제): resolver 는 layer 책임 경계상 plain Error / TypeError 만 던지므로
-    // (Nest HttpException 아님), 여기서 catch 해 `ServiceUnavailableException`(503)으로
-    // re-throw 한다 — "운영자 LLM provider 미설정 / 다중-row 미박제 = 일시적 서비스 불가".
-    // resolver 의 한국어 메시지를 503 응답에 담아 진단성을 보존하고, error 객체 자체를
-    // cause 로 전파한다. resolver 가 던진 게 아닌 Nest HttpException(향후 resolver 변경
-    // 대비)이면 그대로 propagate 한다(이중 wrapping 방지).
-    let resolvedDefaultModelId: string;
+    // 평가 축 실행 상태 전이(T-1844, ADR-0060 §Decision 4) — T-1842 가 period(), T-1843
+    // 이 evaluate() 에 확립한 shape 의 복제. begin 을 try **밖**에 둬 begin 이 던지면
+    // finally 에 진입조차 않게 하고("짝 없는 end" 원천 차단), 감싸는 범위는 resolver 의
+    // try/catch 와 503 re-throw 까지 **본문 전체**다 — 본 handler 만 자체 예외 매핑을
+    // 가지므로, 그 fail-fast 구간이 바깥 try 밖이면 운영자 LLM provider 미설정마다 end 가
+    // 안 돌아 카운터가 stuck 되고 배너가 영구히 "평가 중" 으로 굳는다. 마지막 위임은
+    // **return await** 로 받아 finally 가 위임 해소 **이후**에만 돌게 한다.
+    this.runStatus.begin("evaluation");
     try {
-      resolvedDefaultModelId =
-        await this.llmProviderConfigResolver.resolveDefaultModelId();
-    } catch (error) {
-      throw new ServiceUnavailableException(
-        error instanceof Error
-          ? error.message
-          : "LLM provider 설정을 해석할 수 없다 (default modelId source 미박제).",
-        { cause: error },
-      );
-    }
+      // default modelId 의 server-side 해석 — caller 가 보낸 `dto.defaultModelId` 를
+      // 더 이상 읽지 않고(이 참조 제거로 chain item 2 의 DTO 필드 제거가 안전해진다),
+      // resolver 가 LlmProviderConfig DB row 의 modelId 를 단일-row 해석해 권위 있게
+      // 결정한다(ADR-0048 §Decision 1·2). 이 await 를 orchestrator 위임보다 **먼저**
+      // 두어, resolver 가 throw 하면(0-row / 2+row / 빈·non-string modelId) 평가 사슬에
+      // 아예 진입하지 않게 한다(비용 있는 LLM round-trip 전 fail-fast).
+      //
+      // HTTP status 매핑(ADR-0048 §Out of scope — 503/500/400 중 controller wiring 이
+      // 503 으로 박제): resolver 는 layer 책임 경계상 plain Error / TypeError 만 던지므로
+      // (Nest HttpException 아님), 여기서 catch 해 `ServiceUnavailableException`(503)으로
+      // re-throw 한다 — "운영자 LLM provider 미설정 / 다중-row 미박제 = 일시적 서비스 불가".
+      // resolver 의 한국어 메시지를 503 응답에 담아 진단성을 보존하고, error 객체 자체를
+      // cause 로 전파한다. resolver 가 던진 게 아닌 Nest HttpException(향후 resolver 변경
+      // 대비)이면 그대로 propagate 한다(이중 wrapping 방지).
+      let resolvedDefaultModelId: string;
+      try {
+        resolvedDefaultModelId =
+          await this.llmProviderConfigResolver.resolveDefaultModelId();
+      } catch (error) {
+        throw new ServiceUnavailableException(
+          error instanceof Error
+            ? error.message
+            : "LLM provider 설정을 해석할 수 없다 (default modelId source 미박제).",
+          { cause: error },
+        );
+      }
 
-    // orchestrator 위임 — rawBridges + dto.modelId(override) + server-side 해석된
-    // defaultModelId 를 forward(가공 0). dedup / options 도출 / 좌표 순회 / 좌표 단위
-    // 부분 실패 흡수는 service → core 책임이라 controller 는 pass-through 만 한다.
-    // modelId 미지정(undefined) 시에도 임의 default 를 채우지 않고 그대로 undefined 를
-    // forward 한다(service 가 resolved defaultModelId 로 fallback). resolver 가 이미
-    // 성공한 뒤의 orchestrator reject(options 무효 TypeError 등)는 await 가 그대로
-    // throw → raw 전파(swallow 0, resolver fail 의 503 매핑과 구분).
-    return this.unevaluatedFillRunOrchestrator.run(
-      dto.rawBridges,
-      dto.modelId,
-      resolvedDefaultModelId,
-    );
+      // orchestrator 위임 — rawBridges + dto.modelId(override) + server-side 해석된
+      // defaultModelId 를 forward(가공 0). dedup / options 도출 / 좌표 순회 / 좌표 단위
+      // 부분 실패 흡수는 service → core 책임이라 controller 는 pass-through 만 한다.
+      // modelId 미지정(undefined) 시에도 임의 default 를 채우지 않고 그대로 undefined 를
+      // forward 한다(service 가 resolved defaultModelId 로 fallback). resolver 가 이미
+      // 성공한 뒤의 orchestrator reject(options 무효 TypeError 등)는 await 가 그대로
+      // throw → raw 전파(swallow 0, resolver fail 의 503 매핑과 구분).
+      return await this.unevaluatedFillRunOrchestrator.run(
+        dto.rawBridges,
+        dto.modelId,
+        resolvedDefaultModelId,
+      );
+    } finally {
+      this.runStatus.end("evaluation");
+    }
   }
 }

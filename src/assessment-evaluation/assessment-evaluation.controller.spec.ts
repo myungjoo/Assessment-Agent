@@ -984,8 +984,7 @@ describe("AssessmentEvaluationController.evaluate (unit — RunStatus 실행 상
     );
   });
 
-  // negative (4) — begin 선행. 위임이 실행되는 시점에 begin 은 이미 1 회 호출돼 있어야
-  // 한다(실행 구간이 위임을 실제로 덮는지 — begin 을 위임 뒤로 미루는 회귀 가드).
+  // negative (4) — begin 선행. 실행 구간이 위임을 실제로 덮는지(begin 지연 회귀 가드).
   it("orchestrator 위임 실행 시점에 begin 이 이미 1 회 호출돼 있다 (negative — begin 선행)", async () => {
     let beginCallsSeenInsideDelegate = -1;
     const holder: { beginSpy?: jest.Mock } = {};
@@ -1014,18 +1013,19 @@ describe("AssessmentEvaluationController.evaluate (unit — RunStatus 실행 상
     expect(endSpy).not.toHaveBeenCalled();
   });
 
-  // negative (6) — fill-run 미배선 보존. unevaluated-fill-run 배선은 (a2-3) 몫이라 본
-  // slice 시점의 현 계약("아직 호출하지 않는다")을 test 로 고정한다. (a2-3) 이 배선하면
-  // 이 test 가 red 가 되어 계약 전환 지점을 명시적으로 드러낸다.
-  it("unevaluated-fill-run 경로는 아직 begin·end 를 호출하지 않는다 (negative — (a2-3) 이전 현 계약 고정)", async () => {
+  // negative (6) — 인접 진입점의 축 격리. T-1844 로 배선된 unevaluated-fill-run 이
+  // evaluation 축만 켜는지 고정한다(실 배선 단언은 fill-run 전용 describe 담당).
+  it("unevaluated-fill-run 경로는 evaluation 축만 켜고 collection 축은 건드리지 않는다 (negative — 축 격리)", async () => {
     const { controller, beginSpy, endSpy } = makeRunController(async () =>
       makeRunResult(),
     );
 
     await controller.runUnevaluatedFill(makeRunDto());
 
-    expect(beginSpy).not.toHaveBeenCalled();
-    expect(endSpy).not.toHaveBeenCalled();
+    expect(beginSpy).toHaveBeenCalledWith("evaluation");
+    expect(endSpy).toHaveBeenCalledWith("evaluation");
+    expect(beginSpy).not.toHaveBeenCalledWith("collection");
+    expect(endSpy).not.toHaveBeenCalledWith("collection");
   });
 });
 
@@ -2927,7 +2927,7 @@ function makeRunController(
   controller: AssessmentEvaluationController;
   runSpy: jest.Mock;
   resolveSpy: jest.Mock;
-  // beginSpy / endSpy — 미배선 고정용 throw mock(T-1843 negative ⑥). "0 회" 단언 전용.
+  // beginSpy / endSpy — RunStatusService.begin/end 관측 mock(T-1844 배선 이후).
   beginSpy: jest.Mock;
   endSpy: jest.Mock;
 } {
@@ -2990,19 +2990,10 @@ function makeRunController(
       );
     }),
   } as unknown as UserService;
-  // runStatus — runUnevaluatedFill() 은 아직 미배선((a2-3) 몫)이라 throw mock 으로
-  // 격리한다. 호출되는 순간 handler 자체가 터져 미배선 계약 위반을 즉시 catch 하고,
-  // beginSpy / endSpy 를 함께 반환해 "0 회" 를 명시적으로 단언할 수 있게 한다.
-  const beginSpy = jest.fn(() => {
-    throw new Error(
-      "runUnevaluatedFill() 는 runStatus.begin 을 호출하면 안 된다",
-    );
-  });
-  const endSpy = jest.fn(() => {
-    throw new Error(
-      "runUnevaluatedFill() 는 runStatus.end 를 호출하면 안 된다",
-    );
-  });
+  // runStatus — runUnevaluatedFill() 이 T-1844 로 배선됐으므로 throw mock 이 아니라
+  // 관측 mock(no-op jest.fn)이다. 호출 횟수 · axis 인자 · 위임 대비 순서를 단언한다.
+  const beginSpy = jest.fn();
+  const endSpy = jest.fn();
   const runStatus = {
     begin: beginSpy,
     end: endSpy,
@@ -3343,6 +3334,275 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → re
       null,
       "resolved-default",
     );
+  });
+});
+
+describe("AssessmentEvaluationController.runUnevaluatedFill (unit — RunStatus 실행 상태 전이, ADR-0060 §Decision 4)", () => {
+  // happy — 정상 반환 경로에서 begin/end 각 1 회 + 카운터 배선이 위임 인자·반환 shape 을
+  // 가공하지 않음(기존 delegation test 와 동일 기준값으로 회귀 0 고정).
+  it("정상 경로에서 begin/end 가 각각 evaluation 축으로 1 회 호출되고 위임 인자·반환 shape 이 보존된다 (happy)", async () => {
+    const expected = makeRunResult();
+    const { controller, runSpy, resolveSpy, beginSpy, endSpy } =
+      makeRunController(async () => expected);
+
+    const dto = makeRunDto();
+    const result = await controller.runUnevaluatedFill(dto);
+
+    expect(beginSpy).toHaveBeenCalledTimes(1);
+    expect(beginSpy).toHaveBeenCalledWith("evaluation");
+    expect(endSpy).toHaveBeenCalledTimes(1);
+    expect(endSpy).toHaveBeenCalledWith("evaluation");
+    // 위임 인자 보존 — resolver 1 회 + orchestrator 3 인자 계약 그대로.
+    expect(resolveSpy).toHaveBeenCalledTimes(1);
+    expect(runSpy).toHaveBeenCalledTimes(1);
+    expect(runSpy).toHaveBeenCalledWith(
+      dto.rawBridges,
+      "gpt-4o-mini",
+      "resolved-default",
+    );
+    // 반환 가공 0 — orchestrator 반환과 deep-equal(동일 참조).
+    expect(result).toEqual(expected);
+    expect(result).toBe(expected);
+  });
+
+  // error path (1) — 503 매핑 구간이 바깥 try 안이어야 조기 return 에서도 end 가 돈다.
+  it("resolver reject 로 503 이 매핑되는 경로에서도 end 가 1 회 호출된다 (error path — 503 fail-fast)", async () => {
+    const { controller, runSpy, beginSpy, endSpy } = makeRunController(
+      async () => makeRunResult(),
+      async () => {
+        throw new Error(
+          "LlmProviderConfigResolver: LLM provider 가 설정되지 않았다 (row 0).",
+        );
+      },
+    );
+
+    await expect(
+      controller.runUnevaluatedFill(makeRunDto()),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+
+    // 평가 사슬 미진입 — 그럼에도 카운터는 균형.
+    expect(runSpy).not.toHaveBeenCalled();
+    expect(beginSpy).toHaveBeenCalledTimes(1);
+    expect(endSpy).toHaveBeenCalledTimes(1);
+    expect(endSpy).toHaveBeenCalledWith("evaluation");
+  });
+
+  // error path (2) — 위임 reject 는 503 으로 감싸지 않고 raw 전파되며 end 는 1 회.
+  it("orchestrator.run 이 reject 하면 예외가 raw 전파되면서(503 아님) end 가 1 회 호출된다 (error path — 위임 실패)", async () => {
+    const boom = new TypeError("orchestrator 폭발");
+    const { controller, resolveSpy, beginSpy, endSpy } = makeRunController(
+      async () => {
+        throw boom;
+      },
+    );
+
+    // raw 전파 — 동일 인스턴스가 그대로 나온다(503 wrapping 0).
+    await expect(controller.runUnevaluatedFill(makeRunDto())).rejects.toBe(
+      boom,
+    );
+    expect(boom).not.toBeInstanceOf(ServiceUnavailableException);
+
+    expect(resolveSpy).toHaveBeenCalledTimes(1);
+    expect(beginSpy).toHaveBeenCalledTimes(1);
+    expect(endSpy).toHaveBeenCalledTimes(1);
+    expect(endSpy).toHaveBeenCalledWith("evaluation");
+  });
+
+  // error path (3) — resolver 가 non-Error 로 reject 하는 비정상 시퀀스. `error
+  // instanceof Error` 의 else 분기(한국어 fallback 503)에서도 감소가 보장돼야 한다.
+  it("resolver 가 non-Error 값으로 reject 해 한국어 fallback 503 이 나가는 경로에서도 end 가 1 회 호출된다 (error path — non-Error reject)", async () => {
+    const { controller, runSpy, beginSpy, endSpy } = makeRunController(
+      async () => makeRunResult(),
+      () => Promise.reject("문자열 reason — Error 인스턴스 아님"),
+    );
+
+    await expect(
+      controller.runUnevaluatedFill(makeRunDto()),
+    ).rejects.toMatchObject({
+      message:
+        "LLM provider 설정을 해석할 수 없다 (default modelId source 미박제).",
+    });
+
+    expect(runSpy).not.toHaveBeenCalled();
+    expect(beginSpy).toHaveBeenCalledTimes(1);
+    expect(endSpy).toHaveBeenCalledTimes(1);
+  });
+
+  // 분기 cover (가) — `error instanceof Error` 두 갈래. 메시지 추출 경로가 갈려도 카운터
+  // 전이는 1:1 균형이다.
+  it("error instanceof Error 두 분기(Error reject / non-Error reject) 각각에서 begin·end 가 1 회씩 균형을 이룬다 (branch)", async () => {
+    const koMessage = "LlmProviderConfigResolver: LLM provider 미설정.";
+    const errorCase = makeRunController(
+      async () => makeRunResult(),
+      async () => {
+        throw new Error(koMessage);
+      },
+    );
+    await expect(
+      errorCase.controller.runUnevaluatedFill(makeRunDto()),
+    ).rejects.toMatchObject({ message: koMessage });
+    expect(errorCase.beginSpy).toHaveBeenCalledTimes(1);
+    expect(errorCase.endSpy).toHaveBeenCalledTimes(1);
+
+    const nonErrorCase = makeRunController(
+      async () => makeRunResult(),
+      () => Promise.reject({ code: "NOT_AN_ERROR" }),
+    );
+    await expect(
+      nonErrorCase.controller.runUnevaluatedFill(makeRunDto()),
+    ).rejects.toMatchObject({
+      message:
+        "LLM provider 설정을 해석할 수 없다 (default modelId source 미박제).",
+    });
+    expect(nonErrorCase.beginSpy).toHaveBeenCalledTimes(1);
+    expect(nonErrorCase.endSpy).toHaveBeenCalledTimes(1);
+  });
+
+  // 분기 cover (나) — dto.modelId 지정 / 미지정이 카운터 경로에 영향 0 임을 고정.
+  it("dto.modelId 지정 / 미지정 두 분기 각각에서 begin·end 가 1 회씩 균형을 이룬다 (branch)", async () => {
+    const specified = makeRunController(async () => makeRunResult());
+    const dto = makeRunDto();
+    await specified.controller.runUnevaluatedFill(dto);
+    expect(specified.runSpy).toHaveBeenCalledWith(
+      dto.rawBridges,
+      "gpt-4o-mini",
+      "resolved-default",
+    );
+    expect(specified.beginSpy).toHaveBeenCalledTimes(1);
+    expect(specified.endSpy).toHaveBeenCalledTimes(1);
+
+    const omitted = makeRunController(async () => makeRunResult());
+    const bareDto = makeRunDto({ modelId: undefined });
+    await omitted.controller.runUnevaluatedFill(bareDto);
+    expect(omitted.runSpy).toHaveBeenCalledWith(
+      bareDto.rawBridges,
+      undefined,
+      "resolved-default",
+    );
+    expect(omitted.beginSpy).toHaveBeenCalledTimes(1);
+    expect(omitted.endSpy).toHaveBeenCalledTimes(1);
+  });
+
+  // negative (1) — 축 격리. 정상·503 어느 경로에서도 collection 축은 건드리지 않는다
+  // (위임 실패 경로는 error path (2) 의 end("evaluation") 단언이 함께 덮는다).
+  it("정상·503 어느 경로에서도 collection 축은 begin·end 되지 않는다 (negative — 축 격리)", async () => {
+    const ok = makeRunController(async () => makeRunResult());
+    await ok.controller.runUnevaluatedFill(makeRunDto());
+
+    const resolverFailed = makeRunController(
+      async () => makeRunResult(),
+      async () => {
+        throw new Error("resolver 폭발");
+      },
+    );
+    await expect(
+      resolverFailed.controller.runUnevaluatedFill(makeRunDto()),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+
+    for (const spy of [
+      ok.beginSpy,
+      ok.endSpy,
+      resolverFailed.beginSpy,
+      resolverFailed.endSpy,
+    ]) {
+      // 모든 호출의 axis 인자가 evaluation 하나뿐 — collection 은 0 회.
+      expect(spy.mock.calls.every((call) => call[0] === "evaluation")).toBe(
+        true,
+      );
+      expect(spy).not.toHaveBeenCalledWith("collection");
+    }
+  });
+
+  // negative (2) — 중복 호출 없음. begin 이 2 회 이상이면 동시 N 건 카운터가 영구 오염.
+  it("한 번의 runUnevaluatedFill() 호출이 begin 을 2 회 이상 부르지 않는다 (negative — 카운터 오염 차단)", async () => {
+    const { controller, beginSpy, endSpy } = makeRunController(async () =>
+      makeRunResult(),
+    );
+
+    await controller.runUnevaluatedFill(makeRunDto());
+
+    expect(beginSpy.mock.calls).toHaveLength(1);
+    expect(endSpy.mock.calls).toHaveLength(1);
+  });
+
+  // negative (3) — 순서 불변식. await 없이 흘리면 finally 가 먼저 돌아 red(회귀 가드).
+  it("end 는 orchestrator 위임이 완료된 뒤에 호출된다 (negative — 순서 불변식, return await 회귀 가드)", async () => {
+    let endCallsSeenInsideRun = -1;
+    const holder: { endSpy?: jest.Mock } = {};
+    const built = makeRunController(async () => {
+      // 위임이 아직 진행 중인 시점 — end 는 아직 0 회여야 한다.
+      endCallsSeenInsideRun = holder.endSpy?.mock.calls.length ?? -1;
+      // 다음 microtask 로 한 번 양보해 "위임이 pending 인 구간" 을 실제로 만든다.
+      await Promise.resolve();
+      return makeRunResult();
+    });
+    holder.endSpy = built.endSpy;
+
+    await built.controller.runUnevaluatedFill(makeRunDto());
+
+    expect(endCallsSeenInsideRun).toBe(0);
+    // 호출 순서: begin → resolver → orchestrator.run → end.
+    expect(built.beginSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      built.resolveSpy.mock.invocationCallOrder[0],
+    );
+    expect(built.runSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      built.endSpy.mock.invocationCallOrder[0],
+    );
+  });
+
+  // negative (4) — begin 선행. 위임이 실행되는 시점에 begin 은 이미 1 회 호출돼 있어야
+  // 한다(실행 구간이 위임을 실제로 덮는지 — begin 을 위임 뒤로 미루는 회귀 가드).
+  it("orchestrator 위임 실행 시점에 begin 이 이미 1 회 호출돼 있다 (negative — begin 선행)", async () => {
+    let beginCallsSeenInsideRun = -1;
+    const holder: { beginSpy?: jest.Mock } = {};
+    const built = makeRunController(async () => {
+      beginCallsSeenInsideRun = holder.beginSpy?.mock.calls.length ?? -1;
+      return makeRunResult();
+    });
+    holder.beginSpy = built.beginSpy;
+
+    await built.controller.runUnevaluatedFill(makeRunDto());
+
+    expect(beginCallsSeenInsideRun).toBe(1);
+    expect(built.beginSpy).toHaveBeenCalledWith("evaluation");
+  });
+
+  // negative (5) — 범위를 resolver 뒤로 좁히면 end 가 0 이 되어 카운터가 영구 stuck.
+  it("resolver reject 로 orchestrator 가 호출조차 되지 않는 경로에서도 begin 1 회·end 1 회다 (negative — fail-fast 구간 cover)", async () => {
+    let beginCallsSeenInsideResolver = -1;
+    const holder: { beginSpy?: jest.Mock } = {};
+    const built = makeRunController(
+      async () => makeRunResult(),
+      async () => {
+        // resolver 실행 시점에 이미 실행 상태가 켜져 있어야 한다.
+        beginCallsSeenInsideResolver = holder.beginSpy?.mock.calls.length ?? -1;
+        throw new Error("LlmProviderConfigResolver: LLM provider 미설정.");
+      },
+    );
+    holder.beginSpy = built.beginSpy;
+
+    await expect(
+      built.controller.runUnevaluatedFill(makeRunDto()),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+
+    expect(beginCallsSeenInsideResolver).toBe(1);
+    expect(built.runSpy).not.toHaveBeenCalled();
+    expect(built.beginSpy).toHaveBeenCalledTimes(1);
+    expect(built.endSpy).toHaveBeenCalledTimes(1);
+    expect(built.endSpy).toHaveBeenCalledWith("evaluation");
+  });
+
+  // negative (6) — dry-run 미배선 보존. unevaluated-fill-plan 은 ADR-0060 §Decision 4
+  // 가 영구 제외한 진입점이라 본 slice 이후에도 카운터를 건드리면 안 된다.
+  it("dry-run(unevaluated-fill-plan) 경로는 begin·end 를 호출하지 않는다 (negative — 켜지 않는 진입점)", async () => {
+    const { controller, beginSpy, endSpy } = makeFillController(async () =>
+      makeEmptyFillPlan(),
+    );
+
+    await controller.planUnevaluatedFill(makeFillDto(), undefined);
+
+    expect(beginSpy).not.toHaveBeenCalled();
+    expect(endSpy).not.toHaveBeenCalled();
   });
 });
 
