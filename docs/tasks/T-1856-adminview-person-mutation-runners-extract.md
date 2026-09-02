@@ -2,8 +2,9 @@
 id: T-1856
 title: AdminView 의 인원 mutation 러너 군을 별도 모듈로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1457
 coversReq: [REQ-071, REQ-079]
 independentStream: adminview-god-component-refactor
 dependsOn: []
@@ -17,6 +18,7 @@ sizeExempt: true
 exemptReason: "pure-extraction — (a) 동작 변경 0 (코드 이동 + RequestOptions 타입 import 1 줄 + 선언 앞 export 키워드만) · (b) 신규 로직 0 LOC (deps 타입 4 · 순수 helper 2 · async 러너 3 · 입력 타입 2 의 본문 무변경) · (c) 기존 spec 6 개 (person-create/delete/update contract 3 + create/update identity-autoselect 2 + AdminView.test.tsx) 가 AdminView 재수출 덕에 import 경로까지 무수정 통과. 삭제 304 + 추가 약 330 이 전부 이동량이라 LOC 이 위험도에 비례하지 않는다. 파일 수 3 개로 파일 cap (≤ 5) 은 예외 없이 준수."
 plannerNote: "P6 / PLAN 183 행 AdminView god component 부채의 다섯째 실분할 — T-1855 가 head 79dd1eda 에서 지목한 인원 mutation 러너 군 11 심볼 비연속 2 블록"
 created: 2026-09-02
+completedAt: 2026-09-02T20:53Z
 ---
 
 # T-1856 — AdminView 의 인원 mutation 러너 군을 별도 모듈로 순수 추출
@@ -71,6 +73,13 @@ created: 2026-09-02
 ## Suggested Sub-agents
 
 `implementer → tester`
+
+## 결과 (2026-09-02T20:53Z DONE)
+
+- `web/src/views/adminPersonMutationRunners.ts` 신설 — 인원 mutation 러너 군 11 심볼 + `PERSONS_PATH` 를 본문 무변경으로 이동. 허용 변경은 선언 앞 `export` 키워드, `RequestOptions` · `normalizeRowId` import 2 줄, AdminView 쪽 import 배선뿐이며 원문 3 블록 대비 diff 완전 일치를 기계 확인했다.
+- `PERSONS_PATH` 동반 이동으로 역방향 import 를 차단했다 ([T-1854](T-1854-adminview-group-part-mutation-runners-extract.md) 의 `GROUPS_PATH` 선례 승계). AdminView 는 재수출을 보존해 기존 spec 6 개 (person contract 3 + identity-autoselect 2 + `AdminView.test.tsx`) 가 import 경로까지 무수정 통과.
+- `AdminView.tsx` **5,569 → 5,282 줄 (-287)**. 신규 colocated spec 은 happy 5 · error 3 · 분기 · negative 6 종을 cover 하고, web vitest 120 파일 3,607 test + 루트 466 파일 13,495 test + `test:cov` 임계 (line · function ≥ 80%) 전부 green.
+- reviewer VERDICT=APPROVE (round 1, 8 check 전부 통과 · finding 0), CI green → [PR #1457](https://github.com/myungjoo/Assessment-Agent/pull/1457) squash 머지 [`0b0b967e`](https://github.com/myungjoo/Assessment-Agent/commit/0b0b967e).
 
 ## Follow-ups
 
