@@ -2,7 +2,7 @@
 id: T-1855
 title: PLAN 183 행 AdminView 부채 bullet 2 차 실측 갱신 + 다음 추출 대상 재지목
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: []
 independentStream: adminview-god-component-refactor
@@ -53,6 +53,15 @@ plannerNote: "P6 / PLAN 183 행 부채 bullet 의 T-1854 Follow-up — 실측 6,
 
 `implementer`
 
+## 결과 (2026-09-02T18:40Z DONE)
+
+- `docs/PLAN.md` `183 행` bullet 1 줄만 교체 — 수치 `6,053 줄 · 선언 167` → **`5,569 줄 · 선언 150`**, 최초 기록 (`6,087 줄 · 149`) 대비 증감 `-34` → **`-518`**. 검증: `grep -c "5,569"` = 1, `grep -c "6,053"` = 0.
+- 측정 방법 문장 (`wc -l` · `grep -cE ...`) 과 선언 수의 지표(indicative) 한정은 원문 그대로 보존.
+- 진척 문단에 넷째 슬라이스 ([T-1854](T-1854-adminview-group-part-mutation-runners-extract.md) [adminGroupPartMutationRunners.ts](../../web/src/views/adminGroupPartMutationRunners.ts), 14 심볼 `-484 줄`) 추가 — 추출 슬라이스 누적 4 건.
+- 해석 문장 되맞춤 — 넷째 슬라이스가 처음으로 선언 수까지 (167 → 150) 줄였으나 목표선 `≤ 2,000 줄` 까지 잔여 `-3,569 줄` 로 슬라이스당 -300~500 페이스에서도 산술 8 회 이상.
+- "후속" 문단의 다음 추출 대상을 **인원(person) mutation 러너 군** 11 심볼 (`1788~1893 행` 생성 축 · `2222~2416 행` 삭제·수정 축, 합계 약 301 줄) 로 교체하고 경계 밖 3 종 (`CREATE_USER_ERROR_SEPARATOR` · `createInFlightIdGate` · `UpdateProviderFields`) 을 명시.
+- 체크박스 `- [ ]` 유지 (5,569 > 2,000 목표선 미도달). 변경 파일은 `docs/PLAN.md` 1 개 — main 직접 commit [`f2245082`](https://github.com/myungjoo/Assessment-Agent/commit/f2245082).
+
 ## Follow-ups
 
-(생성 시점 비어 있음)
+- 인원(person) mutation 러너 군 11 심볼의 실제 순수 추출 (`pr`) — 위 "후속" 문단이 지목한 `1788~1893` · `2222~2416` 비연속 2 블록, 합계 약 301 줄. 안착 후 PLAN `183 행` 3 차 실측 갱신 (`direct`) 이 다시 필요하다.
