@@ -3,11 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import AppShell, {
   AUTHED_NAV_ITEMS,
+  RUN_STATUS_POLL_INTERVAL_MS,
   buildSetupErrorLines,
   buildSetupErrorMessage,
   isNavItemActive,
   restoredView,
   shouldLoadCurrentUser,
+  shouldPollRunStatus,
   shouldRestoreSession,
   shouldShowLogout,
   visibleNavItems,
@@ -987,5 +989,126 @@ describe('AppShell 부트 세션 복원 배선 (T-1838)', () => {
     // AuthGate 초기 인증 여부 근거가 현재 view 임을 함께 고정한다 — 복원 remount 가
     // 인증 후 화면으로 열리는 근거다(T-1837 배선 승계).
     expect(source).toMatch(/initialAuthenticated=\{isAuthedView\(view\)\}/);
+  });
+});
+
+describe('shouldPollRunStatus (T-1849)', () => {
+  // happy-path — 인증 후 view 이고 문서가 가시면 조회한다.
+  it('인증 후 view + 가시 문서면 true 다 (happy-path)', () => {
+    expect(shouldPollRunStatus('dashboard', false)).toBe(true);
+    expect(shouldPollRunStatus('admin', false)).toBe(true);
+  });
+
+  // 분기 ① — 인증 후 view 라도 탭이 숨겨져 있으면 멈춘다(ADR-0060 §Decision 5).
+  it('인증 후 view 라도 비가시면 false 다 (분기 — 탭 비가시 중단)', () => {
+    expect(shouldPollRunStatus('dashboard', true)).toBe(false);
+    expect(shouldPollRunStatus('admin', true)).toBe(false);
+  });
+
+  // 분기 ② — 미인증 view 는 가시 여부와 무관하게 조회하지 않는다(401 로 귀결).
+  it('미인증 view 는 가시여도 false 다 (분기 — login · superadmin-setup)', () => {
+    expect(shouldPollRunStatus('login', false)).toBe(false);
+    expect(shouldPollRunStatus('superadmin-setup', false)).toBe(false);
+  });
+
+  // negative ① — 타입을 우회한 view 입력(빈 문자열 · undefined · 미지 문자열)에도 throw 0.
+  it('타입 우회 view 입력에도 false 이며 throw 하지 않는다 (negative)', () => {
+    const bypass = shouldPollRunStatus as unknown as (v: unknown, h: unknown) => boolean;
+    expect(() => bypass('', false)).not.toThrow();
+    expect(bypass('', false)).toBe(false);
+    expect(bypass(undefined, false)).toBe(false);
+    expect(bypass(null, false)).toBe(false);
+    expect(bypass('DASHBOARD', false)).toBe(false);
+  });
+
+  // negative ② — 가시 여부 미상(undefined · 문자열 · 숫자)은 조회하지 않는 쪽으로 쏠린다.
+  it('가시 여부가 boolean 이 아니면 false 다 (negative — 엄격 비교 fail-safe)', () => {
+    const bypass = shouldPollRunStatus as unknown as (v: unknown, h: unknown) => boolean;
+    expect(() => bypass('dashboard', undefined)).not.toThrow();
+    expect(bypass('dashboard', undefined)).toBe(false);
+    expect(bypass('dashboard', 'false')).toBe(false);
+    expect(bypass('dashboard', 0)).toBe(false);
+  });
+
+  // 주기 상수 — 근거(ADR-0060 §Decision 5)대로 5 초이며 양수 정수다.
+  it('polling 주기 상수는 5 초다 (ADR-0060 §Decision 5)', () => {
+    expect(RUN_STATUS_POLL_INTERVAL_MS).toBe(5000);
+    expect(Number.isInteger(RUN_STATUS_POLL_INTERVAL_MS)).toBe(true);
+  });
+});
+
+describe('AppShell 실행 상태 polling 배선 (T-1849)', () => {
+  // 소스 대조는 여러 test 가 공유한다 — effect 는 정적 렌더로 발화되지 않는다.
+  const readSource = () =>
+    readFileSync(new URL('./AppShell.tsx', import.meta.url), 'utf8');
+
+  // happy-path — 진행 중 상태가 주입되면 배너 슬롯이 실제로 켜진다.
+  it('initialEvaluationInProgress=true 정적 렌더에 R-78 배너가 나타난다 (happy-path)', () => {
+    const html = renderToStaticMarkup(
+      <AppShell initialView="dashboard" initialEvaluationInProgress />,
+    );
+    expect(html).toContain(BANNER_TOKEN);
+    expect(html).toContain('role="alert"');
+  });
+
+  // error path — 조회 실패는 fetchRunStatus 가 false 로 흡수하므로 배너가 켜지지 않는다.
+  it('실패 흡수 결과(false)에서는 배너가 렌더되지 않는다 (error path)', () => {
+    const html = renderToStaticMarkup(
+      <AppShell initialView="dashboard" initialEvaluationInProgress={false} />,
+    );
+    expect(html).not.toContain(BANNER_TOKEN);
+    expect(html).not.toContain('role="alert"');
+  });
+
+  // error path ② — 실패 처리 규칙이 AppShell 로 복제되지 않았음을 소스로 고정한다.
+  it('소스에 자체 catch · 에러 문구 · 재시도가 없다 (error path — 규칙 정본 1 곳)', () => {
+    const source = readSource();
+    expect(source).not.toMatch(/fetchRunStatus\(\)[\s\S]{0,200}?\.catch\(/);
+    expect(source).not.toMatch(/setTimeout\(/);
+    expect(source).not.toMatch(/실행 상태를 불러오지/);
+  });
+
+  // negative ① — 기본값(미주입)에서는 배너가 없다.
+  it('initialEvaluationInProgress 기본값에서는 배너가 없다 (negative — 기본 false)', () => {
+    const html = renderToStaticMarkup(<AppShell initialView="dashboard" />);
+    expect(html).not.toContain(BANNER_TOKEN);
+  });
+
+  // negative ② — 미인증 진입 정적 렌더는 배너도 인증 후 동선도 없다(무회귀).
+  it('미인증 진입 정적 렌더에 배너 · 인증 후 동선이 부재한다 (negative — 무회귀)', () => {
+    const html = renderToStaticMarkup(<AppShell initialView="login" />);
+    expect(html).not.toContain(BANNER_TOKEN);
+    expect(html).not.toContain(LOGOUT_TOKEN);
+    expect(html).not.toContain(ADMIN_ITEM_TOKEN);
+    expect(html).toContain('Assessment-Agent');
+  });
+
+  // drift guard — 배선 6 종(조회 · 주기 · 정리 · 가시성 · 대입 · 경쟁 방어)을 소스로 고정한다.
+  it('소스에서 polling effect 가 배선돼 있다 (drift guard)', () => {
+    const source = readSource();
+    // 조회 helper import + 실 호출.
+    expect(source).toMatch(/import \{ fetchRunStatus \} from '\.\/api\/runStatus';/);
+    expect(source).toMatch(/void fetchRunStatus\(\)\.then\(\(active\) => \{/);
+    // 주기 상수 선언 + setInterval 이 그 상수를 참조.
+    expect(source).toMatch(/export const RUN_STATUS_POLL_INTERVAL_MS = 5000;/);
+    expect(source).toMatch(/setInterval\(poll, RUN_STATUS_POLL_INTERVAL_MS\)/);
+    // 판정 helper 가 effect 안에서 실제 게이트로 쓰인다.
+    expect(source).toMatch(/if \(cancelled \|\| !shouldPollRunStatus\(view, document\.hidden\)\)/);
+    // 가시성 구독과 대응 해제 + interval 정리 + 늦은 setState 방어.
+    expect(source).toMatch(/document\.addEventListener\('visibilitychange', poll\)/);
+    expect(source).toMatch(/document\.removeEventListener\('visibilitychange', poll\)/);
+    expect(source).toMatch(/clearInterval\(timer\)/);
+    expect(source).toMatch(/cancelled = true;/);
+    // 결과 boolean 을 그대로 대입 + 미인증 되돌림.
+    expect(source).toMatch(/setEvaluationInProgress\(active\);/);
+    expect(source).toMatch(/setEvaluationInProgress\(false\);/);
+  });
+
+  // negative ③ — 주기 숫자 리터럴이 setInterval 호출부에 직접 박히지 않았다.
+  it('소스의 setInterval 이 숫자 리터럴을 쓰지 않는다 (negative — 근거 상수화)', () => {
+    const source = readSource();
+    expect(source).not.toMatch(/setInterval\([^)]*5000/);
+    // 5000 은 상수 선언 한 곳에만 나타난다.
+    expect(source.match(/5000/g) ?? []).toHaveLength(1);
   });
 });

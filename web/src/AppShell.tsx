@@ -19,7 +19,9 @@
 // 사용자 등급을 1 회 적재하고, `canEditAssessmentTargets`(T-1719) 판정으로 편집 동선
 // 항목('관리')을 필터한다 — User 등급에게는 조회 동선만 남는다. T-1834 는 셋업 실패
 // 사유를 한 문자열로 합쳐 내려보내던 배선을 줄 배열(buildSetupErrorLines → 폼 errorLines)
-// 로 바꿔 사유가 2 개 이상일 때의 줄 경계를 살린다(REQ-084). 새 dependency 0 —
+// 로 바꿔 사유가 2 개 이상일 때의 줄 경계를 살린다(REQ-084). T-1849 는 R-78 배너를 실제 서버 상태에 잇는다(REQ-083): 인증 후 view
+// 에서 `fetchRunStatus()`(T-1848)를 5 초 주기로 부르고 탭이 숨겨진 동안은 멈춘다
+// (ADR-0060 §Decision 5). 새 dependency 0 —
 // react/react-dom + 브라우저 표준 fetch 만 사용한다(ADR-0040 §5 게이트).
 
 import { useEffect, useState } from 'react';
@@ -36,6 +38,7 @@ import {
 } from './api/auth';
 import type { CurrentUser } from './api/auth';
 import { canEditAssessmentTargets } from './api/roleAccess';
+import { fetchRunStatus } from './api/runStatus';
 import { formatSignupFailure } from './api/signupError';
 import type { SignupFailure } from './api/signupError';
 
@@ -172,6 +175,26 @@ export function restoredView(user: CurrentUser | null | undefined): View {
   return DEFAULT_AUTHED_VIEW;
 }
 
+// 실행 상태(run-status) polling 주기 (T-1849, REQ-083) — 밀리초.
+// 5 초의 근거는 ADR-0060 §Decision 5 (a)(b)(c): 보호 대상 실행이 통상 수 초~수 분이라
+// 5 초 해상도면 실행 구간의 대부분을 덮고, 최악의 켜짐/꺼짐 지연 5 초는 "진행 중임을
+// 알린다" 는 R-78 의 요구에 충분하며, 응답이 메모리 읽기 + 작은 JSON 이라 부하가 무시
+// 가능하다. 아래 setInterval 은 이 상수만 참조한다 — 숫자 리터럴을 호출부에 직접 적으면
+// 주기의 근거가 코드에서 사라진다. env·설정 UI 를 통한 조정은 요구가 아니다(상수 1 개).
+export const RUN_STATUS_POLL_INTERVAL_MS = 5000;
+
+// 지금 실행 상태를 조회해야 하는지 판정한다 (T-1849, REQ-083).
+// true 조건 둘: ① 인증 후 view 일 것 — 미인증 view('login' · 'superadmin-setup')에서
+// GET /api/run-status 는 401 로 귀결될 뿐이라 부르지 않는다(§Decision 3). 판정 근거는
+// 기존 `isAuthedView` 하나이며 view 문자열을 여기에 다시 하드코딩하지 않는다
+// (shouldShowLogout 선례 — 판정 규칙 정본 1 곳). ② 문서가 가시일 것 — 백그라운드 탭이
+// 종일 요청을 쌓지 않게 하는 값싼 절약이다(ADR-0060 §Decision 5 두 번째 항목).
+// `documentHidden` 은 엄격 비교(=== false)로 본다: 타입을 우회한 입력(undefined · 문자열)
+// 은 "가시 여부 미상" 이므로 조회하지 않는 쪽으로 안전하게 쏠린다. 어떤 입력에도 throw 0.
+export function shouldPollRunStatus(view: View, documentHidden: boolean): boolean {
+  return isAuthedView(view) && documentHidden === false;
+}
+
 // 로그아웃 컨트롤의 식별 className — 정적 렌더 단언의 기준 토큰이다. 전역 CSS 는 본
 // slice 의 Out of Scope 라 className 부여까지만 한다.
 const LOGOUT_CLASS = 'app-shell-logout';
@@ -243,6 +266,11 @@ interface AppShellProps {
   // 등급별 내비 렌더를 검증할 수 있도록 주입점을 연다(initialView ·
   // AuthGate.initialAuthenticated 선례와 동형 — ADR-0041 Decision 1).
   initialCurrentUser?: CurrentUser | null;
+  // 초기 평가 진행 중 상태 — 기본 false (T-1849). 실 polling 은 effect 이고
+  // renderToStaticMarkup 은 effect 를 실행하지 않으므로, 배너 슬롯이 실제로 켜지는지를
+  // 정적 렌더로 검증할 수 있도록 주입점을 연다(initialView · initialCurrentUser 선례와
+  // 동형 — ADR-0041 Decision 1).
+  initialEvaluationInProgress?: boolean;
 }
 
 // 전역 레이아웃 컴포넌트. view enum 상태와 R-78 평가 진행 중 상태를 보유하고,
@@ -253,14 +281,17 @@ function AppShell({
   initialSetupError,
   initialSetupErrorLines,
   initialCurrentUser = null,
+  initialEvaluationInProgress = false,
 }: AppShellProps = {}) {
   // 현재 view 상태 — 초기값 'login' (ADR-0041 Decision 1 인증 게이트 진입점).
   const [view, setView] = useState<View>(initialView);
 
-  // R-78/REQ-042 평가 진행 중 상태 — 초기값 false (ADR-0041 Decision 4).
-  // 실 polling / 평가 실행 상태 endpoint 소비는 후속 wiring ⑤ 의 책임이라
-  // 본 slice 는 상태를 false 고정 보유 + 배너 슬롯 배선만 한다.
-  const [evaluationInProgress] = useState<boolean>(false);
+  // R-78/REQ-042 평가 진행 중 상태 (ADR-0041 Decision 4). T-1849 가 setter 를 살려
+  // 아래 polling effect 가 실 서버 상태(GET /api/run-status)를 그대로 대입한다 — 종전의
+  // 고정 false 는 배너가 영원히 조용한 원인이었다(ADR-0060 §Consequences (a)).
+  const [evaluationInProgress, setEvaluationInProgress] = useState<boolean>(
+    initialEvaluationInProgress,
+  );
 
   // SuperAdmin 초기 셋업 폼의 controlled 입력/상태 — AppShell 이 소유한다
   // (controlled lift-up, ADR-0041 Decision 1). presentational SuperAdminSetupForm
@@ -352,6 +383,43 @@ function AppShell({
       cancelled = true;
     };
   }, [view, currentUser]);
+
+  // 실행 상태를 주기적으로 조회해 R-78 배너를 서버 상태에 잇는다 (T-1849, REQ-083).
+  // 진입 즉시 1 회 + RUN_STATUS_POLL_INTERVAL_MS 주기 + 탭 가시화 순간 1 회 조회하며,
+  // 매 tick 은 shouldPollRunStatus 게이트를 통과할 때만 실제 요청을 보낸다.
+  // 실패 흡수는 fetchRunStatus() 의 계약(runStatus.ts 헤더)이므로 여기에 try/catch ·
+  // 에러 배너 · 재시도를 두지 않는다 — 두면 같은 규칙이 두 곳으로 갈라진다.
+  useEffect(() => {
+    if (!isAuthedView(view)) {
+      // 미인증 view — 조회하지 않고 배너를 접는다. 로그아웃 후 배너가 켜진 채 남지 않게
+      // 하는 되돌림이며, 이미 false 인 상태에서 같은 값을 setState 해도 React 가
+      // bailout 하므로 재렌더 루프는 생기지 않는다.
+      setEvaluationInProgress(false);
+      return;
+    }
+    // 언마운트/재진입 경쟁 상태의 늦은 setState 방어 — 세션 복원 effect 와 동형 패턴.
+    let cancelled = false;
+    const poll = () => {
+      if (cancelled || !shouldPollRunStatus(view, document.hidden)) {
+        return;
+      }
+      void fetchRunStatus().then((active) => {
+        if (!cancelled) {
+          setEvaluationInProgress(active);
+        }
+      });
+    };
+    poll();
+    const timer = setInterval(poll, RUN_STATUS_POLL_INTERVAL_MS);
+    // 비가시 동안의 tick 은 위 게이트가 건너뛰고, 가시화되는 순간 주기를 기다리지 않고
+    // 즉시 따라잡는다(ADR-0060 §Decision 5 "탭 비가시 시 중단").
+    document.addEventListener('visibilitychange', poll);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', poll);
+    };
+  }, [view]);
 
   // 인증 성공 시 view 전환 — 인증 후 기본 view('dashboard')로 무라우터 전환한다.
   const handleAuthenticated = () => {
