@@ -2,13 +2,16 @@
 id: T-1840
 title: ADR-0060 — 평가/수집 실행 상태 조회 endpoint 계약 결정 (R-78 polling 선행)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-083]
 estimatedDiff: 290
 estimatedFiles: 1
 estimatedFilesNote: docs/decisions/ADR-0060-*.md 1 개만 — 코드 0 LOC
 created: 2026-09-02
+completedAt: 2026-09-02T00:59:31Z
+prNumber: 1445
+mergeCommit: 3a3fde4e
 independentStream: r78-polling
 dependsOn: []
 touchesFiles: [docs/decisions/ADR-0060-evaluation-run-status-endpoint.md]
@@ -35,20 +38,20 @@ plannerNote: P6 PLAN 133 행 잔여 ④ R-78 polling 의 선행 gap — 실행 �
 
 ## Acceptance Criteria
 
-- [ ] `docs/decisions/ADR-0060-evaluation-run-status-endpoint.md` 1 개를 신설한다. frontmatter 는 ADR-0059 형식 (`id` · `title` · `status: ACCEPTED` · `date` · `relatedTask: [T-1840]` · `relatedReq: [REQ-083]` · `supersedes: null`) 을 따른다.
-- [ ] `§Status` 에 **본 ADR 은 결정만 박제하고 코드 0 LOC** 임을 명시한다 — 본 task 의 diff 는 ADR 파일 1 개뿐이며 `src/` · `web/` · `test/` · `prisma/` · `package.json` · `.github/workflows/` 변경이 0 임을 검증 가능한 문장으로 적는다.
-- [ ] `§Decision 1` — **실행 상태의 보유 방식**을 택하고 근거를 적는다. 최소 3 안 (a) 프로세스 in-memory 실행 카운터 서비스, (b) Prisma model 신설 (`EvaluationRun` 류), (c) 기존 데이터 (Assessment `updatedAt` 등) 에서 파생 추론 — 을 비교하고, 채택안이 **새 외부 dependency 0 · Prisma schema 변경 0** 인지 명시한다. 만약 schema 변경을 동반하는 안을 채택한다면 CLAUDE.md `§5` DB schema 게이트에 걸린다는 점과 그 경우 후속 task 가 BLOCKED → notifier 를 거쳐야 함을 `§Consequences` 에 박제한다.
-- [ ] `§Decision 2` — **endpoint 계약**을 확정한다: HTTP method · 정확한 경로 · 응답 body shape (필드명 · 타입 · 각 필드의 의미) · 성공 status code. 응답에는 최소한 배너 토글을 결정하는 boolean 축이 포함돼야 하며, `EvaluationGuardBanner` 의 `active` prop 에 어떻게 매핑되는지 1 문장으로 잇는다.
-- [ ] `§Decision 3` — **인증 · RBAC 경계**를 확정한다 (guard 적용 여부, 접근 가능 역할 등급, 미인증 요청의 status). 기존 `/api/*` 의 JWT HttpOnly cookie 계약 ([ADR-0008](../decisions/ADR-0008-auth-credential-type.md)) 과의 정합을 1 문장으로 명시한다.
-- [ ] `§Decision 4` — **상태 전이 시점**을 확정한다: 어느 실행 진입점 (평가 3 route + 수집 1 route 중 어디까지) 이 상태를 켜고 끄는지, 예외 발생 · 프로세스 재시작 시의 복구 규칙 (stuck 상태 방지) 을 적는다.
-- [ ] `§Decision 5` — **polling 주기와 다중 인스턴스 한계**를 적는다: 권장 polling 간격과 그 근거, 그리고 채택안이 단일 프로세스 전제일 경우 다중 인스턴스에서 어떤 부정확이 발생하는지 · 그 부정확이 R-78 의 보호 의도 (기존 자료만 표시 + 경고) 를 깨지 않는 이유 (또는 깬다면 그 완화책).
-- [ ] `§Consequences` 에 **chain 완주 전에는 배너가 항상 비활성** 이라는 중간 상태를 명시한다 (Q-0055 선례 — false-success 상태의 사전 박제).
-- [ ] `§Alternatives` 에 위 `§Decision 1` 의 기각안 2 종 각각의 기각 사유를 적는다.
-- [ ] `§Follow-ups` 에 구현 chain 을 **slice 단위로** 나열한다 — 각 slice 는 어느 파일의 어느 배선인지까지 적고 (CLAUDE.md `§3` 소비처 동반 의무), 예상 순서는 backend 상태 보유 → controller route + e2e → web polling 배선 → REQ-083 재판정 (`§3.1` 규칙 6 — 구현 머지 후 1 회) 이다. 각 slice 가 cap (300 LOC / 5 파일) 안에 들어오도록 쪼갠다.
-- [ ] 코드 · 테스트 · schema 변경 0 — `git diff --stat` 결과가 `docs/decisions/ADR-0060-*.md` 1 파일뿐이다.
-- [ ] R-110 (doc-only pr-mode 라도 tester 호출 의무): `pnpm lint && pnpm build && pnpm test` 가 green 임을 tester 가 확인한다. **production code 변경이 0 LOC 이라 신규 spec 은 추가하지 않는다** — R-112 의 happy / error / 분기 / negative 4 항목은 새로 추가·수정된 public symbol 이 0 개이므로 본 task 에 적용 대상이 없으며, 그 사실을 PR 본문에 1 문장으로 명시한다 (분기 없음 — 해당 항목 생략).
-- [ ] `pnpm test:cov` 가 기존 임계 (line ≥ 80% / function ≥ 80%) 를 그대로 통과한다 (본 task 는 코드 0 LOC 라 커버리지 변동이 없어야 한다).
-- [ ] ADR 본문은 한국어 (CLAUDE.md `§12`), 행 범위 표기는 `~` 단일 구분자 · 단일 행은 `194 행` 형식.
+- [x] `docs/decisions/ADR-0060-evaluation-run-status-endpoint.md` 1 개를 신설한다. frontmatter 는 ADR-0059 형식 (`id` · `title` · `status: ACCEPTED` · `date` · `relatedTask: [T-1840]` · `relatedReq: [REQ-083]` · `supersedes: null`) 을 따른다.
+- [x] `§Status` 에 **본 ADR 은 결정만 박제하고 코드 0 LOC** 임을 명시한다 — 본 task 의 diff 는 ADR 파일 1 개뿐이며 `src/` · `web/` · `test/` · `prisma/` · `package.json` · `.github/workflows/` 변경이 0 임을 검증 가능한 문장으로 적는다.
+- [x] `§Decision 1` — **실행 상태의 보유 방식**을 택하고 근거를 적는다. 최소 3 안 (a) 프로세스 in-memory 실행 카운터 서비스, (b) Prisma model 신설 (`EvaluationRun` 류), (c) 기존 데이터 (Assessment `updatedAt` 등) 에서 파생 추론 — 을 비교하고, 채택안이 **새 외부 dependency 0 · Prisma schema 변경 0** 인지 명시한다. 만약 schema 변경을 동반하는 안을 채택한다면 CLAUDE.md `§5` DB schema 게이트에 걸린다는 점과 그 경우 후속 task 가 BLOCKED → notifier 를 거쳐야 함을 `§Consequences` 에 박제한다.
+- [x] `§Decision 2` — **endpoint 계약**을 확정한다: HTTP method · 정확한 경로 · 응답 body shape (필드명 · 타입 · 각 필드의 의미) · 성공 status code. 응답에는 최소한 배너 토글을 결정하는 boolean 축이 포함돼야 하며, `EvaluationGuardBanner` 의 `active` prop 에 어떻게 매핑되는지 1 문장으로 잇는다.
+- [x] `§Decision 3` — **인증 · RBAC 경계**를 확정한다 (guard 적용 여부, 접근 가능 역할 등급, 미인증 요청의 status). 기존 `/api/*` 의 JWT HttpOnly cookie 계약 ([ADR-0008](../decisions/ADR-0008-auth-credential-type.md)) 과의 정합을 1 문장으로 명시한다.
+- [x] `§Decision 4` — **상태 전이 시점**을 확정한다: 어느 실행 진입점 (평가 3 route + 수집 1 route 중 어디까지) 이 상태를 켜고 끄는지, 예외 발생 · 프로세스 재시작 시의 복구 규칙 (stuck 상태 방지) 을 적는다.
+- [x] `§Decision 5` — **polling 주기와 다중 인스턴스 한계**를 적는다: 권장 polling 간격과 그 근거, 그리고 채택안이 단일 프로세스 전제일 경우 다중 인스턴스에서 어떤 부정확이 발생하는지 · 그 부정확이 R-78 의 보호 의도 (기존 자료만 표시 + 경고) 를 깨지 않는 이유 (또는 깬다면 그 완화책).
+- [x] `§Consequences` 에 **chain 완주 전에는 배너가 항상 비활성** 이라는 중간 상태를 명시한다 (Q-0055 선례 — false-success 상태의 사전 박제).
+- [x] `§Alternatives` 에 위 `§Decision 1` 의 기각안 2 종 각각의 기각 사유를 적는다.
+- [x] `§Follow-ups` 에 구현 chain 을 **slice 단위로** 나열한다 — 각 slice 는 어느 파일의 어느 배선인지까지 적고 (CLAUDE.md `§3` 소비처 동반 의무), 예상 순서는 backend 상태 보유 → controller route + e2e → web polling 배선 → REQ-083 재판정 (`§3.1` 규칙 6 — 구현 머지 후 1 회) 이다. 각 slice 가 cap (300 LOC / 5 파일) 안에 들어오도록 쪼갠다.
+- [x] 코드 · 테스트 · schema 변경 0 — `git diff --stat` 결과가 `docs/decisions/ADR-0060-*.md` 1 파일뿐이다.
+- [x] R-110 (doc-only pr-mode 라도 tester 호출 의무): `pnpm lint && pnpm build && pnpm test` 가 green 임을 tester 가 확인한다. **production code 변경이 0 LOC 이라 신규 spec 은 추가하지 않는다** — R-112 의 happy / error / 분기 / negative 4 항목은 새로 추가·수정된 public symbol 이 0 개이므로 본 task 에 적용 대상이 없으며, 그 사실을 PR 본문에 1 문장으로 명시한다 (분기 없음 — 해당 항목 생략).
+- [x] `pnpm test:cov` 가 기존 임계 (line ≥ 80% / function ≥ 80%) 를 그대로 통과한다 (본 task 는 코드 0 LOC 라 커버리지 변동이 없어야 한다).
+- [x] ADR 본문은 한국어 (CLAUDE.md `§12`), 행 범위 표기는 `~` 단일 구분자 · 단일 행은 `194 행` 형식.
 
 ## Out of Scope
 
@@ -64,3 +67,6 @@ plannerNote: P6 PLAN 133 행 잔여 ④ R-78 polling 의 선행 gap — 실행 �
 `architect → tester`
 
 ## Follow-ups
+
+- **구현 chain 은 [ADR-0060](../decisions/ADR-0060-evaluation-run-status-endpoint.md) `§Follow-ups` 의 (a)~(f) 6 slice 가 정본** — 본 task 는 결정만 박제했다. 순서는 (a) 상태 service + 평가 축 소비처 배선 → (b) 조회 route + `AppModule` 등록 → (c) 수집 축 배선 → (d) e2e 계약 고정 → (e) web polling 배선 → (f) REQ-083 재판정 (`§3.1` 규칙 6 상 구현 머지 **후** 1 회, `direct`). 각 slice 는 helper 와 소비처를 같은 PR 에 담고 cap (300 LOC / 5 파일) 안에 들어온다. planner 는 (a) 부터 큐잉한다.
+- **PLAN `133 행` 잔여 ① 전역 CSS 는 여전히 미착수** — 새 dependency 판단이 걸려 [CLAUDE.md](../../CLAUDE.md) `§5` 게이트가 선행한다. 본 chain 과 독립 arc 다.
