@@ -2,8 +2,9 @@
 id: T-1857
 title: AdminView 의 LLM provider mutation 러너 군을 별도 모듈로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1458
 coversReq: [REQ-049, REQ-051]
 independentStream: adminview-god-component-refactor
 dependsOn: []
@@ -79,6 +80,13 @@ created: 2026-09-02
 ## Suggested Sub-agents
 
 `implementer → tester`
+
+## 결과 (2026-09-02T22:52Z DONE)
+
+- `web/src/views/adminLlmProviderMutationRunners.ts` 신설 — LLM provider mutation 축 8 심볼 + `LLM_PROVIDERS_PATH` 를 본문 무변경으로 이동. 허용 변경은 선언 앞 `export` 키워드와 `RequestOptions` import 1 줄뿐이며, 비연속 3 블록 (`1591~1649` · `1721~1800` · `2131~2240`) + 상수 `337~340 행` 의 이동 248 줄이 원본과 기계적으로 완전 일치함을 확인했다 (동작 변경 0).
+- `LLM_PROVIDERS_PATH` 동반 이동으로 역방향 import 를 차단했다 ([T-1854](T-1854-adminview-group-part-mutation-runners-extract.md) 의 `GROUPS_PATH`, [T-1856](T-1856-adminview-person-mutation-runners-extract.md) 의 `PERSONS_PATH` 선례 승계). AdminView 는 재수출을 보존해 기존 spec 4 개 (provider create/update/delete contract 3 + `AdminView.test.tsx`) 가 import 경로까지 무수정 통과.
+- `AdminView.tsx` **5,282 → 5,044 줄 (-238)**. 신규 colocated spec 은 러너별 happy / error + 가드 분기 + negative 7 종 + 재수출 identity 3 을 cover 하고, web vitest 121 파일 3,630 test + 루트 466 suite 13,495 test + `test:cov` 임계 (line · function ≥ 80%) 전부 green.
+- reviewer VERDICT=APPROVE (round 1), CI green → [PR #1458](https://github.com/myungjoo/Assessment-Agent/pull/1458) squash 머지 [`cf1de9e0`](https://github.com/myungjoo/Assessment-Agent/commit/cf1de9e0).
 
 ## Follow-ups
 
