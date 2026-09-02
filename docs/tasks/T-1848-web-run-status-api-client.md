@@ -2,7 +2,7 @@
 id: T-1848
 title: web run-status 조회 helper 신설 (실패를 active=false 로 안전 흡수)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-083]
 independentStream: run-status-web
@@ -72,3 +72,7 @@ plannerNote: P6 PLAN 133 행 ④ / ADR-0060 §Follow-ups (e) 의 (e1) — helper
 
 - **(e2) AppShell polling 배선** — 본 helper 의 소비처. `web/src/AppShell.tsx` `263 행` 의 `const [evaluationInProgress] = useState<boolean>(false)` 를 setter 보유 state 로 바꾸고, 인증 후 view 에서만 도는 `useEffect` 에 5 초 interval + `document.visibilityState` 기반 중단/재개 (ADR-0060 `§Decision 5`) 를 붙여 `fetchRunStatus()` 결과를 그 state 에 대입한다. 그 값은 이미 `418 행` `<EvaluationGuardBanner active={evaluationInProgress} />` 로 내려가므로 **컴포넌트 파일 수정 0** 이다. spec 은 `web/src/AppShell.test.tsx` 에 fake timer 기반 describe 추가 — 주기 호출 · unmount 시 `clearInterval` · 탭 비가시 시 중단 · 실패 흡수 후 배너 미표시 · true/false 토글 분기.
 - **(f) doc-sync + REQ-083 재판정** — (e2) 머지 후 1 회.
+
+## Result (2026-09-02)
+
+`DONE` — `pr` mode, PR [#1453](https://github.com/myungjoo/Assessment-Agent/pull/1453) → main `53add39e`. `web/src/api/runStatus.ts` + `web/src/api/runStatus.test.ts` 2 파일 신설 `+299/-0` (사전 `estimatedDiff` 230 대비 실측 299 — 초과분은 전부 spec). `apiClient.request` 위에 얹은 얇은 흡수형 helper 로, 새 외부 dependency 0 · 새 credential 0 · 타이머 미소유 (타이머는 (e2) 의 컴포넌트 lifecycle 책임). 판정 helper 는 `active === true` 엄격 비교라 `"true"` · `1` 같은 truthy 값을 배너 켜짐으로 오인하지 않고, 조회 helper 는 401 · 403 · 5xx `ApiError` · 네트워크 실패 · 파싱 불가 payload 를 전부 `false` 로 흡수해 **throw 0** 이다 (5 초 polling 이 unhandled rejection 을 만들지 않게 — 흡수 사유는 파일 헤더 주석에 박제). R-112 4 종 = happy 2 · error 3 · 분기 4 · negative 7 + 부수효과 0 검사 = 신규 **19 test**. web vitest 117 파일 3553 통과, backend jest 466 suite / 13495 통과, `test:cov` line 99.94% · function 100% 로 전역 임계(80/80) 유지. reviewer round 1/7 APPROVE 후 4-게이트 PASS, squash + branch delete. Out of Scope (AppShell · EvaluationGuardBanner · `src/run-status` · e2e · schema · doc-sync) 전부 무변경.
