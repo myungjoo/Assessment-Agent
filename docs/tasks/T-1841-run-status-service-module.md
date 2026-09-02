@@ -2,7 +2,7 @@
 id: T-1841
 title: RunStatusService + RunStatusModule 신설 — 실행 상태 in-memory 카운터 (ADR-0060 (a1))
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-083]
 estimatedDiff: 370
@@ -11,6 +11,9 @@ estimatedFilesNote: run-status.service.ts + run-status.service.spec.ts + run-sta
 sizeExempt: true
 exemptReason: "R-112 backbone × 1.5 = 370 LOC — 4 파일 중 2 개(≈ 250 LOC, 전체의 약 65%)가 spec 이고, service·module 은 DI 한 단위라 쪼개면 provider 없는 service 만 남는다. 파일 수 4 는 cap(5) 이내"
 created: 2026-09-02
+completedAt: 2026-09-02T01:52:35Z
+prNumber: 1446
+mergeCommit: 1d7118d1
 independentStream: r78-polling
 dependsOn: [T-1840]
 touchesFiles: [src/run-status/run-status.service.ts, src/run-status/run-status.service.spec.ts, src/run-status/run-status.module.ts, src/run-status/run-status.module.spec.ts]
