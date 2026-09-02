@@ -12,8 +12,8 @@
 
 - P6 4 화면 ([PLAN.md](../PLAN.md) Phase P6) 이 소비하는 기존 `/api/*` endpoint 를 화면 단위로 매핑.
 - 인증 cookie ([ADR-0008](../decisions/ADR-0008-auth-credential-type.md)) 의 frontend 측 소비 패턴 (저장 안 함 / 자동 동반 / 401 → refresh).
-- R-78 (REQ-042) "평가 진행 중 시각화 보호" 배너의 데이터 소스 + gap.
-- P6 가 필요로 하나 **아직 미구현인 endpoint (gap)** 목록 — backend 선행 task 후보.
+- R-78 (REQ-042) "평가 진행 중 시각화 보호" 배너의 데이터 소스 — `GET /api/run-status` ([ADR-0060](../decisions/ADR-0060-evaluation-run-status-endpoint.md), T-1846 shipped) 로 **해소됨**.
+- P6 가 필요로 하나 **아직 미구현인 endpoint (gap)** 목록 — backend 선행 task 후보 (현재 §5 의 4 항목 — 실행 상태 조회는 shipped 되어 목록에서 빠졌다).
 
 본 문서가 **하지 않는 것** (범위 밖):
 
@@ -80,14 +80,14 @@ REQ-038 의 핵심 — 이름/ID/지표별 sort·filter + 일/주/월 시계열.
 
 ### 3.4 평가 진행 중 시각화 보호 배너 (R-78 / REQ-042) ([PLAN.md](../PLAN.md) P6 118 행)
 
-ADR-0040 §6 의 결정 — frontend 가 (a) 평가 실행 상태를 조회해 전역 배너를 토글하고, (b) 조회 화면은 이미 영속화된 데이터만 fetch 한다. (b) 는 §3.2 의 조회 endpoint 가 본질적으로 영속 데이터만 반환하므로 **자연 충족**. (a) 의 "실행 상태 조회" 가 핵심 gap:
+ADR-0040 §6 의 결정 — frontend 가 (a) 평가 실행 상태를 조회해 전역 배너를 토글하고, (b) 조회 화면은 이미 영속화된 데이터만 fetch 한다. (b) 는 §3.2 의 조회 endpoint 가 본질적으로 영속 데이터만 반환하므로 **자연 충족**. (a) 의 "실행 상태 조회" 는 [ADR-0060](../decisions/ADR-0060-evaluation-run-status-endpoint.md) 가 계약을 결정하고 T-1846 (PR #1451) 이 `GET /api/run-status` 로 shipped 해 **더 이상 gap 이 아니다**:
 
 | 화면 요소 | 소비 endpoint | 상태 |
 | --- | --- | --- |
-| 전역 경고 배너 토글 | **평가/수집 실행 상태 조회 endpoint** | **gap (§5) — 미존재** |
+| 전역 경고 배너 토글 | `GET /api/run-status` ([api.md](api.md) §5) | **shipped** (tier `User+`) — [web/src/api/runStatus.ts](../../web/src/api/runStatus.ts) helper 를 [web/src/AppShell.tsx](../../web/src/AppShell.tsx) 가 5 초 주기로 polling (탭 비가시 시 중단) 해 응답의 `active` 를 `EvaluationGuardBanner` 의 `active` prop 으로 내려보낸다. T-1846 · T-1848 · T-1849 박제 |
 | 배너 중 조회 (기존 자료) | §3.2 의 GET endpoint 그대로 | shipped |
 
-ADR-0040 §6 이 이미 명시 — "실행 상태 endpoint 는 P5/P7 의 evaluation run 상태 자산 — 부재 시 backend task 선행". polling 주기·endpoint shape 는 P6 dashboard task 책임.
+ADR-0040 §6 이 예고한 "부재 시 backend task 선행" 은 T-1841 ~ T-1846 chain 으로 실제 집행됐다. 이제 endpoint shape 는 [ADR-0060](../decisions/ADR-0060-evaluation-run-status-endpoint.md) `§Decision 2`, RBAC `User+` 는 `§Decision 3`, polling 5 초 · 탭 비가시 중단은 `§Decision 5` 가 정본이다 (다중 인스턴스에서의 false-negative 한계도 같은 절에 박제).
 
 ## 4. RBAC ↔ 화면 가시성 매핑 요약
 
@@ -102,13 +102,12 @@ frontend 는 `GET /api/auth/me` 의 role 로 메뉴/라우트를 게이트하되
 
 ## 5. P6 가 필요로 하나 미구현인 endpoint (gap — backend 선행 후보)
 
-본 절은 P6 화면이 요구하나 현재 [api.md](api.md) 기준 **미구현/deferred** 인 endpoint 를 박제한다. 각 항목은 frontend impl 전 backend task 가 선행돼야 하며, **frontend 가 임의로 신설하지 않는다** (ADR-0040 §2 경계 — `src/` 미접촉). 우선순위/scope 는 별도 planner 판단.
+본 절은 P6 화면이 요구하나 현재 [api.md](api.md) 기준 **미구현/deferred** 인 endpoint 를 박제한다. 각 항목은 frontend impl 전 backend task 가 선행돼야 하며, **frontend 가 임의로 신설하지 않는다** (ADR-0040 §2 경계 — `src/` 미접촉). 우선순위/scope 는 별도 planner 판단. 과거 `1번` 항목이던 "평가/수집 실행 상태 조회" 는 `GET /api/run-status` shipped (§3.4) 로 해소돼 목록에서 제거됐고, 잔여 4 항목을 `1~4` 로 재번호했다 (T-1850).
 
-1. **평가/수집 실행 상태 조회** — R-78 배너 (§3.4) 의 핵심. evaluation run 상태 자산은 P5/P7 책임 (ADR-0040 §6). **P6 dashboard 의 hard dependency** — 배너 없이는 R-78 미충족.
-2. **집단·전체·filter 인원 aggregate 조회** — REQ-038 의 "집단·전체·filter 인원 단위 시각화" (§3.2). 현 personId 단위 조회로는 N-fan-out + client 집계가 필요 — 100~200 명 규모에서 REQ-048 (3초) 위반 징후 시 backend aggregate endpoint 선행.
-3. **평가 batch (manual trigger / bulk delete / reeval / reset)** — `POST /api/assessments/run`, `DELETE /api/assessments`, `POST /api/assessments/reeval`, `POST /api/assessments/reset` 는 api.md 가 **P5 (UC-06 batch) 미구현 deferred** 로 박제. Admin 패널 (§3.3) 의 재평가 UX 가 의존.
-4. **스케줄 (cron 주기 지정)** — Admin 패널 (§3.3) 의 스케줄 항목 + P7 (R-72). 현재 endpoint 미존재 — P7 SchedulerModule 의 HTTP 노출 선행 필요 (UC-01 cron 은 in-process `@Cron` handler 라 HTTP endpoint 아님, api.md §7).
-5. **dashboard sort/filter/window 고도화** — `GET /api/assessments` 는 plain CRUD (api.md) — 대량 데이터에서 server-side sort/filter/pagination 이 필요해질 수 있음. 초기엔 client-side 로 대응, REQ-048 위반 시 backend 확장.
+1. **집단·전체·filter 인원 aggregate 조회** — REQ-038 의 "집단·전체·filter 인원 단위 시각화" (§3.2). 현 personId 단위 조회로는 N-fan-out + client 집계가 필요 — 100~200 명 규모에서 REQ-048 (3초) 위반 징후 시 backend aggregate endpoint 선행.
+2. **평가 batch (manual trigger / bulk delete / reeval / reset)** — `POST /api/assessments/run`, `DELETE /api/assessments`, `POST /api/assessments/reeval`, `POST /api/assessments/reset` 는 api.md 가 **P5 (UC-06 batch) 미구현 deferred** 로 박제. Admin 패널 (§3.3) 의 재평가 UX 가 의존.
+3. **스케줄 (cron 주기 지정)** — Admin 패널 (§3.3) 의 스케줄 항목 + P7 (R-72). 현재 endpoint 미존재 — P7 SchedulerModule 의 HTTP 노출 선행 필요 (UC-01 cron 은 in-process `@Cron` handler 라 HTTP endpoint 아님, api.md §7).
+4. **dashboard sort/filter/window 고도화** — `GET /api/assessments` 는 plain CRUD (api.md) — 대량 데이터에서 server-side sort/filter/pagination 이 필요해질 수 있음. 초기엔 client-side 로 대응, REQ-048 위반 시 backend 확장.
 
 ## 6. 다음 단계 (ADR-0040 flip 후)
 
@@ -116,7 +115,7 @@ frontend 는 `GET /api/auth/me` 의 role 로 메뉴/라우트를 게이트하되
 
 - scaffold task — `pnpm create vite` + `pnpm-workspace.yaml` + `@nestjs/serve-static` (새 dependency — [CLAUDE.md](../../CLAUDE.md) §5 게이트, ADR-0040 §5).
 - 인증 흐름 컴포넌트 (§2) — 가장 먼저, 다른 화면의 전제.
-- 대시보드 (§3.2) → Admin 패널 (§3.3) → R-78 배너 (§3.4, gap 1 선행 필요).
+- 대시보드 (§3.2) → Admin 패널 (§3.3) → R-78 배너 (§3.4 — 선행 gap 이던 실행 상태 조회가 `GET /api/run-status` 로 해소돼 배너 배선까지 shipped).
 - §5 gap 들은 각각 backend task 로 분해 (frontend 와 독립 진행 가능 — ADR-0040 §2 경계).
 
 ## 7. References
