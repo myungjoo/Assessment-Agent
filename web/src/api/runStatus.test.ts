@@ -99,6 +99,7 @@ describe('runStatus.isRunActive', () => {
 
   // negative 4 · 5 · 7 — 문자열/숫자 truthy 및 비정상 shape 를 true 로 오인하지 않는다.
   it('active 가 "true" · 1 · null · 객체여도 false 다 (negative — truthy 오인 / type mismatch)', () => {
+    expect(() => isRunActive({ active: 'true' })).not.toThrow();
     expect(isRunActive({ active: 'true' })).toBe(false);
     expect(isRunActive({ active: 'false' })).toBe(false);
     expect(isRunActive({ active: 1 })).toBe(false);
