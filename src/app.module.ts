@@ -8,7 +8,8 @@
 // ScheduleModule (T-0412, ADR-0042 §Decision 2 — SchedulerRegistry 전역 주입 활성화) +
 // SchedulingModule (T-0415, ADR-0042 §Decision 2 — /api/schedules 동적 cron 엔드포인트 런타임 활성화) +
 // ExportModule (T-0488, ADR-0044 §Follow-ups — /api/admin/export export job 생성·조회 엔드포인트 활성화) +
-// ImportModule (T-0489, ADR-0044 §Follow-ups — /api/admin/import import job 생성·조회 엔드포인트 활성화) 을 등록한다.
+// ImportModule (T-0489, ADR-0044 §Follow-ups — /api/admin/import import job 생성·조회 엔드포인트 활성화) +
+// RunStatusModule (T-1846, ADR-0060 §Decision 2 — GET /api/run-status 조회 route 활성화) 을 등록한다.
 // AssessmentModule 등 추가 도메인 module 은 후속 task 책임.
 import { Module } from "@nestjs/common";
 import { ScheduleModule } from "@nestjs/schedule";
@@ -25,6 +26,7 @@ import { ImportModule } from "./import/import.module";
 import { LlmModule } from "./llm/llm.module";
 import { PermissionDeniedRecordModule } from "./permission-denied/permission-denied-record.module";
 import { PersistenceModule } from "./persistence/persistence.module";
+import { RunStatusModule } from "./run-status/run-status.module";
 import { SchedulingModule } from "./scheduling/scheduling.module";
 import { UserModule } from "./user/user.module";
 import { WebModule } from "./web/web.module";
@@ -61,6 +63,11 @@ import { WebModule } from "./web/web.module";
   // 위에 ImportController(POST /api/admin/import 생성 + GET running/:id status polling) 를 root DI
   // 그래프에 노출해 Admin import job 진입점을 활성화한다. ExportModule 과 대칭 — AuthModule 을 전이
   // import 하므로 본 module import 만으로 guard 바인딩이 닫힌다(외부 dep 0).
+  // RunStatusModule (T-1846 추가) — ADR-0060 §Decision 2 조회 route slice. 이미 배선된
+  // RunStatusService(§Follow-ups (a) · (c) 로 평가 · 수집 두 축 4/4 진입점 연결) 위에
+  // RunStatusController(GET /api/run-status) 를 root DI 그래프에 노출해 배너 polling 의
+  // 조회 대상을 런타임에 활성화한다. 본 import 가 없으면 module 의 controllers 등록만으로는
+  // route 가 서빙되지 않는다. 새 provider · 새 외부 dep 0.
   imports: [
     PersistenceModule,
     UserModule,
@@ -76,6 +83,7 @@ import { WebModule } from "./web/web.module";
     SchedulingModule,
     ExportModule,
     ImportModule,
+    RunStatusModule,
   ],
   controllers: [AppController],
   providers: [AppService],
