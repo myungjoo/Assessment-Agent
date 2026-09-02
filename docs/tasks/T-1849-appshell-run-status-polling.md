@@ -2,7 +2,7 @@
 id: T-1849
 title: AppShell run-status polling 배선 (5 초 주기 + 탭 비가시 중단)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-083]
 independentStream: run-status-web
@@ -83,3 +83,7 @@ plannerNote: P6 PLAN 133 행 ④ / ADR-0060 §Follow-ups (e) 의 (e2) — (e1) h
 
 - **(f) doc-sync + REQ-083 재판정** — 본 slice 머지 후 1 회. [api.md](../architecture/api.md) 표에 `GET /api/run-status` 행 추가, [frontend-api-contract.md](../architecture/frontend-api-contract.md) `87 행` gap 을 shipped 로 갱신 + `107 행` 목록에서 1 번 항목 제거, [requirements.md](../requirements.md) `102 행` REQ-083 status 를 (a)~(e) 실측에 맞춰 재판정. 코드 변경 0 이므로 `commitMode: direct`.
 - **(e2b) 탭 비가시 중단 분리 — cap 초과가 실제로 확인된 경우에만** — 본 slice 가 300 LOC 를 넘길 것이 구현 중 확실해지면 가시성 축만 떼어낸다: `web/src/AppShell.tsx` 의 polling effect 에서 `document.addEventListener('visibilitychange', ...)` 구독 · 대응 `removeEventListener` · 판정 helper 의 `documentHidden` 인자, `web/src/AppShell.test.tsx` 의 가시성 분기 test 와 drift-guard 중 `visibilitychange` 단언이 그 범위다. 분리 시 본 slice 의 helper 시그니처는 `shouldPollRunStatus(view)` 로 두고 (e2b) 가 인자를 추가한다.
+
+## Result (2026-09-02)
+
+`DONE` — `pr` mode, PR [#1454](https://github.com/myungjoo/Assessment-Agent/pull/1454) → main `58ce46f3`. `web/src/AppShell.tsx` `+78/-5` + `web/src/AppShell.test.tsx` `+132/-0` = `+205/-5` 2 파일 (사전 `estimatedDiff` 285 대비 실측 210 — 하회). T-1848 의 `fetchRunStatus()` 를 실제로 호출하는 **소비처 배선**이라 이 slice 로 ADR-0060 `§Follow-ups (e)` 가 닫혔다. 주기 상수 `RUN_STATUS_POLL_INTERVAL_MS` named export + 순수 판정 helper `shouldPollRunStatus(view, documentHidden)` 를 분리해 effect 본문이 조건을 재구현하지 않게 했고, effect 는 즉시 1 회 조회 → interval → `visibilitychange` 구독 → cleanup(`clearInterval` + `cancelled` 플래그) 순으로 배선했다. `EvaluationGuardBanner` · `runStatus.ts` · backend 전부 무변경 (`418 행` 배너 prop 은 기존 계약 그대로). R-112 4 종 = happy / error path / 분기 / negative 8 종 + effect 의존성 drift guard 3 = **12 test 추가**. web vitest 105 green, 저장소 jest 13495 green, 전역 line 99.94% · function 100% 로 임계(80/80) 유지. reviewer round 1 MINOR nit 1 건(effect 의존성 drift guard)은 follow-up 으로 넘기지 않고 `§3` Nit-in-PR closure 대로 round 2 에서 닫아 APPROVE, 4-게이트 PASS 후 squash + branch delete. 본 slice 는 `§7.5` multi-task chain 의 두 번째 task 로 처리돼 commit body 에 `FIRE-BATCH: T-1848+T-1849` marker 가 박혔다. 잔여 (f) doc-sync + REQ-083 재판정은 미착수.
