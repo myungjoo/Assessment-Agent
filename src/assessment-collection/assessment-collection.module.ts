@@ -53,6 +53,7 @@ import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
 import { ConfluenceModule } from "../confluence/confluence.module";
 import { GithubModule } from "../github/github.module";
+import { RunStatusModule } from "../run-status/run-status.module";
 import { UserModule } from "../user/user.module";
 
 import { AssessmentCollectionController } from "./assessment-collection.controller";
@@ -81,7 +82,20 @@ import { SinceDerivationService } from "./since-derivation.service";
   // RolesGuard)가 AuthModule export(JwtAuthGuard/RolesGuard, auth.module.ts L81)로 닫힌다.
   // collection → auth 단방향(auth 는 collection 미참조)이라 forwardRef 불요(ADR-0031 §4 —
   // module.spec compile 로 circular 부재 실측). 기존 imports 불변.
-  imports: [GithubModule, ConfluenceModule, UserModule, AuthModule],
+  // RunStatusModule import — T-1845(ADR-0060 §Follow-ups (c) 수집 축 소비처 배선).
+  // RunStatusModule 이 export 하는 RunStatusService 를 AssessmentCollectionController
+  // 가 생성자 주입받아 POST /collect 진입·종료 시 collection 축 실행 카운터를 켜고 끈다.
+  // 그 module 은 provider 1 개(RunStatusService)만 담고 다른 module 을 import 하지 않으므로
+  // circular 부재 + 추가 전이 의존 0 이다(collection → run-status 단방향, 평가 축
+  // assessment-evaluation.module.ts 의 T-1842 배선과 동형). providers · exports ·
+  // controllers 배열은 불변 — imports 한 줄만 증가한다.
+  imports: [
+    GithubModule,
+    ConfluenceModule,
+    UserModule,
+    AuthModule,
+    RunStatusModule,
+  ],
   // #3 controller(T-0274): manual-trigger HTTP 진입점(POST /api/assessment-collection/
   // collect, Admin RBAC)을 등록. CollectionTriggerService 위임(ADR-0031 §2/§4).
   //
