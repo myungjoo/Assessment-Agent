@@ -2,7 +2,7 @@
 id: T-1846
 title: GET /api/run-status 조회 route 신설 + AppModule 등록
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-083]
 estimatedDiff: 365
@@ -18,6 +18,9 @@ touchesFiles:
   - src/run-status/run-status.module.ts
   - src/app.module.ts
   - src/app.module.spec.ts
+completedAt: 2026-09-02T07:00:56Z
+prNumber: 1451
+mergeCommit: 8ac8cb62
 plannerNote: "P6 133 행 ④ R-78 polling — ADR-0060 §Follow-ups (b) 조회 route + AppModule 등록. write 축 4/4 배선 완료로 선행 해소"
 ---
 
