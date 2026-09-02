@@ -2,7 +2,7 @@
 id: T-1844
 title: 평가 축 unevaluated-fill-run handler 에 RunStatus 배선 — 503 매핑 경로 포함 (ADR-0060 (a2-3))
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-083]
 estimatedDiff: 330
@@ -11,6 +11,9 @@ estimatedFilesNote: assessment-evaluation.controller.ts + assessment-evaluation.
 sizeExempt: true
 exemptReason: "T-1843 실측(+318/-53 = spec 281 · controller 90) 을 항목별로 분해해 앵커링. controller = 신규 주석 14 + begin/try/finally/end 5 + 본문 653~691 행 39 줄 재들여쓰기(+39/-39) + prettier 재포맷 여유 20 ≈ +78/-47. spec = makeRunController runStatus mock swap +14/-17 + evaluate describe 의 negative (6) 계약 전환 +12/-13 + 신규 RunStatus describe 225(T-1843 의 228 줄 선례에서 mode 분기 2 건 -25, 503 매핑 test 1 건 +22) ≈ +251/-30. 합계 약 +329 → 330. 파일 수 2 는 cap(5) 이내. 더 작게 자르면 배선만 있고 503 경로 negative 가 없는 slice 가 되어 §3.2 R-112 위반이며, (a2-3) 은 평가 축 마지막 handler 라 더 쪼갤 자연 절단면이 없다"
 created: 2026-09-02
+completedAt: 2026-09-02T04:58:47Z
+prNumber: 1449
+mergeCommit: 55a67fc5
 independentStream: r78-polling
 dependsOn: [T-1843]
 touchesFiles: [src/assessment-evaluation/assessment-evaluation.controller.ts, src/assessment-evaluation/assessment-evaluation.controller.spec.ts]
