@@ -2,8 +2,10 @@
 id: T-1852
 title: AdminView 의 ServiceIdentity 러너 군을 별도 모듈로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1455
+completedAt: 2026-09-02T12:57:52Z
 coversReq: [REQ-078, REQ-079]
 independentStream: adminview-god-component-refactor
 dependsOn: []
@@ -38,18 +40,18 @@ created: 2026-09-02
 
 ## Acceptance Criteria
 
-- [ ] `web/src/views/adminServiceIdentityRunners.ts` 신설 — `AdminView.tsx` `1880~2092 행` 의 9 심볼 (`ServiceIdentityInput` type 1 · `CreateServiceIdentityDeps` / `UpdateServiceIdentityDeps` / `DeleteServiceIdentityDeps` / `SetPrimaryServiceIdentityDeps` 4 · 러너 4) 을 **본문 한 줄도 바꾸지 않고** 옮긴다. 각 선언 위 주석 블록도 그대로 옮긴다. JSX 가 없으므로 확장자는 `.ts`.
-- [ ] 모듈 최상단에 헤더 주석 — 이동 근거(PLAN `183 행` 부채) · **AdminView → 본 모듈 단방향 import** 규약 · 재수출로 기존 spec 을 보존한다는 사실을 명시 (T-1830 헤더 형식 준수).
-- [ ] `AdminView.tsx` 는 옮긴 심볼을 새 모듈에서 import 하고 파일 끝 `export {` / `export type {` 목록에서 **그대로 re-export** 한다 — 기존 spec 5 개 (`AdminView.service-identity-create` / `-update` / `-delete` / `-primary` / `-row-bridge`) 의 `from './AdminView'` 가 **한 줄도 수정되지 않고** 통과해야 한다.
-- [ ] `adminServiceIdentityRowActions.tsx` `18 행` 의 `from './AdminView'` 를 `from './adminServiceIdentityRunners'` 로 바꿔 역방향 import 를 제거하고, 같은 파일 `8~9 행` 의 "아직 AdminView 에 남아 역방향을 만든다" 주석을 해소 사실로 갱신한다.
-- [ ] **happy-path unit test** — 신설 경계 spec `adminServiceIdentityRunners.test.ts` 에서 러너 4 개가 **직접 import 경로** 로도 각각 정확한 primitive 를 1 회 발사하고 성공 전이(`bumpRefresh` 등)를 수행함을 검증 (러너당 1+).
-- [ ] **error path unit test** — 러너 4 개 각각의 주입 primitive 가 reject 할 때 throw 없이 error 문구를 표면화하고 진행 플래그를 `finally` 로 되돌림을 검증 (러너당 1+).
-- [ ] **분기 cover** — 각 러너의 no-op 가드 분기를 분리해 test (예: `runCreateServiceIdentity` 는 personId 공백 / 입력 미완 / in-flight 3 갈래, 나머지 3 러너는 각자의 id 가드 · in-flight 가드).
-- [ ] **negative cases 충분 cover** — 최소 4 종 이상: ① 빈/공백 `personId` 미발사 ② 빈 `externalId` 미발사 ③ in-flight 중 재호출 시 이중 발사 0 ④ 실패 경로에서 목록 재조회(`bumpRefresh`) 미호출 ⑤ 재수출 identity 보존 — `AdminView` 에서 import 한 러너와 새 모듈에서 import 한 러너가 **동일 함수 참조** (`toBe`) 임을 검증 (row-bridge spec 의 위임 검증이 계속 유효함의 근거).
-- [ ] `cd web && pnpm test` (vitest) 전량 green — 기존 spec 5 개가 수정 없이 통과하는 것이 곧 (c) 조건의 기계적 증거.
-- [ ] repo 루트에서 `pnpm lint && pnpm build && pnpm test` 통과. web 쪽 build 는 `cd web && pnpm build` 로 확인 (import 경로 변경이 번들에 반영되는지).
-- [ ] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%) — backend 전역 임계 유지 (본 slice 는 `web/` 만 건드리므로 backend coverage 영향 0 이어야 한다).
-- [ ] `AdminView.tsx` 순 감소 확인 — `wc -l web/src/views/AdminView.tsx` 가 작업 전 `6253` 보다 **200 줄 이상 작아진다**.
+- [x] `web/src/views/adminServiceIdentityRunners.ts` 신설 — `AdminView.tsx` `1880~2092 행` 의 9 심볼 (`ServiceIdentityInput` type 1 · `CreateServiceIdentityDeps` / `UpdateServiceIdentityDeps` / `DeleteServiceIdentityDeps` / `SetPrimaryServiceIdentityDeps` 4 · 러너 4) 을 **본문 한 줄도 바꾸지 않고** 옮긴다. 각 선언 위 주석 블록도 그대로 옮긴다. JSX 가 없으므로 확장자는 `.ts`.
+- [x] 모듈 최상단에 헤더 주석 — 이동 근거(PLAN `183 행` 부채) · **AdminView → 본 모듈 단방향 import** 규약 · 재수출로 기존 spec 을 보존한다는 사실을 명시 (T-1830 헤더 형식 준수).
+- [x] `AdminView.tsx` 는 옮긴 심볼을 새 모듈에서 import 하고 파일 끝 `export {` / `export type {` 목록에서 **그대로 re-export** 한다 — 기존 spec 5 개 (`AdminView.service-identity-create` / `-update` / `-delete` / `-primary` / `-row-bridge`) 의 `from './AdminView'` 가 **한 줄도 수정되지 않고** 통과해야 한다.
+- [x] `adminServiceIdentityRowActions.tsx` `18 행` 의 `from './AdminView'` 를 `from './adminServiceIdentityRunners'` 로 바꿔 역방향 import 를 제거하고, 같은 파일 `8~9 행` 의 "아직 AdminView 에 남아 역방향을 만든다" 주석을 해소 사실로 갱신한다.
+- [x] **happy-path unit test** — 신설 경계 spec `adminServiceIdentityRunners.test.ts` 에서 러너 4 개가 **직접 import 경로** 로도 각각 정확한 primitive 를 1 회 발사하고 성공 전이(`bumpRefresh` 등)를 수행함을 검증 (러너당 1+).
+- [x] **error path unit test** — 러너 4 개 각각의 주입 primitive 가 reject 할 때 throw 없이 error 문구를 표면화하고 진행 플래그를 `finally` 로 되돌림을 검증 (러너당 1+).
+- [x] **분기 cover** — 각 러너의 no-op 가드 분기를 분리해 test (예: `runCreateServiceIdentity` 는 personId 공백 / 입력 미완 / in-flight 3 갈래, 나머지 3 러너는 각자의 id 가드 · in-flight 가드).
+- [x] **negative cases 충분 cover** — 최소 4 종 이상: ① 빈/공백 `personId` 미발사 ② 빈 `externalId` 미발사 ③ in-flight 중 재호출 시 이중 발사 0 ④ 실패 경로에서 목록 재조회(`bumpRefresh`) 미호출 ⑤ 재수출 identity 보존 — `AdminView` 에서 import 한 러너와 새 모듈에서 import 한 러너가 **동일 함수 참조** (`toBe`) 임을 검증 (row-bridge spec 의 위임 검증이 계속 유효함의 근거).
+- [x] `cd web && pnpm test` (vitest) 전량 green — 기존 spec 5 개가 수정 없이 통과하는 것이 곧 (c) 조건의 기계적 증거.
+- [x] repo 루트에서 `pnpm lint && pnpm build && pnpm test` 통과. web 쪽 build 는 `cd web && pnpm build` 로 확인 (import 경로 변경이 번들에 반영되는지).
+- [x] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%) — backend 전역 임계 유지 (본 slice 는 `web/` 만 건드리므로 backend coverage 영향 0 이어야 한다).
+- [x] `AdminView.tsx` 순 감소 확인 — `wc -l web/src/views/AdminView.tsx` 가 작업 전 `6253` 보다 **200 줄 이상 작아진다**.
 
 ## Out of Scope
 
@@ -67,3 +69,9 @@ created: 2026-09-02
 ## Follow-ups
 
 - `PLAN.md` `183 행` 부채 bullet 의 실측 LOC 을 본 slice 머지 후 값으로 갱신하고 다음 추출 대상(그룹/파트 mutation 러너 군 — `AdminView.tsx` `2093~2238 행` 부근)을 1 차 대상 문구로 교체 (`direct`).
+
+## 완료 기록 (2026-09-02)
+
+`pr` 모드로 PR [#1455](https://github.com/myungjoo/Assessment-Agent/pull/1455) 을 열어 round 1 에서 4-게이트 (reviewer APPROVE + PR comment 외부 존재 + integrator 자체 점검 + CI green) 를 모두 통과하고 squash 머지했다 (main `0761fb20`). 실측 `+268/-215` 3 파일 — 이동 208 줄이 origin/main 블록과 byte 동일 (차이 9 줄은 전부 `export ` prefix) 이라 순수 추출 조건 (a)(b) 를 기계적으로 충족했고, `AdminView.tsx` 는 `6253` → `6053` 으로 정확히 200 줄 감소했다. `adminServiceIdentityRowActions.tsx` `18 행` 의 `./AdminView` 역방향 import 를 제거해 단방향으로 되돌렸고 (ESM 순환 0), AdminView 재수출 표면 2 블록은 byte 무변경이라 기존 spec 5 개가 import 경로까지 무수정으로 통과했다. 신설 경계 spec `adminServiceIdentityRunners.test.ts` 가 R-112 4 종 (happy 4 · error path · 분기 13 · negative 5 종) 을 cover 하고, web vitest 118 파일 3572 test green · backend jest 466 suite 13495 test green (line 99.94% / function 100%) 이다.
+
+**의도적 미수행 1 건 (reviewer MINOR 기록 · 타당 판정)** — Acceptance Criteria 3 이 적은 `export type {` 재수출은 하지 않았다. deps 타입 5 개는 이동 **전에도** `AdminView` 의 export 표면이 아니었으므로 재수출은 공개 표면을 되레 확대하고, "200 줄 이상 순 감소" AC 를 무너뜨린다. 근거는 PR body 와 신설 모듈 헤더 주석에 박제했다.
