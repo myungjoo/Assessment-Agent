@@ -6,16 +6,19 @@
 // (`../api/...` · `../components/...`)가 그대로 유효해 본문 재작성이 0 이 되기 때문이다.
 //
 // AdminView 와의 방향: AdminView → 본 모듈(값 의존) 이 정방향이다. 아래 runDeleteServiceIdentity ·
-// runSetPrimaryServiceIdentity 두 러너만 아직 AdminView 에 남아 역방향 import 를 만드는데, 둘 다
-// 함수 선언이라 ESM 순환에서도 hoisting 으로 초기화가 끝나 있고 호출은 콜백 실행 시점뿐이라
-// 모듈 평가 시점 의존이 0 이다(러너 자체의 이동은 후속 slice 몫 — 본 slice 는 범위를 넓히지 않는다).
-// InFlightIdGate 는 type-only import 라 컴파일 시 지워진다.
+// runSetPrimaryServiceIdentity 두 러너가 만들던 AdminView 로의 역방향 import 는 T-1852 순수 추출로
+// **해소**됐다 — 두 러너의 정본이 adminServiceIdentityRunners.ts 로 옮겨져, 본 모듈은 그 러너 모듈만
+// 단방향으로 바라본다(ESM 순환 0). InFlightIdGate 는 여전히 AdminView 에 있으나 type-only import 라
+// 컴파일 시 지워져 값 의존을 만들지 않는다.
 
 import type { ReactElement } from 'react';
 import type { ServiceIdentityRow } from '../api/serviceIdentity';
 import ServiceIdentityRowActions from '../components/ServiceIdentityRowActions';
 import type { ServiceIdentityRowActionsProps } from '../components/ServiceIdentityRowActions';
-import { runDeleteServiceIdentity, runSetPrimaryServiceIdentity } from './AdminView';
+import {
+  runDeleteServiceIdentity,
+  runSetPrimaryServiceIdentity,
+} from './adminServiceIdentityRunners';
 import type { InFlightIdGate } from './AdminView';
 
 // ServiceIdentityRowActions 행별 플래그 파생 입력(T-1771) — 행 자신의 id 와, 컨테이너가 목록 전체에
