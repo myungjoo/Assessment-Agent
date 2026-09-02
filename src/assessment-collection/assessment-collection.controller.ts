@@ -30,6 +30,7 @@ import {
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
+import { RunStatusService } from "../run-status/run-status.service";
 
 import {
   CollectionTriggerService,
@@ -46,7 +47,18 @@ import { CollectTriggerDto } from "./dto/collect-trigger.dto";
   }),
 )
 export class AssessmentCollectionController {
-  constructor(private readonly triggerService: CollectionTriggerService) {}
+  constructor(
+    private readonly triggerService: CollectionTriggerService,
+    // RunStatusService — POST /collect 의 실행 상태 카운터 source(T-1845, ADR-0060
+    // §Follow-ups (c)). 수집 축이 "지금 실행 중인가" 를 프로세스 메모리에만 기록하는
+    // 관측 보조 provider 로, handler 진입 시 begin("collection") · 종료 시 finally 에서
+    // end("collection") 를 부른다. RunStatusModule 이 export 하고 본 controller 의
+    // module(assessment-collection.module.ts)이 그 module 을 import 하므로 추가 token
+    // 배선 0 — 생성자 주입만(평가 축 T-1842 와 동형 패턴). **기존 triggerService param 의
+    // 위치·순서는 불변**이고 본 param 이 마지막에 추가된다(다른 호출부 회귀 0).
+    // test 는 jest mock { begin, end } 를 주입해 실 부작용 0 으로 전이 계약만 검증한다.
+    private readonly runStatus: RunStatusService,
+  ) {}
 
   // POST /api/assessment-collection/collect — REQ-040 manual trigger. 201 Created +
   // CollectionTriggerSummary. CollectionTriggerService.triggerCollection 에 그대로 위임
@@ -58,6 +70,20 @@ export class AssessmentCollectionController {
   async collect(
     @Body() dto: CollectTriggerDto,
   ): Promise<CollectionTriggerSummary> {
-    return this.triggerService.triggerCollection(dto);
+    // 수집 축 실행 상태 전이(T-1845, ADR-0060 §Decision 4 "비용 있는 실행 진입점") —
+    // handler 최상단에서 begin 하고 try/finally 로 감싸 성공·실패 어느 종료 경로에서도
+    // end 가 정확히 1 회 짝지어지게 한다. begin 을 try **밖**에 두는 이유는 begin 이
+    // 던지면 finally 에 진입조차 하지 않아 "짝 없는 end" 가 원천적으로 생길 수 없기
+    // 때문이다(현 구현의 begin 은 던지지 않지만 배치로 그 불변식을 고정한다).
+    //
+    // 위임은 `return await` 로 받는다 — await 없이 promise 를 그대로 반환하면 finally 가
+    // **위임 완료 전에** 실행돼 "실행 중" 구간이 사실상 0 이 된다(조기 감소). 위임 인자·
+    // 반환 shape·RBAC·ValidationPipe 는 변경 0 — T-1842/T-1843/T-1844 와 동형.
+    this.runStatus.begin("collection");
+    try {
+      return await this.triggerService.triggerCollection(dto);
+    } finally {
+      this.runStatus.end("collection");
+    }
   }
 }
