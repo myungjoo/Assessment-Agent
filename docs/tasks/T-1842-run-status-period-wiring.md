@@ -2,7 +2,7 @@
 id: T-1842
 title: 평가 축 period handler 에 RunStatus 배선 — RunStatusModule import + ctor 주입 + finally 감소 (ADR-0060 (a2-1))
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-083]
 estimatedDiff: 330
@@ -11,6 +11,9 @@ estimatedFilesNote: assessment-evaluation.module.ts + assessment-evaluation.cont
 sizeExempt: true
 exemptReason: "R-112 backbone × 1.5 = 291 LOC 에 T-1841 실측 오차(사전 370 → 실제 576, +56%, 초과분 전량 spec)를 반영해 330 으로 상향. base 194 LOC 내역 = spec 165(ctor 4 site 24 + R-112 test 7 종 약 141) + controller 25 + module 4. 파일 수 3 은 cap(5) 이내이며, 이보다 작게 자르면 소비처 없는 ctor 주입만 남아 CLAUDE.md §3 소비처 동반 의무 위반"
 created: 2026-09-02
+completedAt: 2026-09-02T02:55:21Z
+prNumber: 1447
+mergeCommit: 6d239280
 independentStream: r78-polling
 dependsOn: [T-1841]
 touchesFiles: [src/assessment-evaluation/assessment-evaluation.module.ts, src/assessment-evaluation/assessment-evaluation.controller.ts, src/assessment-evaluation/assessment-evaluation.controller.spec.ts]
