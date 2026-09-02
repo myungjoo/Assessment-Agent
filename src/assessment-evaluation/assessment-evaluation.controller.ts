@@ -356,8 +356,9 @@ export class AssessmentEvaluationController {
   ): Promise<EvaluationResult[] | PeriodBridgeAdminResponse> {
     // 평가 축 실행 상태 전이(T-1842, ADR-0060 §Decision 4) — handler **최상단**에서
     // begin 하고 try/finally 로 감싸 어떤 종료 경로에서도 end 가 정확히 1 회 짝지어지게
-    // 한다. begin 을 try 밖에 두는 이유는 begin 자체가 throw 하지 않는 관측 보조 호출이라
-    // "begin 없이 end" 를 만들 수 없게 하기 위함이고, 감싸는 범위를 role dispatch
+    // 한다. begin 을 try **밖**에 두는 이유는 begin 이 던지면 finally 에 진입조차 하지
+    // 않아 "짝 없는 end" 가 원천적으로 생길 수 없기 때문이고(현 구현의 begin 은 던지지
+    // 않지만 배치로 그 불변식을 고정한다), 감싸는 범위를 role dispatch
     // **이전**으로 잡는 이유는 fail-closed 403(재평가/self-only) 처럼 위임 이전에 끊기는
     // 조기 차단 경로에서도 카운터가 stuck 되지 않게 하기 위함이다.
     //
