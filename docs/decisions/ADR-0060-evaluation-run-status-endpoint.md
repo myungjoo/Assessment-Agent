@@ -216,9 +216,9 @@ endpoint 를 두지 않는다(§Decision 1 의 "상태 수명 = 실행 수명" �
 
 | 대안 | 내용 | 미채택 근거 |
 | --- | --- | --- |
-| **(b) Prisma model 신설(`EvaluationRun` 류)** | 실행마다 row 를 만들고 status 전이(`RUNNING` → `SUCCEEDED`/`FAILED`)를 영속화. `614 행` `ExportJob` 동형 | ① [CLAUDE.md](../../CLAUDE.md) `§5` 의 **DB schema 게이트** 에 걸려 owner 승인 없이는 첫 slice 조차 못 연다 — 배너 하나를 켜기 위해 지불하기에 과한 비용이다. ② 영속의 이득(재시작을 넘는 진행 · 감사 추적)은 [ADR-0044](ADR-0044-export-import-job-model.md) `144 행` 이 export/import job 에 대해 정당화한 것인데, 배너는 **현재 순간의 boolean** 만 필요해 그 이득을 쓰지 않는다. ③ 오히려 해롭다 — 비정상 종료로 `RUNNING` row 가 남으면 실행이 끝났는데도 배너가 영구히 켜지는 **stuck 상태** 가 생기고, 이를 막으려면 TTL · 청소 job · 강제 해제 경로를 추가로 설계해야 한다(§Decision 4 의 재시작 복구가 공짜로 주는 것). ④ 매 polling 이 DB 조회가 된다 — §Decision 1 |
+| **(b) Prisma model 신설(`EvaluationRun` 류)** | 실행마다 row 를 만들고 status 전이(`RUNNING` → `SUCCEEDED`/`FAILED`)를 영속화. `614 행` `ExportJob` 동형 | ① [CLAUDE.md](../../CLAUDE.md) `§5` 의 **DB schema 게이트** 에 걸려 owner 승인 없이는 첫 slice 조차 못 연다 — 배너 하나를 켜기 위해 지불하기에 과한 비용이다. ② 영속의 이득(재시작을 넘는 진행 · 감사 추적)은 [ADR-0044](ADR-0044-export-import-job-persistence.md) `144 행` 이 export/import job 에 대해 정당화한 것인데, 배너는 **현재 순간의 boolean** 만 필요해 그 이득을 쓰지 않는다. ③ 오히려 해롭다 — 비정상 종료로 `RUNNING` row 가 남으면 실행이 끝났는데도 배너가 영구히 켜지는 **stuck 상태** 가 생기고, 이를 막으려면 TTL · 청소 job · 강제 해제 경로를 추가로 설계해야 한다(§Decision 4 의 재시작 복구가 공짜로 주는 것). ④ 매 polling 이 DB 조회가 된다 — §Decision 1 |
 | **(c) 기존 데이터에서 파생 추론(`Assessment.updatedAt` 등)** | "최근 N 초 안에 갱신된 Assessment 가 있으면 실행 중" 으로 간주 | ① **정의부터 부정확** 하다 — 실행 시작 후 첫 write 가 나오기 전 구간(LLM 대기)은 `false`, 실행이 끝난 뒤 N 초는 `true` 라 배너가 켜져야 할 때 안 켜지고 꺼져야 할 때 안 꺼진다. ② 임계값 N 이 **근거 없는 마법 상수** 이며 LLM 지연 분포가 바뀔 때마다 재조정 대상이 된다. ③ **수집 축을 아예 못 본다** — 수집만 돌고 평가 write 가 없는 구간이 통째로 누락된다. ④ 매 polling 이 인덱스 스캔을 유발해 (b) 의 비용 문제를 그대로 지면서 정확도는 더 낮다 — §Decision 1 |
-| **조회 응답에 상태 플래그를 동봉(전용 endpoint 0)** | `/api/assessments` 등 기존 조회 응답에 `evaluationInProgress` 를 실어 보냄(ADR-0041 `62 행` 의 괄호 대안) | 배너가 **조회 트래픽에 종속** 된다 — 사용자가 아무 조회도 하지 않는 화면에서는 상태가 갱신되지 않고, 반대로 모든 조회 endpoint 의 응답 shape 를 동시에 바꿔야 해 변경 표면이 넓다. 읽기 표면을 하나로 좁힌다는 §Decision 2 의 이점도 잃는다 |
+| **조회 응답에 상태 플래그를 동봉(전용 endpoint 0)** | `/api/assessments` 등 기존 조회 응답에 `evaluationInProgress` 를 실어 보냄(ADR-0041 `63 행` 의 괄호 대안) | 배너가 **조회 트래픽에 종속** 된다 — 사용자가 아무 조회도 하지 않는 화면에서는 상태가 갱신되지 않고, 반대로 모든 조회 endpoint 의 응답 shape 를 동시에 바꿔야 해 변경 표면이 넓다. 읽기 표면을 하나로 좁힌다는 §Decision 2 의 이점도 잃는다 |
 | **WebSocket / SSE push** | 상태 변화를 서버가 밀어 보냄 | polling 요청은 사라지나 **새 전송 표면과 연결 수명 관리** 가 들어온다. 5 초 지연이 충분한 요구(§Decision 5)에 비해 비용이 크고, 단일 프로세스 전제가 깨지면 어차피 같은 한계를 만난다 — 필요해지면 그때 별도 ADR |
 | **`unevaluated-fill-plan` 도 상태를 켬** | 5 진입점 전부를 동일 취급 | dry-run 계획 조회는 LLM 호출도 write 도 없어, 켜면 실제로는 진행 중이 아닌 상태를 "평가 중" 으로 알린다 — 경고의 신뢰도를 깎는다 — §Decision 4 |
 | **`@Roles("Admin")` 으로 제한** | 실행 상태를 Admin+ 에게만 공개 | 배너는 인증된 모든 등급의 전역 요소다. Admin 으로 좁히면 User 화면에서 배너가 영원히 안 뜨거나 403 을 삼키는 분기를 frontend 가 떠안는다 — §Decision 3 |
@@ -240,7 +240,7 @@ endpoint 를 두지 않는다(§Decision 1 의 "상태 수명 = 실행 수명" �
 - [ADR-0041](ADR-0041-frontend-composition-wiring.md) `59~64 행` · `88 행` · `98 행` — R-78 배선 · 선행 의존 · ⑤ slice
 - [ADR-0003](ADR-0003-deployment.md) `32 행` · `38 행` · `44 행` — monolithic 단일 process · 규모 전제 · HA 전환 조건
 - [ADR-0042](ADR-0042-nestjs-schedule-adoption.md) `57 행` — 단일 process in-memory(휘발) 선례
-- [ADR-0044](ADR-0044-export-import-job-model.md) `144 행` — 영속 job entity 를 택한 반대 사례
+- [ADR-0044](ADR-0044-export-import-job-persistence.md) `144 행` — 영속 job entity 를 택한 반대 사례
 - [ADR-0008](ADR-0008-auth-credential-type.md) `Decision §2` — JWT HttpOnly cookie 계약
 - [docs/architecture/api.md](../architecture/api.md) `37 행` — tier escalation
 - [src/assessment-evaluation/assessment-evaluation.controller.ts](../../src/assessment-evaluation/assessment-evaluation.controller.ts) `208 행` · `339 행` · `538 행` · `599 행`
