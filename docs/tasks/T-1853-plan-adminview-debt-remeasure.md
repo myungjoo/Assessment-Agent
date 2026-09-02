@@ -2,7 +2,7 @@
 id: T-1853
 title: PLAN 183 행 AdminView 부채 bullet 실측 갱신 + 다음 추출 대상 교체
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: []
 independentStream: adminview-god-component-refactor
@@ -12,6 +12,7 @@ touchesFiles:
 estimatedDiff: 30
 estimatedFiles: 1
 created: 2026-09-02
+completedAt: 2026-09-02T14:52:00Z
 ownerDirective: "2026-08-31 오너 지시 (4) — AdminView.tsx god component 부채 추적"
 plannerNote: "P6 / PLAN 183 행 부채 bullet 의 T-1852 Follow-up — 실측 LOC · 진척 · 다음 추출 대상 좌표를 head 기준으로 되맞춘다 (direct, doc-only)"
 ---
@@ -62,3 +63,12 @@ plannerNote: "P6 / PLAN 183 행 부채 bullet 의 T-1852 Follow-up — 실측 LO
 ## Follow-ups
 
 - 다음 실분할 (`pr`) — 그룹/파트 mutation 러너 군 (deps interface 6 + async 러너 6 + 파트 삭제 helper 2) 을 신설 `web/src/views/adminGroupPartRunners.ts` 로 순수 추출. [T-1830](T-1830-adminview-collection-target-runners-extract.md) · [T-1852](T-1852-adminview-service-identity-runners-extract.md) 선례 그대로 본문 무변경 이동 + AdminView 재수출로 기존 spec 무수정 통과, `sizeExempt: pure-extraction` (파일 수 cap ≤ 5 는 준수).
+
+## 결과 (2026-09-02, direct commit `00246360`)
+
+`DONE`. [PLAN.md](../PLAN.md) `183 행` bullet 한 줄을 head 실측으로 inline-amend 했다 (`docs/PLAN.md` 1 파일 `+1/-1`).
+
+- **실측 갱신** — `6,087 줄 · 선언 149 개` → `6,053 줄 · 선언 167 개` (최초 기록 대비 `-34 줄`). 다음 갱신이 비교 가능하도록 **측정 방법**(`wc -l` / `grep -cE '^(export )?(async )?(function|const|let|type|interface|class|enum) '`)을 bullet 에 박제했고, 최초 값 149 는 측정 방법 미기록이라 **선언 수 증감은 지표(indicative)일 뿐**임을 한정 명시했다.
+- **진척 박제** — 순수 추출 3 슬라이스 (`adminServiceIdentityRowActions.tsx` · [T-1830](T-1830-adminview-collection-target-runners-extract.md) `adminCollectionTargetRunners.ts` · [T-1852](T-1852-adminview-service-identity-runners-extract.md) `adminServiceIdentityRunners.ts`) 를 한 구절로 적고, 그럼에도 순 감소가 34 줄에 그쳤다는 사실과 그 해석 (**append 속도 > extract 속도**, 목표선 ≤ 2,000 줄 도달에 슬라이스당 -200 줄 페이스로도 20 회 이상 잔여) 을 함께 남겼다.
+- **다음 대상 교체** — 낡은 문구 "ServiceIdentity 행별 액션 helper 군 (`2300~2560 행` 5 함수)" 를 **그룹/파트 mutation 러너 군** 으로 교체했다. 좌표는 head 재측정으로 `1893~2032 행` (create 축) · `2426~2579 행` (delete 축) · `2723~2900 행` (update 축) 비연속 3 블록, **합계 472 줄**. pre-check 개산 약 530 줄은 인접한 사용자 생성 · 인원 패치 helper 를 포함한 값이라 대상 선언 경계로 좁혔고, T-1852 `Follow-ups` 의 `2093~2238 행` 은 추출 후 head 에서 사용자 생성 · 인스턴스 접근 블록을 가리켜 **미채택**임을 bullet 에 명시했다.
+- 체크박스는 `- [ ]` 유지 (목표선 미도달). `web/` · `src/` · `.claude/` 무변경이라 CI 위험 표면 0 이며, main run `00246360` 은 conclusion `success` 로 확인했다.
