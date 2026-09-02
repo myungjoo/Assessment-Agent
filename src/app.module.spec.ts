@@ -231,4 +231,24 @@ describe("AppModule (T-1846 RunStatusModule wiring)", () => {
     });
     expect(typeof snapshot.observedAt).toBe("string");
   });
+
+  // negative (d) — round 2 nit closure (reviewer round 1 Nit). controller 와 소비처
+  // module 이 **같은 RunStatusService 인스턴스** 를 공유함을 동작으로 박제한다.
+  // 후일 소비처 module 의 providers 에 RunStatusService 를 직접 넣어 인스턴스가 갈라지면
+  // 소비처가 켠 카운터를 controller 가 못 읽어 배너가 조용히 안 켜지는 false-negative
+  // (ADR-0060 §Consequences (a)) 가 생기는데, 그 회귀를 본 test 가 red 로 잡는다.
+  it("root 그래프의 RunStatusService 증감이 주입된 controller 응답에 그대로 보인다 (인스턴스 공유)", () => {
+    const controller = moduleRef.get(RunStatusController);
+    const service = moduleRef.get(RunStatusService);
+
+    service.begin("evaluation");
+    const running = controller.status();
+    expect(running.active).toBe(true);
+    expect(running.evaluation.runningCount).toBe(1);
+
+    service.end("evaluation");
+    const idle = controller.status();
+    expect(idle.active).toBe(false);
+    expect(idle.evaluation.runningCount).toBe(0);
+  });
 });
