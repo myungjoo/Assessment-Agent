@@ -26,6 +26,7 @@ import { ROLES_METADATA_KEY } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 import { formatKstIso } from "../common/period-boundary";
 import type { LlmProviderConfigResolver } from "../llm/llm-provider-config-resolver.service";
+import type { RunStatusService } from "../run-status/run-status.service";
 import type { PersonWithIdentities } from "../user/person.repository";
 import type { PersonService } from "../user/person.service";
 import type { UserService } from "../user/user.service";
@@ -139,6 +140,16 @@ function makeController(
       throw new Error("evaluate() 는 userService 를 호출하면 안 된다");
     }),
   } as unknown as UserService;
+  // runStatus — evaluate() 는 아직 실행 상태 카운터에 배선되지 않았다(T-1842 는 period
+  // 축만 집행 — (a2-2) 몫). 실수로 호출하면 즉시 실패하도록 throw mock 으로 격리한다.
+  const runStatus = {
+    begin: jest.fn(() => {
+      throw new Error("evaluate() 는 runStatus.begin 을 호출하면 안 된다");
+    }),
+    end: jest.fn(() => {
+      throw new Error("evaluate() 는 runStatus.end 를 호출하면 안 된다");
+    }),
+  } as unknown as RunStatusService;
   return {
     controller: new AssessmentEvaluationController(
       orchestrator,
@@ -150,6 +161,7 @@ function makeController(
       unevaluatedFillRunOrchestrator,
       llmProviderConfigResolver,
       userService,
+      runStatus,
     ),
     evaluateSpy,
     persistSpy,
@@ -175,6 +187,10 @@ function makePeriodController(opts: {
   adminSpy: jest.Mock;
   findPersonSpy: jest.Mock;
   findUserSpy: jest.Mock;
+  // beginSpy / endSpy — RunStatusService 의 실행 상태 전이 관측 mock(T-1842). 호출
+  // 횟수 · 인자(axis) · 호출 순서를 각 test 가 단언한다.
+  beginSpy: jest.Mock;
+  endSpy: jest.Mock;
 } {
   const generateSpy = jest.fn(
     opts.generateImpl ?? (async () => [] as EvaluationResult[]),
@@ -240,6 +256,14 @@ function makePeriodController(opts: {
   const userService = {
     findById: findUserSpy,
   } as unknown as UserService;
+  // runStatus — period() 의 실행 상태 카운터(T-1842, ADR-0060 §Decision 4). 실 카운터
+  // 대신 관측 mock 을 주입해 부작용 0 으로 begin/end 전이 계약만 검증한다.
+  const beginSpy = jest.fn();
+  const endSpy = jest.fn();
+  const runStatus = {
+    begin: beginSpy,
+    end: endSpy,
+  } as unknown as RunStatusService;
   return {
     controller: new AssessmentEvaluationController(
       orchestrator,
@@ -251,11 +275,14 @@ function makePeriodController(opts: {
       unevaluatedFillRunOrchestrator,
       llmProviderConfigResolver,
       userService,
+      runStatus,
     ),
     generateSpy,
     adminSpy,
     findPersonSpy,
     findUserSpy,
+    beginSpy,
+    endSpy,
   };
 }
 
@@ -279,6 +306,11 @@ function makeFillController(
   controller: AssessmentEvaluationController;
   plannerSpy: jest.Mock;
   findUserSpy: jest.Mock;
+  // beginSpy / endSpy — dry-run 경로가 실행 카운터를 **건드리지 않음**을 명시적으로
+  // 단언하기 위해 노출한다(ADR-0060 §Decision 4 "켜지 않는 진입점"). 구현은 throw mock
+  // 이라 호출되는 순간 test 가 곧바로 red 가 된다.
+  beginSpy: jest.Mock;
+  endSpy: jest.Mock;
 } {
   const plannerSpy = jest.fn(plannerImpl);
   const unevaluatedFillPlanner = {
@@ -342,6 +374,22 @@ function makeFillController(
   const userService = {
     findById: findUserSpy,
   } as unknown as UserService;
+  // runStatus — dry-run(unevaluated-fill-plan)은 ADR-0060 §Decision 4 가 명시적으로
+  // 제외한 진입점이라 begin/end 를 호출하면 안 된다. throw mock 으로 격리한다.
+  const beginSpy = jest.fn(() => {
+    throw new Error(
+      "planUnevaluatedFill() 는 runStatus.begin 을 호출하면 안 된다",
+    );
+  });
+  const endSpy = jest.fn(() => {
+    throw new Error(
+      "planUnevaluatedFill() 는 runStatus.end 를 호출하면 안 된다",
+    );
+  });
+  const runStatus = {
+    begin: beginSpy,
+    end: endSpy,
+  } as unknown as RunStatusService;
   return {
     controller: new AssessmentEvaluationController(
       orchestrator,
@@ -353,9 +401,12 @@ function makeFillController(
       unevaluatedFillRunOrchestrator,
       llmProviderConfigResolver,
       userService,
+      runStatus,
     ),
     plannerSpy,
     findUserSpy,
+    beginSpy,
+    endSpy,
   };
 }
 
@@ -1891,6 +1942,231 @@ describe("AssessmentEvaluationController.period (unit — reevaluate dispatch, A
 // PeriodBridgeDto ValidationPipe negative cases — controller-scope pipe 와 동일
 // 옵션으로 단위 검증(e2e 부재라 metadata/구조로 wire 확인 + DTO decorator 검증).
 // -----------------------------------------------------------------------
+// T-1842 — POST /period 의 RunStatus 배선 spec (ADR-0060 §Decision 4 (a2-1)).
+// 검증 축은 "begin("evaluation") 1 회 ↔ end("evaluation") 1 회가 **어떤 종료 경로에서도**
+// 정확히 짝지어지는가" 하나다. 위임 결과 자체의 계약은 위 describe 들이 이미 덮으므로
+// 여기서는 회귀 방지 목적의 최소 중복(반환 보존)만 함께 단언한다.
+describe("AssessmentEvaluationController.period (unit — RunStatus 실행 상태 전이, ADR-0060 §Decision 4)", () => {
+  // happy (User): self-only ephemeral 정상 반환 경로에서 begin/end 가 각 1 회.
+  it("User ephemeral 정상 경로에서 begin/end 가 각각 evaluation 축으로 1 회 호출되고 위임 결과가 보존된다 (happy — User 분기)", async () => {
+    const expected = [makeEvaluationResult("github:com:abc123")];
+    const { controller, generateSpy, beginSpy, endSpy } = makePeriodController({
+      generateImpl: async () => expected,
+    });
+
+    const result = await controller.period(
+      makePeriodDto(),
+      userActor("person-1"),
+    );
+
+    expect(beginSpy).toHaveBeenCalledTimes(1);
+    expect(beginSpy).toHaveBeenCalledWith("evaluation");
+    expect(endSpy).toHaveBeenCalledTimes(1);
+    expect(endSpy).toHaveBeenCalledWith("evaluation");
+    // 카운터 배선이 위임 결과를 가공하지 않는다(reference 그대로 — 회귀 0).
+    expect(generateSpy).toHaveBeenCalledTimes(1);
+    expect(result).toBe(expected);
+  });
+
+  // happy (Admin): full-persist 정상 반환 경로에서 begin/end 가 각 1 회.
+  it("Admin full-persist 정상 경로에서 begin/end 가 각각 evaluation 축으로 1 회 호출되고 응답 shape 이 보존된다 (happy — Admin 분기)", async () => {
+    const { controller, adminSpy, beginSpy, endSpy } = makePeriodController({
+      adminImpl: async () =>
+        makeAdminPersistResult({ id: "assessment-admin-1" }),
+    });
+
+    const result = await controller.period(
+      makePeriodDto({ personId: "target-person" }),
+      adminActor,
+    );
+
+    expect(beginSpy).toHaveBeenCalledTimes(1);
+    expect(beginSpy).toHaveBeenCalledWith("evaluation");
+    expect(endSpy).toHaveBeenCalledTimes(1);
+    expect(endSpy).toHaveBeenCalledWith("evaluation");
+    expect(adminSpy).toHaveBeenCalledTimes(1);
+    // 카운터 배선이 Admin 응답 매핑을 건드리지 않는다.
+    expect(result).toEqual(
+      expect.objectContaining({ assessmentId: "assessment-admin-1" }),
+    );
+  });
+
+  // 분기 cover — isAdminRole 두 분기가 서로 다른 위임을 타면서도 카운터 전이는 동일.
+  it("isAdminRole 두 분기(Admin persist / 비-Admin ephemeral) 각각에서 begin·end 가 1 회씩 균형을 이룬다 (branch)", async () => {
+    const admin = makePeriodController({});
+    await admin.controller.period(
+      makePeriodDto({ personId: "target-person" }),
+      adminActor,
+    );
+    // Admin 분기 — adminBridge 만 타고 ephemeral 은 미호출.
+    expect(admin.adminSpy).toHaveBeenCalledTimes(1);
+    expect(admin.generateSpy).not.toHaveBeenCalled();
+    expect(admin.beginSpy).toHaveBeenCalledTimes(1);
+    expect(admin.endSpy).toHaveBeenCalledTimes(1);
+
+    const user = makePeriodController({});
+    await user.controller.period(makePeriodDto(), userActor("person-1"));
+    // 비-Admin 분기 — ephemeralBridge 만 타고 admin 은 미호출.
+    expect(user.generateSpy).toHaveBeenCalledTimes(1);
+    expect(user.adminSpy).not.toHaveBeenCalled();
+    expect(user.beginSpy).toHaveBeenCalledTimes(1);
+    expect(user.endSpy).toHaveBeenCalledTimes(1);
+  });
+
+  // error path (1) — 위임 service(adminBridge) throw. 예외는 raw 전파되면서도 finally
+  // 가 end 를 1 회 보장한다(stuck 카운터 0).
+  it("Admin 위임 service 가 throw 해도 예외가 그대로 전파되면서 end 가 1 회 호출된다 (error path — 위임 실패)", async () => {
+    const boom = new Error("adminBridge 폭발");
+    const { controller, beginSpy, endSpy } = makePeriodController({
+      adminImpl: async () => {
+        throw boom;
+      },
+    });
+
+    await expect(
+      controller.period(
+        makePeriodDto({ personId: "target-person" }),
+        adminActor,
+      ),
+    ).rejects.toBe(boom);
+
+    expect(beginSpy).toHaveBeenCalledTimes(1);
+    expect(endSpy).toHaveBeenCalledTimes(1);
+    expect(endSpy).toHaveBeenCalledWith("evaluation");
+  });
+
+  // error path (2) — timezone 조회(userService.findById) 실패. ADR-0060 §Decision 4 의
+  // "service-layer raw 전파 예외" 경로가 위임 **이전** 단계에서 끊기는 형태.
+  it("timezone 조회(userService.findById) 가 throw 해도 예외 전파와 함께 end 가 1 회 호출된다 (error path — 의존성 실패)", async () => {
+    const boom = new NotFoundException("User row 없음");
+    const { controller, generateSpy, beginSpy, endSpy } = makePeriodController({
+      findUserImpl: async () => {
+        throw boom;
+      },
+    });
+
+    await expect(
+      controller.period(makePeriodDto(), userActor("person-1")),
+    ).rejects.toBe(boom);
+
+    // 위임 이전에 끊겼음에도 begin/end 는 균형.
+    expect(generateSpy).not.toHaveBeenCalled();
+    expect(beginSpy).toHaveBeenCalledTimes(1);
+    expect(endSpy).toHaveBeenCalledTimes(1);
+  });
+
+  // negative (1) — 재평가 fail-closed 403. role dispatch 직후 위임 이전에 조기 차단되는
+  // 경로에서도 카운터가 stuck 되지 않아야 한다.
+  it("비-Admin 의 reevaluate:true 가 403 으로 조기 차단돼도 begin·end 가 각 1 회로 균형을 이룬다 (negative — fail-closed 403)", async () => {
+    const { controller, generateSpy, beginSpy, endSpy } = makePeriodController(
+      {},
+    );
+
+    await expect(
+      controller.period(
+        makePeriodDto({ reevaluate: true }),
+        userActor("person-1"),
+      ),
+    ).rejects.toThrow(ForbiddenException);
+
+    expect(generateSpy).not.toHaveBeenCalled();
+    expect(beginSpy).toHaveBeenCalledTimes(1);
+    expect(endSpy).toHaveBeenCalledTimes(1);
+  });
+
+  // negative (2) — self-only 위반(principal sub != dto.personId) 차단 경로의 균형.
+  it("self-only 위반(타인 personId) 403 경로에서도 begin·end 가 각 1 회로 균형을 이룬다 (negative — 권한 부족)", async () => {
+    const { controller, generateSpy, beginSpy, endSpy } = makePeriodController(
+      {},
+    );
+
+    await expect(
+      controller.period(makePeriodDto(), userActor("attacker")),
+    ).rejects.toThrow(ForbiddenException);
+
+    expect(generateSpy).not.toHaveBeenCalled();
+    expect(beginSpy).toHaveBeenCalledTimes(1);
+    expect(endSpy).toHaveBeenCalledTimes(1);
+  });
+
+  // negative (3) — 축 격리. period() 는 어떤 경로에서도 collection 축을 건드리지 않는다.
+  it("정상·차단 어느 경로에서도 collection 축은 begin·end 되지 않는다 (negative — 축 격리)", async () => {
+    const ok = makePeriodController({});
+    await ok.controller.period(makePeriodDto(), userActor("person-1"));
+
+    const denied = makePeriodController({});
+    await expect(
+      denied.controller.period(makePeriodDto(), userActor("attacker")),
+    ).rejects.toThrow(ForbiddenException);
+
+    for (const spy of [
+      ok.beginSpy,
+      ok.endSpy,
+      denied.beginSpy,
+      denied.endSpy,
+    ]) {
+      // 모든 호출의 axis 인자가 evaluation 하나뿐 — collection 은 0 회.
+      expect(spy.mock.calls.every((call) => call[0] === "evaluation")).toBe(
+        true,
+      );
+      expect(spy).not.toHaveBeenCalledWith("collection");
+    }
+  });
+
+  // negative (4) — 순서 불변식. end 는 위임이 **끝난 뒤**에만 불린다. `return await`
+  // 없이 promise 를 그대로 반환하면 finally 가 위임 완료 전에 실행돼 이 test 가 red 가 된다.
+  it("end 는 위임 호출이 완료된 뒤에 호출된다 (negative — 순서 불변식, return await 회귀 가드)", async () => {
+    let endCallsSeenInsideDelegate = -1;
+    const holder: { endSpy?: jest.Mock } = {};
+    const built = makePeriodController({
+      generateImpl: async () => {
+        // 위임이 아직 진행 중인 시점 — end 는 아직 0 회여야 한다.
+        endCallsSeenInsideDelegate = holder.endSpy?.mock.calls.length ?? -1;
+        // 다음 microtask 로 한 번 양보해 "위임이 pending 인 구간" 을 실제로 만든다.
+        await Promise.resolve();
+        return [] as EvaluationResult[];
+      },
+    });
+    holder.endSpy = built.endSpy;
+
+    await built.controller.period(makePeriodDto(), userActor("person-1"));
+
+    expect(endCallsSeenInsideDelegate).toBe(0);
+    // 호출 순서: begin → 위임(generateEphemeral) → end.
+    expect(built.beginSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      built.generateSpy.mock.invocationCallOrder[0],
+    );
+    expect(built.generateSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      built.endSpy.mock.invocationCallOrder[0],
+    );
+  });
+
+  // negative (5) — dry-run 미배선 보존. unevaluated-fill-plan 은 ADR-0060 §Decision 4 가
+  // 명시적으로 제외한 진입점이라 카운터를 건드리면 안 된다(빌더가 throw mock 이라
+  // 호출되는 순간 아래 await 자체가 reject 된다 — 아래 단언은 그 사실의 명시적 박제).
+  it("dry-run(unevaluated-fill-plan) 경로는 begin·end 를 호출하지 않는다 (negative — 켜지 않는 진입점)", async () => {
+    const { controller, beginSpy, endSpy } = makeFillController(async () =>
+      makeEmptyFillPlan(),
+    );
+
+    await controller.planUnevaluatedFill(makeFillDto(), undefined);
+
+    expect(beginSpy).not.toHaveBeenCalled();
+    expect(endSpy).not.toHaveBeenCalled();
+  });
+
+  // negative (6) — 중복 호출 없음. 한 번의 period() 가 begin 을 2 회 이상 부르면 동시 N 건
+  // 카운터가 영구히 오염되므로(end 는 1 회뿐) 정확히 1 회임을 고정한다.
+  it("한 번의 period() 호출이 begin 을 2 회 이상 부르지 않는다 (negative — 카운터 오염 차단)", async () => {
+    const { controller, beginSpy, endSpy } = makePeriodController({});
+
+    await controller.period(makePeriodDto(), userActor("person-1"));
+
+    expect(beginSpy.mock.calls).toHaveLength(1);
+    expect(endSpy.mock.calls).toHaveLength(1);
+  });
+});
+
 describe("PeriodBridgeDto (ValidationPipe negative cases)", () => {
   function makePipe(): ValidationPipe {
     return new ValidationPipe({
@@ -2477,6 +2753,19 @@ function makeRunController(
       );
     }),
   } as unknown as UserService;
+  // runStatus — runUnevaluatedFill() 은 아직 미배선((a2-2) 몫)이라 throw mock 으로 격리.
+  const runStatus = {
+    begin: jest.fn(() => {
+      throw new Error(
+        "runUnevaluatedFill() 는 runStatus.begin 을 호출하면 안 된다",
+      );
+    }),
+    end: jest.fn(() => {
+      throw new Error(
+        "runUnevaluatedFill() 는 runStatus.end 를 호출하면 안 된다",
+      );
+    }),
+  } as unknown as RunStatusService;
   return {
     controller: new AssessmentEvaluationController(
       orchestrator,
@@ -2488,6 +2777,7 @@ function makeRunController(
       unevaluatedFillRunOrchestrator,
       llmProviderConfigResolver,
       userService,
+      runStatus,
     ),
     runSpy,
     resolveSpy,

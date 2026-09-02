@@ -59,6 +59,7 @@ import {
   parseKstPeriodInput,
 } from "../common/period-boundary";
 import { LlmProviderConfigResolver } from "../llm/llm-provider-config-resolver.service";
+import { RunStatusService } from "../run-status/run-status.service";
 import { PersonService } from "../user/person.service";
 import { UserService } from "../user/user.service";
 
@@ -193,6 +194,15 @@ export class AssessmentEvaluationController {
     // 추가 module/token 배선 0 — 생성자 주입만(PersonService 주입과 동형 패턴). test 는
     // jest mock { findById } 를 주입해 실 DB read 0 / 실 네트워크 0 으로 배선 정합만 검증.
     private readonly userService: UserService,
+    // RunStatusService — POST /period 의 실행 상태 카운터 source(T-1842, ADR-0060
+    // §Decision 4 (a2-1)). 평가 축이 "지금 실행 중인가" 를 프로세스 메모리에만 기록하는
+    // 관측 보조 provider 로, handler 진입 시 begin("evaluation") · 종료 시
+    // finally 에서 end("evaluation") 를 부른다. RunStatusModule 이 export 하고 본
+    // controller 의 module(assessment-evaluation.module.ts)이 그 module 을 import 하므로
+    // 추가 token 배선 0 — 생성자 주입만(UserService 주입과 동형 패턴). **기존 9 param 의
+    // 위치·순서는 불변**이고 본 param 이 마지막에 추가된다(spec 의 위치 인자 호출 최소 충격).
+    // test 는 jest mock { begin, end } 를 주입해 실 부작용 0 으로 전이 계약만 검증한다.
+    private readonly runStatus: RunStatusService,
   ) {}
 
   // POST /api/assessment-evaluation/evaluate — 평가 manual trigger + persist.
@@ -344,15 +354,30 @@ export class AssessmentEvaluationController {
     @Body() dto: PeriodBridgeDto,
     @CurrentUser() actor: JwtPayload | undefined,
   ): Promise<EvaluationResult[] | PeriodBridgeAdminResponse> {
-    // role dispatch — Admin tier 이상이면 full-persist 분기(임의 personId 허용),
-    // 그 외(User 등)는 self-only ephemeral 분기. dispatch source 는 principal role.
-    // 요청 User timezone 해석은 각 분기 안에서(self-only/재평가 fail-closed 검사 우선순위
-    // 보존을 위해) 수행한다 — User 분기는 self-only/재평가 차단이 timezone 조회보다 먼저
-    // 도달해야 하므로 여기서 미리 조회하지 않는다(회귀 0 / 불필요한 DB read 0).
-    if (isAdminRole(actor?.role)) {
-      return this.persistForAdmin(dto, actor?.sub);
+    // 평가 축 실행 상태 전이(T-1842, ADR-0060 §Decision 4) — handler **최상단**에서
+    // begin 하고 try/finally 로 감싸 어떤 종료 경로에서도 end 가 정확히 1 회 짝지어지게
+    // 한다. begin 을 try **밖**에 두는 이유는 begin 이 던지면 finally 에 진입조차 하지
+    // 않아 "짝 없는 end" 가 원천적으로 생길 수 없기 때문이고(현 구현의 begin 은 던지지
+    // 않지만 배치로 그 불변식을 고정한다), 감싸는 범위를 role dispatch
+    // **이전**으로 잡는 이유는 fail-closed 403(재평가/self-only) 처럼 위임 이전에 끊기는
+    // 조기 차단 경로에서도 카운터가 stuck 되지 않게 하기 위함이다.
+    //
+    // 두 분기 모두 `return await` 로 받는다 — await 없이 promise 를 그대로 반환하면
+    // finally 가 **위임 완료 전에** 실행돼 "실행 중" 구간이 사실상 0 이 된다.
+    this.runStatus.begin("evaluation");
+    try {
+      // role dispatch — Admin tier 이상이면 full-persist 분기(임의 personId 허용),
+      // 그 외(User 등)는 self-only ephemeral 분기. dispatch source 는 principal role.
+      // 요청 User timezone 해석은 각 분기 안에서(self-only/재평가 fail-closed 검사 우선순위
+      // 보존을 위해) 수행한다 — User 분기는 self-only/재평가 차단이 timezone 조회보다 먼저
+      // 도달해야 하므로 여기서 미리 조회하지 않는다(회귀 0 / 불필요한 DB read 0).
+      if (isAdminRole(actor?.role)) {
+        return await this.persistForAdmin(dto, actor?.sub);
+      }
+      return await this.ephemeralForUser(dto, actor?.sub);
+    } finally {
+      this.runStatus.end("evaluation");
     }
-    return this.ephemeralForUser(dto, actor?.sub);
   }
 
   // resolveRequestTimeZone — 요청 principal sub(userId)로 요청 User 의 timezone 을

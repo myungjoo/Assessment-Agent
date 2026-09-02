@@ -39,6 +39,7 @@ import { LLM_GATEWAY } from "../llm/llm-gateway.interface";
 import { LlmHttpGateway } from "../llm/llm-http-gateway.service";
 import { LlmStubGateway } from "../llm/llm-stub-gateway.service";
 import { LlmModule } from "../llm/llm.module";
+import { RunStatusModule } from "../run-status/run-status.module";
 import { UserModule } from "../user/user.module";
 
 import { AssessmentEvaluationController } from "./assessment-evaluation.controller";
@@ -70,7 +71,12 @@ import { UnevaluatedFillRunOrchestratorService } from "./unevaluated-fill-run-or
   // 가 UserModule export 라 DI resolve 된다(controller → user 단방향). UserModule 은
   // AuthModule(forwardRef)만 import 하므로 circular 부재(AssessmentCollectionModule 도
   // 이미 UserModule 을 import 중 — 동일 singleton 재사용).
-  imports: [LlmModule, AssessmentCollectionModule, UserModule],
+  // RunStatusModule import — T-1842(ADR-0060 §Decision 4 (a2-1) 평가 축 소비처 배선).
+  // RunStatusModule 이 export 하는 RunStatusService 를 AssessmentEvaluationController
+  // 가 생성자 주입받아 POST /period 진입·종료 시 실행 카운터를 켜고 끈다. 그 module 은
+  // provider 1 개(RunStatusService)만 담고 다른 module 을 import 하지 않으므로 circular
+  // 부재 + 추가 전이 의존 0 이다(evaluation → run-status 단방향).
+  imports: [LlmModule, AssessmentCollectionModule, UserModule, RunStatusModule],
   // T-0293: AssessmentEvaluationController 등록 — POST /api/assessment-evaluation/
   // evaluate 의 HTTP route 가 본 module import 로 NestJS 런타임에 살아난다.
   controllers: [AssessmentEvaluationController],
