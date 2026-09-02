@@ -2,7 +2,7 @@
 id: T-1845
 title: 수집 축 collect handler 에 RunStatus 배선
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-083]
 estimatedDiff: 310
@@ -16,6 +16,9 @@ touchesFiles:
   - src/assessment-collection/assessment-collection.controller.spec.ts
 sizeExempt: true
 exemptReason: "R-112 backbone (module + controller + colocated spec 동시 박제) × 1.5 — cap-bend pre-justified, T-1844 실측(+330/-58 = spec 251 · controller 78) 항목별 앵커링"
+completedAt: 2026-09-02T05:52:48Z
+prNumber: 1450
+mergeCommit: 4779737b
 plannerNote: "P6 PLAN 133 행 ④ R-78 polling — ADR-0060 §Follow-ups (c) 수집 축 배선. 평가 축 3 handler 완료 후 마지막 write-side 진입점."
 ---
 
