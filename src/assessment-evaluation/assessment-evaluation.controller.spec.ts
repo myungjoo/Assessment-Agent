@@ -3338,8 +3338,7 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → re
 });
 
 describe("AssessmentEvaluationController.runUnevaluatedFill (unit — RunStatus 실행 상태 전이, ADR-0060 §Decision 4)", () => {
-  // happy — 정상 반환 경로에서 begin/end 각 1 회 + 카운터 배선이 위임 인자·반환 shape 을
-  // 가공하지 않음(기존 delegation test 와 동일 기준값으로 회귀 0 고정).
+  // happy — begin/end 각 1 회 + 카운터 배선이 위임 인자·반환 shape 을 가공하지 않음.
   it("정상 경로에서 begin/end 가 각각 evaluation 축으로 1 회 호출되고 위임 인자·반환 shape 이 보존된다 (happy)", async () => {
     const expected = makeRunResult();
     const { controller, runSpy, resolveSpy, beginSpy, endSpy } =
@@ -3396,11 +3395,12 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — RunStatus 
       },
     );
 
-    // raw 전파 — 동일 인스턴스가 그대로 나온다(503 wrapping 0).
-    await expect(controller.runUnevaluatedFill(makeRunDto())).rejects.toBe(
-      boom,
-    );
-    expect(boom).not.toBeInstanceOf(ServiceUnavailableException);
+    // raw 전파 — 실제 rejection 값이 동일 인스턴스이고 503 으로 감싸이지 않았다.
+    const rejection: unknown = await controller
+      .runUnevaluatedFill(makeRunDto())
+      .catch((error: unknown) => error);
+    expect(rejection).toBe(boom);
+    expect(rejection).not.toBeInstanceOf(ServiceUnavailableException);
 
     expect(resolveSpy).toHaveBeenCalledTimes(1);
     expect(beginSpy).toHaveBeenCalledTimes(1);
