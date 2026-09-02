@@ -1104,6 +1104,15 @@ describe('AppShell 실행 상태 polling 배선 (T-1849)', () => {
     expect(source).toMatch(/setEvaluationInProgress\(false\);/);
   });
 
+  // reviewer N1 — effect 의존성은 view 하나여야 한다. 여기에 evaluationInProgress 가
+  // 섞이면 조회 결과가 뒤집힐 때마다 teardown → 재구독 → 즉시 재조회가 일어나 5 초 주기
+  // 계약이 조용히 깨지고 요청이 증폭된다.
+  it('소스에서 polling effect 의존성이 view 하나다 (negative — 재구독 증폭 회귀 감시)', () => {
+    const source = readSource();
+    expect(source).toMatch(/\}, \[view\]\);/);
+    expect(source).not.toMatch(/evaluationInProgress\]\);/);
+  });
+
   // negative ③ — 주기 숫자 리터럴이 setInterval 호출부에 직접 박히지 않았다.
   it('소스의 setInterval 이 숫자 리터럴을 쓰지 않는다 (negative — 근거 상수화)', () => {
     const source = readSource();
