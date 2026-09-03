@@ -2,8 +2,9 @@
 id: T-1858
 title: 전역 스타일(CSS) 방식 ADR 박제 + web 진입점 배선
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1459
 coversReq: [REQ-080]
 estimatedDiff: 400
 estimatedFiles: 5
@@ -84,6 +85,15 @@ plannerNote: "P6 PLAN 133 행 UI 기본기의 유일 잔여 ① 전역 CSS 착�
 ## Suggested Sub-agents
 
 `architect → implementer → tester`
+
+## 결과 (2026-09-03T00:53Z DONE)
+
+- [ADR-0061](../decisions/ADR-0061-frontend-global-stylesheet.md) 신설 (ACCEPTED, 78 줄) — 전역 스타일 방식을 **순수 CSS 단일 파일 · 새 dependency 0** 으로 확정하고 D1~D4 (단일 파일 · 진입점 side-effect import 1 곳 · `:root` 토큰 전용 · 계약 guard CI 게이트) 를 박제했다. 새 dep 이 없어 [CLAUDE.md](../../CLAUDE.md) `§5` 새-dep 게이트 미해당.
+- `web/src/styles/global.css` (123 줄) — 토큰 15 종 + reset + element 기본 + 기존 마크업이 이미 쓰던 anchor 8 종. 외부 `@import` 0. `web/src/main.tsx` 에는 side-effect import 1 줄만 추가해 마크업 · className 은 무변경 (화면 변화는 스타일 적용으로만 발생).
+- `web/src/styles/globalCssContract.ts` 순수 함수 2 개 (`findMissingTokens` · `hasGlobalStylesheetImport`, DOM · fs 미접근) + colocated `globalCssContract.test.ts` 가 토큰 선언과 진입점 import 를 CI 게이트로 고정 — R-112 4 종 (happy · error · 분기 · negative (a)~(d) 유사 접두 토큰 오인 포함) cover.
+- 검증: web vitest 122 파일 3,646 test · 루트 466 suite 13,495 test · `pnpm --filter web build` 산출물 CSS 2.03 kB 확인. 새 외부 dependency 0 (`package.json` · lockfile 무변경).
+- diff 381 LOC / 5 파일 — frontmatter `sizeExempt: true` (`adr-plus-consumer-wiring`, `estimatedDiff: 400`) 로 planner 가 사전 정당화한 cap-bend (ADR 78 줄 + spec 109 줄 제외 시 제품 코드 191 줄).
+- reviewer VERDICT=APPROVE (round 1), CI green → [PR #1459](https://github.com/myungjoo/Assessment-Agent/pull/1459) squash 머지 [`5ae7e13d`](https://github.com/myungjoo/Assessment-Agent/commit/5ae7e13d).
 
 ## Follow-ups
 
