@@ -2,7 +2,7 @@
 id: T-1876
 title: AdminView 의 멤버십 파생 helper 축(helper 5 + row 타입 3 + 상수 1)을 adminMembershipDerivations 로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-028, REQ-045]
 independentStream: adminview-god-component-refactor
@@ -79,3 +79,12 @@ created: 2026-09-03
 
 - (planner 사전 박제) 다음 순수-추출 후보: **난이도 매핑 assign 축** — `AssignDeps` · `runAssign` (`943 행` ~ `1001 행` 연속 59 줄) 을 기존 [adminLlmProviderMutationRunners.ts](../../web/src/views/adminLlmProviderMutationRunners.ts) 로 이동. 잔류 `buildMappingsPath` (`796 행`) 가 `LLM_MAPPINGS_PATH` (`395 행`) 를 쓰므로 T-1873 의 `USERS_PATH` 선례대로 **상수를 동반 이동하고 AdminView 가 import 로 되돌려 쓰는** 방향만 성립한다.
 - (planner 사전 박제) [docs/PLAN.md](../PLAN.md) `183 행` bullet 갱신 (`direct`) — 본 task 머지 후 실측 LOC 을 갱신하고 진척 목록에 열셋째 슬라이스를 추가한다. 다음 슬라이스와 묶어 doc churn 을 줄일 수 있으면 묶는다.
+
+## 완료 기록
+
+- **Status: DONE** — 2026-09-03T20:01:50Z (`pr`, [PR #1467](https://github.com/myungjoo/Assessment-Agent/pull/1467) → main [`34fdf2ce`](https://github.com/myungjoo/Assessment-Agent/commit/34fdf2ce), round 1 머지).
+- helper 5 · row 타입 3 · 상수 1 을 [adminMembershipDerivations.ts](../../web/src/views/adminMembershipDerivations.ts) 로 이동(`+559/-167`). 본문 · 주석 byte-identical(diff 0 hunk), 소비처 `useMemo` 4 + 조회 2 배선을 같은 PR 에 동반, 참조 0 이 된 `Member` 타입 import 만 컨테이너에서 제거(TS6133). 역방향 import 0 · 배럴 재수출로 기존 계약 spec · drift-guard 3 종 무수정 통과.
+- **AdminView.tsx `4,072 → 3,921 줄`(-151)** — 기대치 `-150` 과 일치.
+- 검증: web vitest 127 파일 `3,784` test green(신규 30 — R-112 happy · error · 분기 · negative 4 종 + 배럴 동일 참조 5), backend jest 466 suite `13,495` test green(line 99.94% · function 100%), `pnpm lint && pnpm build` 양쪽 통과. PR head run(33798718775) success.
+
+- (실행 중 발견) `src/run-status/run-status.service.spec.ts:134` 가 full-suite 병렬 1 회차에서 flaky fail (단독 재실행 · CI 모두 green). 본 task 는 backend 0 LOC 변경이라 무관한 기존 flake — 별도 follow-up task 후보.
