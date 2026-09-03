@@ -2,7 +2,7 @@
 id: T-1872
 title: AdminView 의 사용자 생성 mutation 러너 군을 adminUserMutationRunners 로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-039]
 independentStream: adminview-god-component-refactor
@@ -18,6 +18,8 @@ sizeExempt: true
 exemptReason: "pure-extraction — (a) 동작 변경 0 (연속 블록 이동 + 선언 앞 export 키워드 부착 + 단방향 import 배선만) · (b) 신규 로직 0 LOC (상수 4 · 순수 helper 3 · deps 타입 1 · async 러너 1 의 본문 무변경) · (c) 런타임 spec 은 AdminView 배럴 재수출 덕에 `from './AdminView'` 무수정 통과하고, 소스-텍스트 drift-guard 1 개는 리터럴 읽기 대상 pointer 만 바뀌며 단언 내용은 불변. 삭제 약 130 + 추가 약 170 이 전부 이동량이고 나머지는 신규 모듈 경계 spec 이라 LOC 이 위험도에 비례하지 않는다. 파일 수 4 로 파일 cap (≤ 5) 은 예외 없이 준수."
 plannerNote: "P6 / PLAN 183 행 AdminView 부채 열째 실분할 — 재지목된 사용자 관리 축 17 심볼 중 생성 축 7 심볼 + 동반 상수 2 를 첫 slice 로"
 created: 2026-09-03
+completedAt: 2026-09-03T15:56:58Z
+prNumber: 1464
 ---
 
 # T-1872 — AdminView 의 사용자 생성 mutation 러너 군을 adminUserMutationRunners 로 순수 추출
@@ -79,3 +81,12 @@ created: 2026-09-03
 ## Follow-ups
 
 - `USERS_PATH` 선행 주석의 stale 서술 정정 (생성 · 역할 변경 slice 가 이미 존재하므로) — 다음 사용자 축 slice 에 묶어 처리.
+
+## 결과 (2026-09-03)
+
+- `pr` 경로로 [PR #1464](https://github.com/myungjoo/Assessment-Agent/pull/1464) 를 열어 round 1 에 4-게이트 (reviewer APPROVE · PR comment 외부 존재 · integrator 자체 점검 · CI green) 를 모두 통과하고 squash merge 했다 — main [`daae33bd`](https://github.com/myungjoo/Assessment-Agent/commit/daae33bd), 실 diff `+461/-121` 4 파일.
+- 생성 축 9 선언 (상수 2 + 순수 helper 3 + deps 타입 1 + async 러너 · 보조 3) 을 **본문 무변경** 으로 [adminUserMutationRunners.ts](../../web/src/views/adminUserMutationRunners.ts) 로 옮기고 (선언 앞 `export` 부착만), 소비처 5 곳 (`handleCreateUser` · 줄 배열 렌더 분기 · `buildUsersPath` · `buildInstanceAccessPath` · `runChangeRole`) 을 단방향 import 로 배선했다. 정의가 함께 이동해 미사용이 된 `signupError` import 는 AdminView 에서 제거.
+- 새 모듈 → AdminView 역방향 import 0 (grep 실측), 배럴이 값 5 + `CreateUserDeps` 타입을 re-export 해 공개 표면 무변경 — 기존 런타임 spec 은 무수정 통과했다.
+- 신규 경계 spec [adminUserMutationRunners.test.ts](../../web/src/views/adminUserMutationRunners.test.ts) 가 R-112 4 종 (happy 2 · error 1 · 분기 3 · negative 6) 과 재수출 동일 참조 단언을 cover. `create-user-failure` drift-guard 는 리터럴 읽기 pointer 만 갱신하고 단언 내용은 불변.
+- 검증 실측: web vitest 125 파일 / 3,713 test green, backend jest 466 suite / 13,495 test + `coverageThreshold` (line · function ≥ 80%) green, `pnpm --filter web lint/build` 통과.
+- AdminView.tsx `4,497 → 4,392 줄` (`-105`) — [PLAN.md](../PLAN.md) `183 행` 부채의 **열째 순수-추출 슬라이스**. 사용자 관리 축 잔여는 권한 · 역할 축 10 심볼 (`1234~1426 행` 기준) 이며 다음 slice 후보다.
