@@ -19,9 +19,6 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { useApiResource, toErrorMessage } from '../api/useApiResource';
 import { request, ApiError } from '../api/apiClient';
 import type { RequestOptions } from '../api/apiClient';
-// 사용자 추가(POST /api/users) 400 실패를 축별 구체 사유로 분류하는 순수 helper(T-1712).
-// AppShell 셋업 화면(T-1714)과 같은 분류기를 공유해 두 계정 생성 화면의 어휘가 갈리지 않는다.
-import { classifySignupFailure, formatSignupFailure } from '../api/signupError';
 // P6 export 계약 정합 배선(T-1246) — handleExport 를 구 GET 모델 runExport 에서 job-flow(POST
 // create → poll → download)로 교체하는 격리 모듈들(T-1242/T-1243/T-1245). 구 runExport 는
 // dead-but-exported 로 남긴다(제거는 후속 slice T-1247).
@@ -66,6 +63,20 @@ import {
   runTrigger,
 } from './adminScheduleRunners';
 import type { ReEvaluationDeps, ScheduleMutationDeps } from './adminScheduleRunners';
+// 사용자 생성 축 러너 군(T-1872 순수 추출) — POST /api/users 러너와 실패 문구 파생 helper 3 종 ·
+// 줄 element className · 사용자 endpoint base path 를 담는 모듈. 본문은 한 줄도 바뀌지 않았고
+// AdminView 는 값만 import 한다(단방향). USERS_PATH 는 잔류 소비처(buildUsersPath ·
+// buildInstanceAccessPath · runChangeRole)도 함께 쓴다. 파일 끝 export 배럴이 이동 전 표면을
+// 그대로 re-export 하므로 기존 spec 의 `from './AdminView'` 도 무수정으로 산다.
+import {
+  CREATE_USER_ERROR_LINE_CLASS,
+  USERS_PATH,
+  describeCreateUserFailure,
+  describeCreateUserFailureLines,
+  hasCreateUserErrorLines,
+  runCreateUser,
+} from './adminUserMutationRunners';
+import type { CreateUserDeps } from './adminUserMutationRunners';
 import GroupMemberList from '../components/GroupMemberList';
 import type { Member } from '../components/GroupMemberList';
 import DifficultyModelSelector from '../components/DifficultyModelSelector';
@@ -268,13 +279,6 @@ const GROUP_HEADING = '그룹 관리';
 // §12 한국어. aria-label 겸 <h2> 로 재사용해 보조기술이 섹션 경계를 인식하게 한다.
 const PART_HEADING = '파트 관리';
 
-// 사용자 조회 path(T-1159) — 고정 endpoint(GET /api/users, user.controller @Get() 이 Admin+ RBAC
-// 로 UserResponseDto[] 를 envelope 없이 직반환). AdminView 는 사용자를 전혀 조회하지 않아 재사용할
-// fetch 가 없으므로 신규 상수로 둔다. 생성·역할 변경 slice 가 아직 없어 refresh nonce 빌더 없이
-// 단순 상수 path 로 조회한다(PARTS_PATH 동형 — nonce-aware buildUsersPath 전환은 후속 mutation
-// slice 책임). personId 같은 필수 query 없음.
-const USERS_PATH = '/api/users';
-
 // 사용자 관리 섹션 heading 문구(T-1159) — 사용자 목록을 담는 별도 섹션의 제목(PART_HEADING 동형).
 // §12 한국어. <h2> 로 렌더하며, 섹션 aria-label 은 다른 섹션과 구분되도록 "… 섹션" 접미를 붙인다.
 const USER_HEADING = '사용자 관리';
@@ -330,9 +334,6 @@ function buildScopePatch(
 // SuperAdminSetupForm 의 superadmin-setup-* id 와 값이 겹치지 않게 admin-create-user-* 접두).
 const CREATE_USER_EMAIL_HINT_ID = 'admin-create-user-email-hint';
 const CREATE_USER_PASSWORD_HINT_ID = 'admin-create-user-password-hint';
-
-// 사용자 생성 409(중복 이메일) 전용 문구(T-1160 — PART_DUPLICATE_ERROR mirror. User.email @unique).
-const USER_DUPLICATE_ERROR = '이미 존재하는 이메일입니다';
 
 // 역할 변경 403(권한 부족) 전용 문구(T-1162 — USER_DUPLICATE_ERROR 동형). PATCH /api/users/:id/role
 // 은 @Roles("SuperAdmin") 이라 비-SuperAdmin actor 는 403 이 확정이다. UI 는 SuperAdmin 에게만
@@ -1122,112 +1123,6 @@ async function runAdd(personId: string, deps: AddDeps): Promise<void> {
     deps.setAddError(deps.describeError(e));
   } finally {
     deps.setAdding(false);
-  }
-}
-
-// 사용자 추가 실패 사유 줄들을 하나의 error 문자열로 이을 때 쓰는 구분자 (T-1715).
-// 값은 AppShell 의 SETUP_ERROR_SEPARATOR 선례와 같다. T-1835 이후 실 표시 경로는 줄 배열
-// (createUserErrorLines)을 쓰므로 이 구분자는 화면에 나타나지 않는다 — 단일 문자열 표현이
-// 필요한 호출자(describeCreateUserFailure)를 위해서만 남는다. 각 줄의 사유 문장 자체는
-// 원문 그대로 보존하며 요약·병합하지 않는다 (REQ-068 포괄 문구 금지).
-const CREATE_USER_ERROR_SEPARATOR = ' / ';
-
-// role="alert" 영역에 붙는 줄 element 의 안정 식별 className (T-1835) — SuperAdminSetupForm 의
-// SETUP_ERROR_LINE_CLASS 선례와 같은 취지로, 배선 drift guard 가 이 토큰으로 줄 element 를 짚는다.
-const CREATE_USER_ERROR_LINE_CLASS = 'admin-create-user-error-line';
-
-// 줄 단위 목록이 실제로 렌더할 값을 가졌는지 판정한다 (T-1835 — hasErrorLines mirror).
-// 타입을 우회한 비정상 입력(문자열·null 등)도 Array.isArray 로 걸러 throw 0 을 보장한다
-// (빈 배열 = 렌더 안 함).
-function hasCreateUserErrorLines(lines: string[] | undefined): boolean {
-  return Array.isArray(lines) && lines.length > 0;
-}
-
-// 사용자 추가 실패 표면을 화면 문구 **줄 배열** 로 바꾸는 순수 함수 (T-1835 — REQ-084).
-// 본 함수가 사유 산출의 정본이며, 아래 describeCreateUserFailure 는 이 결과를 잇기만 한다
-// (중복 구현 0 — AppShell 의 buildSetupErrorLines / buildSetupErrorMessage 쌍과 같은 형태).
-// 400(AddUserDto 검증 실패)만 축별 구체 사유 줄들로 교체하고, 그 외 모든 입력은 종전
-// toErrorMessage 결과 1 줄을 돌려준다. 409(중복)는 러너의 isConflict 분기가 USER_DUPLICATE_ERROR
-// 로 먼저 처리하므로 본 함수에 도달하지 않는다 — 도달하더라도 형식/길이 어휘를 섞지 않는다
-// (분류기가 409 를 중복 축으로만 매핑한다, REQ-069 구분 축).
-// ApiError.message 가 비-2xx 응답 body 원문이라는 apiClient 계약 위에서 성립한다.
-// 어떤 입력에도 throw 하지 않으며(분류기·formatter 모두 순수·무-throw) 항상 1 줄 이상을 준다.
-function describeCreateUserFailureLines(e: unknown): string[] {
-  if (e instanceof ApiError && e.status === 400) {
-    // 분류기가 400 에 대해 최소 1 줄을 보장하므로 결과가 빈 배열이 되지 않는다.
-    return formatSignupFailure(classifySignupFailure(e.status, e.message));
-  }
-  return [toErrorMessage(e)];
-}
-
-// 위 줄 배열을 단일 error 문자열로 잇는다 (T-1715 계약 유지 — 파생 표현).
-// 단일 문자열 표현을 쓰는 소비처(줄 배열 미주입 러너 경로)가 아직 살아 있으므로 named export
-// 계약을 유지한다 — 두 축이 모두 줄 단위로 전환된 뒤 제거 가능 여부를 재평가한다(T-1835 Follow-up).
-// (named export 는 파일 말미의 export 블록에서 한다 — 본 파일의 기존 helper 들과 같은 방식.)
-function describeCreateUserFailure(e: unknown): string {
-  return describeCreateUserFailureLines(e).join(CREATE_USER_ERROR_SEPARATOR);
-}
-
-// 사용자 생성 POST + state-전이 deps(T-1160 — 위 CreatePartDeps 1:1 mirror, 필드 의미는 그쪽 주석).
-interface CreateUserDeps {
-  create: (path: string, options: RequestOptions) => Promise<unknown>;
-  describeError: (e: unknown) => string;
-  isConflict: (e: unknown) => boolean;
-  creating: boolean;
-  setCreating: (next: boolean) => void;
-  setCreateError: (next: string | undefined) => void;
-  // 실패 사유 줄 배열 축(T-1835, REQ-084) — optional 이라 기존 deps literal 은 그대로 유효하다.
-  // 둘 다 주입되면 러너가 문자열 error 와 **함께** 줄 배열도 표면화한다(문자열 축은 유지).
-  // describeErrorLines 가 없으면 [describeError(e)] 1 줄로 되돌아가 join 표현과 어긋나지 않는다.
-  describeErrorLines?: (e: unknown) => string[];
-  setCreateErrorLines?: (next: string[] | undefined) => void;
-  bumpRefresh: () => void;
-  resetInput: () => void;
-}
-
-// 사용자 생성 POST /api/users(body `{ email, password }`) + state-전이를 캡슐화한 순수 async 러너
-// (T-1160 — 위 runCreatePart mirror). backend(user.controller @Post(), guard 없는 Public tier, 201
-// Created, AddUserDto 검증 실패 → 400, email 중복 → 409)를 발사한다. 동작: 빈 입력·in-flight 면
-// 미발사 / 발사 시 진행 on + 직전 error 비움 / 성공 시 재조회 bump + 입력 초기화 / 실패는 throw
-// 없이 error state(409 전용 문구, 그 외 describeError 파생, 입력·nonce 유지) / off 는 finally 공통.
-async function runCreateUser(
-  email: string,
-  password: string,
-  deps: CreateUserDeps,
-): Promise<void> {
-  // 발사 억제 가드(no-op — 상태 전이 0). password 는 공백도 유효 문자라 빈 문자열만 차단한다.
-  const trimmedEmail = email?.trim();
-  if (!trimmedEmail || !password || deps.creating) {
-    return;
-  }
-  deps.setCreating(true);
-  deps.setCreateError(undefined);
-  // 직전 시도의 줄 배열도 함께 비운다 — 안 비우면 성공/새 실패 뒤에도 옛 사유 줄이 남는다.
-  deps.setCreateErrorLines?.(undefined);
-  try {
-    await deps.create(USERS_PATH, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: trimmedEmail, password }),
-    });
-    deps.bumpRefresh();
-    deps.resetInput();
-  } catch (e) {
-    if (deps.isConflict(e)) {
-      deps.setCreateError(USER_DUPLICATE_ERROR);
-      // 중복은 축이 하나뿐이라 줄 배열도 같은 문구 1 줄이다(문자열 축과 내용 동일).
-      deps.setCreateErrorLines?.([USER_DUPLICATE_ERROR]);
-    } else {
-      // describeError 는 한 번만 호출한다 — 줄 배열 fallback 에서 다시 부르면 같은 입력에
-      // 대해 호출 횟수가 2 배가 되어 호출 수를 세는 기존 spec 과 어긋난다.
-      const message = deps.describeError(e);
-      deps.setCreateError(message);
-      deps.setCreateErrorLines?.(
-        deps.describeErrorLines ? deps.describeErrorLines(e) : [message],
-      );
-    }
-  } finally {
-    deps.setCreating(false);
   }
 }
 
