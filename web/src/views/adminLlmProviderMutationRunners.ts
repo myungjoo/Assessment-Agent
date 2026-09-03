@@ -19,13 +19,28 @@
 // 옮겼다. AdminView 에 남겨두면 본 모듈 → AdminView 역방향 import 가 생겨 위 단방향 규약을 깨뜨리기
 // 때문이다(GROUPS_PATH 를 옮긴 T-1854 · PERSONS_PATH 를 옮긴 T-1856 선례 동형). 이 상수는 AdminView
 // 의 buildProvidersPath 가 여전히 쓰므로 AdminView 가 본 모듈에서 import 해 쓴다(정본 1 개 유지).
+//
+// 합류분(T-1877 순수 추출 — PLAN 183 행 부채의 열넷째 실분할) — 난이도 매핑 **assign 축** 2 심볼
+// (AssignDeps · runAssign)과 그 러너가 직접 참조하는 상수 LLM_MAPPINGS_PATH 를 AdminView 에서 본문
+// 한 줄도 바꾸지 않고 옮겨왔다(선언 앞 export 키워드만 추가). provider mutation 축과 같은 파일에
+// 두는 이유는 두 축이 같은 LLM 도메인의 mutation 러너이고 주입 계약(발사 primitive · describeError ·
+// in-flight 가드 · bumpRefresh)이 동형이라 한 모듈의 응집이 유지되기 때문이다. LLM_MAPPINGS_PATH 도
+// LLM_PROVIDERS_PATH 와 같은 이유로 함께 옮겼고(재선언 = 정본 2 개라 금지), AdminView 의 잔류
+// buildMappingsPath 가 본 모듈에서 import 해 쓴다. 유일한 호출부 handleAssign 은 AdminView 에 남아
+// 본 모듈의 runAssign 을 그대로 호출하며, 파일 끝 배럴이 runAssign · AssignDeps 를 계속 re-export 해
+// 기존 spec 2 개(AdminView.difficulty-mapping-assign-contract / AdminView.test.tsx)가 무수정으로 산다.
 
 import type { RequestOptions } from '../api/apiClient';
+import type { Difficulty } from '../components/DifficultyModelSelector';
 
 // LLM provider 목록 조회 path — 고정 endpoint(GET /api/llm/providers, api.md 114 Admin+,
 // sanitize view 6 필드 id/provider/endpointUrl/modelId/createdAt/updatedAt). Admin+ 라
 // User 등급은 403 — 그 403 은 LLM_ERROR_FALLBACK 경로로 error props 안전 표시(throw 없음).
 export const LLM_PROVIDERS_PATH = '/api/llm/providers';
+
+// 난이도 슬롯 매핑 조회 path — 고정 endpoint(GET /api/llm/difficulty-mappings, api.md 119
+// Admin+, 3 난이도 슬롯 배열, 빈 배열 seed 전 정상). Admin+ 라 User 등급은 403.
+export const LLM_MAPPINGS_PATH = '/api/llm/difficulty-mappings';
 
 // provider 삭제 DELETE + state-전이 로직에 주입하는 deps(T-1135 — runRemove 의 RemoveDeps 를
 // 1:1 mirror. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). RemoveDeps 와 달리 path param 이
@@ -276,5 +291,65 @@ export async function runUpdateProvider(
     deps.setUpdateError(deps.describeError(e));
   } finally {
     deps.setUpdating(false);
+  }
+}
+
+// onAssign 의 PATCH + state-전이 로직을 캡슐화한 순수 async 러너(④c, 테스트 가능성 —
+// jsdom/렌더러 없이 mutation 본체를 직접 검증한다. useApiResource 의 runFetch 가 effect
+// 본체를 분리해 jsdom 없이 검증한 convention 정합). 컨테이너의 handleAssign 은 이 러너에
+// 현재 in-flight 여부(assigning)와 상태 setter 들을 주입해 호출만 한다. 동작:
+//  - 빈/falsy providerId → 미발사(잘못된 body 회피).
+//  - assigning(이전 mutation 미완) → 미발사(이중 PATCH·state 경합 차단).
+//  - 발사 시 낙관 반영 + 진행 on + error 비움 → PATCH → 성공(재조회 트리거 + override 비움) /
+//    실패(override 롤백 + 문구 표면화) → 진행 off(공통).
+export interface AssignDeps {
+  // PATCH 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  patch: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 mutation in-flight 여부 — true 면 미발사(동시 재호출 가드).
+  assigning: boolean;
+  setAssigning: (next: boolean) => void;
+  setAssignError: (next: string | undefined) => void;
+  setOptimistic: (
+    updater: (
+      prev: Partial<Record<Difficulty, string | null>>,
+    ) => Partial<Record<Difficulty, string | null>>,
+  ) => void;
+  // 권위 재조회 트리거 — refreshNonce 를 +1 한다(path 변경 유발).
+  bumpRefresh: () => void;
+}
+
+export async function runAssign(
+  difficulty: Difficulty,
+  providerId: string,
+  deps: AssignDeps,
+): Promise<void> {
+  // 비정상 호출 가드 — 빈/falsy providerId 는 PATCH 미발사(잘못된 body 회피).
+  if (!providerId) {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 mutation 미완 중이면 미발사(이중 PATCH·state 경합 차단).
+  if (deps.assigning) {
+    return;
+  }
+  deps.setAssigning(true);
+  deps.setAssignError(undefined);
+  deps.setOptimistic((prev) => ({ ...prev, [difficulty]: providerId }));
+  try {
+    await deps.patch(`${LLM_MAPPINGS_PATH}/${difficulty}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ llmProviderConfigId: providerId }),
+    });
+    // 성공 — 권위 재조회 트리거 + 낙관 override 비움(서버 데이터로 대체).
+    deps.setOptimistic(() => ({}));
+    deps.bumpRefresh();
+  } catch (e) {
+    // 실패 — 낙관 override 롤백 + 사람-친화 문구 표면화(throw 없이 error props 로).
+    deps.setOptimistic(() => ({}));
+    deps.setAssignError(deps.describeError(e));
+  } finally {
+    deps.setAssigning(false);
   }
 }
