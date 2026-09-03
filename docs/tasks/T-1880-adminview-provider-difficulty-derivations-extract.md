@@ -2,7 +2,7 @@
 id: T-1880
 title: AdminView 의 provider · 난이도 파생 helper 축(4 심볼 + 상수 1 + row 타입 2)을 adminProviderDifficultyDerivations 모듈로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-050]
 independentStream: adminview-god-component-refactor
@@ -17,6 +17,9 @@ sizeExempt: true
 exemptReason: "pure-extraction — (a) 동작 변경 0 (`574 행` ~ `664 행` 연속 helper 블록 91 줄 + `498 행` ~ `518 행` row 타입 블록 21 줄을 선행 주석까지 통째로 옮기고 선언 앞에 `export` 만 붙인 뒤 AdminView 가 단방향 import 로 되돌려 쓰는 것이 전부) · (b) 신규 로직 0 LOC (`deriveProviders` 의 index 합성 key · `deriveProviderConfigs` 의 선택 필드 생략 · `deriveDifficultyMapping` 의 미지 키 무시 · `mergeMapping` 의 부분 override 전부 본문 무변경) · (c) 기존 spec 은 AdminView 배럴 재수출(`3609 행` ~ `3611 행` · `3622 행` · 타입 `3691 행` ~ `3692 행`) 덕에 `from './AdminView'` 무수정 통과 — planner 가 `readFileSync` drift-guard 39 파일을 전수 검사한 결과 본 축을 anchor 로 쓰는 spec 은 `AdminView.llm-provider-list-contract.test.ts`(`71 행` `useApiResource<LlmProviderRow[]>(providersPath)`) 와 `AdminView.difficulty-mapping-list-contract.test.ts`(`68 행` `useApiResource<DifficultyMappingRow[]>(mappingsPath)`) 둘뿐이고 두 anchor 모두 **잔류 컨테이너**(`1493 행` · `1607 행`)를 가리켜 이동 블록을 참조하지 않는다. 삭제 약 112 + 추가 약 145 가 전부 이동량이고 나머지는 새 모듈 경계 spec 이라 LOC 이 위험도에 비례하지 않는다. 파일 수 3 으로 파일 cap (≤ 5) 은 예외 없이 준수."
 plannerNote: "P6 / PLAN 183 행 AdminView 부채 열여섯째 실분할 — head 28b09ce2 재측정에서 mergeMapping 이 574~664 연속 블록으로 합쳐짐 확인"
 created: 2026-09-04
+completedAt: 2026-09-03T23:26:35Z
+prNumber: 1470
+mergeCommit: 06074b68
 ---
 
 # T-1880 — AdminView 의 provider · 난이도 파생 helper 축을 adminProviderDifficultyDerivations 모듈로 순수 추출
@@ -79,3 +82,13 @@ created: 2026-09-04
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-09-03T23:26:35Z, DONE)
+
+- `pr` 모드로 PR #1470 을 round 1 에 squash merge (main `06074b68`). 변경 3 파일 `+429/-119`.
+- provider · 난이도 파생 helper 4 심볼(`deriveProviders` · `deriveProviderConfigs` · `deriveDifficultyMapping` · `mergeMapping`) + row 타입 2 를 선행 주석까지 **`export` 키워드 외 byte-identical** 로 신규 [adminProviderDifficultyDerivations.ts](../../web/src/views/adminProviderDifficultyDerivations.ts) (147 줄) 로 이동. `DIFFICULTY_KEYS` 는 module-private 유지, 역방향 import 0.
+- **AdminView.tsx `3,735 → 3,630 줄` (-105)** — 기대치 `-100` 안팎과 일치. 열여섯째 순수-추출 슬라이스.
+- colocated spec 신설 — 공개 심볼 4 전수 happy + error + 분기 5 축 양쪽 + negative 7 종 + 배럴 동일 참조. web vitest 129 파일 3,865 test green(기존 spec 수정 0), backend `test:cov` 466 suite 13,495 test green.
+- 4-게이트 실측 — reviewer VERDICT=APPROVE comment 외부 존재(게이트 2), PR head `f5d7de92` run(33816627860) · approve-comment 재검증 run(33817174671) 모두 success(게이트 4).
+- 본 task 는 `§1 [7.5]` multi-task chain 의 **두 번째이자 마지막** task 로, 머지 commit trail 에 `FIRE-BATCH: T-1879+T-1880` marker 가 박혀 있다.
+
