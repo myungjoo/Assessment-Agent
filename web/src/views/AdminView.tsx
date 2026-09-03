@@ -18,7 +18,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useApiResource, toErrorMessage } from '../api/useApiResource';
 import { request, ApiError } from '../api/apiClient';
-import type { RequestOptions } from '../api/apiClient';
 // P6 export 계약 정합 배선(T-1246) — handleExport 를 구 GET 모델 runExport 에서 job-flow(POST
 // create → poll → download)로 교체하는 격리 모듈들(T-1242/T-1243/T-1245). 구 runExport 는
 // dead-but-exported 로 남긴다(제거는 후속 slice T-1247).
@@ -274,11 +273,16 @@ import type {
 // 러너 3 · 입력/deps 타입 5 를 그대로 re-export 해 기존 spec 4 개의 `from './AdminView'` 가 무수정으로
 // 산다(공개 표면 무변경). LLM_PROVIDERS_PATH 도 정본을 1 개로 유지하려 여기서 가져온다(재선언 금지 —
 // buildProvidersPath 가 계속 쓴다).
+// T-1877 합류 — 난이도 매핑 assign 축(runAssign · AssignDeps)과 그 상수 LLM_MAPPINGS_PATH 도 같은
+// 모듈로 옮겨 여기서 되돌려 쓴다. 상수는 잔류 helper buildMappingsPath 가 계속 쓰고(정본 1 개 유지 —
+// 재선언 금지), 러너는 잔류 소비처 handleAssign 이 호출 형태 무변경으로 그대로 호출한다.
 import {
   LLM_PROVIDERS_PATH,
+  LLM_MAPPINGS_PATH,
   runDeleteProvider,
   runCreateProvider,
   runUpdateProvider,
+  runAssign,
 } from './adminLlmProviderMutationRunners';
 import type {
   DeleteProviderDeps,
@@ -286,6 +290,7 @@ import type {
   CreateProviderDeps,
   UpdateProviderFields,
   UpdateProviderDeps,
+  AssignDeps,
 } from './adminLlmProviderMutationRunners';
 // T-1711 (REQ-067) — 사용자 추가 폼의 아이디·비밀번호 조건 사전 안내 문구. 여기서 문구를 새로
 // 쓰지 않고 SuperAdmin 초기 셋업 폼(T-1710)이 이미 export 한 상수를 재사용한다 — 두 화면이 같은
@@ -404,10 +409,6 @@ const NOT_ADMIN_NOTICE_TEXT = 'Admin 권한이 필요한 기능입니다 (현재
 // 한 화면에 같은 문구가 두 번 뜨면 어느 패널 이야기인지 사람도 spec 도 구분할 수 없기 때문이다.
 const SERVICE_IDENTITY_NOT_ADMIN_NOTICE_TEXT =
   'service identity 편집은 Admin 권한이 필요합니다 (조회만 가능합니다)';
-
-// 난이도 슬롯 매핑 조회 path — 고정 endpoint(GET /api/llm/difficulty-mappings, api.md 119
-// Admin+, 3 난이도 슬롯 배열, 빈 배열 seed 전 정상). Admin+ 라 User 등급은 403.
-const LLM_MAPPINGS_PATH = '/api/llm/difficulty-mappings';
 
 // export scope 선택 옵션 — frontend-local 보수 후보 목록(④g). api.md 122 가 scope 의 enum
 // 값/기본값을 명시하지 않으므로, 빈 선택(전체 = query 미부착, ④f 동작 유지) + 의미 있는 보편
@@ -787,66 +788,6 @@ function mergeMapping(
     }
   }
   return merged;
-}
-
-// onAssign 의 PATCH + state-전이 로직을 캡슐화한 순수 async 러너(④c, 테스트 가능성 —
-// jsdom/렌더러 없이 mutation 본체를 직접 검증한다. useApiResource 의 runFetch 가 effect
-// 본체를 분리해 jsdom 없이 검증한 convention 정합). 컨테이너의 handleAssign 은 이 러너에
-// 현재 in-flight 여부(assigning)와 상태 setter 들을 주입해 호출만 한다. 동작:
-//  - 빈/falsy providerId → 미발사(잘못된 body 회피).
-//  - assigning(이전 mutation 미완) → 미발사(이중 PATCH·state 경합 차단).
-//  - 발사 시 낙관 반영 + 진행 on + error 비움 → PATCH → 성공(재조회 트리거 + override 비움) /
-//    실패(override 롤백 + 문구 표면화) → 진행 off(공통).
-interface AssignDeps {
-  // PATCH 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
-  patch: (path: string, options: RequestOptions) => Promise<unknown>;
-  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
-  describeError: (e: unknown) => string;
-  // 현재 mutation in-flight 여부 — true 면 미발사(동시 재호출 가드).
-  assigning: boolean;
-  setAssigning: (next: boolean) => void;
-  setAssignError: (next: string | undefined) => void;
-  setOptimistic: (
-    updater: (
-      prev: Partial<Record<Difficulty, string | null>>,
-    ) => Partial<Record<Difficulty, string | null>>,
-  ) => void;
-  // 권위 재조회 트리거 — refreshNonce 를 +1 한다(path 변경 유발).
-  bumpRefresh: () => void;
-}
-
-async function runAssign(
-  difficulty: Difficulty,
-  providerId: string,
-  deps: AssignDeps,
-): Promise<void> {
-  // 비정상 호출 가드 — 빈/falsy providerId 는 PATCH 미발사(잘못된 body 회피).
-  if (!providerId) {
-    return;
-  }
-  // 동시 재호출 가드 — 이전 mutation 미완 중이면 미발사(이중 PATCH·state 경합 차단).
-  if (deps.assigning) {
-    return;
-  }
-  deps.setAssigning(true);
-  deps.setAssignError(undefined);
-  deps.setOptimistic((prev) => ({ ...prev, [difficulty]: providerId }));
-  try {
-    await deps.patch(`${LLM_MAPPINGS_PATH}/${difficulty}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ llmProviderConfigId: providerId }),
-    });
-    // 성공 — 권위 재조회 트리거 + 낙관 override 비움(서버 데이터로 대체).
-    deps.setOptimistic(() => ({}));
-    deps.bumpRefresh();
-  } catch (e) {
-    // 실패 — 낙관 override 롤백 + 사람-친화 문구 표면화(throw 없이 error props 로).
-    deps.setOptimistic(() => ({}));
-    deps.setAssignError(deps.describeError(e));
-  } finally {
-    deps.setAssigning(false);
-  }
 }
 
 // 진행 중인 id 를 읽고 쓰는 gate(T-1165). 위 러너에 주입되는 changingId 의 "출처" 만 바꾸는

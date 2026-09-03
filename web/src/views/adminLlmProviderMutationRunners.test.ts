@@ -8,16 +8,23 @@ import { describe, expect, it, vi } from 'vitest';
 // 않은 직접 import 경로에서도 각 러너의 정상 / 실패 / 미발사 계약이 같은가, (c) 재수출본과 직접
 // import 본이 **동일 함수 참조** 인가(기존 계약 spec 들의 위임 검증이 이동 후에도 계속 유효함의
 // 근거). 이동 전에는 존재할 수 없던 검증이라 기존 spec 과 중복이 아니다.
+// T-1877 합류분(난이도 매핑 assign 축) 도 같은 취지로 검증한다 — runAssign 의 상세 행동 자체는
+// AdminView.difficulty-mapping-assign-contract.test.ts 가 `from './AdminView'` 경로로 이미 cover
+// 하지만, 새 모듈에서 **직접 import** 한 경로의 계약 · 상수 정본 값 · 재수출 identity 는 이동 전에는
+// 검증할 수 없던 축이라 중복이 아니다.
 import {
   LLM_PROVIDERS_PATH,
+  LLM_MAPPINGS_PATH,
   runCreateProvider,
   runDeleteProvider,
   runUpdateProvider,
+  runAssign,
 } from './adminLlmProviderMutationRunners';
 import {
   runCreateProvider as reexportedRunCreateProvider,
   runDeleteProvider as reexportedRunDeleteProvider,
   runUpdateProvider as reexportedRunUpdateProvider,
+  runAssign as reexportedRunAssign,
 } from './AdminView';
 
 const PROVIDER_ID = 'provider-1';
@@ -67,6 +74,30 @@ function makeDeps() {
       closeEdit: vi.fn(),
     },
   };
+}
+
+// 난이도 매핑 assign 러너(T-1877 합류)의 deps — 진행 플래그 assigning 은 호출부에서 덮는다.
+// setOptimistic 은 updater 함수를 받으므로, mock 이 받은 updater 를 test 가 직접 적용해
+// 낙관 반영 / 롤백 결과를 관찰한다(렌더러 없이 상태 전이를 확인하는 방식).
+function makeAssignDeps() {
+  return {
+    patch: vi.fn(async () => undefined),
+    describeError,
+    assigning: false,
+    setAssigning: vi.fn(),
+    setAssignError: vi.fn(),
+    setOptimistic: vi.fn(),
+    bumpRefresh: vi.fn(),
+  };
+}
+
+// setOptimistic 이 받은 updater 들을 순서대로 빈 override 에 적용한 결과 목록.
+function appliedOptimistic(
+  setOptimistic: ReturnType<typeof vi.fn>,
+): Record<string, unknown>[] {
+  return setOptimistic.mock.calls.map(([updater]) =>
+    (updater as (prev: Record<string, unknown>) => Record<string, unknown>)({}),
+  );
 }
 
 describe('adminLlmProviderMutationRunners 모듈 경계(T-1857 순수 추출)', () => {
@@ -276,11 +307,99 @@ describe('adminLlmProviderMutationRunners 모듈 경계(T-1857 순수 추출)', 
     });
   });
 
+  describe('runAssign — 직접 import 경로(T-1877 합류)', () => {
+    it('난이도 매핑 조회 base path 상수를 새 모듈에서 직접 노출한다', () => {
+      // negative ⑤ — 경로 drift 방지(상수 정본 값이 backend endpoint 와 어긋나면 즉시 fail).
+      expect(LLM_MAPPINGS_PATH).toBe('/api/llm/difficulty-mappings');
+    });
+
+    it('happy-path: PATCH 1 회 + 낙관 반영 → 재조회 트리거 · override 비움', async () => {
+      const deps = makeAssignDeps();
+      await runAssign('medium', PROVIDER_ID, deps);
+      expect(deps.patch).toHaveBeenCalledTimes(1);
+      expect(deps.patch).toHaveBeenCalledWith(
+        `${LLM_MAPPINGS_PATH}/medium`,
+        {
+          method: 'PATCH',
+          headers: JSON_HEADERS,
+          body: JSON.stringify({ llmProviderConfigId: PROVIDER_ID }),
+        },
+      );
+      // 발사 전 낙관 반영(해당 슬롯만 새 provider) → 성공 후 override 비움(권위 데이터로 대체).
+      expect(appliedOptimistic(deps.setOptimistic)).toEqual([
+        { medium: PROVIDER_ID },
+        {},
+      ]);
+      expect(deps.bumpRefresh).toHaveBeenCalledTimes(1);
+      expect(deps.setAssigning.mock.calls).toEqual([[true], [false]]);
+      expect(deps.setAssignError.mock.calls).toEqual([[undefined]]);
+    });
+
+    it('error path: primitive reject 시 throw 없이 문구 표면화 + 낙관 롤백 · 재조회 미발사', async () => {
+      const deps = makeAssignDeps();
+      deps.patch = vi.fn(async () => {
+        throw BOOM;
+      });
+      await expect(
+        runAssign('hard', PROVIDER_ID, deps),
+      ).resolves.toBeUndefined();
+      expect(deps.setAssignError).toHaveBeenLastCalledWith(describeError(BOOM));
+      // 실패 — 낙관 override 롤백(빈 객체) 후 권위 재조회는 돌지 않는다(목록 그대로 유지).
+      expect(appliedOptimistic(deps.setOptimistic)).toEqual([
+        { hard: PROVIDER_ID },
+        {},
+      ]);
+      expect(deps.bumpRefresh).not.toHaveBeenCalled();
+      // negative ④ — 실패해도 finally 로 진행 플래그가 반드시 false 로 복귀한다.
+      expect(deps.setAssigning.mock.calls).toEqual([[true], [false]]);
+    });
+
+    it('negative ③ — primitive 가 ApiError 아닌 임의 값을 throw 해도 문구 파생이 안전하다', async () => {
+      const deps = makeAssignDeps();
+      deps.patch = vi.fn(async () => {
+        // ApiError 가 아닌 원시 값 throw — describeError 가 String() 파생으로 흡수해야 한다.
+        throw 'plain-string-throw';
+      });
+      await expect(
+        runAssign('easy', PROVIDER_ID, deps),
+      ).resolves.toBeUndefined();
+      expect(deps.setAssignError).toHaveBeenLastCalledWith(
+        describeError('plain-string-throw'),
+      );
+      expect(deps.bumpRefresh).not.toHaveBeenCalled();
+      expect(deps.setAssigning.mock.calls).toEqual([[true], [false]]);
+    });
+
+    it('분기 ① / negative ① — providerId 가 빈 문자열이면 PATCH 미발사', async () => {
+      const deps = makeAssignDeps();
+      await runAssign('easy', '', deps);
+      expect(deps.patch).not.toHaveBeenCalled();
+      // 미발사 경로에서는 진행 플래그조차 건드리지 않는다(state 잡음 0).
+      expect(deps.setAssigning).not.toHaveBeenCalled();
+      expect(deps.setOptimistic).not.toHaveBeenCalled();
+      expect(deps.setAssignError).not.toHaveBeenCalled();
+    });
+
+    it('분기 ② / negative ② — assigning in-flight 중 재호출은 이중 PATCH 를 내지 않는다', async () => {
+      const deps = { ...makeAssignDeps(), assigning: true };
+      await runAssign('easy', PROVIDER_ID, deps);
+      expect(deps.patch).not.toHaveBeenCalled();
+      expect(deps.setAssigning).not.toHaveBeenCalled();
+      expect(deps.setOptimistic).not.toHaveBeenCalled();
+      expect(deps.setAssignError).not.toHaveBeenCalled();
+    });
+  });
+
   describe('negative ⑦ — AdminView 재수출 identity 보존', () => {
     it('값 심볼 3 개가 새 모듈의 함수와 동일 참조다', () => {
       expect(reexportedRunCreateProvider).toBe(runCreateProvider);
       expect(reexportedRunDeleteProvider).toBe(runDeleteProvider);
       expect(reexportedRunUpdateProvider).toBe(runUpdateProvider);
+    });
+
+    it('T-1877 합류분 runAssign 도 새 모듈의 함수와 동일 참조다', () => {
+      // 기존 계약 spec(`from './AdminView'`)의 위임 검증이 이동 후에도 유효함의 근거.
+      expect(reexportedRunAssign).toBe(runAssign);
     });
   });
 });
