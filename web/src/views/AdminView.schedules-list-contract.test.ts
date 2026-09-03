@@ -135,7 +135,7 @@ describe('AdminView — 스케줄 목록 조회(GET /api/schedules) web↔backen
     expect(diffContract(schedulesFire(), { ...LIST_CONTRACT, method: HANDLERS.upsert.method })).toEqual([expect.stringContaining('method 불일치')]);
   });
   it('web 발사(GET /api/schedules)가 backend @Get() list 계약과 완전 일치한다 (happy-path — 경로 정합)', () => {
-    expect(SCHEDULE_RUNNERS_SOURCE).toContain(SCHEDULES_PATH_DECL); // SCHEDULES_PATH 상수값 확정(export 아님 — 소스 대조)
+    expect(SCHEDULE_RUNNERS_SOURCE).toContain(SCHEDULES_PATH_DECL); // SCHEDULES_PATH 상수값 확정(값 import 아닌 소스 대조 — 선언 문자열 자체가 drift guard 대상)
     const fired = schedulesFire();
     expect(fired.path).toBe(ROUTE_TEMPLATE);
     expect(fired.hasParamSegment).toBe(false);
