@@ -66,11 +66,11 @@ import type { ReEvaluationDeps, ScheduleMutationDeps } from './adminScheduleRunn
 // 인스턴스 접근 부여 POST · 회수 DELETE · 역할 변경 PATCH 러너와 그 순수 helper · 실패 문구 파생
 // helper · 줄 element className · 사용자 endpoint base path 를 담는 모듈. 본문은 한 줄도 바뀌지
 // 않았고 AdminView 는 값과 타입을 import 만 한다(단방향 — 본 모듈은 AdminView 를 import 하지
-// 않는다). USERS_PATH 는 잔류 소비처(buildUsersPath)도 함께 쓴다. 파일 끝 export 배럴이 이동 전
+// 않는다). USERS_PATH 는 T-1879 로 함께 옮겨진 buildUsersPath 가 쓴다(정본 1 개 유지 — AdminView 는
+// 더 이상 직접 가져오지 않는다). 파일 끝 export 배럴이 이동 전
 // 표면을 그대로 re-export 하므로 기존 spec 의 `from './AdminView'` 도 무수정으로 산다.
 import {
   CREATE_USER_ERROR_LINE_CLASS,
-  USERS_PATH,
   buildInstanceAccessPath,
   deriveInstanceAccessFormFlags,
   describeCreateUserFailure,
@@ -181,7 +181,6 @@ import {
   updateServiceIdentity,
   deleteServiceIdentity,
   setPrimaryServiceIdentity,
-  serviceIdentityCollectionPath,
 } from '../api/serviceIdentity';
 import type { ServiceIdentityRow } from '../api/serviceIdentity';
 // 그룹 목록 마운트 대상(T-1148, T-1147 presentational) — default export 만 가져온다. GroupList 도
@@ -228,8 +227,6 @@ import type { CollectionTargetScopeField } from './adminCollectionTargetRunners'
 // 러너 6 · helper 2 · deps 타입 6 을 그대로 re-export 해 기존 계약 spec 7 개의 `from './AdminView'` 가
 // 무수정으로 산다(공개 표면 무변경).
 import {
-  GROUPS_PATH,
-  PARTS_PATH,
   runCreateGroup,
   runCreatePart,
   runDeleteGroup,
@@ -250,10 +247,9 @@ import type {
 // 인원(Person) mutation 러너 군(T-1143 ~ T-1145 · T-1780 · T-1781)을 담는 격리 모듈(T-1856 순수
 // 추출 — PLAN 183 행 god component 부채의 다섯째 실분할). AdminView → 본 모듈 단방향 import 이며,
 // 파일 끝 export 목록이 러너 3 · helper 2 · 입력/deps 타입 6 을 그대로 re-export 해 기존 spec 6 개의
-// `from './AdminView'` 가 무수정으로 산다(공개 표면 무변경). PERSONS_PATH 도 정본을 1 개로 유지하려
-// 여기서 가져온다(재선언 금지 — buildPersonsPath 가 계속 쓴다).
+// `from './AdminView'` 가 무수정으로 산다(공개 표면 무변경). PERSONS_PATH 는 T-1879 로 함께 옮겨진
+// buildPersonsPath 가 새 모듈에서 직접 가져다 쓴다(정본 1 개 유지 — 재선언 금지).
 import {
-  PERSONS_PATH,
   extractCreatedPersonId,
   runCreatePerson,
   runDeletePerson,
@@ -271,14 +267,11 @@ import type {
 // LLM provider mutation 러너 군(T-1135 ~ T-1137)을 담는 격리 모듈(T-1857 순수 추출 — PLAN 183 행
 // god component 부채의 여섯째 실분할). AdminView → 본 모듈 단방향 import 이며, 파일 끝 export 목록이
 // 러너 3 · 입력/deps 타입 5 를 그대로 re-export 해 기존 spec 4 개의 `from './AdminView'` 가 무수정으로
-// 산다(공개 표면 무변경). LLM_PROVIDERS_PATH 도 정본을 1 개로 유지하려 여기서 가져온다(재선언 금지 —
-// buildProvidersPath 가 계속 쓴다).
-// T-1877 합류 — 난이도 매핑 assign 축(runAssign · AssignDeps)과 그 상수 LLM_MAPPINGS_PATH 도 같은
-// 모듈로 옮겨 여기서 되돌려 쓴다. 상수는 잔류 helper buildMappingsPath 가 계속 쓰고(정본 1 개 유지 —
-// 재선언 금지), 러너는 잔류 소비처 handleAssign 이 호출 형태 무변경으로 그대로 호출한다.
+// 산다(공개 표면 무변경). LLM_PROVIDERS_PATH · LLM_MAPPINGS_PATH 는 T-1879 로 함께 옮겨진
+// buildProvidersPath · buildMappingsPath 가 새 모듈에서 직접 가져다 쓴다(정본 1 개 유지 — 재선언 금지).
+// T-1877 합류 — 난이도 매핑 assign 축(runAssign · AssignDeps)도 같은 모듈로 옮겨 여기서 되돌려 쓴다.
+// 러너는 잔류 소비처 handleAssign 이 호출 형태 무변경으로 그대로 호출한다.
 import {
-  LLM_PROVIDERS_PATH,
-  LLM_MAPPINGS_PATH,
   runDeleteProvider,
   runCreateProvider,
   runUpdateProvider,
@@ -292,6 +285,20 @@ import type {
   UpdateProviderDeps,
   AssignDeps,
 } from './adminLlmProviderMutationRunners';
+// 자원 목록 조회 path 빌더 축(T-1879 순수 추출 — PLAN 183 행 god component 부채의 열다섯째
+// 실분할). 여덟 빌더는 본문 한 줄도 바뀌지 않은 채 통째로 옮겨졌고, AdminView 는 단방향 import 로
+// 되돌려 쓴다(본 모듈은 AdminView 를 import 하지 않는다). 여덟 호출부는 호출 형태 무변경이며
+// 파일 끝 export 배럴이 여덟 이름을 그대로 re-export 해 기존 spec 이 무수정으로 산다.
+import {
+  buildMappingsPath,
+  buildProvidersPath,
+  buildPersonsPath,
+  buildGroupsPath,
+  buildPartsPath,
+  buildUsersPath,
+  buildPartPersonsPath,
+  buildServiceIdentitiesPath,
+} from './adminResourcePathBuilders';
 // T-1711 (REQ-067) — 사용자 추가 폼의 아이디·비밀번호 조건 사전 안내 문구. 여기서 문구를 새로
 // 쓰지 않고 SuperAdmin 초기 셋업 폼(T-1710)이 이미 export 한 상수를 재사용한다 — 두 화면이 같은
 // backend 계약(POST /api/users 의 AddUserDto: @IsEmail + @IsNotEmpty + @MinLength)을 쓰므로
@@ -636,140 +643,6 @@ function deriveDifficultyMapping(
     }
   }
   return mapping;
-}
-
-// 난이도 슬롯 매핑 조회 path 빌더(순수 helper) — ④c PATCH 성공 시 GET 재조회를 유발하기 위해
-// 컨테이너의 refreshNonce 를 cache-busting query(`_r`)로 실어 path 문자열을 변화시킨다.
-// useApiResource 는 path 변경 시에만 재조회하므로(수정 0 — read-only hook), nonce 증가가 곧
-// 재조회 트리거다. nonce 0(초기 조회)이면 query 없는 깨끗한 path 를 그대로 쓴다(불필요 query
-// 회피). `_r` 은 backend GET 핸들러가 @Query 를 받지 않아 무시한다(api.md 119 — 부수효과 0).
-function buildMappingsPath(refreshNonce: number): string {
-  if (refreshNonce <= 0) {
-    return LLM_MAPPINGS_PATH;
-  }
-  return `${LLM_MAPPINGS_PATH}?_r=${refreshNonce}`;
-}
-
-// provider 목록 조회 path 빌더(순수 helper, T-1135 — buildMappingsPath 동형) — 삭제 DELETE 성공
-// 시 GET /api/llm/providers 재조회를 유발하기 위해 컨테이너의 refreshNonce 를 cache-busting
-// query(`_r`)로 실어 path 문자열을 변화시킨다. useApiResource 는 path 변경 시에만 재조회하므로
-// (수정 0 — read-only hook), nonce 증가가 곧 재조회 트리거다. nonce 0(초기 조회)이면 query 없는
-// 깨끗한 base path 를 그대로 쓴다(불필요 query 회피 — T-1134 초기 마운트 path 와 동일 유지).
-// `_r` 은 backend GET 핸들러가 @Query 를 받지 않아 무시한다(api.md 114 — 부수효과 0).
-function buildProvidersPath(refreshNonce: number): string {
-  if (refreshNonce <= 0) {
-    return LLM_PROVIDERS_PATH;
-  }
-  return `${LLM_PROVIDERS_PATH}?_r=${refreshNonce}`;
-}
-
-// 인원 목록 조회 path 빌더(순수 helper, T-1143 — buildProvidersPath 동형) — 인원 생성 POST
-// (/api/persons) 성공 시 GET /api/persons 재조회를 유발하기 위해 컨테이너의 personsRefreshNonce 를
-// cache-busting query(`_r`)로 실어 path 문자열을 변화시킨다. useApiResource 는 path 변경 시에만
-// 재조회하므로(read-only hook 수정 0), nonce 증가가 곧 재조회 트리거다. nonce 0(초기 조회)이면
-// query 없는 깨끗한 base path 를 그대로 쓴다(T-1142 마운트 path 와 동일 유지 — 회귀 0). `_r` 은
-// backend GET 핸들러가 읽지 않는 미지의 query 라 그대로 무시된다(T-1803 이 개통한 @Query 는
-// includeInactive 하나뿐 — api.md, 부수효과 0).
-function buildPersonsPath(
-  refreshNonce: number,
-  includeInactive = false,
-): string {
-  // T-1804 — 휴직 인원 포함 토글. backend 는 `includeInactive === "true"` 일 때만 findAll() 로
-  // 분기하므로(T-1803, person.controller.ts @Get()), true 일 때만 `includeInactive=true` 를 싣고
-  // false 는 아예 query 를 만들지 않는다(무의미한 `includeInactive=false` 금지 — bare base 발사가
-  // findActive 계약과 글자-동일하게 유지된다). 두 query 가 동시에 실릴 때의 구분자(`?` / `&`)는
-  // 아래 join 이 조립한다(첫 항목만 `?`, 나머지는 `&`). 두 번째 인자를 생략한 기존 호출부는
-  // default false 라 종전 path 를 그대로 낸다(회귀 0).
-  const params: string[] = [];
-  if (refreshNonce > 0) {
-    params.push(`_r=${refreshNonce}`);
-  }
-  if (includeInactive) {
-    params.push('includeInactive=true');
-  }
-  if (params.length === 0) {
-    return PERSONS_PATH;
-  }
-  return `${PERSONS_PATH}?${params.join('&')}`;
-}
-
-// 그룹 목록 조회 path 빌더(순수 helper, T-1146 — buildPersonsPath 동형) — 그룹 생성 POST
-// (/api/groups) 성공 시 GET /api/groups 재조회를 유발하기 위해 컨테이너의 groupsRefreshNonce 를
-// cache-busting query(`_r`)로 실어 path 문자열을 변화시킨다. useApiResource 는 path 변경 시에만
-// 재조회하므로(read-only hook 수정 0), nonce 증가가 곧 재조회 트리거다. nonce 0(초기 조회)이면
-// query 없는 깨끗한 base path(GROUPS_PATH — T-1129 이전 마운트 path 와 동일 유지, 회귀 0)를 그대로
-// 쓴다. `_r` 은 backend GET 핸들러가 @Query 를 받지 않아 무시한다(api.md — 부수효과 0).
-function buildGroupsPath(refreshNonce: number): string {
-  if (refreshNonce <= 0) {
-    return GROUPS_PATH;
-  }
-  return `${GROUPS_PATH}?_r=${refreshNonce}`;
-}
-
-// 파트 목록 조회 path 빌더(순수 helper, T-1153 — buildGroupsPath 동형) — 파트 생성 POST
-// (/api/parts) 성공 시 GET /api/parts 재조회를 유발하기 위해 컨테이너의 partsRefreshNonce 를
-// cache-busting query(`_r`)로 실어 path 문자열을 변화시킨다. useApiResource 는 path 변경 시에만
-// 재조회하므로(read-only hook 수정 0), nonce 증가가 곧 재조회 트리거다. nonce 0(초기 조회)이면
-// query 없는 깨끗한 base path(PARTS_PATH — T-1152 마운트 path 와 동일 유지, 회귀 0)를 그대로 쓴다.
-// `_r` 은 backend GET 핸들러가 @Query 를 받지 않아 무시한다(part.controller @Get() — 부수효과 0).
-function buildPartsPath(refreshNonce: number): string {
-  if (refreshNonce <= 0) {
-    return PARTS_PATH;
-  }
-  return `${PARTS_PATH}?_r=${refreshNonce}`;
-}
-
-// 사용자 목록 조회 path 빌더(T-1160 — buildPartsPath 동형. nonce 를 `_r` 로 실어 재조회를 내되,
-// backend 는 @Query 미수신이라 부수효과 0. nonce 0 이면 T-1159 초기 조회와 같은 base path).
-function buildUsersPath(refreshNonce: number): string {
-  if (refreshNonce <= 0) {
-    return USERS_PATH;
-  }
-  return `${USERS_PATH}?_r=${refreshNonce}`;
-}
-
-// 선택 파트의 소속 인원 조회 path 빌더(순수 helper, T-1156 — buildGroupMembersPath 동형) — GET
-// /api/parts/:id/persons(part.controller findPersons, Part 부재 시 404 / 인원 0 이면 200 + 빈 배열).
-// 선택 파트가 있을 때만 path 를 만들고, 미선택(빈/falsy)이면 null 을 반환해 useApiResource 의
-// 조건부 조회(path=null → 미조회, idle)를 유발한다(useApiResource.ts 9~11 convention 정합) —
-// 미선택 상태에서 `/api/parts//persons` 같은 깨진 path 로 404 를 유발하지 않기 위한 컨테이너 가드다.
-// partId 는 encodeURIComponent 로 안전 인코딩해 비정상 문자가 든 id 도 path 가 깨지지 않게 한다.
-// nonce 0(초기 조회)이면 query 없는 깨끗한 base path 를 쓰고, 1+ 면 `?_r=<nonce>` 를 부착해
-// useApiResource 의 path-변경 재조회를 낸다(파트 CRUD 성공 후 소속 인원도 함께 권위 재조회).
-// `_r` 은 backend GET 핸들러가 @Query 를 받지 않아 무시한다(부수효과 0). 선택 파트 변경 refetch
-// (path 변경)는 selectedPartId 변화가 그대로 유지한다.
-function buildPartPersonsPath(
-  selectedPartId: string | undefined,
-  refreshNonce = 0,
-): string | null {
-  if (!selectedPartId) {
-    return null;
-  }
-  const base = `/api/parts/${encodeURIComponent(selectedPartId)}/persons`;
-  if (refreshNonce <= 0) {
-    return base;
-  }
-  return `${base}?_r=${refreshNonce}`;
-}
-
-// 선택 인원의 service identity 목록 조회 path 빌더(순수 helper, T-1766 — buildPartPersonsPath
-// 동형) — GET /api/persons/:personId/identities(ADR-0058 §Decision 1). 미선택(falsy·빈 문자열·
-// 공백뿐)이면 null 을 반환해 조건부 조회 idle 을 유발한다 — `/api/persons//identities` 같은 깨진
-// path 발사 차단. base 는 client 의 serviceIdentityCollectionPath 로 얻는다(경로 재조립 시 계약
-// drift — encodeURIComponent 안전 인코딩도 그 함수 책임). nonce 0 이하(초기·음수)면 base 를,
-// 1+ 면 `?_r=<nonce>` 를 붙여 재조회를 낸다(쓰기 축 slice 자리 — backend 는 @Query 미수신, 무시).
-function buildServiceIdentitiesPath(
-  selectedPersonId: string | undefined,
-  refreshNonce = 0,
-): string | null {
-  if (!selectedPersonId || selectedPersonId.trim() === '') {
-    return null;
-  }
-  const base = serviceIdentityCollectionPath(selectedPersonId);
-  if (refreshNonce <= 0) {
-    return base;
-  }
-  return `${base}?_r=${refreshNonce}`;
 }
 
 // 서버 파생 매핑 위에 낙관적 override 를 덮는 순수 helper — ④c PATCH 발사 직후 재조회 도착
