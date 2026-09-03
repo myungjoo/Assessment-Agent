@@ -1,0 +1,123 @@
+/*
+ * ADR-0061 — 전역 스타일 정본. 순수 CSS 단일 파일이며 새 외부 dependency 0
+ * (Vite 기본 CSS 파이프라인만 사용). 진입점 main.tsx 의 side-effect import 1 곳
+ * 으로만 적용된다 (D2). 값은 아래 :root 토큰으로만 정의하고 selector 는 element
+ * selector 와 이미 마크업에 존재하는 className anchor 만 쓴다 (D3).
+ * 외부 URL @import 금지.
+ */
+
+:root {
+  --color-bg: #f5f6f8;
+  --color-surface: #ffffff;
+  --color-fg: #1f2430;
+  --color-muted: #5c6473;
+  --color-border: #d8dce4;
+  --color-accent: #2f6feb;
+  --color-danger: #c33232;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --font-base: system-ui, -apple-system, 'Segoe UI', 'Noto Sans KR', sans-serif;
+  --font-size-base: 15px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+}
+
+/* 최소 reset — box model 통일 + 브라우저 기본 여백 제거. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body, h1, h2, h3, p, figure {
+  margin: 0;
+}
+
+/* 기본 element 스타일. */
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-base);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+}
+
+h1 { font-size: 1.4rem; }
+h2 { font-size: 1.15rem; }
+h3 { font-size: 1rem; }
+
+table { width: 100%; border-collapse: collapse; }
+
+th, td {
+  padding: var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+
+th { color: var(--color-muted); font-weight: 600; }
+
+button {
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+button:disabled { color: var(--color-muted); cursor: not-allowed; }
+
+input, select {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-fg);
+  font: inherit;
+}
+
+[role='alert'] {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
+}
+
+/* 기존 className anchor 의 구획 · 간격 (신규 className 도입 없음 — D3). */
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.app-shell-main { flex: 1; padding: var(--space-lg); }
+
+.app-shell-nav { display: flex; gap: var(--space-sm); }
+
+.app-shell-nav-item[aria-current='page'] {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.app-shell-logout, .enter-setup { margin-left: auto; }
+
+.primary-badge {
+  display: inline-block;
+  padding: 0 var(--space-sm);
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-surface);
+  font-size: 0.8rem;
+}
