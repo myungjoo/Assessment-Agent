@@ -153,6 +153,12 @@ describe('AdminView — 사용자 추가 실패 문구 축별 사유 배선 (T-1
 describe('AdminView — 사용자 추가 실패 문구 배선 drift guard (T-1715)', () => {
   // cwd 에 의존하지 않도록 spec 파일 기준 상대 URL 로 읽는다(create-user-contract spec 선례).
   const source = readFileSync(new URL('./AdminView.tsx', import.meta.url), 'utf8');
+  // T-1872 순수 추출로 CREATE_USER_ERROR_SEPARATOR 정의가 adminUserMutationRunners 로 옮겨갔다 —
+  // 읽기 대상 pointer 만 새 모듈로 바꾸고 단언 내용은 그대로 둔다(배선 · 배럴 단언은 AdminView 잔류).
+  const runners = readFileSync(
+    new URL('./adminUserMutationRunners.ts', import.meta.url),
+    'utf8',
+  );
 
   it('handleCreateUser 의 deps 가 describeError 로 describeCreateUserFailure 를 넘긴다', () => {
     const call = /runCreateUser\(\s*userEmailInput,\s*userPasswordInput,\s*\{([\s\S]*?)\n {6}\}\)/.exec(
@@ -178,7 +184,7 @@ describe('AdminView — 사용자 추가 실패 문구 배선 drift guard (T-171
     const literal = (text: string, name: string): string | undefined =>
       new RegExp(`const ${name} = '([^']*)';`).exec(text)?.[1];
 
-    const here = literal(source, 'CREATE_USER_ERROR_SEPARATOR');
+    const here = literal(runners, 'CREATE_USER_ERROR_SEPARATOR');
     const there = literal(appShell, 'SETUP_ERROR_SEPARATOR');
 
     expect(here).toBeDefined();
@@ -449,6 +455,12 @@ describe('AdminView — 사용자 추가 실패 사유 줄 단위 표시 (T-1835
 
 describe('AdminView — 사용자 추가 실패 줄 단위 렌더 배선 drift guard (T-1835)', () => {
   const source = readFileSync(new URL('./AdminView.tsx', import.meta.url), 'utf8');
+  // T-1872 순수 추출로 CREATE_USER_ERROR_LINE_CLASS 정의가 adminUserMutationRunners 로 옮겨갔다 —
+  // 리터럴 대조만 새 모듈 소스를 읽고, 렌더 분기 · 배럴 단언은 AdminView 소스를 계속 읽는다.
+  const runners = readFileSync(
+    new URL('./adminUserMutationRunners.ts', import.meta.url),
+    'utf8',
+  );
 
   it('handleCreateUser 의 deps 가 줄 배열 정본과 setter 를 함께 넘긴다', () => {
     const call =
@@ -485,7 +497,7 @@ describe('AdminView — 사용자 추가 실패 줄 단위 렌더 배선 drift g
   it('줄 element className 이 셋업 폼의 값과 겹치지 않는 화면 고유 토큰이다', () => {
     expect(CREATE_USER_ERROR_LINE_CLASS).toBe('admin-create-user-error-line');
     expect(CREATE_USER_ERROR_LINE_CLASS).not.toBe('superadmin-setup-error-line');
-    expect(source).toContain(
+    expect(runners).toContain(
       `const CREATE_USER_ERROR_LINE_CLASS = '${CREATE_USER_ERROR_LINE_CLASS}';`,
     );
   });
