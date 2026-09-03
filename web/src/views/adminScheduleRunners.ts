@@ -27,10 +27,17 @@
 // (SCHEDULES_PATH · DEFAULT_SCHEDULE_NAME · APPLY_DONE_TEXT · SCHEDULE_LOADING_TEXT ·
 // NO_SCHEDULE_TEXT · SCHEDULE_LIST_PREFIX). AdminView 에 남겨두면 본 모듈 → AdminView 역방향
 // import 가 생겨 위 단방향 규약을 깨뜨리기 때문이다(GROUPS_PATH 를 옮긴 T-1854 · PERSONS_PATH 를
-// 옮긴 T-1856 · LLM_PROVIDERS_PATH 를 옮긴 T-1857 선례 동형). 반대로 SCHEDULE_TRIGGER_PATH 와
-// TRIGGER_DONE_TEXT 는 AdminView 에 잔류하는 runTrigger 전용이라 함께 옮기지 않았다. 잔류
-// 심볼(runTrigger · buildRecentDeletionPath · 조회 call site)은 필요한 값을 본 모듈에서 import 해
-// 쓴다 — 정본 1 개 유지 · 재선언 0.
+// 옮긴 T-1856 · LLM_PROVIDERS_PATH 를 옮긴 T-1857 선례 동형).
+//
+// 스케줄 축 마감(T-1870) — T-1869 이 후속 slice 로 넘겼던 잔여 심볼을 본 모듈로 마저 옮겼다:
+// trigger 상수 2 개(SCHEDULE_TRIGGER_PATH · TRIGGER_DONE_TEXT) · runTrigger ·
+// buildRecentDeletionPath · ReEvaluationDeps · runReEvaluate 6 선언이며, 역시 본문 한 줄도 바꾸지
+// 않고 선언 앞 export 키워드만 붙였다(주석 블록도 가드 근거 정본이라 함께 이동). 이로써 스케줄 ·
+// 재평가 축 정본이 전부 본 모듈 1 곳에 모여 AdminView 재선언은 0 이 된다. 소비처 handleTrigger ·
+// handleReevalTrigger 는 같은 PR 에서 본 모듈 import 로 배선을 갈아끼웠고, AdminView 파일 끝
+// export 배럴이 runTrigger · buildRecentDeletionPath · runReEvaluate 값과 ReEvaluationDeps 타입을
+// 그대로 re-export 하므로 기존 spec(AdminView.test.tsx 의 `from './AdminView'` import)은 한 줄도
+// 바뀌지 않는다(공개 표면 무변경).
 
 import type { RequestOptions } from '../api/apiClient';
 
@@ -140,4 +147,106 @@ export function deriveScheduleMessage(
     return NO_SCHEDULE_TEXT;
   }
   return `${SCHEDULE_LIST_PREFIX}${names.join(', ')}`;
+}
+
+// manual trigger path — 고정 endpoint(POST /api/schedules/trigger, ADR-0042 Admin+, 202
+// Accepted, body 없음). cron 주기와 무관하게 즉시 1회 평가를 발화하는 수동 trigger(R-73).
+export const SCHEDULE_TRIGGER_PATH = '/api/schedules/trigger';
+// manual trigger(POST) 성공 시 message props 로 내려보낼 사람-친화 완료 안내.
+export const TRIGGER_DONE_TEXT = '수동 실행을 시작했습니다';
+
+// onManualTrigger 의 POST /api/schedules/trigger + state-전이 로직을 캡슐화한 순수 async 러너
+// (T-0885 — runApply 동형, body 없는 202 Accepted fire-and-forget). 컨테이너의 handleTrigger 는
+// 이 러너에 in-flight 여부(busy)·상태 setter 를 주입해 호출만 한다. 동작:
+//  - busy(이전 apply/trigger 미완) → 미발사(이중 POST·state 경합 차단).
+//  - 발사 시 진행 on + 이전 error·message 비움 → POST(body 없음) → 성공(완료 message 설정) /
+//    실패(error 문구 표면화 — throw 없이) → 진행 off(공통).
+export async function runTrigger(deps: ScheduleMutationDeps): Promise<void> {
+  // 동시 재호출 가드 — 이전 apply/trigger 미완 중이면 미발사(이중 POST·state 경합 차단).
+  if (deps.busy) {
+    return;
+  }
+  deps.setBusy(true);
+  deps.setError(undefined);
+  deps.setMessage(undefined);
+  try {
+    // POST /api/schedules/trigger — body 없는 fire-and-forget(202 Accepted). 응답 body 를
+    // 소비하지 않으므로 성공 사실만 확인한다(수동 실행 시작 안내).
+    await deps.request(SCHEDULE_TRIGGER_PATH, { method: 'POST' });
+    // 성공 — 사람-친화 완료 안내를 message 로 표면화.
+    deps.setMessage(TRIGGER_DONE_TEXT);
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 403 / 404 / 비-2xx / 네트워크 0 모두.
+    deps.setError(deps.describeError(e));
+  } finally {
+    deps.setBusy(false);
+  }
+}
+
+// 재평가(최근 N일 delete→재수집) 트리거 path 빌더(순수 helper, T-0886) — POST
+// /api/schedules/recent-deletion/:personId(Admin+, ADR-0038 reeval chain / RecentDeletionController).
+// 선택 personId 를 path param 으로 부착한다. encodeURIComponent 로 비정상 문자가 든 personId 도
+// path 가 깨지지 않게 안전 인코딩한다(buildExportPath 의 안전 인코딩 convention 정합).
+export function buildRecentDeletionPath(personId: string): string {
+  return `${SCHEDULES_PATH}/recent-deletion/${encodeURIComponent(personId)}`;
+}
+
+// onTrigger 의 재평가 POST + state-전이 로직에 주입하는 deps(T-0886 — runImport/runTrigger 의
+// *Deps 주입 convention 차용. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). ReEvaluationTriggerPanel
+// 은 submitting 우선/error 분기를 이미 박제하므로 컨테이너는 단일 submitting·error setter 만 공유한다.
+export interface ReEvaluationDeps {
+  // 재평가 POST 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  post: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 재평가 in-flight 여부 — true 면 미발사(동시 재호출·이중 발사 가드).
+  submitting: boolean;
+  setSubmitting: (next: boolean) => void;
+  setError: (next: string | undefined) => void;
+}
+
+// onTrigger 의 POST /api/schedules/recent-deletion/:personId + state-전이 로직을 캡슐화한 순수
+// async 러너(T-0886 — runTrigger 캡슐화 패턴 차용). 컨테이너의 handleReevalTrigger 는 이 러너에
+// 선택 personId·window days·in-flight 여부(submitting)·상태 setter 를 주입해 호출만 한다. 동작:
+//  - 빈/falsy personId(인원 미선택) → 미발사(발사 억제 — path param 누락·잘못된 요청 방어, 택1 구현).
+//  - submitting(이전 재평가 미완) → 미발사(이중 POST·state 경합 차단 — runTrigger busy 가드 동형).
+//  - 발사 시 진행 on + 이전 error 비움 → POST { instants: [], days } → 성공(error 없음 유지) /
+//    실패(error 문구 표면화 — throw 없이) → 진행 off(공통).
+// body 의 instants 는 빈 배열([])로 고정한다(RecentDeletionDto 가 빈 배열 허용 — no-op 정상 경로).
+// 선택 person 의 최근 N일 실제 instant 자동 도출은 Out of Scope(별도 GET 필요 — Follow-up).
+export async function runReEvaluate(
+  personId: string,
+  days: number,
+  deps: ReEvaluationDeps,
+): Promise<void> {
+  // 비정상 호출 가드 — 빈/falsy personId(인원 미선택)는 POST 미발사(path param 누락 방어 — 발사 억제).
+  if (!personId) {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 재평가 미완 중이면 미발사(이중 POST·state 경합 차단).
+  if (deps.submitting) {
+    return;
+  }
+  deps.setSubmitting(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리 — 새 재평가 진행만 남도록).
+  deps.setError(undefined);
+  try {
+    // POST /api/schedules/recent-deletion/:personId — 선택 window 의 days 를 body.days 로,
+    // instants 는 빈 배열([])로 공급한다(DTO 빈 배열 허용 no-op — instant 자동 도출은 후속). 202
+    // Accepted fire-and-forget. 응답 body(deletedCount/recollected)는 소비하지 않으므로(건수 표시
+    // 는 후속) 성공 사실만 확인한다.
+    await deps.post(buildRecentDeletionPath(personId), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instants: [], days }),
+    });
+    // 성공 — 방금 비운 error(undefined)를 유지한다(패널이 정상 트리거 폼을 렌더 — 완료 문구 소비
+    // 상태). 성공 message props 는 panel 계약에 없어(submitting/error/confirmText 만) 별도 설정 불요.
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 403 Admin+ 미만 / 400 잘못된
+    // body / 404 / 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로 표면화.
+    deps.setError(deps.describeError(e));
+  } finally {
+    deps.setSubmitting(false);
+  }
 }
