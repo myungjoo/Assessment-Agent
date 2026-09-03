@@ -2,7 +2,7 @@
 id: T-1859
 title: REQ-080 전역 스타일 축 재판정 + PLAN 133 행 ① 갱신 + 183 행 부채 3 차 실측
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-080]
 independentStream: req-080-global-style-rejudge
@@ -14,6 +14,7 @@ estimatedDiff: 10
 estimatedFiles: 2
 estimatedFilesNote: requirements.md 1 row + PLAN.md 2 bullet(133 행 · 183 행) = 2 파일. 두 문서 모두 bullet 1 개 = 물리 1 행이라 git LOC 은 작고 문자량은 크다 — LOC 수치로 크기를 오판하지 말 것.
 created: 2026-09-03
+completedAt: 2026-09-03T02:41:56Z
 plannerNote: "P6 REQ-080 구현 후 1 회 재판정(§3.1 rule 6). pre-check: main 374cc047 에 REQ-080=PLANNED · ADR-0061 참조 0 · PLAN 183 행 5,569 줄 표기 vs 실측 5,044 줄 → 3 건 모두 미안착"
 ---
 
@@ -86,3 +87,13 @@ plannerNote: "P6 REQ-080 구현 후 1 회 재판정(§3.1 rule 6). pre-check: ma
 ## Follow-ups
 
 (생성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가)
+
+## 결과
+
+`direct` commit [`f4df39bd`](https://github.com/myungjoo/Assessment-Agent/commit/f4df39bd) (2 파일 `+3/-3`) 로 완료. Acceptance Criteria 16 항목 전원 `ok`.
+
+- [requirements.md](../requirements.md) `99 행` REQ-080 status `PLANNED` → `IN_PROGRESS`. 근거 열에 [ADR-0061](../decisions/ADR-0061-frontend-global-stylesheet.md) 링크 + `전역 스타일(CSS) 도입 축 shipped — T-1858` 을 박제하고, 두 축 중 앞 축만 shipped 이며 잔여 축이 관리 화면 탭/구획 내비게이션 1 건임을 판정 사유로 서술했다.
+- [PLAN.md](../PLAN.md) `133 행` — ① 조각을 형제 조각 서식대로 shipped 서술로 교체하고 말미의 "잔여는 ① 하나뿐 … 미shipped" 를 사실에 맞게 정정. 이행 완료된 옛 지시 2 건은 다음 행동(탭/구획 내비게이션 `pr` slice)으로 대체했다. 마커 `[ ]` 는 유지 (잔여 축이 남아 있으므로).
+- [PLAN.md](../PLAN.md) `183 행` — AdminView 부채 3 차 실측. `5,569 줄 · 선언 150 개` → **`5,044 줄 · 선언 129 개`** (측정 sha `edfb1a4b`, 최초 기록 대비 `-1,043 줄`, 목표선 잔여 `-3,044 줄`). 순수 추출 슬라이스 목록을 6 건으로 갱신([T-1856](T-1856-adminview-person-mutation-runners-extract.md) `-287 줄` · [T-1857](T-1857-adminview-llm-provider-mutation-runners-extract.md) `-238 줄`) 하고, 이미 추출 완료라 stale 했던 "다음 대상 = 인원 mutation 러너 군" 지목을 **import/export 러너 군 12 심볼(`1117 행` ~ `1361 행`)** 로 교체했다.
+
+코드 변경 0 (`docs/` 2 파일만) 이라 test·coverage 무영향 — `commitMode: direct` doc-only 로 R-110 test 의무 미해당이며, 박제한 경로·심볼·행 좌표는 head 에서 실측 확인했다.
