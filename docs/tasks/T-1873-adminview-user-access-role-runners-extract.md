@@ -2,7 +2,7 @@
 id: T-1873
 title: AdminView 의 인스턴스 접근·역할 변경 mutation 러너 군을 adminUserMutationRunners 로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-039]
 independentStream: adminview-god-component-refactor
@@ -17,6 +17,9 @@ sizeExempt: true
 exemptReason: "pure-extraction — (a) 동작 변경 0 (연속 블록 1 개 + 동반 상수 4 개를 옮기고 선언 앞에 export 를 붙인 뒤 단방향 import 로 배선하는 것이 전부) · (b) 신규 로직 0 LOC (러너 3 · 순수 helper 1 · 타입 4 · 상수 4 의 본문 무변경) · (c) 기존 spec 은 AdminView 배럴 재수출 덕에 `from './AdminView'` 무수정 통과하고, AdminView 소스를 읽는 drift-guard 3 개는 단언 대상이 전부 잔류부(컨테이너 배선 · markup · users fire call site)라 무영향(실측). 삭제 약 205 + 추가 약 215 가 전부 이동량이며 나머지는 신규 경계 spec 이라 LOC 이 위험도에 비례하지 않는다. 파일 수 3 으로 파일 cap (≤ 5) 은 예외 없이 준수."
 plannerNote: "P6 / PLAN 183 행 AdminView 부채 열한째 실분할 — 사용자 관리 축 잔여인 권한·역할 10 심볼 + 동반 상수 4 로 축 마감"
 created: 2026-09-04
+completedAt: 2026-09-03T16:56:21Z
+prNumber: 1465
+mergeCommit: 52a4caf56c2c3dc5d387a0b900a3fa98ec1ff3ef
 ---
 
 # T-1873 — AdminView 의 인스턴스 접근·역할 변경 mutation 러너 군을 adminUserMutationRunners 로 순수 추출
@@ -76,3 +79,9 @@ created: 2026-09-04
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가한다.)
+
+## 결과 요약 (2026-09-03 완료)
+
+PR [#1465](https://github.com/myungjoo/Assessment-Agent/pull/1465) 머지 (squash → main `52a4caf5`, round 1 APPROVE). 권한 · 역할 축 10 심볼 + 동반 상수 4 를 `adminUserMutationRunners.ts` 로 옮기고 선언 앞에 `export` 만 부착해 본문 diff 0 을 지켰다 (`+249/-228`). `AdminView.tsx` 는 `4,392` → **`4,198` 줄** 로 줄었고, 배럴 10 심볼 재수출 유지로 공개 표면 · 기존 계약 spec 은 무수정 통과했다. `INSTANCE_ACCESS_NO_USER_LABEL` 은 markup 소비처가 잔류부라 옮기지 않았다 (경계 밖 판정 그대로).
+
+신규 경계 describe 1 개 (`+446`) 로 R-112 4 종을 채웠다 — happy 3 · error 3 · 분기 3 (409 · 403 · 파생 진리표) · negative 6 · 동일 참조 1, 총 16 케이스. web vitest `3,713` → `3,729` 전량 green (기존 125 파일 무수정, drift-guard 3 종 포함), `pnpm test:cov` line · function ≥ 80% 통과, `pnpm lint && pnpm build` web · backend 양쪽 통과. PR head run `33780946997` = success.
