@@ -53,6 +53,17 @@ import type {
   ImportPreviewDeps,
   RunAdminExportJobDeps,
 } from './adminImportExportRunners';
+// 스케줄 apply 축 러너 군(T-1869 순수 추출) — apply(PUT /api/schedules) 러너 · 안내 문구 파생
+// helper · 그 deps 타입과 동반 이동 상수 6 개를 담는 모듈. 본문은 한 줄도 바뀌지 않았고 AdminView 는
+// 값만 import 한다(단방향). 파일 끝 export 목록이 이동 전 표면을 그대로 re-export 하므로 기존 spec 의
+// `from './AdminView'` 도 무수정으로 산다(공개 표면 무변경). AdminView 에 잔류하는 runTrigger ·
+// buildRecentDeletionPath · 스케줄 조회 call site 도 정본을 재선언하지 않고 본 모듈에서 가져다 쓴다.
+import {
+  SCHEDULES_PATH,
+  deriveScheduleMessage,
+  runApply,
+} from './adminScheduleRunners';
+import type { ScheduleMutationDeps } from './adminScheduleRunners';
 import GroupMemberList from '../components/GroupMemberList';
 import type { Member } from '../components/GroupMemberList';
 import DifficultyModelSelector from '../components/DifficultyModelSelector';
@@ -431,29 +442,11 @@ function resolveProviderSelectValue(value: string | undefined): string {
   return '';
 }
 
-// 스케줄 조회/upsert path — 고정 endpoint(GET/PUT /api/schedules, ADR-0042 Admin+). GET 은
-// 등록된 schedule name string[] 을 반환하고, PUT 은 `{ name, cronExpression }` body 로 이름
-// 붙은 cron 주기를 등록/교체한다(T-0885). Admin+ 라 User 등급은 403 — 그 403 은 error props
-// 로 안전 표시(throw 없음). personId 같은 필수 query 가 없어 무조건 조회한다.
-const SCHEDULES_PATH = '/api/schedules';
 // manual trigger path — 고정 endpoint(POST /api/schedules/trigger, ADR-0042 Admin+, 202
 // Accepted, body 없음). cron 주기와 무관하게 즉시 1회 평가를 발화하는 수동 trigger(R-73).
 const SCHEDULE_TRIGGER_PATH = '/api/schedules/trigger';
-// PUT body 에 공급할 단일 default schedule name 상수(T-0885). SchedulePanel 은 cronExpression
-// 만 노출하고 name 은 노출하지 않으므로, 본 컨테이너가 단일 default name 1 개를 upsert 대상으로
-// 고정한다(다중-named schedule 관리 UI 는 Out of Scope / Follow-up).
-const DEFAULT_SCHEDULE_NAME = 'daily-evaluation';
-// apply(PUT) 성공 시 SchedulePanel 의 message props 로 내려보낼 사람-친화 완료 안내.
-const APPLY_DONE_TEXT = '스케줄 주기를 적용했습니다';
 // manual trigger(POST) 성공 시 message props 로 내려보낼 사람-친화 완료 안내.
 const TRIGGER_DONE_TEXT = '수동 실행을 시작했습니다';
-// 스케줄 목록 조회(GET) 진행 중 표시할 안내 문구 — busy(적용/실행 in-flight)가 아닌 정상
-// 상태에서 message props 로 내려보낸다(초기 loading 안전 표시 — crash 없이).
-const SCHEDULE_LOADING_TEXT = '스케줄 정보를 불러오는 중…';
-// 등록된 스케줄이 0 건일 때 표시할 빈 상태 안내 문구(GET 이 빈 배열 반환 — seed 전 정상).
-const NO_SCHEDULE_TEXT = '등록된 스케줄이 없습니다';
-// 등록 스케줄 목록을 message 로 요약할 때 붙일 접두 문구(예: "등록된 스케줄: daily-evaluation").
-const SCHEDULE_LIST_PREFIX = '등록된 스케줄: ';
 
 // 재수집 window 후보 목록(frontend-local 상수, T-0886 — EXPORT_SCOPE_OPTIONS 동형). 선택 가능한
 // 최근 N일 재수집 기간(예: 최근 1일/1주/30일). backend 는 body.days 로 받는다(RecentDeletionDto 의
@@ -1004,68 +997,6 @@ async function runAssign(
   }
 }
 
-// SchedulePanel 의 apply(PUT)·manual trigger(POST) mutation + state-전이 로직에 주입하는 deps
-// (T-0885 — ④c runAssign / ④e runImport 의 *Deps 주입 convention 차용. jsdom/렌더러 없이
-// mutation 본체를 직접 검증한다). apply·trigger 는 SchedulePanel 의 단일 busy 슬롯을 공유하므로
-// (패널이 busy=true 면 두 컨트롤 모두 억제) 하나의 busy 플래그·error·message setter 를 공유한다.
-interface ScheduleMutationDeps {
-  // mutation 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
-  request: (path: string, options: RequestOptions) => Promise<unknown>;
-  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
-  describeError: (e: unknown) => string;
-  // 현재 apply/trigger in-flight 여부 — true 면 미발사(동시 재호출·이중 발사 가드).
-  busy: boolean;
-  setBusy: (next: boolean) => void;
-  setError: (next: string | undefined) => void;
-  setMessage: (next: string | undefined) => void;
-}
-
-// onApply 의 PUT /api/schedules + state-전이 로직을 캡슐화한 순수 async 러너(T-0885 — runImport
-// 캡슐화 패턴 차용). 컨테이너의 handleApply 는 이 러너에 현재 cron 입력값과 in-flight 여부(busy)·
-// 상태 setter 를 주입해 호출만 한다. 동작:
-//  - 빈/falsy cronExpression → 미발사(빈 값으로 apply 시 잘못된 body·400 회피 — 발사 억제 택1).
-//  - busy(이전 apply/trigger 미완) → 미발사(이중 PUT·state 경합 차단 — runImport importing 가드 동형).
-//  - 발사 시 진행 on + 이전 error·message 비움 → PUT `{ name: <default 상수>, cronExpression }` →
-//    성공(완료 message 설정) / 실패(error 문구 표면화 — throw 없이) → 진행 off(공통).
-async function runApply(
-  cronExpression: string,
-  deps: ScheduleMutationDeps,
-): Promise<void> {
-  // 비정상 호출 가드 — 빈/falsy cron 식은 PUT 미발사(잘못된 body 회피 — 발사 억제 구현 택1).
-  if (!cronExpression) {
-    return;
-  }
-  // 동시 재호출 가드 — 이전 apply/trigger 미완 중이면 미발사(이중 PUT·state 경합 차단).
-  if (deps.busy) {
-    return;
-  }
-  deps.setBusy(true);
-  // 재발화 시작 시 직전 error·message 를 비운다(실패 후 재시도 시 직전 error 정리 + 직전 완료
-  // 안내 정리 — 새 apply 의 진행 표시만 남도록, runImport 의 시작 정리 동형).
-  deps.setError(undefined);
-  deps.setMessage(undefined);
-  try {
-    // PUT /api/schedules — 단일 default schedule name + 현재 cron 입력값을 body 로 전송. name 은
-    // SchedulePanel 이 노출하지 않으므로 컨테이너가 default 상수를 공급한다(다중-named 관리는 후속).
-    await deps.request(SCHEDULES_PATH, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: DEFAULT_SCHEDULE_NAME,
-        cronExpression,
-      }),
-    });
-    // 성공 — 사람-친화 완료 안내를 message 로 표면화(SchedulePanel 의 정상 message 분기).
-    deps.setMessage(APPLY_DONE_TEXT);
-  } catch (e) {
-    // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 403 Admin+ 미만 / 400 유효하지
-    // 않은 cron 식·빈 name / 404 / 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생.
-    deps.setError(deps.describeError(e));
-  } finally {
-    deps.setBusy(false);
-  }
-}
-
 // onManualTrigger 의 POST /api/schedules/trigger + state-전이 로직을 캡슐화한 순수 async 러너
 // (T-0885 — runApply 동형, body 없는 202 Accepted fire-and-forget). 컨테이너의 handleTrigger 는
 // 이 러너에 in-flight 여부(busy)·상태 setter 를 주입해 호출만 한다. 동작:
@@ -1092,28 +1023,6 @@ async function runTrigger(deps: ScheduleMutationDeps): Promise<void> {
   } finally {
     deps.setBusy(false);
   }
-}
-
-// 등록 schedule name 목록 → SchedulePanel 의 message props 로 내려보낼 안내 문구 파생(순수
-// helper, T-0885). 사용자 조작 결과(mutationMessage: apply/trigger 완료 안내)가 있으면 그것을
-// 우선하고(최신 피드백), 없으면 GET 상태를 파생한다: loading 중이면 로딩 안내, 등록 0 건이면
-// 빈 상태 안내, 1+ 건이면 이름 목록 요약("등록된 스케줄: a, b"). 비배열/undefined 입력도 빈
-// 배열로 간주해 throw 없이 빈 상태 안내를 낸다(안전 처리).
-function deriveScheduleMessage(
-  names: string[] | undefined,
-  loading: boolean,
-  mutationMessage: string | undefined,
-): string {
-  if (mutationMessage) {
-    return mutationMessage;
-  }
-  if (loading) {
-    return SCHEDULE_LOADING_TEXT;
-  }
-  if (!Array.isArray(names) || names.length === 0) {
-    return NO_SCHEDULE_TEXT;
-  }
-  return `${SCHEDULE_LIST_PREFIX}${names.join(', ')}`;
 }
 
 // 재평가(최근 N일 delete→재수집) 트리거 path 빌더(순수 helper, T-0886) — POST

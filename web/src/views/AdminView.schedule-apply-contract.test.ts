@@ -118,13 +118,16 @@ const CONTROLLER_SOURCE = readFileSync(new URL('../../../src/scheduling/cron-sch
 const DTO_SOURCE = readFileSync(new URL('../../../src/scheduling/dto/upsert-cron-schedule.dto.ts', import.meta.url), 'utf8');
 const RECENT_DELETION_SOURCE = readFileSync(new URL('../../../src/scheduling/recent-deletion.controller.ts', import.meta.url), 'utf8');
 const BACKFILL_SOURCE = readFileSync(new URL('../../../src/scheduling/backfill.controller.ts', import.meta.url), 'utf8');
-const ADMIN_VIEW_SOURCE = readFileSync(new URL('./AdminView.tsx', import.meta.url), 'utf8');
+// T-1869 순수 추출 — apply 축 러너 · SCHEDULES_PATH · DEFAULT_SCHEDULE_NAME 선언이 AdminView.tsx 에서
+// adminScheduleRunners.ts 로 옮겨졌다. 읽기 대상 파일만 따라 바꾸고 단언 내용은 그대로 둔다
+// (`export const ...` 형태라 기존 선언 문자열이 부분 문자열로 그대로 매칭된다).
+const SCHEDULE_RUNNERS_SOURCE = readFileSync(new URL('./adminScheduleRunners.ts', import.meta.url), 'utf8');
 const ROUTE = extractControllerRoute(CONTROLLER_SOURCE);
 const HANDLERS = extractHandlerMethods(CONTROLLER_SOURCE);
 const UPSERT = HANDLERS.upsert ?? null;
 const UPSERT_PARAMS = extractHandlerParams(CONTROLLER_SOURCE, 'upsert');
 const DTO_FIELDS = extractDtoFields(DTO_SOURCE, 'UpsertCronScheduleDto');
-const RUNNER_SRC = sliceApplyRunner(ADMIN_VIEW_SOURCE);
+const RUNNER_SRC = sliceApplyRunner(SCHEDULE_RUNNERS_SOURCE);
 const UPSERT_CONTRACT: BackendContract = {
   route: ROUTE,
   method: UPSERT?.method ?? null,
@@ -195,7 +198,7 @@ describe('AdminView — 스케줄 주기 등록/교체 web↔backend 계약 drif
     expect(UPSERT_CONTRACT.hasParam).toBe(false);
   });
   it('web 발사(PUT /api/schedules)가 backend @Put() upsert 계약과 완전 일치한다 (happy-path — 경로/method 정합)', async () => {
-    expect(ADMIN_VIEW_SOURCE).toContain(SCHEDULES_PATH_DECL); // SCHEDULES_PATH 상수값 확정
+    expect(SCHEDULE_RUNNERS_SOURCE).toContain(SCHEDULES_PATH_DECL); // SCHEDULES_PATH 상수값 확정
     const fired = await fireApply(CRON, false);
     expect(fired).toBeDefined();
     expect(fired?.path).toBe(ROUTE_TEMPLATE);
@@ -209,7 +212,7 @@ describe('AdminView — 스케줄 주기 등록/교체 web↔backend 계약 drif
     const fired = await fireApply(CRON, false);
     expect([...DTO_FIELDS.required].sort()).toEqual(['cronExpression', 'name']); // DTO 필수 필드
     expect([...DTO_FIELDS.optional]).toEqual([]);
-    expect(ADMIN_VIEW_SOURCE).toContain(DEFAULT_NAME_DECL); // name 은 default 상수 공급
+    expect(SCHEDULE_RUNNERS_SOURCE).toContain(DEFAULT_NAME_DECL); // name 은 default 상수 공급
     expect(RUNNER_SRC).toContain('body:'); // runApply 소스에 body 존재(fire-and-forget 아님)
     expect([...(fired as WebFire).bodyKeys].sort()).toEqual(['cronExpression', 'name']); // 실 발사 키
   });

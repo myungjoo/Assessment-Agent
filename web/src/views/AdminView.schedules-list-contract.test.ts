@@ -72,6 +72,10 @@ const CONTROLLER_SOURCE = readFileSync(new URL('../../../src/scheduling/cron-sch
 const RECENT_DELETION_SOURCE = readFileSync(new URL('../../../src/scheduling/recent-deletion.controller.ts', import.meta.url), 'utf8');
 const BACKFILL_SOURCE = readFileSync(new URL('../../../src/scheduling/backfill.controller.ts', import.meta.url), 'utf8');
 const ADMIN_VIEW_SOURCE = readFileSync(new URL('./AdminView.tsx', import.meta.url), 'utf8');
+// T-1869 순수 추출 — SCHEDULES_PATH 선언이 adminScheduleRunners.ts 로 옮겨졌다. 선언 대조의 읽기
+// 대상만 따라 바꾸고 단언 내용은 그대로 둔다. 조회 call site(useApiResource)는 AdminView 에 남으므로
+// extractSchedulesFireMethod(ADMIN_VIEW_SOURCE) 는 그대로 유지한다.
+const SCHEDULE_RUNNERS_SOURCE = readFileSync(new URL('./adminScheduleRunners.ts', import.meta.url), 'utf8');
 const ROUTE = extractControllerRoute(CONTROLLER_SOURCE);
 const HANDLERS = extractHandlerMethods(CONTROLLER_SOURCE);
 const LIST = HANDLERS.list ?? null;
@@ -131,7 +135,7 @@ describe('AdminView — 스케줄 목록 조회(GET /api/schedules) web↔backen
     expect(diffContract(schedulesFire(), { ...LIST_CONTRACT, method: HANDLERS.upsert.method })).toEqual([expect.stringContaining('method 불일치')]);
   });
   it('web 발사(GET /api/schedules)가 backend @Get() list 계약과 완전 일치한다 (happy-path — 경로 정합)', () => {
-    expect(ADMIN_VIEW_SOURCE).toContain(SCHEDULES_PATH_DECL); // SCHEDULES_PATH 상수값 확정(export 아님 — 소스 대조)
+    expect(SCHEDULE_RUNNERS_SOURCE).toContain(SCHEDULES_PATH_DECL); // SCHEDULES_PATH 상수값 확정(export 아님 — 소스 대조)
     const fired = schedulesFire();
     expect(fired.path).toBe(ROUTE_TEMPLATE);
     expect(fired.hasParamSegment).toBe(false);
