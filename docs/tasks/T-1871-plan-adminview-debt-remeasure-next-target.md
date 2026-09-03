@@ -2,7 +2,7 @@
 id: T-1871
 title: PLAN 183 행 AdminView 부채 5 차 실측 갱신 + 다음 추출 대상 재지목
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-049]
 independentStream: adminview-god-component-debt
@@ -11,6 +11,7 @@ touchesFiles: [docs/PLAN.md]
 estimatedDiff: 10
 estimatedFiles: 1
 created: 2026-09-03
+completedAt: 2026-09-03T12:41:03Z
 plannerNote: P5 PLAN 183 행 부채 bullet — T-1869·T-1870 머지로 표기가 stale(4,688/108 vs 실측 4,497/93) + 지목 대상(스케줄 축)이 이미 마감돼 교체
 ---
 
@@ -73,3 +74,11 @@ git rev-parse --short origin/main
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가)
+
+## 결과 (2026-09-03)
+
+- `direct` commit [`f3c913ee`](https://github.com/myungjoo/Assessment-Agent/commit/f3c913ee) 로 main 에 반영 (`docs/PLAN.md` 1 파일, 실 diff `+1/-1` — bullet 한 문단 통째 교체).
+- `183 행` 부채 bullet 의 실측 표기를 `4,688 줄 · 선언 108 개` → **`4,497 줄 · 선언 93 개` (head `b908be1a`)** 로 갱신했다. T-1869 (`-91`) · T-1870 (`-100`) 두 머지분을 한 번에 반영한 5 차 remeasure 다.
+- 누적 감소 `-1,590 줄` · 목표선 (≤ 2,000 행) 잔여 `-2,497 줄` · 선언 추이 `149 → 93` 으로 산술 재계산하고, 진척 목록을 순수 추출 **9 슬라이스** 로 확장했다 (스케줄 축 마감 표기 포함).
+- 다음 추출 대상을 소멸한 스케줄 축 대신 **사용자 관리 mutation 축 17 심볼** (`1128~1426 행`) 로 재지목하고, `USERS_PATH` 동반 이동 방향 · drift-guard 영향 · 파일 cap (≤ 5) 절단선 후보를 함께 박제했다.
+- 측정 방법 문단 · 구조적 유인 설명 · T-1822 링크 · 목표선 정의는 무변경 — bullet 의 나머지 서술은 그대로 보존했다.
