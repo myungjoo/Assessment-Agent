@@ -8,7 +8,7 @@
 //
 // AdminView 와의 방향: AdminView → 본 모듈(값 의존) 의 **단방향** import 만 만든다. 본 모듈은
 // AdminView 를 import 하지 않는다(역방향이 필요해지면 이동 범위를 잘못 잡았다는 신호 — 범위를
-// 넓히지 말고 Follow-ups 로 남긴다). AdminView 파일 끝 export 목록은 임포트한 값 8 개
+// 넓히지 말고 Follow-ups 로 남긴다). AdminView 파일 끝 export 목록은 임포트한 값 9 개
 // (buildExportInput · runAdminExportJob · runImport · runImportPreview · runConfirmedImport ·
 // clearImportConfirm · formatImportJobDetail · formatRestoreTotalsPhrase · formatRestorePlanConfirmText)
 // 를 그대로 re-export 하고, deps 타입 5 개(DownloadDeps · RunAdminExportJobDeps · ImportDeps ·
