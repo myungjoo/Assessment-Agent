@@ -107,12 +107,15 @@ function diffContract(fire: WebFire, backend: BackendContract): string[] {
 const CONTROLLER_SOURCE = readFileSync(new URL('../../../src/scheduling/cron-schedule.controller.ts', import.meta.url), 'utf8');
 const RECENT_DELETION_SOURCE = readFileSync(new URL('../../../src/scheduling/recent-deletion.controller.ts', import.meta.url), 'utf8');
 const BACKFILL_SOURCE = readFileSync(new URL('../../../src/scheduling/backfill.controller.ts', import.meta.url), 'utf8');
-const ADMIN_VIEW_SOURCE = readFileSync(new URL('./AdminView.tsx', import.meta.url), 'utf8');
+// T-1870 순수 추출 — trigger · 재평가 축 러너와 그 상수 선언이 AdminView.tsx 에서
+// adminScheduleRunners.ts 로 옮겨졌다. 읽기 대상 파일만 따라 바꾸고 단언 내용은 그대로 둔다
+// (`export const ...` 형태라 기존 선언 문자열이 부분 문자열로 그대로 매칭된다).
+const SCHEDULE_RUNNERS_SOURCE = readFileSync(new URL('./adminScheduleRunners.ts', import.meta.url), 'utf8');
 const ROUTE = extractControllerRoute(CONTROLLER_SOURCE);
 const HANDLERS = extractHandlerMethods(CONTROLLER_SOURCE);
 const TRIGGER = HANDLERS.trigger ?? null;
 const TRIGGER_PARAMS = extractHandlerParams(CONTROLLER_SOURCE, 'trigger');
-const RUNNER_SRC = sliceTriggerRunner(ADMIN_VIEW_SOURCE);
+const RUNNER_SRC = sliceTriggerRunner(SCHEDULE_RUNNERS_SOURCE);
 const TRIGGER_CONTRACT: BackendContract = {
   route: ROUTE,
   method: TRIGGER?.method ?? null,
@@ -194,7 +197,7 @@ describe('AdminView — 수동 재평가 즉시 실행 web↔backend 계약 drif
     expect(pathSegments(composed).at(-1)).toBe(LITERAL);
   });
   it('web 발사(POST /api/schedules/trigger)가 backend 계약과 완전 일치한다 (happy-path — 경로 정합)', async () => {
-    expect(ADMIN_VIEW_SOURCE).toContain(TRIGGER_PATH_DECL); // SCHEDULE_TRIGGER_PATH 상수값 확정
+    expect(SCHEDULE_RUNNERS_SOURCE).toContain(TRIGGER_PATH_DECL); // SCHEDULE_TRIGGER_PATH 상수값 확정
     const fired = await fireTrigger(false);
     expect(fired).toBeDefined();
     expect(fired?.path).toBe(ROUTE_TEMPLATE);

@@ -114,12 +114,15 @@ function diffContract(fire: WebFire, backend: BackendContract, personId: string)
 // 실 소스 로드 + web 발사 캡처 harness(ADR-0040 §5 — RTL/jsdom 없음).
 const CONTROLLER_SOURCE = readFileSync(new URL('../../../src/scheduling/recent-deletion.controller.ts', import.meta.url), 'utf8');
 const DTO_SOURCE = readFileSync(new URL('../../../src/scheduling/dto/recent-deletion.dto.ts', import.meta.url), 'utf8');
-const ADMIN_VIEW_SOURCE = readFileSync(new URL('./AdminView.tsx', import.meta.url), 'utf8');
+// T-1870 순수 추출 — trigger · 재평가 축 러너와 그 상수 선언이 AdminView.tsx 에서
+// adminScheduleRunners.ts 로 옮겨졌다. 읽기 대상 파일만 따라 바꾸고 단언 내용은 그대로 둔다
+// (`export const ...` 형태라 기존 선언 문자열이 부분 문자열로 그대로 매칭된다).
+const SCHEDULE_RUNNERS_SOURCE = readFileSync(new URL('./adminScheduleRunners.ts', import.meta.url), 'utf8');
 const ROUTE = extractControllerRoute(CONTROLLER_SOURCE);
 const HANDLERS = extractHandlerMethods(CONTROLLER_SOURCE);
 const RD = HANDLERS.recentDeletion ?? null;
 const DTO_FIELDS = extractDtoFields(DTO_SOURCE, 'RecentDeletionDto');
-const RUNNER_SRC = sliceReEvaluateRunner(ADMIN_VIEW_SOURCE);
+const RUNNER_SRC = sliceReEvaluateRunner(SCHEDULE_RUNNERS_SOURCE);
 // 단일 handler controller — 핸들러 인자 존재는 소스 전체 정규식으로 판별(@Param/@Body 는 recentDeletion 뿐).
 const CONTROLLER_STRIPPED = stripComments(CONTROLLER_SOURCE);
 const RD_CONTRACT: BackendContract = {

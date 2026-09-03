@@ -53,17 +53,19 @@ import type {
   ImportPreviewDeps,
   RunAdminExportJobDeps,
 } from './adminImportExportRunners';
-// 스케줄 apply 축 러너 군(T-1869 순수 추출) — apply(PUT /api/schedules) 러너 · 안내 문구 파생
-// helper · 그 deps 타입과 동반 이동 상수 6 개를 담는 모듈. 본문은 한 줄도 바뀌지 않았고 AdminView 는
-// 값만 import 한다(단방향). 파일 끝 export 목록이 이동 전 표면을 그대로 re-export 하므로 기존 spec 의
-// `from './AdminView'` 도 무수정으로 산다(공개 표면 무변경). AdminView 에 잔류하는 runTrigger ·
-// buildRecentDeletionPath · 스케줄 조회 call site 도 정본을 재선언하지 않고 본 모듈에서 가져다 쓴다.
+// 스케줄 · 재평가 축 러너 군(T-1869 apply 조각 + T-1870 trigger · 재평가 잔여의 순수 추출) — apply ·
+// manual trigger · 재평가 러너와 안내 문구 helper · path 빌더 · deps 타입 · 동반 상수를 담는 모듈.
+// 본문은 한 줄도 바뀌지 않았고 AdminView 는 값만 import 한다(단방향). 파일 끝 export 배럴이 이동 전
+// 표면을 그대로 re-export 하므로 기존 spec 의 `from './AdminView'` 도 무수정으로 산다.
 import {
   SCHEDULES_PATH,
+  buildRecentDeletionPath,
   deriveScheduleMessage,
   runApply,
+  runReEvaluate,
+  runTrigger,
 } from './adminScheduleRunners';
-import type { ScheduleMutationDeps } from './adminScheduleRunners';
+import type { ReEvaluationDeps, ScheduleMutationDeps } from './adminScheduleRunners';
 import GroupMemberList from '../components/GroupMemberList';
 import type { Member } from '../components/GroupMemberList';
 import DifficultyModelSelector from '../components/DifficultyModelSelector';
@@ -441,12 +443,6 @@ function resolveProviderSelectValue(value: string | undefined): string {
   }
   return '';
 }
-
-// manual trigger path — 고정 endpoint(POST /api/schedules/trigger, ADR-0042 Admin+, 202
-// Accepted, body 없음). cron 주기와 무관하게 즉시 1회 평가를 발화하는 수동 trigger(R-73).
-const SCHEDULE_TRIGGER_PATH = '/api/schedules/trigger';
-// manual trigger(POST) 성공 시 message props 로 내려보낼 사람-친화 완료 안내.
-const TRIGGER_DONE_TEXT = '수동 실행을 시작했습니다';
 
 // 재수집 window 후보 목록(frontend-local 상수, T-0886 — EXPORT_SCOPE_OPTIONS 동형). 선택 가능한
 // 최근 N일 재수집 기간(예: 최근 1일/1주/30일). backend 는 body.days 로 받는다(RecentDeletionDto 의
@@ -994,102 +990,6 @@ async function runAssign(
     deps.setAssignError(deps.describeError(e));
   } finally {
     deps.setAssigning(false);
-  }
-}
-
-// onManualTrigger 의 POST /api/schedules/trigger + state-전이 로직을 캡슐화한 순수 async 러너
-// (T-0885 — runApply 동형, body 없는 202 Accepted fire-and-forget). 컨테이너의 handleTrigger 는
-// 이 러너에 in-flight 여부(busy)·상태 setter 를 주입해 호출만 한다. 동작:
-//  - busy(이전 apply/trigger 미완) → 미발사(이중 POST·state 경합 차단).
-//  - 발사 시 진행 on + 이전 error·message 비움 → POST(body 없음) → 성공(완료 message 설정) /
-//    실패(error 문구 표면화 — throw 없이) → 진행 off(공통).
-async function runTrigger(deps: ScheduleMutationDeps): Promise<void> {
-  // 동시 재호출 가드 — 이전 apply/trigger 미완 중이면 미발사(이중 POST·state 경합 차단).
-  if (deps.busy) {
-    return;
-  }
-  deps.setBusy(true);
-  deps.setError(undefined);
-  deps.setMessage(undefined);
-  try {
-    // POST /api/schedules/trigger — body 없는 fire-and-forget(202 Accepted). 응답 body 를
-    // 소비하지 않으므로 성공 사실만 확인한다(수동 실행 시작 안내).
-    await deps.request(SCHEDULE_TRIGGER_PATH, { method: 'POST' });
-    // 성공 — 사람-친화 완료 안내를 message 로 표면화.
-    deps.setMessage(TRIGGER_DONE_TEXT);
-  } catch (e) {
-    // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 403 / 404 / 비-2xx / 네트워크 0 모두.
-    deps.setError(deps.describeError(e));
-  } finally {
-    deps.setBusy(false);
-  }
-}
-
-// 재평가(최근 N일 delete→재수집) 트리거 path 빌더(순수 helper, T-0886) — POST
-// /api/schedules/recent-deletion/:personId(Admin+, ADR-0038 reeval chain / RecentDeletionController).
-// 선택 personId 를 path param 으로 부착한다. encodeURIComponent 로 비정상 문자가 든 personId 도
-// path 가 깨지지 않게 안전 인코딩한다(buildExportPath 의 안전 인코딩 convention 정합).
-function buildRecentDeletionPath(personId: string): string {
-  return `${SCHEDULES_PATH}/recent-deletion/${encodeURIComponent(personId)}`;
-}
-
-// onTrigger 의 재평가 POST + state-전이 로직에 주입하는 deps(T-0886 — runImport/runTrigger 의
-// *Deps 주입 convention 차용. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). ReEvaluationTriggerPanel
-// 은 submitting 우선/error 분기를 이미 박제하므로 컨테이너는 단일 submitting·error setter 만 공유한다.
-interface ReEvaluationDeps {
-  // 재평가 POST 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
-  post: (path: string, options: RequestOptions) => Promise<unknown>;
-  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
-  describeError: (e: unknown) => string;
-  // 현재 재평가 in-flight 여부 — true 면 미발사(동시 재호출·이중 발사 가드).
-  submitting: boolean;
-  setSubmitting: (next: boolean) => void;
-  setError: (next: string | undefined) => void;
-}
-
-// onTrigger 의 POST /api/schedules/recent-deletion/:personId + state-전이 로직을 캡슐화한 순수
-// async 러너(T-0886 — runTrigger 캡슐화 패턴 차용). 컨테이너의 handleReevalTrigger 는 이 러너에
-// 선택 personId·window days·in-flight 여부(submitting)·상태 setter 를 주입해 호출만 한다. 동작:
-//  - 빈/falsy personId(인원 미선택) → 미발사(발사 억제 — path param 누락·잘못된 요청 방어, 택1 구현).
-//  - submitting(이전 재평가 미완) → 미발사(이중 POST·state 경합 차단 — runTrigger busy 가드 동형).
-//  - 발사 시 진행 on + 이전 error 비움 → POST { instants: [], days } → 성공(error 없음 유지) /
-//    실패(error 문구 표면화 — throw 없이) → 진행 off(공통).
-// body 의 instants 는 빈 배열([])로 고정한다(RecentDeletionDto 가 빈 배열 허용 — no-op 정상 경로).
-// 선택 person 의 최근 N일 실제 instant 자동 도출은 Out of Scope(별도 GET 필요 — Follow-up).
-async function runReEvaluate(
-  personId: string,
-  days: number,
-  deps: ReEvaluationDeps,
-): Promise<void> {
-  // 비정상 호출 가드 — 빈/falsy personId(인원 미선택)는 POST 미발사(path param 누락 방어 — 발사 억제).
-  if (!personId) {
-    return;
-  }
-  // 동시 재호출 가드 — 이전 재평가 미완 중이면 미발사(이중 POST·state 경합 차단).
-  if (deps.submitting) {
-    return;
-  }
-  deps.setSubmitting(true);
-  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리 — 새 재평가 진행만 남도록).
-  deps.setError(undefined);
-  try {
-    // POST /api/schedules/recent-deletion/:personId — 선택 window 의 days 를 body.days 로,
-    // instants 는 빈 배열([])로 공급한다(DTO 빈 배열 허용 no-op — instant 자동 도출은 후속). 202
-    // Accepted fire-and-forget. 응답 body(deletedCount/recollected)는 소비하지 않으므로(건수 표시
-    // 는 후속) 성공 사실만 확인한다.
-    await deps.post(buildRecentDeletionPath(personId), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ instants: [], days }),
-    });
-    // 성공 — 방금 비운 error(undefined)를 유지한다(패널이 정상 트리거 폼을 렌더 — 완료 문구 소비
-    // 상태). 성공 message props 는 panel 계약에 없어(submitting/error/confirmText 만) 별도 설정 불요.
-  } catch (e) {
-    // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 403 Admin+ 미만 / 400 잘못된
-    // body / 404 / 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로 표면화.
-    deps.setError(deps.describeError(e));
-  } finally {
-    deps.setSubmitting(false);
   }
 }
 
