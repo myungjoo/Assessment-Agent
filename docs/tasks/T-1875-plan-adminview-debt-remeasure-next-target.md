@@ -2,7 +2,8 @@
 id: T-1875
 title: PLAN 183 행 AdminView 부채 6 차 실측 갱신 + 다음 추출 대상 재지목
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-09-03T18:41:52Z
 commitMode: direct
 coversReq: [REQ-049]
 independentStream: adminview-god-component-debt
