@@ -2,7 +2,7 @@
 id: T-1877
 title: AdminView 의 난이도 매핑 assign 축(AssignDeps · runAssign + LLM_MAPPINGS_PATH)을 adminLlmProviderMutationRunners 로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-050]
 independentStream: adminview-god-component-refactor
@@ -76,3 +76,10 @@ created: 2026-09-03
 
 - (planner 사전 박제) [docs/PLAN.md](../PLAN.md) `183 행` bullet 갱신 (`direct`) — T-1876 (`-151`) 과 본 task 분을 **묶어 1 회로** 실측 LOC · 선언 수 · 진척 목록 (열셋째 · 열넷째 슬라이스) 을 갱신하고 다음 추출 대상을 재지목한다. 현 bullet 표기 (`4,072 줄 · 선언 66`) 는 이미 stale 이며 지목 좌표 (`943~1001 행` 등) 도 전부 무효다.
 - (planner 사전 박제) `src/run-status/run-status.service.spec.ts:134` 가 backend full-suite 병렬 실행에서 flaky fail 하는 사례가 T-1876 실행 중 관측됐다 (단독 재실행 · CI 는 green). backend 0 LOC 변경과 무관한 **기존 flake** 이므로 본 task 에서 고치지 않는다 — 재발 시 별도 `pr` task 로 격리 (원인 후보: 시간 의존 단언 또는 공유 mock 상태).
+
+## 완료 기록
+
+- **Status: DONE** — 2026-09-03T20:52:36Z (`pr`, [PR #1468](https://github.com/myungjoo/Assessment-Agent/pull/1468) → main [`828910ad`](https://github.com/myungjoo/Assessment-Agent/commit/828910ad), round 1 머지).
+- `AssignDeps` · `runAssign` · 상수 `LLM_MAPPINGS_PATH` 를 [adminLlmProviderMutationRunners.ts](../../web/src/views/adminLlmProviderMutationRunners.ts) 로 이동(`+81/-65`). 이동 블록은 `export` 키워드 외 **본문 · 주석 byte-identical**(origin/main 원본과 diff 대조 확인). `Difficulty` 타입 import 1 줄 추가, 참조 0 이 된 `RequestOptions` 타입 import 1 줄 제거(TS 미사용 오류 해소). 역방향 import 0 · AdminView 재선언 0 · 배럴 재수출 유지로 기존 spec 2 개 무수정 통과, 잔류 소비처 `handleAssign` 이 import 된 `runAssign` 을 그대로 호출(소비처 동반 의무 충족).
+- **AdminView.tsx `3,921 → 3,862 줄`(-59)** — 기대치 `-60` 안팎과 일치.
+- 검증: web vitest 127 파일 `3,791` test green(신규 6 — happy · error · 분기 2(`providerId` falsy · in-flight) · 비-`ApiError` throw · 상수 정본 · 재수출 identity 로 R-112 4 종 cover), backend jest 466 suite `13,495` test green(line · function ≥ 80% 통과), `pnpm lint && pnpm build` 양쪽 통과. PR head run(33804137198) success · approve-comment 재검증 run(33804224684) success.
