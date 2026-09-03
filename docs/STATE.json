@@ -46,10 +46,10 @@
     "note": "cron fire (schedule, local) — 새 session 이라 turnCount 1. lock CAS 획득 (tip d2808978, 직전 tip 이 tombstone 이라 경쟁 0). server-time 은 gh api -i rate_limit 의 Date 헤더로 21:38:21Z 확보. claims.json 이 빈 배열이라 회수 대상 0 · 활성 claim 0 이었고 currentTask · nextTask 둘 다 null 이라 claimable 후보가 없어 planner dispatch 경로로 진입, T-1857 을 큐잉했다."
   },
   "ci": {
-    "status": "running",
+    "status": "green",
     "consecutiveFails": 0,
-    "lastRun": "2026-09-03T06:44:00Z",
-    "note": "T-1861 direct commit 4e54d81c 의 main run(33724425897) 이 본 fire 종료 시점 in_progress 라 LOOP.md §1 [5] (R-114) 대로 다음 fire 에 conclusion 확인을 위임한다. 직전 fire 가 넘긴 위임분은 없다."
+    "lastRun": "2026-09-03T06:57:00Z",
+    "note": "T-1861 direct commit 4e54d81c 의 main run(33724425897) 과 bookkeeping commit dedacc1b 의 run(33724689923) 을 둘 다 conclusion=success 로 실측해 R-114 를 본 fire 안에서 종결했다. planner commit f793de27 의 run(33725356355) 만 in_progress 라 다음 fire 에 위임한다."
   },
   "reviewRounds": {
     "T-1860": 2,
