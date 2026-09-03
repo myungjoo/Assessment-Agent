@@ -2,7 +2,7 @@
 id: T-1860
 title: AdminView 의 import/export 러너 군을 별도 모듈로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 independentStream: adminview-god-component-refactor
@@ -17,6 +17,9 @@ sizeExempt: true
 exemptReason: "pure-extraction — (a) 동작 변경 0 (코드 이동 + 최상단 type/값 import 몇 줄 + 선언 앞 export 키워드만) · (b) 신규 로직 0 LOC (deps 타입 4 · 순수 helper 3 · 상수 5 · async 러너 4 의 본문 무변경) · (c) 기존 spec 은 AdminView 재수출 덕에 import 경로까지 무수정 통과. 삭제 약 350 + 추가 약 380 이 전부 이동량이라 LOC 이 위험도에 비례하지 않는다. 파일 수 3 개로 파일 cap (≤ 5) 은 예외 없이 준수."
 plannerNote: "P6 / PLAN 183 행 AdminView god component 부채의 일곱째 실분할 — head cb4aff3f 의 import/export 축 12 심볼 연속 1 블록 251 줄 + 직접 참조 상수·helper"
 created: 2026-09-03
+completedAt: 2026-09-03T05:07:45Z
+prNumber: 1460
+mergeCommit: 20ff3d7f
 ---
 
 # T-1860 — AdminView 의 import/export 러너 군을 별도 모듈로 순수 추출
@@ -75,4 +78,5 @@ created: 2026-09-03
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 append)
+- **이동 경계 보정 (본 slice 에서 실제로 발생한 범위 조정 — 다음 슬라이스 경계 산정 시 재발 주의)** — task 정의서 `Out of Scope` 는 `formatRestorePlanConfirmText` (`521 행`) 와 `IMPORT_PREVIEW_UNKNOWN_TEXT` 를 AdminView 잔류 대상으로 적었으나, 실측상 `formatRestorePlanConfirmText` 의 **유일한 호출자가 함께 이동하는 `runImportPreview` 한 곳뿐**이라 잔류시키면 새 모듈 → AdminView 역방향 import 가 생긴다. 단방향 규약을 지키려 두 심볼을 함께 옮겼고, 그 근거는 `web/src/views/adminImportExportRunners.ts` 헤더 주석과 [PR #1460](https://github.com/myungjoo/Assessment-Agent/pull/1460) 본문에 박제했다. reviewer 는 이 판단을 타당하다고 보고 MINOR 1 건으로만 남겼다 (BLOCKER 0). **다음 슬라이스 (스케줄 · 재평가 축, `ScheduleMutationDeps` 이후) 경계 산정 시에는 후보 심볼의 호출자 집합을 먼저 확인해 같은 오판을 반복하지 않는다.**
+- **`docs/PLAN.md` `183 행` 실측 LOC 4 차 갱신** — 본 slice 로 AdminView 가 `5,044 줄` → `4,688 줄` (`-356`) 로 줄었고 최초 대비 누적 `-1,399 줄` 이다. `direct` 문서 갱신이라 본 `pr` task 와 섞지 않았으므로 후속 slice 에서 처리한다 (다음 대상 지목도 스케줄 · 재평가 축으로 함께 교체).
