@@ -2,7 +2,7 @@
 id: T-1879
 title: AdminView 의 경로 빌더 helper 축(build*Path 8 심볼)을 adminResourcePathBuilders 모듈로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-045, REQ-049]
 independentStream: adminview-god-component-refactor
@@ -17,6 +17,9 @@ sizeExempt: true
 exemptReason: "pure-extraction — (a) 동작 변경 0 (`641 행` ~ `773 행` 연속 1 블록의 순수 helper 8 개를 선행 주석까지 통째로 옮기고 선언 앞에 `export` 만 붙인 뒤 AdminView 가 단방향 import 로 되돌려 쓰는 것이 전부) · (b) 신규 로직 0 LOC (각 빌더의 nonce 분기 · `buildPersonsPath` 의 query 조립 · `buildPartPersonsPath` / `buildServiceIdentitiesPath` 의 null 반환 가드 전부 본문 무변경) · (c) 기존 spec 은 AdminView 배럴 재수출(`3739 행` ~ `3746 행`) 덕에 `from './AdminView'` 무수정 통과 — 8 개 contract spec 과 `AdminView.test.tsx` 는 모두 심볼 import 방식이고, 소스 텍스트 drift-guard 의 anchor 는 전부 잔류 컨테이너(`useApiResource<XRow[]>(xxxPath)` · `const personsPath = useMemo(` · `handleChangeRole` · `instanceAccessActionDisabled`)라 이동 블록을 참조하지 않음을 planner 가 전수 확인. 삭제 약 133 + 추가 약 155 가 전부 이동량이고 나머지는 새 모듈 경계 spec 이라 LOC 이 위험도에 비례하지 않는다. 파일 수 3 으로 파일 cap (≤ 5) 은 예외 없이 준수."
 plannerNote: "P6 / PLAN 183 행 AdminView 부채 열다섯째 실분할 — 경로 빌더 8 심볼(641~773 행 연속 블록) 전수 재측정 후 좌표 유효 확인"
 created: 2026-09-03
+completedAt: 2026-09-03T22:52:49Z
+prNumber: 1469
+mergeCommit: 9e7e36b6
 ---
 
 # T-1879 — AdminView 의 경로 빌더 helper 축(build\*Path 8 심볼)을 adminResourcePathBuilders 모듈로 순수 추출
@@ -71,3 +74,12 @@ created: 2026-09-03
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-09-03T22:52:49Z, DONE)
+
+- `pr` 모드로 PR #1469 를 round 1 에 squash merge (main `9e7e36b6`). 변경 3 파일 `+405/-149`.
+- 여덟 빌더(`buildMappingsPath` · `buildProvidersPath` · `buildPersonsPath` · `buildGroupsPath` · `buildPartsPath` · `buildUsersPath` · `buildPartPersonsPath` · `buildServiceIdentitiesPath`)를 선행 주석까지 **`export` 키워드 외 byte-identical** 로 신규 [adminResourcePathBuilders.ts](../../web/src/views/adminResourcePathBuilders.ts) (150 줄) 로 이동. base 상수 7 개는 정본 모듈에서 직접 import 해 역방향 import 0.
+- **AdminView.tsx `3,862 → 3,735 줄` (-127)** — 기대치 `-120` 안팎과 일치.
+- colocated spec 50 건 추가 (happy 8 심볼 전수 · null idle 2 종 · nonce 분기 양쪽 · `buildPersonsPath` query 4 조합 · negative (i)~(vi) · 배럴 동일 참조 8). web 전체 128 파일 3,841 test green, 기존 spec 수정 0.
+- 4-게이트 실측 — reviewer APPROVE comment 외부 존재(게이트 2), PR head `300bee95` run(33814569861) · approve-comment 재검증 run(33814666530) 모두 success(게이트 4).
+
