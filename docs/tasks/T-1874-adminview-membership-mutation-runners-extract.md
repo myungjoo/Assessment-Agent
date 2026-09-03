@@ -2,7 +2,7 @@
 id: T-1874
 title: AdminView 의 그룹 멤버십 add·remove mutation 러너 군을 adminMembershipRunners 로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-028, REQ-049]
 independentStream: adminview-god-component-refactor
@@ -17,6 +17,9 @@ sizeExempt: true
 exemptReason: "pure-extraction — (a) 동작 변경 0 (연속 블록 1 개 `997~1127 행` 을 통째로 옮기고 선언 앞에 `export` 만 붙인 뒤 AdminView 가 단방향 import 로 배선하는 것이 전부) · (b) 신규 로직 0 LOC (async 러너 2 · deps 타입 2 의 본문 · 주석 무변경) · (c) 기존 spec 은 AdminView 배럴 재수출 덕에 `from './AdminView'` 무수정 통과 (`AdminView.group-member-add-contract.test.ts` · `AdminView.group-member-remove-contract.test.ts` · `AdminView.test.tsx` 는 심볼 import 방식이라 소스 경로에 의존하지 않음). 삭제 약 131 + 추가 약 145 가 전부 이동량이고 나머지는 신규 경계 spec 이라 LOC 이 위험도에 비례하지 않는다. 파일 수 3 으로 파일 cap (≤ 5) 은 예외 없이 준수."
 plannerNote: "P6 / PLAN 183 행 AdminView 부채 열두째 실분할 — 그룹 멤버십 add·remove 러너 4 심볼(997~1127 행 연속 블록)"
 created: 2026-09-03
+completedAt: 2026-09-03T17:51:26Z
+prNumber: 1466
+mergeCommit: 756af1227b1b17276a7282fe985d85c092f2e364
 ---
 
 # T-1874 — AdminView 의 그룹 멤버십 add·remove mutation 러너 군을 adminMembershipRunners 로 순수 추출
@@ -77,3 +80,9 @@ created: 2026-09-03
 - (planner 사전 박제) 다음 순수-추출 후보 ①: **난이도 매핑 assign 축** — `AssignDeps` · `runAssign` (`936 행` ~ `995 행`) + 동반 상수 `LLM_MAPPINGS_PATH` (`389 행`) 를 기존 [adminLlmProviderMutationRunners.ts](../../web/src/views/adminLlmProviderMutationRunners.ts) 로 이동. 잔류 `buildMappingsPath` (`790 행`) 가 상수를 쓰므로 T-1873 의 `USERS_PATH` 선례대로 **상수를 동반 이동하고 AdminView 가 import 로 되돌려 쓰는** 방향만 성립한다.
 - (planner 사전 박제) 다음 순수-추출 후보 ②: **멤버십 파생 helper 축** — 위 Out of Scope 의 5 helper + row 타입 3. 착수 시 `AdminView.group-members-contract.test.ts` (`68 행`) · `AdminView.groups-list-contract.test.ts` 두 drift-guard 의 단언 anchor 가 잔류부인지 재확인해 파일 cap 산술에 반영할 것.
 - (planner 사전 박제) [docs/PLAN.md](../PLAN.md) `183 행` bullet 갱신 (`direct`) — 실측 LOC 을 `4,198 줄` 기준으로 고치고, 마감된 사용자 관리 축 대신 다음 대상을 재지목한다. 본 task 머지 후 1 회로 묶어 doc churn 을 줄인다.
+
+## 결과 요약 (2026-09-03 완료)
+
+PR [#1466](https://github.com/myungjoo/Assessment-Agent/pull/1466) 머지 (squash → main `756af122`, round 1 APPROVE). 그룹 멤버십 축 4 심볼 (`RemoveDeps` · `runRemove` · `AddDeps` · `runAdd`) 을 신규 [adminMembershipRunners.ts](../../web/src/views/adminMembershipRunners.ts) 로 옮기고 선언 앞에 `export` 만 부착해 본문 · 주석 diff 0 을 기계 검증했다 (`+510/-132`). 소비처 `handleRemove` · `handleAdd` 배선을 같은 PR 에 포함해 소비처 동반 의무를 충족했고, 역방향 import 0 · 배럴 재수출 유지로 기존 계약 spec 2 종과 drift-guard 는 무수정 통과했다. `AdminView.tsx` 는 `4,198` → **`4,072` 줄** (-126).
+
+신규 경계 spec 25 케이스로 R-112 4 종을 채웠다 — happy · error path · 분기 (`runRemove` 3 · `runAdd` 4 · `finally` 성공 · 실패) · negative 충분 cover (빈 인자 · 공백 trim · in-flight 중복 발사 · `encodeURIComponent` 안전 인코딩 · primitive reject · `resetInput` 미호출) · 동일 참조 1. web vitest 126 파일 `3,754` test 전량 green, jest `test:cov` 466 suite `13,495` test green (line · function ≥ 80% 충족), `pnpm lint && pnpm build` web · backend 양쪽 통과. PR head run `33786312690` = success.
