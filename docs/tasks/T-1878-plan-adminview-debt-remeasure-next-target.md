@@ -2,7 +2,7 @@
 id: T-1878
 title: PLAN 183 행 AdminView 부채 7 차 실측 갱신 + 구조 산술 박제 + 다음 추출 대상 재지목
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-049]
 independentStream: adminview-god-component-debt
@@ -83,3 +83,11 @@ git show origin/main:web/src/views/AdminView.tsx | grep -cE '^(export )?(async )
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
 
 - (planner 사전 박제) [T-1877](T-1877-adminview-difficulty-assign-runner-extract.md) `Follow-ups` 두 번째 항목 (`src/run-status/run-status.service.spec.ts:134` 의 backend full-suite 병렬 flaky) 은 **여전히 미해소** 다. 본 slice 는 backend 를 건드리지 않으므로 그대로 이월하며, 재발 관측 시 별도 `pr` task 로 격리한다.
+
+## 완료 기록
+
+- **Status: DONE** — 2026-09-03T21:45:00Z (`direct`, main [`0b6ddb02`](https://github.com/myungjoo/Assessment-Agent/commit/0b6ddb02)).
+- [docs/PLAN.md](../PLAN.md) `183 행` 부채 bullet 한 줄만 부분 편집 (`+1/-1`, 1 파일). 제목 LOC `4,072 → 3,862`, 실측 문구 `3,862 줄 · top-level 선언 54 개`(head `828910ad`), 최초 기록 대비 누적 `-2,225 줄`, 진척 목록 `12 → 14 슬라이스`(T-1876 `-151` · T-1877 `-59` 추가) 로 갱신.
+- **새로 박제한 사실** — 파일 4 구역 실측(import 306 줄 / 순수 helper 514 줄 / 컴포넌트 본문 2,904 줄 / 배럴 133 줄) 상 **잔여 helper 표면을 전량 추출해도 약 3,350 줄** 이라 순수 추출 경로만으로는 목표선(≤ 2,000 줄) 도달이 **산술적으로 불가능** 하다는 점.
+- **다음 대상 재지목** — 소멸한 두 지목(멤버십 파생 helper 축 · 난이도 매핑 assign 축)을 **경로 빌더 helper 축 8 심볼**(`buildMappingsPath` · `buildProvidersPath` · `buildPersonsPath` · `buildGroupsPath` · `buildPartsPath` · `buildUsersPath` · `buildPartPersonsPath` · `buildServiceIdentitiesPath`)로 교체하고, 더 작은 후속 후보는 provider · 난이도 파생 helper 축으로 명시.
+- 검증: `git diff --stat` 이 `docs/PLAN.md` 1 파일만 보고, 나머지 서술(측정 방법 · 구조적 유인 · T-1822 링크 · 목표선 정의 · 체크박스) 무변경. doc-only direct 라 test 면제(CLAUDE.md §3.2).
