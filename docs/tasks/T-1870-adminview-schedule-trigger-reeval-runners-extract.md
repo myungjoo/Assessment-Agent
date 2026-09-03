@@ -2,7 +2,7 @@
 id: T-1870
 title: AdminView 의 스케줄 trigger · 재평가 러너 군을 adminScheduleRunners 로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-039]
 independentStream: adminview-god-component-refactor
@@ -19,6 +19,9 @@ sizeExempt: true
 exemptReason: "pure-extraction — (a) 동작 변경 0 (블록 이동 + 선언 앞 export 키워드 + import 배선만) · (b) 신규 로직 0 LOC (상수 2 · async 러너 2 · 순수 helper 1 · deps 타입 1 의 본문 무변경) · (c) 런타임 spec 은 AdminView 재수출 덕에 import 경로까지 무수정 통과하고, 소스-텍스트 drift-guard spec 2 개는 읽기 대상 파일 pointer 만 바뀌며 단언 내용은 불변. 삭제 약 110 + 추가 약 115 가 전부 이동량이라 LOC 이 위험도에 비례하지 않는다. 파일 수 5 로 파일 cap (≤ 5) 은 예외 없이 준수."
 plannerNote: "P6 / PLAN 183 행 AdminView 부채 아홉째 실분할 — T-1869 가 후속으로 넘긴 스케줄 축 잔여 4 심볼 + 상수 2 를 한 slice 로 마감"
 created: 2026-09-03
+completedAt: 2026-09-03T12:10:43Z
+prNumber: 1463
+mergeCommit: b908be1a
 ---
 
 # T-1870 — AdminView 의 스케줄 trigger · 재평가 러너 군을 adminScheduleRunners 로 순수 추출
@@ -72,3 +75,10 @@ created: 2026-09-03
 ## Follow-ups
 
 - `docs/PLAN.md` `183 행` 의 AdminView 실측 LOC · 선언 수 갱신 (`direct`, 1 파일) — T-1869 (`4,688 → 4,597`) 과 본 task 의 감소분을 **한 번에** 반영해 remeasure slice 를 1 회로 줄인다. 다음 추출 대상 재지목도 같은 slice 에서.
+
+## 결과 (2026-09-03)
+
+- PR [#1463](https://github.com/myungjoo/Assessment-Agent/pull/1463) round 1 APPROVE → squash 머지 (`b908be1a`), feature branch 삭제. PR head `71210c7e` CI `success`, approval 게이트는 reviewer comment 외화 후 재실행으로 해소.
+- `runTrigger` · `buildRecentDeletionPath` · `ReEvaluationDeps` · `runReEvaluate` + 상수 `SCHEDULE_TRIGGER_PATH` · `TRIGGER_DONE_TEXT` 6 선언을 본문 무변경으로 `adminScheduleRunners.ts` 로 이동, AdminView 재수출로 기존 spec 의 import 경로 보존. 실 diff `+298/-118`.
+- `AdminView.tsx` `4,597 행` → `4,497 행` (`-100`) — AC 의 "100 줄 이상 감소" 충족. 목표선 (≤ 2,000 행) 까지 잔여 `-2,497 행`.
+- 신설 경계 spec 17 케이스로 R-112 4 종 cover (happy 3 · error path · 분기 · negative 각 1+), web vitest 124 파일 3,700 케이스 · 루트 jest 466 스위트 13,495 케이스 green, `test:cov` line/function 80% 임계 통과.
