@@ -67,7 +67,8 @@ function extractHandlerMethods(source: string): Record<string, HandlerDecorator>
   }
   return found;
 }
-// AdminView 조회 call site 의 발사 method 추론. `useApiResource<UserRow[]>(usersPath)` 를
+// AdminView 조회 call site(T-1891 이후 useAdminUsers hook) 의 발사 method 추론.
+// `useApiResource<UserRow[]>(usersPath)` 를
 // 옵션 인자 없이(단일 인자) 호출 → request→fetch default GET. 인자 2+ (options 전달) 면 non-GET 가능.
 // 상수 USERS_PATH 나 주석 속 useApiResource<UserRow[]>(USERS_PATH) 와 섞이지 않도록 소문자
 // usersPath 변수(useMemo 결과)를 명시 anchor.
@@ -108,14 +109,16 @@ function diffContract(fire: WebFire, backend: BackendContract): string[] {
   return issues;
 }
 const CONTROLLER_SOURCE = readFileSync(new URL('../../../src/user/user.controller.ts', import.meta.url), 'utf8');
-const ADMIN_VIEW_SOURCE = readFileSync(new URL('./AdminView.tsx', import.meta.url), 'utf8');
+// T-1891 순수 추출로 조회 call site 가 useAdminUsers hook 으로 옮겨갔다 — 읽는 파일(pointer)만
+// 새 모듈로 바꾸고 추출기 · 계약 단언 내용은 그대로 둔다(계약 무변경).
+const USERS_HOOK_SOURCE = readFileSync(new URL('./useAdminUsers.ts', import.meta.url), 'utf8');
 const ROUTE = extractControllerRoute(CONTROLLER_SOURCE);
 const HANDLERS = extractHandlerMethods(CONTROLLER_SOURCE);
 const LIST = HANDLERS.list ?? null;
 const DETAIL = HANDLERS.detail ?? null;
 const CHANGE_ROLE = HANDLERS.changeRole ?? null;
 const SIGNUP = HANDLERS.signup ?? null;
-const WEB_FIRE_METHOD = extractUsersFireMethod(ADMIN_VIEW_SOURCE);
+const WEB_FIRE_METHOD = extractUsersFireMethod(USERS_HOOK_SOURCE);
 const LIST_CONTRACT: BackendContract = {
   route: ROUTE,
   method: LIST?.method ?? null,
