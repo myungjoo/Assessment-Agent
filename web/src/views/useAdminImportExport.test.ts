@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 // R-112 — T-1884 useAdminImportExport(AdminView import/export 축 순수 추출) 전용 colocated spec.
@@ -74,12 +75,15 @@ function renderProbe(options: {
   initialConfirm?: string;
 }): Hook[] {
   const sink: Hook[] = [];
+  // JSX 대신 createElement 를 쓰는 이유: 본 spec 이 순수 .ts 모듈의 colocated spec 이라
+  // scripts/check-spec-presence.sh 가 기대하는 `<모듈명>.test.ts` 이름을 지켜야 한다(.tsx 는
+  // 대응 spec 으로 인식되지 않는다). probe 는 null 만 반환하므로 JSX 가 실제로 필요하지 않다.
   renderToStaticMarkup(
-    <Probe
-      sink={sink}
-      fire={options.fire}
-      initialConfirm={options.initialConfirm}
-    />,
+    createElement(Probe, {
+      sink,
+      fire: options.fire,
+      initialConfirm: options.initialConfirm,
+    }),
   );
   return sink;
 }
