@@ -2,7 +2,7 @@
 id: T-1882
 title: AdminView 의 잔여 정적 표면(문구·DOM id 상수 + 폼 옵션·게이트 축 + 범위 편집 축)을 순수 추출해 helper 표면을 소진
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-045, REQ-049]
 independentStream: adminview-god-component-refactor
@@ -75,3 +75,12 @@ created: 2026-09-04
 `implementer → tester`
 
 ## Follow-ups
+
+## 결과 (2026-09-04T01:53:54Z, DONE)
+
+- `pr` 모드로 PR #1471 을 round 1 에 squash merge (main [`839562a7`](https://github.com/myungjoo/Assessment-Agent/commit/839562a7)). 변경 5 파일 `+474/-219` — 파일 cap (≤ 5) 준수.
+- ① 문구·DOM id 상수 + ③ 폼 옵션·게이트 축을 신규 [adminViewConstants.ts](../../web/src/views/adminViewConstants.ts) (201 줄) 로, ② 범위 편집 4 심볼(`foldScopeForEdit` · `buildScopePatch` 등)을 기존 [adminCollectionTargetRunners.ts](../../web/src/views/adminCollectionTargetRunners.ts) 로 선행 주석까지 **`export` 키워드 외 본문 무변경** 이동. 역방향 import 0.
+- **AdminView.tsx `3,630 → 3,450 줄` (-180)** — 열일곱째 순수-추출 슬라이스. `321 행` ~ `591 행` 의 잔여 순수 표면이 소진돼 남는 것은 컴포넌트 본문뿐이다.
+- 신규 colocated spec [adminViewConstants.test.ts](../../web/src/views/adminViewConstants.test.ts) 에 happy · error · 분기 · negative 4 종 배치(`resolveProviderSelectValue` 의 정확 일치 누수 방어, `createInFlightIdGate` 의 ref 선행 / setState 후행 write 순서 계약 포함). web vitest 130 파일 3,879 test green(직전 129 / 3,865 대비 +1 파일 +14 test).
+- 기존 spec 무수정 통과 — 이동 블록을 anchor 로 쓰던 [AdminView.auth-me-contract.test.ts](../../web/src/views/AdminView.auth-me-contract.test.ts) 1 건만 대조 소스를 새 모듈로 갈아끼웠다(`+8/-8`).
+- 4-게이트 실측 — reviewer VERDICT=APPROVE comment 외부 존재(게이트 2), PR head `5fd74c3d` 의 pull_request run(33826998631) success + approve-comment 재검증 run success(게이트 4).
