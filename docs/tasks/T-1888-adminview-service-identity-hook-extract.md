@@ -2,7 +2,7 @@
 id: T-1888
 title: AdminView 의 ServiceIdentity 축 prelude(조회 1 + 파생 3 + 상태 13 + 핸들러·게이트 11 = 28 선언)를 useAdminServiceIdentities hook 으로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-078, REQ-079]
 independentStream: adminview-god-component-refactor
@@ -72,6 +72,16 @@ plannerNote: "P6 / PLAN 183 행 AdminView 부채 넷째 본문 분해 슬라이�
 - 신규 hook 모듈을 AdminView 배럴에 추가하는 것(공개 표면 무변경 유지).
 - 새 dependency 추가(React Testing Library · react-test-renderer 등) — probe + `renderToStaticMarkup` harness 로 해결한다.
 - [docs/PLAN.md](../PLAN.md) `183 행` 실측 갱신 — doc-only `direct` 라 본 `pr` task 와 섞지 않는다([CLAUDE.md](../../CLAUDE.md) §3.1 판정 규칙 3). 현 bullet 은 T-1884/T-1886/T-1887 머지분만큼 stale(LOC `3,450` · 좌표 · "다음 대상 = import/export 축" 모두 소진)이므로 **다음 `direct` 슬라이스에서 재실측 갱신**한다.
+
+## Result (2026-09-04)
+
+**DONE** — `pr` mode, PR [#1476](https://github.com/myungjoo/Assessment-Agent/pull/1476) -> main [`13d7512a`](https://github.com/myungjoo/Assessment-Agent/commit/13d7512a) (round 1 squash merge).
+
+- ServiceIdentity 축 prelude 28 선언(`492 행` ~ `710 행`, 219 줄)을 `web/src/views/useAdminServiceIdentities.ts` 로 **본문 무변경 이동**(origin/main 대비 219 줄 byte-identical) 했고, AdminView 는 인원 조회 직후 원 블록 자리에서 destructure 로 소비해 `useApiResource` 호출 순번을 보존했다. hook 파라미터는 계획대로 2 개(`initialSelectedIdentityPersonId` · `initialEditingIdentityId`). AdminView 2,835 줄 -> **2,652 줄** (-183).
+- 반환은 23 심볼만 공개하고 내부 심볼은 비노출(캡슐화 회귀 가드 test 동반). `setSelectedIdentityPersonId` 만 인원 축 배선 2 곳(`onCreated` · `onUpdated`) 때문에 예외 노출해 그 두 줄을 글자-동일 유지 — identity-autoselect drift-guard 2 건 무수정 green.
+- 신규 spec `useAdminServiceIdentities.test.ts` 24 케이스로 R-112 4 종 cover (happy 2 · 주입 계약 · error 3 · 분기 7 · negative 5). web vitest 133 파일 / 3,944 test -> **134 파일 / 3,968 test** green, 루트 `pnpm test:cov` 466 suite / 13,495 test green (line · function >= 80% 유지).
+- 4-게이트 실측 — reviewer VERDICT=APPROVE comment 외부 존재 · PR CI green · integrator 자체 점검 통과 · CI green. `sync-claim-pr.sh` 가 PR open 직후 호출돼 claim 이 `prNumber=1476` / `PR_OPEN` 으로 sync 됐다.
+- **MINOR 편차 1 건** — AC 6 의 "import 를 하나도 지우지 않는다" 문언과 달리 `../api/serviceIdentity` primitive 4 + `ServiceIdentityRow` type 1 은 배럴 재수출 대상이 아니라 남기면 `tsc --noEmit` 이 TS6192/TS6133 으로 빌드를 깬다. 제거해도 공개 표면 무변경이며 T-1887 의 `Difficulty` 선례와 동형 — 사유를 `AdminView.tsx` `189 행` 주석과 PR 본문에 박제했다. reviewer 가 근거 확인 후 수용(BLOCKER 0).
 
 ## Suggested Sub-agents
 
