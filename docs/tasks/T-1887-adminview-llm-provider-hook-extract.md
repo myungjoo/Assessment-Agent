@@ -2,7 +2,7 @@
 id: T-1887
 title: AdminView 의 LLM provider · 난이도 매핑 축 prelude(조회 2 + 파생 5 + 상태 18 + 핸들러 7)를 useAdminLlmProviders hook 으로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-050, REQ-051]
 independentStream: adminview-god-component-refactor
@@ -80,3 +80,13 @@ plannerNote: "P6 / PLAN 183 행 AdminView 부채 셋째 본문 분해 슬라이�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 적는다.)
+
+## Result (2026-09-04)
+
+**DONE** — `pr` mode, PR [#1475](https://github.com/myungjoo/Assessment-Agent/pull/1475) → main [`2d702f18`](https://github.com/myungjoo/Assessment-Agent/commit/2d702f18) (round 1 squash merge).
+
+- LLM provider · 난이도 매핑 축 prelude 37 선언(`1177 행` ~ `1466 행`)을 `web/src/views/useAdminLlmProviders.ts` 로 **본문 무변경 이동**했고(hook 파라미터 0 개), AdminView 는 원 블록 자리에서 destructure 로 소비해 `useApiResource` 호출 순번을 보존했다. AdminView 3,076 줄 → **2,835 줄** (-241, `git show` 상 실측).
+- JSX LLM 패널 구역 · 배럴 재수출은 무변경, drift-guard 2 건(`AdminView.llm-provider-list-contract.test.ts` · `AdminView.difficulty-mapping-list-contract.test.ts`)은 anchor 소스 경로 한 줄씩(`2 +-`)만 교체했다.
+- 신규 spec `useAdminLlmProviders.test.ts` 24 케이스로 R-112 4 종 cover (happy · error path · 분기 · negative — in-flight 가드 · 빈 id · 비정상 payload · 캡슐화 회귀 가드 포함). probe + `renderToStaticMarkup` harness 승계라 **새 dependency 0**. web 132 파일 / 3,920 test → **133 파일 / 3,944 test** green, `src/` 무변경이라 루트 `test:cov` 임계 무영향.
+- 4-게이트 실측 — reviewer VERDICT=APPROVE comment 외부 존재 · PR CI green · integrator 자체 점검 통과 · CI green. `sync-claim-pr.sh` 는 PR open 직후 호출돼 claim `prNumber=1475` 로 sync 됐다(T-1886 의 편차 재발 0).
+- AC 문구의 "35 심볼" 은 열거 자체가 36 개라 계수 오차였고, 구현은 열거된 36 심볼 전부를 반환하며 그 사실을 hook 헤더 주석에 박제했다.
