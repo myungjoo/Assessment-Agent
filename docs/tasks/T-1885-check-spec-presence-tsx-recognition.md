@@ -2,7 +2,7 @@
 id: T-1885
 title: check-spec-presence 게이트가 .tsx 를 인식하도록 수정 — 동반 spec 후보에 .test.tsx / .spec.tsx 추가 + 신규 production .tsx 도 검사 대상에 포함
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-059, REQ-060]
 independentStream: ci-spec-presence-gate
@@ -66,5 +66,17 @@ plannerNote: "P6 / R-112 1차 게이트가 .tsx 맹점 — 정상 spec 61 개를
 
 ## Follow-ups
 
-- **`web/src/views/adminServiceIdentityRowActions.tsx` 의 spec 부재** — 본 task 의 pre-check 에서 실측된 유일한 실 구멍(참조 spec 0 건). 게이트 수정 후에도 기존 파일은 잡히지 않으므로, 이 helper 군에 colocated spec 을 붙이는 별도 `pr` slice 를 planner 가 큐잉할 것.
-- **후속 축 hook 추출 slice 의 pre-check 보강** — [T-1884](T-1884-adminview-import-export-hook-extract.md) `Follow-ups` 둘째 항목(hook 파라미터 수 오판: `useState` 초기값의 prop 참조 누락)은 본 task 의 범위가 아니라 **planner 절차** 사안이다. 다음 축 hook slice 를 큐잉할 때 `useState` 초기값의 prop 참조까지 훑는 것으로 흡수한다.
+- **`web/src/views/adminServiceIdentityRowActions.tsx` 의 소급 spec 작성** — 본 task 의 pre-check 가 실측한 false pass 실증 1 건이다. 게이트는 신규 추가 파일만 보므로 이미 머지된 이 파일은 본 수정으로 red 가 되지 않지만, R-112 관점에서는 참조 spec 0 건인 production 모듈이 남아 있는 상태다. planner 가 별도 `pr` slice 로 colocated spec 을 붙일 것.
+
+
+## 완료 기록
+
+- **완료 시각**: 2026-09-04T04:32Z (server-time 기준 — `gh api -i rate_limit` `Date` 헤더). 본 fire 의 **두 번째이자 마지막 task** (multi-task chain, `FIRE-BATCH: T-1884+T-1885`).
+- **PR / merge**: [PR #1473](https://github.com/myungjoo/Assessment-Agent/pull/1473) → main [`ee928073`](https://github.com/myungjoo/Assessment-Agent/commit/ee928073) (squash, round 1 APPROVE, BLOCKER 0 / MAJOR 0 / MINOR 0)
+- **변경**: 2 파일 `+66/-18` — cap (300 LOC / 5 파일) 여유 준수.
+  - [check-spec-presence.sh](../../scripts/check-spec-presence.sh): 동반 spec 후보를 `.spec.ts` · `.test.ts` · `.spec.tsx` · `.test.tsx` **4 종** 으로 넓히고, diff pathspec 에 `'*.tsx'` 를 추가해 신규 production `.tsx` 도 검사 대상에 넣었다. `*.test.tsx` / `*.spec.tsx` 자기 제외 · Vite entrypoint `web/src/main.tsx` 제외(CLAUDE.md `§3.2` Entrypoint 예외와 동형) · `index.tsx` re-export 분기를 함께 배선.
+  - **확장자 제거 버그 해소**: 기존 `${f%.ts}` 는 `foo.tsx` 에서 아무것도 떼지 못해 `foo.tsx.spec.ts` 를 찾고 있었다. `strip_ext()` 헬퍼로 `.tsx` → `.ts` 순서로 안전 처리.
+- **검증**: 자체 harness `bash scripts/check-spec-presence.test.sh` 가 **12 → 22 케이스** 로 늘어 `[test] pass=22 fail=0`. 신규 10 건은 happy 2 · error 1 · 분기 4 · negative 3 으로 R-112 4 종 전부 cover 하며, 기존 12 케이스는 **한 건도 수정하지 않고** 그대로 통과했다. `pnpm lint && pnpm build && pnpm test` green (466 suite · 13,495 test), CI 에서 `test:cov` · smoke · e2e · perf 도 green.
+  - `tsx_missing` 케이스(신규 `web/src/c.tsx` 단독 → exit 1)는 수정 **전** 스크립트에서 false pass 하므로 실제 회귀 가드로 기능한다.
+- **4-게이트**: reviewer VERDICT=APPROVE PR comment 외부 존재(게이트 2, 1 건) · PR head `ae8a3369` 의 pull_request run(33836674162) success(게이트 4) · integrator 자체 점검 통과 · Acceptance Criteria 11 항목 전부 ok → round 1 squash merge.
+- **실증된 구멍이 닫혔다**: pre-check 가 찾아낸 false pass 실증 1 건(`web/src/views/adminServiceIdentityRowActions.tsx` — 참조 spec 0 건인데 게이트 통과)의 경로가 본 수정으로 막혔다. 이미 머지된 그 파일 자체의 소급 spec 은 아래 `Follow-ups` 로 남는다 (게이트는 신규 추가 파일만 본다).
