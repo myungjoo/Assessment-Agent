@@ -313,6 +313,46 @@ export function parseScopeInput(raw: string): string[] {
   return parsed;
 }
 
+// T-1882 순수 추출 — AdminView 에 남아 있던 범위 편집 축 4 심볼을 같은 축(parseScopeInput ·
+// scopeFieldsForCollectionTargetType)의 소유 모듈로 옮겼다. 본문 · 주석은 한 줄도 바뀌지 않았고
+// 각 선언 앞에 `export` 만 붙였다. AdminView 는 단방향 import 로 되돌려 쓰고 파일 끝 배럴이
+// foldScopeForEdit · buildScopePatch 를 그대로 re-export 하므로 기존 spec 은 무수정으로 산다.
+
+// 범위 배열 3 축 편집 입력의 초기/리셋 값(T-1832) — 편집 진입 전·취소 후·저장 성공 후 모두 이
+// 값으로 되돌린다(직전 행의 범위가 다음 편집 화면에 남지 않게). 세 축을 빈 문자열로 두는 것이
+// "범위 없음" 의 표시이자 controlled 입력의 uncontrolled 경고 회피다.
+export const EMPTY_COLLECTION_TARGET_SCOPE_INPUT: Record<
+  CollectionTargetScopeField,
+  string
+> = { orgs: '', repos: '', spaces: '' };
+
+// 범위 배열(문자열 배열)을 편집 입력 한 줄로 접는 구분자(T-1832) — 목록 표시(CollectionTargetList
+// SCOPE_SEPARATOR)와 같은 ', ' 라 화면에서 보던 문자열이 그대로 편집 입력에 들어온다.
+export const SCOPE_EDIT_SEPARATOR = ', ';
+
+// 범위 배열 → 편집 입력 문자열(T-1832, 순수 함수 · throw 0). `undefined` · 빈 배열 · 배열이
+// 아닌 계약 위반 값은 모두 빈 문자열로 접어, 편집 폼이 어떤 응답 shape 에서도 깨지지 않게 한다
+// (parseScopeInput 의 역방향 — 접은 뒤 다시 파싱하면 같은 배열로 돌아온다).
+export function foldScopeForEdit(values?: string[]): string {
+  return Array.isArray(values) ? values.join(SCOPE_EDIT_SEPARATOR) : '';
+}
+
+// 편집 중인 행의 type + 범위 입력 3 필드 → PATCH body 에 실을 범위 축 부분 객체(T-1832, 순수
+// 함수 · throw 0). type 이 쓰는 축만 담으므로 GITHUB 은 `{ orgs, repos }`, CONFLUENCE 는
+// `{ spaces }`, 알 수 없는/누락 type 은 `{}` 다(범위 축 없이 endpoint 만 발사 — 화면에 범위
+// 입력이 없던 것과 정확히 같다). 입력이 비어 있으면 빈 배열이 실려 "범위를 전부 지우는 편집" 이
+// 그대로 발사된다(축 누락이 아니다 — 러너가 배열이면 그대로 싣는 계약과 짝).
+export function buildScopePatch(
+  type: string | undefined,
+  input: Record<CollectionTargetScopeField, string>,
+): Partial<Record<CollectionTargetScopeField, string[]>> {
+  const patch: Partial<Record<CollectionTargetScopeField, string[]>> = {};
+  for (const field of scopeFieldsForCollectionTargetType(type)) {
+    patch[field] = parseScopeInput(input?.[field] ?? '');
+  }
+  return patch;
+}
+
 // 값 편집 PATCH + state-전이 로직에 주입하는 deps(T-1831 — 위 ToggleCollectionTargetActiveDeps
 // 를 1:1 mirror 하되 편집 폼 계약에 맞춘다). in-flight 표현이 진행 중 id 인 것도 같은 이유고,
 // 토글 축 state 를 재사용하지 않는 이유도 같다(어느 동작이 실패했는지 문구가 섞이지 않게).
