@@ -2,7 +2,7 @@
 id: T-1893
 title: AdminView ⑦ 파트 축 배선(`1085 행` ~ `1106 행` · `1141 행` ~ `1171 행` · `1208 행` ~ `1372 행`, 218 줄)을 useAdminParts hook 으로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-028, REQ-049]
 independentStream: adminview-god-component-refactor
@@ -77,4 +77,4 @@ plannerNote: "P6 / PLAN 183 행 AdminView 부채 경로 1 여덟째 슬라이스
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 적는다.)
+- **(reviewer MINOR, 본 PR 미수정)** [web/src/views/AdminView.tsx](../../web/src/views/AdminView.tsx) 의 `useAdminCollectionTargets` 선행 주석이 주장하는 "`useApiResource` 호출 순번 계약" 은 실측상 근거가 없고, 본 슬라이스가 파트 축 3 조각을 hook 으로 옮기면서 서술이 더 부정확해졌다. 잔여 축(① 그룹 · 멤버십 / ② 인원) 슬라이스에서 같은 주석을 손대는 김에 정리한다 — 별도 task 로 승격하지 않는다(주석 1 곳 정리라 CLAUDE.md §3 "Nit-in-PR closure" 취지대로 다음 슬라이스가 cap 안에서 흡수).
