@@ -2,7 +2,7 @@
 id: T-1889
 title: AdminView 의 스케줄·재평가 패널 배선(상태 9 + 조회 1 + 파생 3 + 핸들러 6 = 19 선언)을 useAdminSchedule hook 으로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-039]
 independentStream: adminview-god-component-refactor
@@ -67,6 +67,16 @@ plannerNote: "P6 / PLAN 183 행 AdminView 부채 다섯째 본문 분해 슬라�
 - `SchedulePanel` · `ReEvaluationTriggerPanel` 컴포넌트 파일 수정 금지.
 - 새 dependency 추가(RTL · react-test-renderer 등) 금지 — spec harness 는 `renderToStaticMarkup` probe 선례 그대로.
 - `docs/PLAN.md` `183 행` bullet 의 실측 갱신은 본 task 에서 하지 않는다(doc-only `direct` 라 commitMode 혼합 금지 — Follow-ups 로).
+
+## Result (2026-09-04)
+
+**DONE** — `pr` mode, PR [#1477](https://github.com/myungjoo/Assessment-Agent/pull/1477) -> main [`58d5d6ab`](https://github.com/myungjoo/Assessment-Agent/commit/58d5d6ab) (round 1 squash merge).
+
+- 스케줄 · 재평가 축 19 선언(`1050 행` ~ `1080 행` + `1490 행` ~ `1598 행`, 140 줄)을 `web/src/views/useAdminSchedule.ts` 로 **본문 무변경 이동** 했고, AdminView 는 `1050 행` 자리에서 단일 object 파라미터(props 초기값 5 + `members`) destructure 로 소비해 `useApiResource` 호출 순번을 보존했다. 반환은 계획대로 JSX 소비처가 쓰는 15 심볼만 공개하고 내부 setter 는 비노출. AdminView 2,652 줄 -> **2,542 줄** (-110).
+- JSX 소비처(`1861 행` ~ `1898 행`) props 배선 · 배럴 재수출(`2520 행` ~) 무변경. 스케줄 러너 import 도 유지하되 `SCHEDULES_PATH` 만 제거했다 — 배럴 재수출 대상이 아니라 남기면 `noUnusedLocals` 로 빌드가 깨지며, T-1887 `Difficulty` · T-1888 `ServiceIdentityRow` 선례와 동형(공개 표면 무변경).
+- 신규 spec `useAdminSchedule.test.ts` **22 케이스**로 R-112 4 종 cover (happy · 러너 3 종 주입 계약 · error path 2 · `schedulePanelError` 3 분기 + 상태 반영 3 종 · negative 5 = 빈 `members` · 비정상 payload · in-flight 가드 · `days = 0` · 미선택 초기값). web vitest 134 파일 / 3,968 test -> **135 파일 / 3,990 test** green, 루트 `pnpm test:cov` 466 suite / 13,495 test green (line · function >= 80% 유지).
+- 4-게이트 실측 — reviewer VERDICT=APPROVE comment 외부 존재(driver 재확인) · PR CI green · integrator 자체 점검 통과 · CI green. 4 파일 `+747/-146` 로 파일 cap(5) 준수.
+- **편차 2 건** — ① Why ⑥ 의 "drift-guard anchor 0 건" 판정이 오판이었다. `AdminView.schedules-list-contract.test.ts` 가 `useApiResource<string[]>(SCHEDULES_PATH)` 발사기를 정규식 anchor 로 쓰고 있어 pointer 를 hook 모듈로 한 줄 옮겼고(`12 +-`), 그 결과 `touchesFiles` 는 선언한 3 이 아니라 실제 **4 파일**이 됐다(cap 5 이내). ② executor 가 PR flow 를 흡수해 반환하므로 driver 가 PR open 시점에 `sync-claim-pr.sh` 를 호출할 수 없었다 — claim 은 `prNumber: null` 로 유지된 채 본 bookkeeping 에서 prune 했고, 동시 활성 claim 0 이라 재사용 risk 는 0 이다.
 
 ## Suggested Sub-agents
 
