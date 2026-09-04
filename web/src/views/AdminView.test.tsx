@@ -9188,10 +9188,18 @@ describe('AdminView — 역할 변경 가드 컨테이너 배선 drift guard (T-
     new URL('./AdminView.tsx', import.meta.url),
     'utf8',
   );
-  const start = source.indexOf('const handleChangeRole = useCallback(');
+  // T-1892 — 배선(useCallback 블록)은 useAdminUsers hook 으로 옮겨졌으므로 anchor 소스만 그쪽으로
+  // 교체한다(단언 의미 무변경). 렌더 표면 단언은 여전히 AdminView.tsx 를 읽는다.
+  const hookSource = readFileSync(
+    new URL('./useAdminUsers.ts', import.meta.url),
+    'utf8',
+  );
+  const start = hookSource.indexOf('const handleChangeRole = useCallback(');
   // useCallback 블록 = 선언부터 deps 배열을 닫는 최초의 "\n  );" 까지.
   const handlerBlock =
-    start === -1 ? '' : source.slice(start, source.indexOf('\n  );', start) + 5);
+    start === -1
+      ? ''
+      : hookSource.slice(start, hookSource.indexOf('\n  );', start) + 5);
 
   it('러너에 주입되는 진행 id 가 gate 의 호출 시점 읽기다 (drift guard — 배선)', () => {
     expect(start).toBeGreaterThan(-1);
@@ -9603,6 +9611,13 @@ describe('AdminView — 인스턴스 접근 폼 교차 비활성 파생 (T-1168 
 // 소스 문자열로 인라인 식 복귀 회귀를 막는다.
 describe('AdminView — 인스턴스 접근 폼 비활성 배선 drift guard (T-1168)', () => {
   const source = readFileSync(new URL('./AdminView.tsx', import.meta.url), 'utf8');
+  // T-1892 — 파생 helper 호출 배선은 useAdminUsers hook 으로 옮겨졌으므로 그 anchor 만 hook 소스로
+  // 교체한다. markup 단언은 그대로 AdminView.tsx 를 읽고, 인라인 조건식 복귀를 막는 부정 단언은
+  // 두 소스 모두에 적용해 회귀 차단 범위를 좁히지 않는다(단언 의미 무변경).
+  const hookSource = readFileSync(
+    new URL('./useAdminUsers.ts', import.meta.url),
+    'utf8',
+  );
 
   it('두 버튼의 disabled 가 helper 파생 값을 참조한다 (drift guard — markup 인라인 식 부재)', () => {
     // 부여·회수 버튼 2 개가 같은 파생 값 한 개를 공유한다(조건 분화 금지).
@@ -9610,16 +9625,18 @@ describe('AdminView — 인스턴스 접근 폼 비활성 배선 drift guard (T-
     expect(hits).toHaveLength(2);
     // select·input 은 여전히 busy 만 본다(사용자 선택/입력 여부는 보지 않는다).
     expect((source.match(/disabled=\{instanceAccessBusy\}/g) ?? [])).toHaveLength(2);
-    // 인라인 조건식이 markup 으로 되돌아오면 fail 한다.
-    expect(source).not.toContain('!instanceAccessUserId');
-    expect(source).not.toContain('!instanceRefInput.trim()');
-    expect(source).not.toContain('grantingInstanceAccess || revokingInstanceAccess');
+    // 인라인 조건식이 markup·hook 어느 쪽으로 되돌아와도 fail 한다.
+    for (const text of [source, hookSource]) {
+      expect(text).not.toContain('!instanceAccessUserId');
+      expect(text).not.toContain('!instanceRefInput.trim()');
+      expect(text).not.toContain('grantingInstanceAccess || revokingInstanceAccess');
+    }
   });
 
   it('컨테이너가 helper 를 호출해 두 값을 얻는다 (drift guard — 배선)', () => {
-    const start = source.indexOf('const { busy: instanceAccessBusy, actionDisabled: instanceAccessActionDisabled }');
+    const start = hookSource.indexOf('const { busy: instanceAccessBusy, actionDisabled: instanceAccessActionDisabled }');
     expect(start).toBeGreaterThan(-1);
-    const block = source.slice(start, source.indexOf('});', start) + 3);
+    const block = hookSource.slice(start, hookSource.indexOf('});', start) + 3);
     expect(block).toContain('deriveInstanceAccessFormFlags({');
     expect(block).toContain('granting: grantingInstanceAccess,');
     expect(block).toContain('revoking: revokingInstanceAccess,');
