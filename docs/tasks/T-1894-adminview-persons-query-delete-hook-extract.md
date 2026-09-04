@@ -2,7 +2,7 @@
 id: T-1894
 title: AdminView ② 인원 축 중 조회·삭제 배선(`476 행` ~ `506 행` · `627 행` ~ `653 행`, 58 줄)을 useAdminPersons hook 으로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-026]
 independentStream: adminview-god-component-refactor
@@ -80,3 +80,12 @@ plannerNote: "P6 / PLAN 183 행 AdminView 부채 경로 1 아홉째 슬라이스
 ## Follow-ups
 
 (생성 시 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-09-04 20:56Z 완료)
+
+- **DONE** (`pr`, PR [#1481](https://github.com/myungjoo/Assessment-Agent/pull/1481) → main [`c283cd53`](https://github.com/myungjoo/Assessment-Agent/commit/c283cd53)). round 1 squash merge.
+- 인원 조회·삭제 2 조각(58 줄)을 `web/src/views/useAdminPersons.ts` 로 본문·deps 배열·`runDeletePerson` 주입 키 6 개까지 글자-동일 이동. hook 호출을 조각 (A) 자리에 두어 `useApiResource` 순번 보존, `setPersonsRefreshNonce` 만 한시 노출(T-1891 선례).
+- **AdminView.tsx 2,248 → 2,217 줄(-31)**. 5 파일 `+688/-68`.
+- 신규 spec 24 케이스(happy 5 · error 3 · 분기 4 · negative 12) 로 R-112 4 종 cover — 빈·공백 id 억제, in-flight 재발사 억제, 비배열 응답 5 종, 되돌림, 재시도 error 정리. web 138 파일 4,080 test green, backend 466 suite 13,495 test + `coverageThreshold`(line/function ≥ 80%) 통과.
+- drift-guard 2 건은 pointer 만 교체(계약 문장 무변경). Nit-in-PR closure 로 `useAdminCollectionTargets` 선행 주석의 "spec 이 호출 순번으로 구분" 서술을 실측(순번 라우팅 0 건)에 맞게 정정.
+- 4-게이트 실측 — reviewer VERDICT=APPROVE comment 외부 존재 · PR CI success · integrator 자체 점검 통과 · CI green.
