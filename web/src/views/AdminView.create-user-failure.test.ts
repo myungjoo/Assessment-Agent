@@ -159,10 +159,16 @@ describe('AdminView — 사용자 추가 실패 문구 배선 drift guard (T-171
     new URL('./adminUserMutationRunners.ts', import.meta.url),
     'utf8',
   );
+  // T-1891 순수 추출로 handleCreateUser 배선이 useAdminUsers 로 옮겨갔다 — 호출식 anchor 가 읽는
+  // 파일(pointer)만 새 모듈로 바꾸고 주입 키 단언은 그대로 둔다(계약 무변경). 배럴 단언은 AdminView.
+  const hook = readFileSync(
+    new URL('./useAdminUsers.ts', import.meta.url),
+    'utf8',
+  );
 
   it('handleCreateUser 의 deps 가 describeError 로 describeCreateUserFailure 를 넘긴다', () => {
     const call = /runCreateUser\(\s*userEmailInput,\s*userPasswordInput,\s*\{([\s\S]*?)\n {6}\}\)/.exec(
-      source,
+      hook,
     );
 
     expect(call).not.toBeNull();
@@ -461,11 +467,17 @@ describe('AdminView — 사용자 추가 실패 줄 단위 렌더 배선 drift g
     new URL('./adminUserMutationRunners.ts', import.meta.url),
     'utf8',
   );
+  // T-1891 순수 추출로 handleCreateUser 배선이 useAdminUsers 로 옮겨갔다 — 호출식 anchor 가 읽는
+  // 파일(pointer)만 새 모듈로 바꾼다. 렌더 분기 · 배럴 단언은 AdminView 소스를 계속 읽는다.
+  const hook = readFileSync(
+    new URL('./useAdminUsers.ts', import.meta.url),
+    'utf8',
+  );
 
   it('handleCreateUser 의 deps 가 줄 배열 정본과 setter 를 함께 넘긴다', () => {
     const call =
       /runCreateUser\(\s*userEmailInput,\s*userPasswordInput,\s*\{([\s\S]*?)\n {6}\}\)/.exec(
-        source,
+        hook,
       );
 
     expect(call).not.toBeNull();

@@ -136,6 +136,10 @@ import { useAdminServiceIdentities } from './useAdminServiceIdentities';
 // prelude 두 구역을 통째로 옮긴 모듈. 컨테이너는 반환 15 심볼만 소비하고 축 내부 상태 · 조회 ·
 // 러너 주입은 hook 이 소유한다. props 유래 초기값 5 개와 축 밖 값 members 만 인자로 넘긴다.
 import { useAdminSchedule } from './useAdminSchedule';
+// 사용자 관리 축 hook ①(T-1891 순수 추출) — 사용자 목록 조회 + 생성 배선 한 구역을 통째로 옮긴
+// 모듈. 컨테이너는 반환 심볼만 소비하고 조회 nonce · path 파생 · 생성 상태 전이는 hook 이
+// 소유한다. 인자는 없다(축 밖 의존 0). 배럴에는 추가하지 않는다(공개 표면 무변경).
+import { useAdminUsers } from './useAdminUsers';
 // T-1134 — R-96 LLM provider 관리 UI 마운트. 직전 slice(T-1133)가 신설한 순수 presentational
 // LlmProviderConfigList 를 Admin+ 패널에 배선한다. 컴포넌트 수정 0 으로 default import + named
 // type 만(ADR-0041 Decision 1 — 패널은 fetch 를 모른다). 기존 providerData 재사용(새 fetch 0).
@@ -203,11 +207,10 @@ import GroupList from '../components/GroupList';
 // 없으므로 named PartRow 를 그대로 조회 제네릭·props 타입에 재사용한다(task Required Reading).
 import PartList from '../components/PartList';
 import type { PartRow } from '../components/PartList';
-// 사용자 목록 마운트 대상(T-1159, T-1158 presentational) — default UserList 와 named UserRow 타입을
-// 함께 가져온다. AdminView 에는 로컬 UserRow 가 없어(사용자 미조회) 이름 충돌이 없으므로 named
-// UserRow 를 그대로 조회 제네릭·props 타입에 재사용한다(PartRow 차용 convention 동형).
+// 사용자 목록 마운트 대상(T-1159, T-1158 presentational) — default UserList 를 가져온다. 조회
+// 제네릭에 쓰던 named UserRow 타입은 T-1891 이 조회를 useAdminUsers 로 옮기며 이 파일에서 미사용이
+// 되어 함께 정리했다(배럴 재수출 대상도 아니라 공개 표면 무변경 — 위 CollectionTargetRow 선례 동형).
 import UserList from '../components/UserList';
-import type { UserRow } from '../components/UserList';
 // 수집 대상 목록 마운트 대상(T-1825, ADR-0059 §Follow-ups (e)) — default CollectionTargetList 를
 // 가져온다. 조회 제네릭에 쓰던 named CollectionTargetRow 타입은 T-1886 이 조회를
 // useAdminCollectionTargets 로 옮기며 이 파일에서 미사용이 되어 함께 정리했다(배럴 재수출 대상도
@@ -1167,64 +1170,26 @@ function AdminView({
     [partPersonData],
   );
 
-  // 사용자 목록 조회(GET /api/users, T-1159 마운트, REQ-044/REQ-045) — useApiResource 신규 호출.
-  // 파트처럼 재사용할 기존 사용자 fetch 가 없어(AdminView 사용자 미조회) 신규 단일 호출이 정당하다
-  // (double-fetch 대상 부재). 변수명에 user prefix 를 붙여 인원/그룹/파트/멤버십 등 다른 조회 상태와
-  // 섞이지 않게 분리한다(partLoading/partError 동형). T-1160 에서 생성 mutation 이 붙어 정적 path
-  // 대신 nonce-aware buildUsersPath 조회로 전환했다(nonce 0 이면 문자열 동일 — 초기 조회 회귀 0).
-  // Admin+ endpoint 라 비-Admin actor 의 요청은 403 이 되지만, 그 error 문구가 화면에 노출되지는
-  // 않는다 — 아래 사용자 관리 섹션이 isAdmin gating 안쪽이라 렌더 자체가 차단되고 권한 부족 안내만
-  // 남는다(fail-closed, 아래 섹션 주석 정합). 조회 hook 은 등급과 무관하게 호출되므로 요청은 나가되
-  // 실패는 error state 로 흡수되어 throw 0 이다(Admin 에게만 error 문구가 표면화된다).
-  // 사용자 재조회 nonce + nonce-aware 조회 path(T-1160 — partsRefreshNonce/partsPath 동형).
-  const [usersRefreshNonce, setUsersRefreshNonce] = useState<number>(0);
-
-  const usersPath = useMemo(
-    () => buildUsersPath(usersRefreshNonce),
-    [usersRefreshNonce],
-  );
-
+  // 사용자 목록 조회 + 생성 배선(T-1891 순수 추출) — 이동 전 `1170 행` ~ `1227 행` 의 조회 nonce ·
+  // nonce-aware path · useApiResource 조회 · 생성 입력/in-flight/실패 문구 상태 · handleCreateUser
+  // 를 useAdminUsers hook 이 그대로 소유한다(본문 · deps 배열 · 러너 주입 키 무변경 — 동작 변경 0).
+  // 아래 사용자 관리 섹션 JSX 가 destructure 한 값을 그대로 되돌려 쓴다(소비처 동반).
+  // setUsersRefreshNonce 는 아직 이 파일에 남아 있는 역할 변경 · 인스턴스 접근 핸들러의 bumpRefresh
+  // 가 쓰는 한시적 노출이며, 슬라이스 ② 가 그 축을 흡수하면서 사라진다.
   const {
-    data: usersData,
-    loading: userLoading,
-    error: userError,
-  } = useApiResource<UserRow[]>(usersPath);
-
-  // 사용자 생성 input·in-flight·실패 문구 상태(T-1160 — 파트 생성 state mirror, 입력만 2 필드).
-  const [userEmailInput, setUserEmailInput] = useState<string>('');
-  const [userPasswordInput, setUserPasswordInput] = useState<string>('');
-  const [creatingUser, setCreatingUser] = useState<boolean>(false);
-  const [createUserError, setCreateUserError] = useState<string | undefined>(
-    undefined,
-  );
-  // 실패 사유 줄 배열(T-1835, REQ-084) — 표시 지점이 이쪽을 우선해 줄마다 별도 element 로 렌더한다.
-  // 문자열 축(createUserError)은 종전 계약대로 함께 유지된다(줄 배열 부재 시 fallback).
-  const [createUserErrorLines, setCreateUserErrorLines] = useState<
-    string[] | undefined
-  >(undefined);
-
-  // 사용자 생성 실 mutation 핸들러(T-1160 — handleCreatePart mirror. 전이는 러너가 캡슐화).
-  const handleCreateUser = useCallback(
-    () =>
-      runCreateUser(userEmailInput, userPasswordInput, {
-        create: request,
-        // T-1715 — 400 만 축별 구체 사유로 교체(그 외 status 는 toErrorMessage 그대로).
-        describeError: describeCreateUserFailure,
-        // T-1835 — 줄 배열이 사유 정본(위 describeError 는 그 join 파생).
-        describeErrorLines: describeCreateUserFailureLines,
-        isConflict: (e: unknown) => e instanceof ApiError && e.status === 409,
-        creating: creatingUser,
-        setCreating: setCreatingUser,
-        setCreateError: setCreateUserError,
-        setCreateErrorLines: setCreateUserErrorLines,
-        bumpRefresh: () => setUsersRefreshNonce((n) => n + 1),
-        resetInput: () => {
-          setUserEmailInput('');
-          setUserPasswordInput('');
-        },
-      }),
-    [userEmailInput, userPasswordInput, creatingUser],
-  );
+    usersData,
+    userLoading,
+    userError,
+    userEmailInput,
+    setUserEmailInput,
+    userPasswordInput,
+    setUserPasswordInput,
+    creatingUser,
+    createUserError,
+    createUserErrorLines,
+    handleCreateUser,
+    setUsersRefreshNonce,
+  } = useAdminUsers();
 
   // 사용자 역할 변경 in-flight·실패 문구 상태(T-1162 — 생성 state mirror. 입력 폼이 없어 2종만).
   // 생성 실패 문구(createUserError)와 별개 상태라 두 alert 가 섞이지 않는다.
