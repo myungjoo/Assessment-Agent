@@ -2,7 +2,7 @@
 id: T-1895
 title: AdminView ② 인원 축 중 생성·수정 배선(`537 행` ~ `586 행` · `738 행` ~ `849 행`, 162 줄)을 useAdminPersons hook 으로 합류 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-026]
 independentStream: adminview-god-component-refactor
@@ -76,3 +76,14 @@ plannerNote: "P6 / PLAN 183 행 AdminView 부채 경로 1 열째 슬라이스 �
 ## Follow-ups
 
 (생성 시 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-09-04 22:59Z 완료)
+
+- **DONE** (`pr`, PR [#1482](https://github.com/myungjoo/Assessment-Agent/pull/1482) → main [`2c3fbf24`](https://github.com/myungjoo/Assessment-Agent/commit/2c3fbf24)). round 1 squash merge.
+- 인원 생성·수정 2 조각(162 줄)을 기존 `web/src/views/useAdminPersons.ts`(107 → 301 줄) 로 **합류** — state 선언 · `useCallback` 본문 · deps 배열 · `runCreatePerson` / `buildPersonPatch` / `runUpdatePerson` 주입 키를 글자-동일 이동하고 `onCreated:` · `onUpdated:` 두 줄까지 무변경 유지. 새로 쓴 것은 시그니처 2 번째 파라미터(`setSelectedIdentityPersonId`) 와 반환 키 확장뿐.
+- `useAdminServiceIdentities` 호출 블록을 `useAdminPersons` 앞으로 교환 — 본 슬라이스의 유일한 "이동 아닌 변경" 이며, `useApiResource` 발사 순번만 바뀌고 web 전체 스위트로 회귀 0 을 실증했다(spec 이 전부 path 라우팅).
+- `setPersonsRefreshNonce` 한시 노출 종료 — hook 반환 표면에서 내렸고 `AdminView.tsx` grep 0 건.
+- **AdminView.tsx 2,217 → 2,080 줄(-137)**. 5 파일 `+969/-237`. 목표선 ≤ 2,000 까지 잔여 `-80 줄`.
+- spec 24 → 53 케이스로 확장해 R-112 4 종 cover(happy · error · 분기 · negative 충분). web 138 파일 4,111 test green, backend 466 suite 13,495 test + `coverageThreshold`(line/function ≥ 80%) 통과.
+- autoselect drift-guard 2 건은 pointer 만 교체하고 AdminView 인자 assertion 1 개씩을 더해 end-to-end 계약을 잠갔다(기존 정규식 본문 무변경).
+- 4-게이트 실측 — reviewer VERDICT=APPROVE comment 외부 존재 · PR CI success(기본 검사 · 배포 산출물 검증) · integrator 자체 점검 통과 · CI green.
