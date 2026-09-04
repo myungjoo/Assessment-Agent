@@ -2,7 +2,7 @@
 id: T-1883
 title: PLAN 183 행 AdminView 부채 9 차 실측 갱신 + 순수 추출 경로 종료 박제 + 본문 분해 대상 지목
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-049]
 independentStream: adminview-god-component-debt
@@ -79,3 +79,13 @@ git show origin/main:web/src/views/AdminView.tsx | grep -cE '^(export )?(async )
 ## Follow-ups
 
 (생성 시 비어 있음)
+
+## 완료 기록
+
+- **완료 시각**: 2026-09-04T02:47Z (server-time 기준 — `gh api -i rate_limit` `Date` 헤더 `Fri, 04 Sep 2026 02:37:50 GMT` 기준 fire)
+- **commit**: [`e0781120`](https://github.com/myungjoo/Assessment-Agent/commit/e0781120) (`direct` → main, `docs/PLAN.md` 1 파일 `+1/-1` — 183 행 단일 bullet 부분 편집 12 곳)
+- **실측 갱신** (head `839562a7`): AdminView.tsx **3,450 줄 · top-level 선언 5 개** (직전 표기 3,630/39 에서 동기). 누적 감소 **-2,637 줄** (선언 149 → 5), 목표선(≤ 2,000 줄) 잔여 **-1,450 줄**, 최근 페이스 `-127`/`-105`/`-180` (평균 `-137`), 진척 **17 순수-추출 슬라이스**. 4 구역 좌표 재측정 결과 3,447 + 구분 3 행 = 3,450 으로 정합.
+- **새로 박제한 사실**: T-1882 가 잔여 정적 표면을 전량 소진해 **순수 추출 경로가 종료**됐다 — 잔류 허용 3 심볼 56 줄 외에 옮길 표면이 0 이다. 남은 mass 는 컴포넌트 본문뿐이며, prelude 내부 구성을 측정 명령과 함께 실측해 **축별 인벤토리 9 개**(비연속 여부 · ServiceIdentity 산재 10 줄 포함) 로 분해했다.
+- **판정**: 순수 추출 3 조건 (a)(b)(c) 를 prelude 에 적용해 **hook 경로는 충족 / JSX 경로는 미충족** 으로 갈랐다. 이에 따라 다음 대상 1 개를 **import·export 축**(좌표 · 목적지 · 순 감소 기대 · cap 산술 동반) 으로 지목했다.
+- **함께 정정**: 같은 bullet 의 `파일 cap 주의` 문장에서 배럴 좌표가 `3498 행 ~ 3630 행` 으로 stale 이라 구조 산술 갱신과 모순돼 `3318 행 ~ 3450 행` 으로 고쳤고, 소스 텍스트 drift-guard 실측치를 15 → **19 개** 로 갱신했다.
+- **검증**: 코드 변경 0 인 doc-only `direct` 라 R-112 면제 (CLAUDE.md §3.2). `git diff --stat` 이 `docs/PLAN.md` 1 파일만 보고, 작업 트리 오염 0.
