@@ -148,6 +148,11 @@ import { useAdminUsers } from './useAdminUsers';
 // 상태 · 조회 path · 러너 주입은 hook 이 소유한다. props 유래 초기값 1 개만 인자로 넘긴다.
 // 배럴에는 추가하지 않는다(공개 표면 무변경).
 import { useAdminParts } from './useAdminParts';
+// 인원 축 hook(T-1894 순수 추출 슬라이스 ①) — 본 컨테이너의 인원 축 4 조각 중 조회 · 삭제 2 조각
+// (재조회 nonce · 휴직 포함 토글 · path useMemo · 목록 조회 · 삭제 배선)을 통째로 옮긴 모듈.
+// 컨테이너는 반환 9 심볼만 소비하고 축 내부 상태 · 조회 path · 러너 주입은 hook 이 소유한다.
+// props 유래 초기값 1 개만 인자로 넘긴다. 배럴에는 추가하지 않는다(공개 표면 무변경).
+import { useAdminPersons } from './useAdminPersons';
 // T-1134 — R-96 LLM provider 관리 UI 마운트. 직전 slice(T-1133)가 신설한 순수 presentational
 // LlmProviderConfigList 를 Admin+ 패널에 배선한다. 컴포넌트 수정 0 으로 default import + named
 // type 만(ADR-0041 Decision 1 — 패널은 fetch 를 모른다). 기존 providerData 재사용(새 fetch 0).
@@ -165,11 +170,12 @@ import SchedulePanel from '../components/SchedulePanel';
 import ReEvaluationTriggerPanel from '../components/ReEvaluationTriggerPanel';
 // T-1142 — P6 line120 Admin "인원(Person)" 관리 UI 마운트. 직전 slice(T-1141)가 신설한 순수
 // presentational PersonList 를 AdminView 에 배선한다. 컴포넌트 수정 0 으로 default import +
-// named type(PersonRow)만(ADR-0041 Decision 1 — 패널은 fetch 를 모른다). 실 fetch(GET
-// /api/persons)는 아래 useApiResource 로 컨테이너가 소유하고, data/loading/error 를 props 로만
-// 내려보낸다(T-1140 DashboardView 마운트 패턴 mirror — 읽기 전용, mutation/nonce 불요).
+// default import 만(ADR-0041 Decision 1 — 패널은 fetch 를 모른다). 실 fetch(GET /api/persons)는
+// T-1894 로 useAdminPersons 가 소유하게 됐고, 컨테이너는 그 hook 이 돌려준 data/loading/error 를
+// props 로만 내려보낸다(T-1140 DashboardView 마운트 패턴 mirror — 읽기 전용).
+// named type(PersonRow) import 는 조회 호출식이 hook 으로 옮겨가며 이 파일에서 미사용이 됐다
+// (배럴 재수출 대상도 아님) — 함께 정리한다.
 import PersonList from '../components/PersonList';
-import type { PersonRow } from '../components/PersonList';
 // T-1766 — ADR-0058 §Follow-ups (d) 여덟 번째 web slice(읽기 축). ServiceIdentityList(T-1762)는
 // 수정 0 으로 default import 만(ADR-0041 Decision 1), row 타입·path 는 client 계약 재사용.
 import ServiceIdentityList from '../components/ServiceIdentityList';
@@ -473,37 +479,25 @@ function AdminView({
   const { data: meData, loading: meLoading } =
     useApiResource<MeRow>(AUTH_ME_PATH);
 
-  // 인원 재조회 nonce(T-1143) — 인원 생성 POST 성공 시 이 값을 +1 해 persons path 를 변화시켜
-  // useApiResource 재조회를 유발한다(read-only hook 수정 0 경로 — providersRefreshNonce 동형).
-  // nonce 0 초기 마운트는 base path 그대로다(T-1142 마운트와 동일 — 회귀 0).
-  const [personsRefreshNonce, setPersonsRefreshNonce] = useState<number>(0);
-
-  // 휴직 인원 포함 여부(T-1804) — 인원 관리 섹션의 controlled checkbox 가 소유하는 컨테이너
-  // 상태(controlled lift-up). true 면 조회 path 에 `includeInactive=true` 가 실려 backend 가
-  // findAll()(휴직 포함)로 분기하고, 그 목록의 기존 인라인 수정 폼(활성/휴직 <select> → PATCH)이
-  // 곧 재활성(Activate) 진입점이 된다. 기본 false = 종전 활성-only 조회(회귀 0).
-  const [personsIncludeInactive, setPersonsIncludeInactive] = useState<boolean>(
-    initialPersonsIncludeInactive,
-  );
-
-  // 인원 목록 조회 path(T-1143 nonce, T-1804 includeInactive) — 빌더가 두 축을 함께 조립한다.
-  // nonce 0 + 토글 OFF 면 base path(T-1142 마운트와 동일), 생성 성공 후 nonce 증가가 `_r` query 로
-  // 재조회를 내고, 토글 변경도 path 를 바꿔 useApiResource 재조회를 낸다(두 값 모두 의존성).
-  const personsPath = useMemo(
-    () => buildPersonsPath(personsRefreshNonce, personsIncludeInactive),
-    [personsRefreshNonce, personsIncludeInactive],
-  );
-
-  // 인원 목록 조회(T-1142, T-1143 nonce 전환) — useApiResource 로 GET /api/persons(active 인원
-  // Person[])를 조회한다. 컨테이너가 인원 목록 상태를 소유하고, 그 data/loading/error 를
-  // presentational PersonList 에 props 로만 내려보낸다(ADR-0041 Decision 1 — 패널은 fetch 를
-  // 모른다). 변수명에 person prefix 를 붙여 그룹/멤버십/LLM 조회의 loading/error 와 섞이지 않게
-  // 분리한다(T-1140 permissionDenied prefix 동형).
+  // 인원 축 조회 · 삭제 배선(T-1894 순수 추출 슬라이스 ①) — 재조회 nonce · 휴직 포함 토글 ·
+  // nonce + 토글 aware path useMemo · 목록 조회 · 삭제 in-flight · 실패 문구 · handleDeletePerson
+  // 이 useAdminPersons 로 통째로 옮겨갔다. 본문 무변경 이동이라 동작 · 렌더 트리는 이동 전과
+  // 같고, **호출 위치도 이 자리 그대로 둔다** — hook 안의 useApiResource 가 인원 조회 순번
+  // (그룹 → auth/me → 인원 → ServiceIdentity)을 그대로 이어받아야 하기 때문이다. props 유래
+  // 초기값 1 개를 넘기고 소비 심볼만 되받는다(내부 nonce · path · setter 는 hook 안에 캡슐화).
+  // `setPersonsRefreshNonce` 만 한시적으로 되받는다 — 잔류 생성 · 수정 핸들러의 bumpRefresh 가
+  // 아직 이 축의 재조회를 트리거하므로(후속 합류 슬라이스에서 반환 표면에서 내린다).
   const {
-    data: personData,
-    loading: personLoading,
-    error: personError,
-  } = useApiResource<PersonRow[]>(personsPath);
+    personData,
+    personLoading,
+    personError,
+    personsIncludeInactive,
+    setPersonsIncludeInactive,
+    deletingPerson,
+    deletePersonError,
+    handleDeletePerson,
+    setPersonsRefreshNonce,
+  } = useAdminPersons(initialPersonsIncludeInactive);
 
   // ServiceIdentity 축 배선(T-1888 순수 추출) — 조회 1 + 경로 1 + 파생 3 + slot 1 + 상태 13 +
   // in-flight gate 2 + 핸들러 · 리셋 7 = 28 선언이 useAdminServiceIdentities 로 통째로 옮겨갔다.
@@ -622,34 +616,6 @@ function AdminView({
         resetInput: () => setGroupNameInput(''),
       }),
     [groupNameInput, creatingGroup],
-  );
-
-  // 인원 삭제 mutation in-flight 플래그(T-1144) — DELETE 진행 중 true. 진행 표시(loading 우선)와
-  // 동시 재호출 가드(이전 mutation 미완 중 재호출 차단)에 함께 쓴다(deletingProvider 동형).
-  const [deletingPerson, setDeletingPerson] = useState<boolean>(false);
-
-  // 인원 삭제 mutation 실패 문구(T-1144) — DELETE 실패 시 사람-친화 문구(toErrorMessage 파생)를
-  // 보관해 목록 패널의 error props 로 안전 표시한다(throw 없음). 성공/재시도 시작 시 비운다.
-  const [deletePersonError, setDeletePersonError] = useState<
-    string | undefined
-  >(undefined);
-
-  // onDelete 실 mutation 핸들러(T-1144) — 인원 삭제 DELETE(/api/persons/:id)를 컨테이너 내부 async
-  // 로 발사한다(신규 mutation hook 미작성 — runDeleteProvider 정합). 빈/공백/falsy id·이전 mutation
-  // 미완(deletingPerson) 발사 억제 + 성공(인원 재조회 트리거)/실패(error 안전 표시, throw 없음) 전이는
-  // runDeletePerson 이 캡슐화한다. deletingPerson 을 deps 의존성에 포함해 stale 없이 최신 가드 상태로
-  // 발사한다.
-  const handleDeletePerson = useCallback(
-    (id: string) =>
-      runDeletePerson(id, {
-        remove: request,
-        describeError: toErrorMessage,
-        deleting: deletingPerson,
-        setDeleting: setDeletingPerson,
-        setDeleteError: setDeletePersonError,
-        bumpRefresh: () => setPersonsRefreshNonce((n) => n + 1),
-      }),
-    [deletingPerson],
   );
 
   // 그룹 삭제 mutation in-flight 플래그(T-1149) — DELETE 진행 중 true. 진행 표시(loading 우선)와
@@ -1127,8 +1093,11 @@ function AdminView({
 
   // 수집 대상 축 prelude(T-1886 순수 추출) — 조회 1 + 파생 1 + 상태 14 + 핸들러 7 = 23 선언을
   // useAdminCollectionTargets hook 으로 통째로 옮기고 여기서는 소비 심볼만 되돌려 쓴다(본문 무변경
-  // 이동 — 동작 변경 0). **호출 위치를 옮기지 않는다**: 기존 collection-targets spec 이
-  // useApiResource mock 을 호출 순서로 구분하므로 파트 목록 조회 직후라는 순번이 계약이다.
+  // 이동 — 동작 변경 0). **호출 위치를 옮기지 않는다**: 순수 추출의 전제가 조회 순번 보존이기
+  // 때문이다. 다만 그 근거를 "기존 spec 이 useApiResource mock 을 호출 순서로 구분한다" 고 적어둔
+  // 것은 사실이 아니었다(T-1894 실측 — web 의 useApiResource mock 은 전부 path 로 라우팅하고
+  // 호출 순번으로 구분하는 spec 은 0 건). 순번 보존은 spec 계약이 아니라 hook 호출 순서 규칙
+  // (React rules of hooks)과 재조회 순서 회귀 방지를 위한 것이다.
   const {
     collectionTargets,
     collectionTargetLoading,

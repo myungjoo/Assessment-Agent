@@ -23,8 +23,15 @@ import AdminView, { buildPersonsPath } from './AdminView';
 
 const BASE = '/api/persons';
 const LABEL = '휴직 인원 포함';
+// 소스 guard 대상이 T-1894 로 두 모듈에 나뉘었다 — personsPath useMemo 배선은 순수 추출된
+// useAdminPersons.ts 로 옮겨갔고, controlled checkbox JSX 는 AdminView.tsx 에 남았다. 계약 문장은
+// 그대로 두고 어느 소스를 읽을지(pointer)만 각각에 맞게 분리한다.
 const SOURCE = readFileSync(
   new URL('./AdminView.tsx', import.meta.url),
+  'utf-8',
+);
+const HOOK_SOURCE = readFileSync(
+  new URL('./useAdminPersons.ts', import.meta.url),
   'utf-8',
 );
 const EMPTY_OK: ApiResourceState<unknown> = {
@@ -174,8 +181,9 @@ describe('AdminView — 휴직 인원 포함 토글 배선 (T-1804)', () => {
 describe('AdminView 소스 guard — personsPath 배선 (T-1804 비-공허성)', () => {
   // 배선을 되돌리는 mutation(토글 값을 빌더/의존성에서 빼는 변경)을 소스로 잠근다
   // — 비-공허성 2/2. renderToStaticMarkup 은 state 전이를 재현하지 않으므로 소스로 보강한다.
+  // T-1894 — 이 배선은 useAdminPersons hook 소스에서 읽는다(계약 문장 무변경, pointer 만 이동).
   it('personsPath useMemo 가 토글 값을 빌더 인자와 의존성 배열에 모두 싣는다', () => {
-    const memo = /const personsPath = useMemo\(([\s\S]*?)\);\n/.exec(SOURCE);
+    const memo = /const personsPath = useMemo\(([\s\S]*?)\);\n/.exec(HOOK_SOURCE);
     expect(memo).not.toBeNull();
     const body = memo?.[1] ?? '';
     expect(body).toContain(

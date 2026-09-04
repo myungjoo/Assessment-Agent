@@ -69,9 +69,11 @@ function extractHandlerMethods(source: string): Record<string, HandlerDecorator>
   }
   return found;
 }
-// AdminView 조회 call site 의 발사 method 추론. `useApiResource<PersonRow[]>(personsPath)` 를
+// 인원 조회 call site 의 발사 method 추론. `useApiResource<PersonRow[]>(personsPath)` 를
 // 옵션 인자 없이(단일 인자) 호출 → request→fetch default GET. 인자 2+ (options 전달) 면 non-GET 가능.
 // partPersonsPath call site(형제)와 섞이지 않도록 personsPath 인자를 명시 anchor.
+// T-1894 — 그 call site 가 AdminView.tsx 에서 useAdminPersons.ts 로 순수 추출됐다. 아래 소스
+// pointer 만 새 hook 모듈로 옮기고 계약 문장(정규식·기대값)은 한 글자도 바꾸지 않는다.
 function extractPersonsFireMethod(source: string): string | null {
   const matched = /useApiResource<PersonRow\[\]>\(\s*(personsPath[^)]*)\)/.exec(stripComments(source));
   if (!matched) {
@@ -109,12 +111,12 @@ function diffContract(fire: WebFire, backend: BackendContract): string[] {
   return issues;
 }
 const CONTROLLER_SOURCE = readFileSync(new URL('../../../src/user/person.controller.ts', import.meta.url), 'utf8');
-const ADMIN_VIEW_SOURCE = readFileSync(new URL('./AdminView.tsx', import.meta.url), 'utf8');
+const PERSONS_HOOK_SOURCE = readFileSync(new URL('./useAdminPersons.ts', import.meta.url), 'utf8');
 const ROUTE = extractControllerRoute(CONTROLLER_SOURCE);
 const HANDLERS = extractHandlerMethods(CONTROLLER_SOURCE);
 const FIND_ACTIVE = HANDLERS.findActive ?? null;
 const FIND_ONE = HANDLERS.findOne ?? null;
-const WEB_FIRE_METHOD = extractPersonsFireMethod(ADMIN_VIEW_SOURCE);
+const WEB_FIRE_METHOD = extractPersonsFireMethod(PERSONS_HOOK_SOURCE);
 const LIST_CONTRACT: BackendContract = {
   route: ROUTE,
   method: FIND_ACTIVE?.method ?? null,
