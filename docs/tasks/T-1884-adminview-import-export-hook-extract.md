@@ -2,7 +2,7 @@
 id: T-1884
 title: AdminView 의 import/export 축 prelude(상태 9 + 핸들러 5 + 패널 props 파생 1)를 useAdminImportExport hook 으로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-032]
 independentStream: adminview-god-component-refactor
@@ -71,4 +71,16 @@ plannerNote: "P6 / PLAN 183 행 AdminView 부채 첫 본문 분해 슬라이스 
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업 발견 시 여기에 append)
+- **`scripts/check-spec-presence.sh` 가 `.test.tsx` 를 인정하지 않는다** — 본 slice 의 round 1 CI 가 `spec 파일 동반 여부 검사` step 에서 red 였다. 스크립트가 `.spec.ts` / `.test.ts` 두 확장자만 허용해 AC 가 지정한 `useAdminImportExport.test.tsx` 를 spec 으로 세지 못했다. 본 PR 안에서는 probe 렌더를 `createElement` 로 바꿔 `.test.ts` 로 개명해 우회했으나(스크립트 무수정), React 컴포넌트를 JSX 로 렌더하는 후속 hook slice 는 같은 벽에 다시 부딪힌다. planner 가 별도 `pr` task 로 스크립트에 `.test.tsx` / `.spec.tsx` 를 추가하고 [scripts/check-spec-presence.test.sh](../../scripts/check-spec-presence.test.sh) 에 대응 케이스를 붙일 것.
+- **`useAdminImportExport` 는 파라미터 0 개가 아니라 1 개** — 본 task 의 planner pre-check 가 `initialImportConfirmText`(AdminView prop, 이동 전 `1555 행` 의 `useState` 초기값) 를 축 밖 의존으로 세지 못했다. 실제 구현은 `useAdminImportExport(initialImportConfirmText?: string)` 로 동작 보존한 채 안착했고 reviewer 가 MINOR 로 확인했다. 후속 축 hook 화 slice 의 pre-check 는 `useState` 초기값의 prop 참조까지 훑을 것.
+
+## 완료 기록
+
+- **완료 시각**: 2026-09-04T04:07Z (server-time 기준 — `gh api -i rate_limit` `Date` 헤더 `Fri, 04 Sep 2026 03:37:31 GMT` 기준 fire)
+- **PR / merge**: [PR #1472](https://github.com/myungjoo/Assessment-Agent/pull/1472) → main [`388a2282`](https://github.com/myungjoo/Assessment-Agent/commit/388a2282) (squash, round 1 APPROVE)
+- **실측 결과**: `web/src/views/AdminView.tsx` **3,450 → 3,277 줄 (-173)** — AC 의 목표선(≤ 3,290) 충족. 신규 [useAdminImportExport.ts](../../web/src/views/useAdminImportExport.ts) 205 줄 + colocated spec [useAdminImportExport.test.ts](../../web/src/views/useAdminImportExport.test.ts) 458 줄. 3 파일 `+671/-181`.
+- **순수성**: 이동 171 줄은 main `8197ef21` 원본과 본문 · `useCallback` deps 배열 · 러너 주입 키까지 무변경. AdminView 는 destructure 한 줄로 되돌려 쓰고 JSX 3 곳(`value={selectedScope}` · `onChange={handleScopeChange}` · `<DataImportExportPanel {...importExportPanelProps} />`) 은 한 글자도 바뀌지 않았다. 미사용이 된 `../api/exportJob` import 문 · `browserDownloadDeps` · `DataImportExportPanelProps` 타입만 제거하고 배럴 재수출 심볼의 import 는 전부 남겼다.
+- **AC 대비 유일한 편차**: hook 시그니처가 파라미터 0 개가 아니라 `initialImportConfirmText?: string` 1 개 — 위 `Follow-ups` 참조. 동작 보존이며 reviewer MINOR 확인.
+- **검증**: 신규 spec 20 test (happy 3 · 주입 계약 4 · error 3 · 분기 5 · negative 5) 로 R-112 4 종 전부 cover. web vitest **131 파일 3,899 test** green (직전 T-1882 기준선 130/3,879 대비 +1 파일 +20 test), AdminView 소스를 `readFileSync` 로 읽는 drift-guard 19 개 red 0. `cd web && pnpm lint && pnpm build && pnpm test` 전부 green.
+- **CI**: round 1 첫 push(`e6937b8c`) 는 `spec 파일 동반 여부 검사` step 에서 fail — 위 `Follow-ups` 의 `.test.tsx` 미인식이 원인이며 spec 파일명 변경으로 같은 round 안에서 해소. 최종 PR head `e548af72` 의 pull_request run(33834557901) 과 approve-comment 재검증 run(33834703097) 모두 **success**, 머지 후 main run(33835053830) 도 **success**.
+- **4-게이트**: reviewer VERDICT=APPROVE PR comment 외부 존재(게이트 2, 1 건) · CI green(게이트 4) · integrator 자체 점검 통과 · Acceptance Criteria 11 항목 전부 ok → round 1 squash merge.
