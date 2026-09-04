@@ -2,7 +2,7 @@
 id: T-1886
 title: AdminView 의 수집 대상 축 prelude(조회 1 + 파생 1 + 상태 14 + 핸들러 7)를 useAdminCollectionTargets hook 으로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-070, REQ-072, REQ-073]
 independentStream: adminview-god-component-refactor
@@ -16,6 +16,9 @@ estimatedFiles: 3
 sizeExempt: true
 exemptReason: "pure-extraction — (a) 동작 변경 0 (`1533 행` ~ `1761 행` 의 수집 대상 축 조회 · 파생 · state · 핸들러를 선행 주석까지 통째로 새 hook 모듈로 옮기고, 새로 쓰는 것은 `export function useAdminCollectionTargets()` 시그니처와 반환 object literal · AdminView 의 destructure 배선 · import 경로 조정뿐이며 분기 0) · (b) 신규 로직 0 LOC (`useApiResource<CollectionTargetRow[]>(COLLECTION_TARGETS_PATH)` 호출 · `collectionTargets` 의 `Array.isArray` 정상화 · 러너 4 종(`runCreateCollectionTarget` · `runDeleteCollectionTarget` · `runToggleCollectionTargetActive` · `runUpdateCollectionTarget`) 주입 · `foldScopeForEdit`/`buildScopePatch` 조립이 전부 본문 무변경 이동이고 `useCallback` deps 배열도 그대로) · (c) 렌더 트리가 그대로라 기존 spec 무수정 통과 — planner 가 AdminView 소스를 `readFileSync` 로 읽는 drift-guard **19 파일을 전수 검사한 결과 수집 대상 문자열을 anchor 로 쓰는 spec 0 건**(`grep -c 'collectionTarget|CollectionTarget|COLLECTION_TARGET'` 이 19 파일 모두 0)이고, 렌더 기반 `AdminView.collection-targets-*.test.tsx` 6 개는 배럴 재수출(`runCreateCollectionTarget` · `runDeleteCollectionTarget` · `runToggleCollectionTargetActive` · `foldScopeForEdit` · `buildScopePatch`)과 JSX 무변경 덕에 그대로 산다. 이동 229 줄이 삭제 · 추가로 이중 계상될 뿐 위험도에 비례하지 않는다. 파일 수 3 으로 파일 cap (≤ 5) 은 예외 없이 준수."
 created: 2026-09-04
+completedAt: 2026-09-04T04:57:36Z
+prNumber: 1474
+mergeCommit: 0a06438e
 plannerNote: "P6 / PLAN 183 행 AdminView 부채 둘째 본문 분해 슬라이스 — 수집 대상 축 hook 화, head 43ba5f84 좌표 · 축 밖 의존 0 · hook 파라미터 0 · drift-guard anchor 0 실측"
 ---
 
@@ -70,3 +73,12 @@ plannerNote: "P6 / PLAN 183 행 AdminView 부채 둘째 본문 분해 슬라이�
 ## Follow-ups
 
 (작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 적는다.)
+
+## Result (2026-09-04)
+
+**DONE** — `pr` mode, PR [#1474](https://github.com/myungjoo/Assessment-Agent/pull/1474) → main [`0a06438e`](https://github.com/myungjoo/Assessment-Agent/commit/0a06438e) (round 1 squash merge).
+
+- 수집 대상 축 23 선언을 `web/src/views/useAdminCollectionTargets.ts` 로 **byte 단위 무변경 이동** (hook 파라미터 0 개), AdminView 는 원 블록 자리에서 destructure 로 소비해 `useApiResource` 호출 순번을 보존했다. AdminView 3,277 줄 → **3,076 줄** (-201).
+- 신규 spec `useAdminCollectionTargets.test.ts` 21 케이스로 R-112 4 종 cover (happy 6 · error 2 · 분기 7 · negative 5, 캡슐화 회귀 가드 포함). probe + `renderToStaticMarkup` harness 승계로 **새 dependency 0**. web 131 파일 / 3,899 test → **132 파일 / 3,920 test** green.
+- 4-게이트 실측 — reviewer VERDICT=APPROVE comment 외부 존재 · PR head `6fb17d10` 의 pull_request run success · integrator 자체 점검 통과 · CI green.
+- 편차 1 건: driver 지시로 executor 가 claim 을 건드리지 않아 `sync-claim-pr.sh` 미호출 (claim `prNumber` null 유지 → 본 bookkeeping 에서 prune). PR 이 이미 MERGED 라 dup-PR risk 는 소멸.
