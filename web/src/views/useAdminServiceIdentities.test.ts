@@ -365,6 +365,16 @@ describe('useAdminServiceIdentities — error path', () => {
     await expect(returned as Promise<void>).rejects.toThrow('수정 실패');
   });
 
+  it('조회 진행 중에는 loading 을 그대로 표면화하고 목록은 빈 배열로 대기한다', () => {
+    setApiState({ data: undefined, loading: true });
+
+    const hook = lastOf(renderProbe('p1', 'i1'));
+
+    expect(hook.serviceIdentityLoading).toBe(true);
+    expect(hook.serviceIdentityError).toBeUndefined();
+    expect(hook.serviceIdentities).toEqual([]);
+  });
+
   it('조회 실패 시 문구를 그대로 표면화하고 목록은 빈 배열로 안전 착지한다', () => {
     setApiState({ data: undefined, error: '조회에 실패했습니다.' });
 
