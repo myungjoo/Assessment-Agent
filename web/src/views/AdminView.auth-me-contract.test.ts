@@ -115,6 +115,10 @@ function diffContract(fire: WebFire, backend: BackendContract): string[] {
 
 const CONTROLLER_SOURCE = readFileSync(new URL('../../../src/auth/auth.controller.ts', import.meta.url), 'utf8');
 const ADMIN_VIEW_SOURCE = readFileSync(new URL('./AdminView.tsx', import.meta.url), 'utf8');
+// AUTH_ME_PATH 선언의 정본은 T-1882 순수 추출로 adminViewConstants.ts 로 옮겨갔다 — 선언 문자열
+// 대조는 그 모듈 소스를 읽는다(선례: AdminView.schedules-list-contract.test.ts 의
+// SCHEDULE_RUNNERS_SOURCE). 발사 call site 는 여전히 AdminView.tsx 라 위 소스도 함께 읽는다.
+const ADMIN_VIEW_CONSTANTS_SOURCE = readFileSync(new URL('./adminViewConstants.ts', import.meta.url), 'utf8');
 const ROUTE = extractControllerRoute(CONTROLLER_SOURCE);
 const HANDLERS = extractHandlerMethods(CONTROLLER_SOURCE);
 const ME = HANDLERS.me ?? null;
@@ -129,7 +133,7 @@ const ME_CONTRACT: BackendContract = {
 };
 const BASE = '/api/auth/me';
 const ROUTE_TEMPLATE = '/api/auth/me'; // base api/auth(2세그먼트) + literal subPath me(1세그먼트)
-const AUTH_ME_PATH_DECL = "const AUTH_ME_PATH = '/api/auth/me';";
+const AUTH_ME_PATH_DECL = "export const AUTH_ME_PATH = '/api/auth/me';";
 // 조회 발사기. base(+선택적 `?_r` cache-buster query). 발사 method 는 call site 추론값(GET).
 const meFire = (query = ''): WebFire => {
   const path = `${BASE}${query}`;
@@ -175,7 +179,7 @@ describe('AdminView — 현재 사용자 조회(GET /api/auth/me) web↔backend 
     );
   });
   it('web 발사(GET /api/auth/me)가 backend @Get("me") me 계약과 완전 일치한다 (happy-path — 경로 정합)', () => {
-    expect(ADMIN_VIEW_SOURCE).toContain(AUTH_ME_PATH_DECL); // AUTH_ME_PATH 상수값 확정(export 아님 — 소스 대조)
+    expect(ADMIN_VIEW_CONSTANTS_SOURCE).toContain(AUTH_ME_PATH_DECL); // AUTH_ME_PATH 상수값 확정(값 import 아닌 소스 대조 — 선언 문자열 자체가 drift guard 대상)
     const fired = meFire();
     expect(fired.path).toBe(ROUTE_TEMPLATE);
     expect(fired.hasParamSegment).toBe(false);
