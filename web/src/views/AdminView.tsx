@@ -479,32 +479,15 @@ function AdminView({
   const { data: meData, loading: meLoading } =
     useApiResource<MeRow>(AUTH_ME_PATH);
 
-  // 인원 축 조회 · 삭제 배선(T-1894 순수 추출 슬라이스 ①) — 재조회 nonce · 휴직 포함 토글 ·
-  // nonce + 토글 aware path useMemo · 목록 조회 · 삭제 in-flight · 실패 문구 · handleDeletePerson
-  // 이 useAdminPersons 로 통째로 옮겨갔다. 본문 무변경 이동이라 동작 · 렌더 트리는 이동 전과
-  // 같고, **호출 위치도 이 자리 그대로 둔다** — hook 안의 useApiResource 가 인원 조회 순번
-  // (그룹 → auth/me → 인원 → ServiceIdentity)을 그대로 이어받아야 하기 때문이다. props 유래
-  // 초기값 1 개를 넘기고 소비 심볼만 되받는다(내부 nonce · path · setter 는 hook 안에 캡슐화).
-  // `setPersonsRefreshNonce` 만 한시적으로 되받는다 — 잔류 생성 · 수정 핸들러의 bumpRefresh 가
-  // 아직 이 축의 재조회를 트리거하므로(후속 합류 슬라이스에서 반환 표면에서 내린다).
-  const {
-    personData,
-    personLoading,
-    personError,
-    personsIncludeInactive,
-    setPersonsIncludeInactive,
-    deletingPerson,
-    deletePersonError,
-    handleDeletePerson,
-    setPersonsRefreshNonce,
-  } = useAdminPersons(initialPersonsIncludeInactive);
-
   // ServiceIdentity 축 배선(T-1888 순수 추출) — 조회 1 + 경로 1 + 파생 3 + slot 1 + 상태 13 +
   // in-flight gate 2 + 핸들러 · 리셋 7 = 28 선언이 useAdminServiceIdentities 로 통째로 옮겨갔다.
   // 본문 무변경 이동이라 동작 · 렌더 트리 · 조회 순번은 이동 전과 동일하고, 여기서는 props 유래
   // 초기값 2 개를 넘겨 hook 이 공개하는 23 심볼만 되받는다(내부 nonce · 경로 · 행 액션 state ·
-  // gate 는 hook 안에 캡슐화 — 축 밖에서 건드릴 경로 없음). 위치는 인원 조회 직후 그대로 두어야
-  // 한다 — 기존 spec 이 useApiResource mock 을 호출 순번으로 라우팅하는 케이스가 있다.
+  // gate 는 hook 안에 캡슐화 — 축 밖에서 건드릴 경로 없음). 위치는 인원 축 hook **앞**이다
+  // (T-1895) — 인원 축의 생성 · 수정 배선이 여기서 나오는 setSelectedIdentityPersonId 를 인자로
+  // 받으므로 그 setter 를 돌려주는 본 hook 이 먼저 호출돼야 한다. 두 hook 사이에 데이터 의존은
+  // 없고, web 의 모든 spec 이 useApiResource mock 을 path 로 라우팅하므로 발사 순번 교환에 따른
+  // 회귀도 없다.
   const {
     selectedIdentityPersonId,
     setSelectedIdentityPersonId,
@@ -534,55 +517,48 @@ function AdminView({
     initialEditingIdentityId,
   );
 
-  // 인원 생성 2 controlled input 상태(T-1143) — 컨테이너 소유. "추가" 클릭 시 handleCreatePerson
-  // 이 POST body 의 2 필드(fullName/email)로 공급하고, 성공 후 모두 빈 값으로 되돌린다(연속 생성
-  // 편의). runCreateProvider 의 providerInput 패턴 mirror.
-  const [fullNameInput, setFullNameInput] = useState<string>('');
-  const [emailInput, setEmailInput] = useState<string>('');
-
-  // 인원 생성 mutation in-flight 플래그(T-1143) — POST 진행 중 true. 진행 표시(입력·버튼 비활성)와
-  // 동시 재호출 가드(이전 mutation 미완 중 재발사 차단)에 함께 쓴다(creatingProvider 동형).
-  const [creatingPerson, setCreatingPerson] = useState<boolean>(false);
-
-  // 인원 생성 mutation 실패 문구(T-1143) — POST 실패 시 사람-친화 문구(toErrorMessage 파생)를
-  // 보관해 폼 하단에 안전 표시한다(throw 없음). 성공/재시도 시작 시 비운다.
-  const [createPersonError, setCreatePersonError] = useState<
-    string | undefined
-  >(undefined);
-
-  // 인원 생성 실 mutation 핸들러(T-1143) — 인원 생성 POST(/api/persons, body 2 필드)를 컨테이너
-  // 내부 async 로 발사한다(handleCreateProvider 정합). 빈/공백 필드·이전 mutation 미완(creatingPerson)
-  // 발사 억제 + 성공(인원 재조회 + 2 입력 초기화)/실패(error 안전 표시, throw 없음) 전이는
-  // runCreatePerson 이 캡슐화한다. 2 입력값·creatingPerson 을 deps 의존성에 포함해 stale 없이 최신
-  // 입력·가드 상태로 발사한다.
-  const handleCreatePerson = useCallback(
-    () =>
-      runCreatePerson(
-        {
-          fullName: fullNameInput,
-          email: emailInput,
-        },
-        {
-          create: request,
-          describeError: toErrorMessage,
-          creating: creatingPerson,
-          setCreating: setCreatingPerson,
-          setCreateError: setCreatePersonError,
-          bumpRefresh: () => setPersonsRefreshNonce((n) => n + 1),
-          resetInput: () => {
-            setFullNameInput('');
-            setEmailInput('');
-          },
-          // 생성 직후 identity 대상 자동 선택(T-1780, REQ-079) — 방금 만든 인원에 service
-          // identity 를 붙이는 동선에서 사용자가 select 를 손으로 다시 고르지 않도록, 생성 응답의
-          // id 를 조회 대상 state 로 그대로 넘긴다(ADR-0058 §Follow-ups (d) 마지막 한 칸).
-          // 주의: 인원 목록은 위 bumpRefresh 로 방금 재조회를 시작한 참이라, 응답이 오기 전까지는
-          // <select> 에 이 id 의 option 이 아직 없어 잠깐 비어 보일 수 있다(값 자체는 유지되고
-          // 재조회 완료 시 정상 표시된다 — 별도 보정 없음).
-          onCreated: (personId) => setSelectedIdentityPersonId(personId),
-        },
-      ),
-    [fullNameInput, emailInput, creatingPerson],
+  // 인원 축 배선(T-1894 순수 추출 슬라이스 ① · T-1895 합류 슬라이스 ②) — 재조회 nonce · 휴직 포함
+  // 토글 · nonce + 토글 aware path useMemo · 목록 조회 · 삭제 in-flight · 실패 문구 ·
+  // handleDeletePerson 에 더해, 생성 2 input · 생성 in-flight · 실패 문구 · handleCreatePerson 과
+  // 편집 대상 id · 편집 3 input · 원본 스냅샷 · 수정 in-flight · 실패 문구 · resetEditPersonForm ·
+  // handleEditPerson · handleCancelEditPerson · handleUpdatePerson 까지 useAdminPersons 로 통째로
+  // 옮겨갔다. 본문 무변경 이동이라 동작 · 렌더 트리는 이동 전과 같다. **호출 위치는 ServiceIdentity
+  // 축 뒤로 내려왔다**(T-1895) — 생성 · 수정 성공 직후 identity 대상을 자동 선택하는 배선(T-1780 ·
+  // T-1781)이 setSelectedIdentityPersonId 를 쓰므로 그 setter 를 돌려주는 hook 이 먼저 호출돼야
+  // 한다. props 유래 초기값 1 개와 그 setter 를 넘기고 소비 심볼만 되받는다(내부 nonce · path ·
+  // setter 는 hook 안에 캡슐화). T-1894 가 한시 노출했던 재조회 nonce setter 는 마지막 소비처
+  // (생성 · 수정 핸들러의 bumpRefresh)가 hook 안으로 들어와 반환 표면에서 내려갔다.
+  const {
+    personData,
+    personLoading,
+    personError,
+    personsIncludeInactive,
+    setPersonsIncludeInactive,
+    deletingPerson,
+    deletePersonError,
+    handleDeletePerson,
+    fullNameInput,
+    setFullNameInput,
+    emailInput,
+    setEmailInput,
+    creatingPerson,
+    createPersonError,
+    handleCreatePerson,
+    editingPersonId,
+    editFullNameInput,
+    setEditFullNameInput,
+    editEmailInput,
+    setEditEmailInput,
+    editActiveInput,
+    setEditActiveInput,
+    updatingPerson,
+    updatePersonError,
+    handleEditPerson,
+    handleCancelEditPerson,
+    handleUpdatePerson,
+  } = useAdminPersons(
+    initialPersonsIncludeInactive,
+    setSelectedIdentityPersonId,
   );
 
   // 그룹 생성 controlled input 상태(T-1146) — 컨테이너 소유. "그룹 추가" 클릭 시 handleCreateGroup
@@ -732,119 +708,6 @@ function AdminView({
       editGroupOriginalName,
       updatingGroup,
       resetEditGroupForm,
-    ],
-  );
-
-  // 편집 대상 person id(T-1145) — null 이면 편집 안 함(인라인 수정 폼 미렌더). PersonList 각 행의
-  // "수정" 버튼 클릭 시 해당 row.id 로 채우고, 성공/취소 시 null 로 되돌린다. 편집 폼 렌더 분기 기준값
-  // (editingProviderId 동형).
-  const [editingPersonId, setEditingPersonId] = useState<string | null>(null);
-
-  // 인원 수정 3 controlled input 상태(T-1145) — 컨테이너 소유. "수정" 클릭 시 해당 row 의 현재 값으로
-  // prefill 한다(fullName/email 은 text, active 는 boolean — <select> 활성/휴직). handleUpdatePerson 이
-  // buildPersonPatch 로 변경 필드만 PATCH body 로 공급한다(editProviderInput 패턴 mirror).
-  const [editFullNameInput, setEditFullNameInput] = useState<string>('');
-  const [editEmailInput, setEditEmailInput] = useState<string>('');
-  const [editActiveInput, setEditActiveInput] = useState<boolean>(true);
-
-  // 편집 시작 시점의 원본 스냅샷(T-1145) — buildPersonPatch 가 현재 입력과 비교해 "변경된 필드만"
-  // 파생하는 데 쓴다. "수정" 클릭 시 클릭한 row 의 현재 값으로 채우고, 편집 종료 시 기본값으로 되돌린다.
-  const [editPersonOriginal, setEditPersonOriginal] = useState<PersonPatchInput>(
-    { fullName: '', email: '', active: true },
-  );
-
-  // 인원 수정 mutation in-flight 플래그(T-1145) — PATCH 진행 중 true. 진행 표시(입력·버튼 비활성)와
-  // 동시 재호출 가드(이전 mutation 미완 중 재발사 차단)에 함께 쓴다(updatingProvider 동형).
-  const [updatingPerson, setUpdatingPerson] = useState<boolean>(false);
-
-  // 인원 수정 mutation 실패 문구(T-1145) — PATCH 실패 시 사람-친화 문구(toErrorMessage 파생)를 보관해
-  // 편집 폼 하단에 안전 표시한다(throw 없음, 생성/삭제 error 와 별도 문구). 성공/재시도/편집 시작 시 비운다.
-  const [updatePersonError, setUpdatePersonError] = useState<
-    string | undefined
-  >(undefined);
-
-  // 편집 폼 닫기(편집 상태 종료) helper(T-1145) — 편집 대상 id·3 입력·원본 스냅샷을 모두 기본값으로
-  // 되돌린다. 성공 후 closeEdit·취소 버튼 두 경로가 공유한다(resetEditProviderForm 동형).
-  const resetEditPersonForm = useCallback(() => {
-    setEditingPersonId(null);
-    setEditFullNameInput('');
-    setEditEmailInput('');
-    setEditActiveInput(true);
-    setEditPersonOriginal({ fullName: '', email: '', active: true });
-  }, []);
-
-  // "수정" 버튼 클릭 핸들러(T-1145) — PersonList.onEdit 로 내려보낸다. 클릭한 row 의 현재 값으로 폼을
-  // prefill 하고(personData 에서 id 매칭) 원본 스냅샷도 함께 세팅한다(변경분 파생 기준). 직전 수정
-  // error 도 비워 새 편집 세션을 깨끗이 시작한다(handleEditProvider 동형).
-  const handleEditPerson = useCallback(
-    (id: string) => {
-      const row = (personData ?? []).find((person) => person.id === id);
-      const fullName = row?.fullName ?? '';
-      const email = row?.email ?? '';
-      const active = row?.active ?? true;
-      setEditingPersonId(id);
-      setEditFullNameInput(fullName);
-      setEditEmailInput(email);
-      setEditActiveInput(active);
-      setEditPersonOriginal({ fullName, email, active });
-      setUpdatePersonError(undefined);
-    },
-    [personData],
-  );
-
-  // 편집 취소 핸들러(T-1145) — 인라인 폼을 닫고 입력·error 를 비운다(발사 없이 편집 상태만 종료).
-  // 진행 중(updatingPerson)일 때는 취소를 억제해 PATCH 완료 전 폼이 사라지지 않게 한다(버튼 disabled +
-  // 핸들러 가드 이중, handleCancelEditProvider 동형).
-  const handleCancelEditPerson = useCallback(() => {
-    if (updatingPerson) {
-      return;
-    }
-    resetEditPersonForm();
-    setUpdatePersonError(undefined);
-  }, [updatingPerson, resetEditPersonForm]);
-
-  // 인원 수정 실 mutation 핸들러(T-1145) — 인원 수정 PATCH(/api/persons/:id, body 는 변경 필드만)를
-  // 컨테이너 내부 async 로 발사한다(handleUpdateProvider 정합). buildPersonPatch 로 원본 대비 변경분만
-  // 조립하고, 빈/falsy id·이전 mutation 미완(updatingPerson)·변경 필드 0 발사 억제 + 성공(인원 재조회 +
-  // 편집 종료)/실패(error 안전 표시, throw 없음) 전이는 runUpdatePerson 이 캡슐화한다. 3 입력값·원본·
-  // 편집 대상 id·updatingPerson 을 deps 의존성에 포함해 stale 없이 최신 입력·가드 상태로 발사한다.
-  const handleUpdatePerson = useCallback(
-    () =>
-      runUpdatePerson(
-        editingPersonId ?? '',
-        buildPersonPatch(
-          {
-            fullName: editFullNameInput,
-            email: editEmailInput,
-            active: editActiveInput,
-          },
-          editPersonOriginal,
-        ),
-        {
-          update: request,
-          describeError: toErrorMessage,
-          updating: updatingPerson,
-          setUpdating: setUpdatingPerson,
-          setUpdateError: setUpdatePersonError,
-          bumpRefresh: () => setPersonsRefreshNonce((n) => n + 1),
-          closeEdit: resetEditPersonForm,
-          // 수정 직후 identity 대상 자동 선택(T-1781, REQ-079) — 방금 고친 인원에 service
-          // identity 를 붙이는 동선에서 사용자가 조회 select 를 손으로 다시 고르지 않도록,
-          // 수정 대상 id 를 조회 대상 state 로 그대로 넘긴다(ADR-0058 §Follow-ups (d) 잔여 한 칸,
-          // 생성 축 onCreated 배선 mirror). 주의: 인원 목록은 위 bumpRefresh 로 방금 재조회를
-          // 시작한 참이라, 응답이 오기 전까지는 <select> 에 이 id 의 option 이 잠깐 비어 보일 수
-          // 있다(값 자체는 유지되고 재조회 완료 시 정상 표시된다 — 별도 보정 없음).
-          onUpdated: (personId) => setSelectedIdentityPersonId(personId),
-        },
-      ),
-    [
-      editingPersonId,
-      editFullNameInput,
-      editEmailInput,
-      editActiveInput,
-      editPersonOriginal,
-      updatingPerson,
-      resetEditPersonForm,
     ],
   );
 

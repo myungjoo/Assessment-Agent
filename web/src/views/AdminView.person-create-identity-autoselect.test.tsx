@@ -159,13 +159,27 @@ describe('runCreatePerson onCreated 후속 훅 (T-1780)', () => {
 describe('handleCreatePerson 배선 guard (T-1780)', () => {
   // 컨테이너 배선은 renderToStaticMarkup 으로 재현되지 않으므로(생성 클릭 → state 전이 부재)
   // 원본 소스에서 runCreatePerson deps 의 onCreated 가 identity 대상 setter 로 연결됐는지 잠근다.
+  // T-1895 로 생성 조각이 useAdminPersons 로 합류했으므로 읽는 소스만 그 hook 모듈로 교체한다
+  // (계약 문장 = 정규식 본문은 무변경).
   it('deps 의 onCreated 가 setSelectedIdentityPersonId 로 연결돼 있다', () => {
+    const source = readFileSync(
+      new URL('./useAdminPersons.ts', import.meta.url),
+      'utf-8',
+    );
+    expect(source).toMatch(
+      /onCreated:\s*\(personId\)\s*=>\s*setSelectedIdentityPersonId\(personId\)/,
+    );
+  });
+
+  // end-to-end 계약 — hook 쪽 배선만으로는 "AdminView 가 실제로 그 setter 를 넘기는가" 가 열려
+  // 있으므로(T-1895 합류로 축 밖 값이 파라미터가 됐다), AdminView 쪽 인자 배선도 함께 잠근다.
+  it('AdminView 가 setSelectedIdentityPersonId 를 useAdminPersons 인자로 넘긴다', () => {
     const source = readFileSync(
       new URL('./AdminView.tsx', import.meta.url),
       'utf-8',
     );
     expect(source).toMatch(
-      /onCreated:\s*\(personId\)\s*=>\s*setSelectedIdentityPersonId\(personId\)/,
+      /useAdminPersons\(\s*initialPersonsIncludeInactive,\s*setSelectedIdentityPersonId,?\s*\)/,
     );
   });
 });
