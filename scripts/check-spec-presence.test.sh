@@ -56,6 +56,27 @@ setup_web_missing() { mkdir -p web/src; echo 'export const b=1;' >web/src/b.ts; 
 setup_web_dts() { mkdir -p web/src; echo 'export interface T { id: number }' >web/src/types.d.ts; }
 # T-0409 추가 negative: web 경로 잘못된 suffix (.notspec.ts) 는 spec 으로 오통과 금지.
 setup_web_bad_suffix() { mkdir -p web/src; echo 'export const e=1;' >web/src/e.ts; echo 't' >web/src/e.notspec.ts; }
+# --- T-1885: .tsx 인식 ---
+# happy ①: .ts 본체 + .test.tsx spec (T-1884 가 부딪힌 조합) → pass.
+setup_tsx_ts_test_tsx() { mkdir -p web/src; echo 'export const a=1;' >web/src/a.ts; echo 't' >web/src/a.test.tsx; }
+# happy ②: .tsx 본체 + colocated .test.tsx → pass.
+setup_tsx_test_tsx() { mkdir -p web/src; echo 'export const B=()=>null;' >web/src/b.tsx; echo 't' >web/src/b.test.tsx; }
+# error: 신규 .tsx 단독 (대응 spec 전무) → fail. 수정 전에는 false pass 하던 구멍.
+setup_tsx_missing() { mkdir -p web/src; echo 'export const C=()=>null;' >web/src/c.tsx; }
+# 분기 ①: Vite entrypoint web/src/main.tsx 단독 → pass (entrypoint 제외 분기).
+setup_tsx_main() { mkdir -p web/src; echo 'createRoot(el).render(<App />);' >web/src/main.tsx; }
+# 분기 ②: .tsx 본체 + .spec.tsx (후보 4 종 중 .spec.tsx 경로) → pass.
+setup_tsx_spec_tsx() { mkdir -p web/src; echo 'export const D=()=>null;' >web/src/d.tsx; echo 't' >web/src/d.spec.tsx; }
+# 분기 ③: .ts 본체 ↔ .tsx spec 교차 조합 → pass.
+setup_tsx_ts_spec_tsx() { mkdir -p web/src; echo 'export const e=1;' >web/src/e.ts; echo 't' >web/src/e.spec.tsx; }
+# 분기 ④: re-export 만 담은 index.tsx → pass (index 제외 분기의 .tsx 확장).
+setup_tsx_index() { mkdir -p web/src; echo 'export * from "./views/admin";' >web/src/index.tsx; }
+# negative ①: .tsx 본체 + 잘못된 suffix (.notspec.tsx) → fail (오통과 금지).
+setup_tsx_bad_suffix() { mkdir -p web/src; echo 'export const F=()=>null;' >web/src/f.tsx; echo 't' >web/src/f.notspec.tsx; }
+# negative ②: .tsx 본체 + .ts spec (역방향 교차) → pass.
+setup_tsx_test_ts() { mkdir -p web/src; echo 'export const G=()=>null;' >web/src/g.tsx; echo 't' >web/src/g.test.ts; }
+# negative ③: .test.tsx 단독 (test 파일만 추가) → pass (자기 제외 분기).
+setup_tsx_test_only() { mkdir -p web/src; echo 't' >web/src/h.test.tsx; }
 
 echo "[test] check-spec-presence.sh 자체 검증"
 case_run happy           0 setup_happy
@@ -70,6 +91,16 @@ case_run web_test        0 setup_web_test
 case_run web_missing     1 setup_web_missing
 case_run web_dts         0 setup_web_dts
 case_run web_bad_suffix  1 setup_web_bad_suffix
+case_run tsx_ts_test_tsx    0 setup_tsx_ts_test_tsx
+case_run tsx_test_tsx       0 setup_tsx_test_tsx
+case_run tsx_missing        1 setup_tsx_missing
+case_run tsx_main           0 setup_tsx_main
+case_run tsx_spec_tsx       0 setup_tsx_spec_tsx
+case_run tsx_ts_spec_tsx    0 setup_tsx_ts_spec_tsx
+case_run tsx_index          0 setup_tsx_index
+case_run tsx_bad_suffix     1 setup_tsx_bad_suffix
+case_run tsx_test_ts        0 setup_tsx_test_ts
+case_run tsx_test_only      0 setup_tsx_test_only
 
 read -r p f <"$COUNTERS"; rm -f "$COUNTERS"
 echo "[test] pass=$p fail=$f"
