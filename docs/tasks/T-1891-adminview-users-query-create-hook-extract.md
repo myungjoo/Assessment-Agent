@@ -2,7 +2,7 @@
 id: T-1891
 title: AdminView 사용자 관리 축 슬라이스 ① — 사용자 조회 + 생성 배선(`1170 행` ~ `1227 행`, 58 줄)을 useAdminUsers hook 으로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-044, REQ-045]
 independentStream: adminview-god-component-refactor
@@ -82,3 +82,10 @@ plannerNote: "P6 / PLAN 183 행 AdminView 부채 경로 1 여섯째 슬라이스
 
 1. **사용자 관리 축 슬라이스 ②(`pr`)** — 역할 변경 + 인스턴스 접근(`1229 행` ~ `1322 행`, 약 94 줄)을 같은 `useAdminUsers.ts` 로 합류시키고, 본 슬라이스가 한시적으로 노출한 `setUsersRefreshNonce` 를 그때 반환 표면에서 내린다. `AdminView.test.tsx` 의 `const handleChangeRole = useCallback(` 블록 anchor 1 건만 pointer 교체 → AdminView.tsx + hook + hook spec + `AdminView.test.tsx` = **4 파일**.
 2. **PLAN `183 행` 재실측 `direct` 슬라이스** — 두 슬라이스 머지 후 LOC · 4 구역 좌표 · prelude 축 인벤토리를 다시 재고, 소진된 ⑧ 축을 목록에서 지운다.
+
+## 완료 기록
+
+- **완료 시각**: 2026-09-04T14:55:03Z (PR [#1478](https://github.com/myungjoo/Assessment-Agent/pull/1478) squash merge → main [`4681918a`](https://github.com/myungjoo/Assessment-Agent/commit/4681918a))
+- **결과 요약**: `1170 행` ~ `1227 행` 의 7 선언(재조회 nonce state · `buildUsersPath` useMemo · `useApiResource<UserRow[]>` 조회 · 생성 입력 4 상태 · `handleCreateUser`)을 deps 배열 · `runCreateUser` 주입 키 12 개까지 글자-동일로 신규 [useAdminUsers.ts](../../web/src/views/useAdminUsers.ts) 로 이동하고, AdminView 는 destructure 배선으로 소비한다. 5 파일 `+672/-66`, **AdminView.tsx 2,542 → 2,507 줄**(-35). 신규 colocated spec 17 케이스(happy 5 · error 3 · branch 4 · negative 5)로 R-112 4 종 cover, web vitest 136 파일 4,007 test green. 배럴 · JSX markup 무변경(미사용이 된 `UserRow` type import 1 줄만 `noUnusedLocals` 대응으로 정리 — 배럴 미등록이라 공개 표면 회귀 0, T-1886/T-1887 선례 동형). drift-guard 2 건(`AdminView.users-list-contract.test.ts` · `AdminView.create-user-failure.test.ts`)은 anchor pointer 만 교체하고 계약 문장은 무변경.
+- **4-게이트**: reviewer VERDICT=APPROVE comment 외부 존재(driver 가 `gh pr view --json comments` 로 재확인) · PR CI green(head `2265d6c7` run success) · integrator 자체 점검 통과 → **round 1** 머지.
+- **실측 편차 1 건**: 순 감소가 task 예상 "약 -50 줄" 이 아니라 **-35 줄**. 이동 자체는 58 줄이지만 배선 주석 6 + destructure 15 + import 4 가 AdminView 에 되돌아온다 — 후속 슬라이스 ② 의 기대치 산정 시 이 되돌아오는 상수(약 25 줄)를 감안한다.
