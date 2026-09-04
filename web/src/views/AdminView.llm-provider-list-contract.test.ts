@@ -104,7 +104,7 @@ function diffContract(fire: WebFire, backend: BackendContract): string[] {
   return issues;
 }
 const CONTROLLER_SOURCE = readFileSync(new URL('../../../src/llm/llm-provider-config.controller.ts', import.meta.url), 'utf8');
-const ADMIN_VIEW_SOURCE = readFileSync(new URL('./AdminView.tsx', import.meta.url), 'utf8');
+const ADMIN_VIEW_SOURCE = readFileSync(new URL('./useAdminLlmProviders.ts', import.meta.url), 'utf8');
 const ROUTE = extractControllerRoute(CONTROLLER_SOURCE);
 const HANDLERS = extractHandlerMethods(CONTROLLER_SOURCE);
 const FIND_ALL = HANDLERS.findAll ?? null;
