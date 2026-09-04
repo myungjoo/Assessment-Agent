@@ -24,7 +24,7 @@ import {
 // @Post trigger · 별도 파일 recent-deletion · backfill)도 base-혼동 대조군으로 함께 고정. 정규식
 // 추출기만 — 새 devDependency 0, 공용 helper 추출은 Out of Scope refactor slice.
 
-// AdminView 조회 call site 의 발사 method 추론. `useApiResource<string[]>(SCHEDULES_PATH)` 를 옵션
+// 스케줄 축 조회 call site(T-1889 로 useAdminSchedule.ts 로 이동) 의 발사 method 추론. `useApiResource<string[]>(SCHEDULES_PATH)` 를 옵션
 // 인자 없이(단일 인자) 호출 → request→fetch default GET. 인자 2+ (options 전달)면 non-GET 가능.
 // 주석 속 "GET /api/schedules" 문자열(소스 다수)·deps.request(SCHEDULES_PATH, {...}) mutation 발사와
 // 섞이지 않도록 `useApiResource<string[]>(SCHEDULES_PATH...)` 명시 anchor 로 슬라이스.
@@ -71,16 +71,18 @@ function diffContract(fire: WebFire, backend: BackendContract): string[] {
 const CONTROLLER_SOURCE = readFileSync(new URL('../../../src/scheduling/cron-schedule.controller.ts', import.meta.url), 'utf8');
 const RECENT_DELETION_SOURCE = readFileSync(new URL('../../../src/scheduling/recent-deletion.controller.ts', import.meta.url), 'utf8');
 const BACKFILL_SOURCE = readFileSync(new URL('../../../src/scheduling/backfill.controller.ts', import.meta.url), 'utf8');
-const ADMIN_VIEW_SOURCE = readFileSync(new URL('./AdminView.tsx', import.meta.url), 'utf8');
+// T-1889 순수 추출 — 조회 call site(`useApiResource<string[]>(SCHEDULES_PATH)`)가 스케줄 · 재평가
+// 축 hook(useAdminSchedule.ts)으로 옮겨졌다. 발사기 추출의 읽기 대상만 따라 바꾸고 추출기 · 단언
+// 내용은 그대로 둔다(계약 축 무변경 — 여전히 GET · 무-body · 무-param 을 대조한다).
+const SCHEDULE_HOOK_SOURCE = readFileSync(new URL('./useAdminSchedule.ts', import.meta.url), 'utf8');
 // T-1869 순수 추출 — SCHEDULES_PATH 선언이 adminScheduleRunners.ts 로 옮겨졌다. 선언 대조의 읽기
-// 대상만 따라 바꾸고 단언 내용은 그대로 둔다. 조회 call site(useApiResource)는 AdminView 에 남으므로
-// extractSchedulesFireMethod(ADMIN_VIEW_SOURCE) 는 그대로 유지한다.
+// 대상만 따라 바꾸고 단언 내용은 그대로 둔다.
 const SCHEDULE_RUNNERS_SOURCE = readFileSync(new URL('./adminScheduleRunners.ts', import.meta.url), 'utf8');
 const ROUTE = extractControllerRoute(CONTROLLER_SOURCE);
 const HANDLERS = extractHandlerMethods(CONTROLLER_SOURCE);
 const LIST = HANDLERS.list ?? null;
 const LIST_PARAMS = extractHandlerParams(CONTROLLER_SOURCE, 'list');
-const WEB_FIRE_METHOD = extractSchedulesFireMethod(ADMIN_VIEW_SOURCE);
+const WEB_FIRE_METHOD = extractSchedulesFireMethod(SCHEDULE_HOOK_SOURCE);
 const LIST_CONTRACT: BackendContract = {
   route: ROUTE,
   method: LIST?.method ?? null,
