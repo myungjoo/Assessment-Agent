@@ -2,7 +2,7 @@
 id: T-1892
 title: AdminView 사용자 관리 축 슬라이스 ② — 역할 변경 + 인스턴스 접근 배선(`1194 행` ~ `1288 행`, 95 줄)을 useAdminUsers hook 으로 합류 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-044, REQ-045]
 independentStream: adminview-god-component-refactor
@@ -61,6 +61,13 @@ plannerNote: "P6 / PLAN 183 행 AdminView 부채 경로 1 일곱째 슬라이스
 - [ ] `cd web && pnpm lint && pnpm build && pnpm test` 전부 통과 — 특히 `AdminView.role-change-contract.test.ts` · `AdminView.instance-access-contract.test.ts` · 사용자 관리 섹션 렌더 test 가 **무수정 green**(렌더 계약 회귀 0).
 - [ ] `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%) — 확장된 `useAdminUsers.ts` 포함.
 - [ ] `git diff --stat` 이 위 `touchesFiles` 4 개만 보고하고, `wc -l web/src/views/AdminView.tsx` 가 현 2,507 줄에서 **약 `-80 줄`**(이동 95 − destructure · 주석 증가분) 줄어든 값을 보인다.
+
+## 완료 기록
+
+- **완료 시각**: 2026-09-04T16:58:15Z (PR [#1479](https://github.com/myungjoo/Assessment-Agent/pull/1479) squash merge → main [`bfa0a0ea`](https://github.com/myungjoo/Assessment-Agent/commit/bfa0a0ea))
+- **결과 요약**: `1194 행` ~ `1288 행` 의 12 선언(역할 변경 2 상태 · `changingRoleIdRef` · `changingRoleGate` useMemo · `handleChangeRole` / 인스턴스 접근 6 상태 · grant · revoke 핸들러 2 · `deriveInstanceAccessFormFlags` 파생)을 deps 배열 · 러너 주입 키(역할 7 · grant 8 · revoke 7)까지 글자-동일로 [useAdminUsers.ts](../../web/src/views/useAdminUsers.ts) 로 합류 이동하고, AdminView 는 슬라이스 ① destructure 블록의 확장으로 소비한다. 슬라이스 ① 이 남긴 한시적 `setUsersRefreshNonce` 노출은 유일 소비처 `handleChangeRole` 이 같은 모듈로 들어오면서 **회수**됐다(예고 주석도 정리). 4 파일 `+833/-155`, **AdminView.tsx 2,507 → 2,426 줄**(-81) · `useAdminUsers.ts` 111 → 228 줄. spec 은 T-1892 describe 4 개 · 17 케이스 증설로 R-112 4 종 cover, web vitest 136 파일 4,026 test green. 배럴 · JSX markup · 러너 import 무변경이고 react import 에서 `useRef` 1 줄만 하차했다. drift-guard 2 건(T-1165 역할 변경 · T-1168 인스턴스 접근)은 anchor pointer 만 교체하고 단언 의미는 무변경(부정 단언 3 건은 두 소스 모두에 적용).
+- **4-게이트**: reviewer VERDICT=APPROVE comment 외부 존재(driver 가 `gh pr view 1479 --json comments` 로 재확인) · PR CI green · integrator 자체 점검 통과 → **round 1** 머지.
+- **실측 편차 0 건**: 순 감소가 task 예상 "약 -80 줄" 과 실측 **-81 줄** 로 일치했다 — 슬라이스 ① 이 박제한 "되돌아오는 상수 약 25 줄" 보정이 그대로 맞았다.
 
 ## Out of Scope
 
