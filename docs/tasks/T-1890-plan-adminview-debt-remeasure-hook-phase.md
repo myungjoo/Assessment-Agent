@@ -2,7 +2,7 @@
 id: T-1890
 title: PLAN 183 행 AdminView 부채 10 차 실측 갱신 — hook 화 5 슬라이스 반영 + 잔여 4 축 좌표 재실측 + drift-guard anchor census 방법 보강 + 다음 대상 지목
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-049]
 independentStream: adminview-god-component-debt
@@ -39,16 +39,16 @@ plannerNote: "P5 PLAN 183 행 부채 bullet — hook 5 슬라이스(-908) 미반
 
 ## Acceptance Criteria
 
-- [ ] `docs/PLAN.md` `183 행` bullet 의 제목과 본문 첫 수치가 **`2,542 줄 · top-level 선언 5 개`** 로 갱신되고 측정 sha 가 현 head 시점으로 교체된다. 검증: `grep -c '2,542 줄' docs/PLAN.md` 가 1 이상, `grep -c '3,450 줄' docs/PLAN.md` 가 0.
-- [ ] **진척 목록에 hook 화 5 슬라이스가 추가**된다 — T-1884(`-173`) · T-1886(`-201`) · T-1887(`-241`) · T-1888(`-183`) · T-1889(`-110`) 각각의 task 링크 · 목적지 hook 모듈 링크 · 실측 감소값 표기. 누적 감소는 최초 기록 대비 **`-3,545 줄`**, 목표선까지 잔여 **`-542 줄`**, 5 건 평균 **`-182`** 로 기재. 검증: `grep -c 'useAdminSchedule' docs/PLAN.md` 가 1 이상.
-- [ ] **4 구역 · 본문 내부 좌표가 재실측값으로 교체**된다 — import 블록 `1 행` ~ `357 행` / 잔여 top-level `359 행` ~ `410 행`(52 줄) / 컴포넌트 본문 `412 행` ~ `2408 행`(1,997 줄) / 배럴 `2410 행` ~ `2542 행`(133 줄), 본문 내부는 prelude `412 행` ~ `1501 행`(1,090 줄) + JSX return `1502 행` ~ `2408 행`(907 줄). 구역 합 + 구분 행이 실측 LOC 과 정합함을 bullet 안에 산술로 남긴다.
-- [ ] **국면 전환이 문장으로 박제**된다 — prelude 비중이 69% 에서 **45%** 로 역전돼 남은 최대 덩어리가 JSX return 907 줄이라는 사실, 그리고 잔여 4 축(약 1,090 줄)을 모두 hook 화하면 목표선(≤ 2,000 줄)에는 닿지만 그보다 더 줄이려면 경로 2(JSX 섹션 분해)가 필요하다는 판단.
-- [ ] **prelude 잔량 구성 수치가 갱신**된다 — `useState` 59 · `useApiResource` 25 · `const handle*` 22 · `useMemo`/`useCallback` 40, 그리고 측정 명령의 좌표 인자를 현 prelude 범위(`412` ~ `1501`)로 교체해 다음 갱신이 동일 방법으로 비교 가능하게 한다.
-- [ ] **9 축 인벤토리가 잔여 4 축으로 축약**된다 — 소진된 ③ ④ ⑤ ⑥ ⑨ 는 각각 어느 hook 모듈로 갔는지 한 줄로만 남기고 좌표는 삭제하며, 잔여 ① 그룹 · 멤버십 · ② 인원 · ⑦ 파트 · ⑧ 사용자 관리 넷은 **현 head 기준 좌표와 줄 수를 새로 실측**해 기재한다(각 축이 연속인지 비연속 몇 조각인지 포함).
-- [ ] **"파일 cap 주의" 문단이 anchor census 방법으로 보강**된다 — (i) census 모수는 `grep -rl "AdminView.tsx" web/src --include=*.test.*` 기준 현 **16 파일**, (ii) anchor 는 **심볼명뿐 아니라 호출식 정규식**(예: `useApiResource<string[]>(SCHEDULES_PATH)` · `runCreateUser(...)`)까지 훑을 것, (iii) census 결과를 task frontmatter 의 `touchesFiles` · `estimatedFiles` 에 **반드시 합산**할 것(파일 cap ≤ 5 는 LOC 면제와 무관하게 유지), (iv) 근거로 T-1889 의 실제 오판 사례를 한 줄 인용. 검증: `grep -c '호출식' docs/PLAN.md` 가 1 이상.
-- [ ] **"후속" 문단의 다음 대상 지목이 교체**된다 — 무효가 된 ⑤ import/export 지목 문단(좌표 `1481 행` ~ `1650 행` 포함)을 통째로 삭제하고 다음 대상 = **⑧ 사용자 관리 축(2 슬라이스 분할)** 로 교체한다. 분할 근거(drift-guard 3 건 동반 → 단일 슬라이스 시 6 파일 cap 초과)와 T-1888 이 제안한 절단(① 조회 + 생성 → ② 역할 변경 + 인스턴스 접근)을 함께 기재. 검증: `grep -c 'import/export 축을 custom hook' docs/PLAN.md` 가 0.
-- [ ] 갱신 후에도 bullet 은 **미완료 `- [ ]`** 로 유지된다(목표선 ≤ 2,000 줄 미도달) — 해당 행이 `- [x]` 로 바뀌지 않았음을 파일 검사로 확인.
-- [ ] `docs/PLAN.md` 외 파일 변경 0 — `git status --short` 가 `docs/PLAN.md`(및 driver 가 별도로 다루는 bookkeeping 파일) 외를 보이지 않는다.
+- [x] `docs/PLAN.md` `183 행` bullet 의 제목과 본문 첫 수치가 **`2,542 줄 · top-level 선언 5 개`** 로 갱신되고 측정 sha 가 현 head 시점으로 교체된다. 검증: `grep -c '2,542 줄' docs/PLAN.md` 가 1 이상, `grep -c '3,450 줄' docs/PLAN.md` 가 0.
+- [x] **진척 목록에 hook 화 5 슬라이스가 추가**된다 — T-1884(`-173`) · T-1886(`-201`) · T-1887(`-241`) · T-1888(`-183`) · T-1889(`-110`) 각각의 task 링크 · 목적지 hook 모듈 링크 · 실측 감소값 표기. 누적 감소는 최초 기록 대비 **`-3,545 줄`**, 목표선까지 잔여 **`-542 줄`**, 5 건 평균 **`-182`** 로 기재. 검증: `grep -c 'useAdminSchedule' docs/PLAN.md` 가 1 이상.
+- [x] **4 구역 · 본문 내부 좌표가 재실측값으로 교체**된다 — import 블록 `1 행` ~ `357 행` / 잔여 top-level `359 행` ~ `410 행`(52 줄) / 컴포넌트 본문 `412 행` ~ `2408 행`(1,997 줄) / 배럴 `2410 행` ~ `2542 행`(133 줄), 본문 내부는 prelude `412 행` ~ `1501 행`(1,090 줄) + JSX return `1502 행` ~ `2408 행`(907 줄). 구역 합 + 구분 행이 실측 LOC 과 정합함을 bullet 안에 산술로 남긴다.
+- [x] **국면 전환이 문장으로 박제**된다 — prelude 비중이 69% 에서 **45%** 로 역전돼 남은 최대 덩어리가 JSX return 907 줄이라는 사실, 그리고 잔여 4 축(약 1,090 줄)을 모두 hook 화하면 목표선(≤ 2,000 줄)에는 닿지만 그보다 더 줄이려면 경로 2(JSX 섹션 분해)가 필요하다는 판단.
+- [x] **prelude 잔량 구성 수치가 갱신**된다 — `useState` 59 · `useApiResource` 25 · `const handle*` 22 · `useMemo`/`useCallback` 40, 그리고 측정 명령의 좌표 인자를 현 prelude 범위(`412` ~ `1501`)로 교체해 다음 갱신이 동일 방법으로 비교 가능하게 한다.
+- [x] **9 축 인벤토리가 잔여 4 축으로 축약**된다 — 소진된 ③ ④ ⑤ ⑥ ⑨ 는 각각 어느 hook 모듈로 갔는지 한 줄로만 남기고 좌표는 삭제하며, 잔여 ① 그룹 · 멤버십 · ② 인원 · ⑦ 파트 · ⑧ 사용자 관리 넷은 **현 head 기준 좌표와 줄 수를 새로 실측**해 기재한다(각 축이 연속인지 비연속 몇 조각인지 포함).
+- [x] **"파일 cap 주의" 문단이 anchor census 방법으로 보강**된다 — (i) census 모수는 `grep -rl "AdminView.tsx" web/src --include=*.test.*` 기준 현 **16 파일**, (ii) anchor 는 **심볼명뿐 아니라 호출식 정규식**(예: `useApiResource<string[]>(SCHEDULES_PATH)` · `runCreateUser(...)`)까지 훑을 것, (iii) census 결과를 task frontmatter 의 `touchesFiles` · `estimatedFiles` 에 **반드시 합산**할 것(파일 cap ≤ 5 는 LOC 면제와 무관하게 유지), (iv) 근거로 T-1889 의 실제 오판 사례를 한 줄 인용. 검증: `grep -c '호출식' docs/PLAN.md` 가 1 이상.
+- [x] **"후속" 문단의 다음 대상 지목이 교체**된다 — 무효가 된 ⑤ import/export 지목 문단(좌표 `1481 행` ~ `1650 행` 포함)을 통째로 삭제하고 다음 대상 = **⑧ 사용자 관리 축(2 슬라이스 분할)** 로 교체한다. 분할 근거(drift-guard 3 건 동반 → 단일 슬라이스 시 6 파일 cap 초과)와 T-1888 이 제안한 절단(① 조회 + 생성 → ② 역할 변경 + 인스턴스 접근)을 함께 기재. 검증: `grep -c 'import/export 축을 custom hook' docs/PLAN.md` 가 0.
+- [x] 갱신 후에도 bullet 은 **미완료 `- [x]`** 로 유지된다(목표선 ≤ 2,000 줄 미도달) — 해당 행이 `- [x]` 로 바뀌지 않았음을 파일 검사로 확인.
+- [x] `docs/PLAN.md` 외 파일 변경 0 — `git status --short` 가 `docs/PLAN.md`(및 driver 가 별도로 다루는 bookkeeping 파일) 외를 보이지 않는다.
 
 ## Out of Scope
 
@@ -58,6 +58,16 @@ plannerNote: "P5 PLAN 183 행 부채 bullet — hook 5 슬라이스(-908) 미반
 - PLAN 의 **다른 bullet · 다른 절 수정 금지** — `183 행` 부채 bullet 한 개만 손댄다.
 - 부채 bullet 의 **목표선(≤ 2,000 줄) 변경 금지** — 목표 재조정은 별도 오너 판단 사항.
 - 축 인벤토리 좌표를 **추정으로 적지 말 것** — 모든 수치는 현 head 에서 실행한 명령의 출력이어야 한다.
+
+## Result (2026-09-04)
+
+**DONE** — `direct` mode, main [`b7e4e636`](https://github.com/myungjoo/Assessment-Agent/commit/b7e4e636) (`docs/PLAN.md` 1 파일 `+1/-1` — bullet 1 행 전문 교체).
+
+- PLAN `183 행` 부채 bullet 을 head `7011ba98` 실측으로 전면 교체했다 — **2,542 줄 · top-level 선언 5 개**(직전 표기 `3,450 줄` 은 hook 화 5 슬라이스분 `-908 줄` 을 통째로 놓친 stale 이었다), 진척 목록에 T-1884(`-173`) · T-1886(`-201`) · T-1887(`-241`) · T-1888(`-183`) · T-1889(`-110`) 5 건과 누적 `-3,545` · 잔여 `-542` · 평균 `-182` 를 기재.
+- 4 구역 · 본문 내부 좌표를 재실측값으로 교체하고(prelude 1,090 줄 + JSX return 907 줄), prelude 잔량 구성(`useState` 59 · `useApiResource` 25 · `const handle*` 22 · `useMemo`/`useCallback` 40) 과 측정 명령 좌표 인자(`412` ~ `1501`) 를 함께 갱신해 다음 갱신이 동일 방법으로 비교 가능하게 했다. 9 축 인벤토리는 소진 5 축을 목적지 hook 한 줄로 축약하고 잔여 4 축(① 그룹 · 멤버십 · ② 인원 · ⑦ 파트 · ⑧ 사용자 관리) 좌표만 새로 실측해 남겼다.
+- "파일 cap 주의" 문단에 **anchor census 방법**을 명령형으로 보강했다 — 모수 `16` 파일(`grep -rl "AdminView.tsx" web/src --include=*.test.*`), 심볼명뿐 아니라 **호출식 정규식**까지 훑을 것, census 결과를 `touchesFiles` · `estimatedFiles` 에 합산할 것, 근거로 T-1889 의 실제 오판 사례 인용. "후속" 문단의 무효 지목(⑤ import/export)을 삭제하고 다음 대상 = **⑧ 사용자 관리 축 2 슬라이스 분할**(drift-guard 3 건 동반 → 단일 슬라이스 시 6 파일 cap 초과)로 교체.
+- AC 검증 grep 5 종 전부 통과 — `2,542 줄`=1 · `3,450 줄`=0 · `useAdminSchedule`=1 · `호출식`=1 · `import/export 축을 custom hook`=0. bullet 은 목표선(≤ 2,000 줄) 미도달이라 `- [ ]` 유지. `docs/PLAN.md` 외 변경 0.
+- **실측 편차 2 건** (둘 다 task 문안보다 실측을 채택하고 bullet 안에 사유를 박제) — ① 4 구역 구분 행은 빈 행 기준 `354` · `408` · `2409` 로, task 가 제시한 `358` · `411` 은 doc 주석 한가운데였다(구역 합계는 동일). ② 본문 mass 45% 는 prelude 가 아니라 **JSX** 다(prelude 1,090 vs JSX 907 — prelude 69%→55% / JSX 31%→45%), 그리고 잔여 4 축 합은 1,090 이 아니라 **886 줄** 이다(나머지 183 줄은 컨테이너 서두 · 등급 파생 · 소진 hook 호출부, 구역 사이 빈 행 21).
 
 ## Suggested Sub-agents
 
