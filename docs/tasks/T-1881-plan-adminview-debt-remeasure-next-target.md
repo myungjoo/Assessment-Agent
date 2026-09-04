@@ -2,7 +2,7 @@
 id: T-1881
 title: PLAN 183 행 AdminView 부채 8 차 실측 갱신 + 본문 내부 분해 박제 + 다음 추출 대상 재지목
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-049]
 independentStream: adminview-god-component-debt
@@ -79,3 +79,12 @@ git show origin/main:web/src/views/AdminView.tsx | grep -cE '^(export )?(async )
 ## Follow-ups
 
 (생성 시 비어 있음)
+
+## 완료 기록
+
+- **완료 시각**: 2026-09-04T00:41Z (server-time 기준)
+- **commit**: [`9edb7258`](https://github.com/myungjoo/Assessment-Agent/commit/9edb7258) (`direct` → main, `docs/PLAN.md` 1 파일 `+1/-1`)
+- **실측 재확인** (`origin/main` = `bc6d06e8`): AdminView.tsx **3,630 줄 · top-level 선언 39 개**. 4 구역 경계는 `1~319` (import) · `321~591` (잔여 순수 표면 271 줄) · `593~3496` (컴포넌트 본문 2,904 줄) · `3498~3630` (배럴 133 줄) 이며 합이 3,630 으로 정합.
+- **새로 박제한 사실**: 컴포넌트 본문 2,904 줄이 `593~2589` 의 hooks · state · 핸들러 prelude (1,997 줄) 와 `2590~3496` 의 JSX return (907 줄) 로 갈리며, mass 의 약 69% 가 markup 이 아니라 prelude 다 — "JSX 하위 컴포넌트화" 만으로는 목표선(≤ 2,000 줄) 에 닿지 않는다.
+- **다음 대상 재지목**: 소멸한 두 지목(경로 빌더 축 · provider·난이도 파생 축) 을 **잔여 순수 표면 일괄 소진 슬라이스**(문구·DOM id 상수 22 + 범위 편집 4 심볼 + 폼 옵션·게이트 8 심볼, 기대 `-230 줄` 안팎) 로 교체했다. drift-guard 는 `readFileSync` + `AdminView.tsx` 동시 매칭 spec **15 개** 실측.
+- **검증**: 코드 변경 0 인 doc-only `direct` 라 R-112 면제 (CLAUDE.md §3.2). `git diff --stat` 이 `docs/PLAN.md` 1 파일만 보고, 작업 트리 오염 0.
