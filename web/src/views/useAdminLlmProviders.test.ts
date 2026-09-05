@@ -24,6 +24,7 @@ const {
   runCreateMock,
   runUpdateMock,
   runDeleteMock,
+  runSetDefaultMock,
   runAssignMock,
   useApiResourceMock,
   toErrorMessageStub,
@@ -32,6 +33,7 @@ const {
   runCreateMock: vi.fn(),
   runUpdateMock: vi.fn(),
   runDeleteMock: vi.fn(),
+  runSetDefaultMock: vi.fn(),
   runAssignMock: vi.fn(),
   useApiResourceMock: vi.fn(),
   // 이동 전 러너 deps 에 실리던 `describeError: toErrorMessage` · `create/update/remove/patch:
@@ -55,6 +57,7 @@ vi.mock('./adminLlmProviderMutationRunners', async (importOriginal) => ({
   runCreateProvider: (...args: unknown[]) => runCreateMock(...args),
   runUpdateProvider: (...args: unknown[]) => runUpdateMock(...args),
   runDeleteProvider: (...args: unknown[]) => runDeleteMock(...args),
+  runSetDefaultProvider: (...args: unknown[]) => runSetDefaultMock(...args),
   runAssign: (...args: unknown[]) => runAssignMock(...args),
 }));
 
@@ -139,6 +142,7 @@ beforeEach(() => {
   runCreateMock.mockReturnValue(Promise.resolve());
   runUpdateMock.mockReturnValue(Promise.resolve());
   runDeleteMock.mockReturnValue(Promise.resolve());
+  runSetDefaultMock.mockReturnValue(Promise.resolve());
   runAssignMock.mockReturnValue(Promise.resolve());
 });
 
@@ -187,7 +191,9 @@ describe('useAdminLlmProviders — happy path(초기 반환 계약)', () => {
     expect(hook.deletingProvider).toBe(false);
     expect(hook.creatingProvider).toBe(false);
     expect(hook.updatingProvider).toBe(false);
+    expect(hook.settingDefault).toBe(false);
     expect(hook.deleteProviderError).toBeUndefined();
+    expect(hook.setDefaultError).toBeUndefined();
     expect(hook.createProviderError).toBeUndefined();
     expect(hook.updateProviderError).toBeUndefined();
     expect(hook.providersError).toBeUndefined();
@@ -195,11 +201,12 @@ describe('useAdminLlmProviders — happy path(초기 반환 계약)', () => {
     expect(hook.llmError).toBeUndefined();
   });
 
-  it('핸들러 7 개와 setter 8 개를 함수로 공개한다', () => {
+  it('핸들러 8 개와 setter 8 개를 함수로 공개한다', () => {
     const hook = lastOf(renderProbe());
 
     for (const key of [
       'handleDeleteProvider',
+      'handleSetDefaultProvider',
       'handleCreateProvider',
       'handleEditProvider',
       'handleCancelEditProvider',
@@ -289,6 +296,23 @@ describe('useAdminLlmProviders — happy path(러너 주입 계약)', () => {
     expect(typeof deps.bumpRefresh).toBe('function');
   });
 
+  it('handleSetDefaultProvider 가 id 와 재지정 deps 로 runSetDefaultProvider 를 1 회 호출한다', () => {
+    renderProbe((hook, index) => {
+      if (index === 1) hook.handleSetDefaultProvider('p2');
+    });
+
+    expect(runSetDefaultMock).toHaveBeenCalledTimes(1);
+    const [id, deps] = runSetDefaultMock.mock.calls[0] as [string, Deps];
+    // 인자 순서는 러너 정본 runSetDefaultProvider(id, deps) 그대로다(runDeleteProvider 동형).
+    expect(id).toBe('p2');
+    expect(deps.update).toBe(requestStub);
+    expect(deps.describeError).toBe(toErrorMessageStub);
+    expect(deps.settingDefault).toBe(false);
+    expect(typeof deps.setSettingDefault).toBe('function');
+    expect(typeof deps.setDefaultError).toBe('function');
+    expect(typeof deps.bumpRefresh).toBe('function');
+  });
+
   it('handleAssign 이 (difficulty, providerId, deps) 로 runAssign 을 1 회 호출한다', () => {
     renderProbe((hook, index) => {
       if (index === 1) hook.handleAssign('medium', 'p2');
@@ -334,6 +358,26 @@ describe('useAdminLlmProviders — error path', () => {
     expect(returned[0]).toBe(rejected);
     expect(returned[1]).toBe(rejected);
     await expect(returned[0] as Promise<unknown>).rejects.toThrow('boom');
+  });
+
+  it('runSetDefaultProvider 가 reject 해도 handleSetDefaultProvider 는 동기 throw 없이 렌더를 지킨다', async () => {
+    const rejected = Promise.reject(new Error('기본 지정 실패'));
+    rejected.catch(() => undefined);
+    runSetDefaultMock.mockReturnValue(rejected);
+    const returned: unknown[] = [];
+
+    expect(() =>
+      renderProbe((hook, index) => {
+        if (index === 1) returned.push(hook.handleSetDefaultProvider('p1'));
+      }),
+    ).not.toThrow();
+
+    // 실패 표면화는 러너 책임이라 hook 은 러너가 준 Promise 를 그대로 통과시킨다.
+    expect(returned).toHaveLength(1);
+    expect(returned[0]).toBe(rejected);
+    await expect(returned[0] as Promise<unknown>).rejects.toThrow(
+      '기본 지정 실패',
+    );
   });
 
   it('두 조회가 모두 error 면 llmError 가 provider 조회 error 를 노출하고 목록은 빈 배열로 착지한다', () => {
@@ -433,6 +477,60 @@ describe('useAdminLlmProviders — 분기 cover', () => {
     });
   });
 
+  it('주입된 setSettingDefault(true) 후 반환 settingDefault 와 다음 호출 deps 가 모두 true 가 된다', () => {
+    const sink = renderProbe((hook, index) => {
+      if (index === 1) {
+        hook.handleSetDefaultProvider('p1');
+        const deps = runSetDefaultMock.mock.calls[0][1] as Deps;
+        (deps.setSettingDefault as (next: boolean) => void)(true);
+      }
+      if (index === 2) hook.handleSetDefaultProvider('p2');
+    });
+
+    expect(lastOf(sink).settingDefault).toBe(true);
+    expect(runSetDefaultMock).toHaveBeenCalledTimes(2);
+    expect((runSetDefaultMock.mock.calls[0][1] as Deps).settingDefault).toBe(
+      false,
+    );
+    // 가드 판정은 러너 책임 — hook 은 최신 in-flight 값을 stale 없이 넘기기만 한다.
+    expect((runSetDefaultMock.mock.calls[1][1] as Deps).settingDefault).toBe(
+      true,
+    );
+  });
+
+  it('주입된 setDefaultError 문구가 반환 setDefaultError 로 그대로 표면화된다', () => {
+    const sink = renderProbe((hook, index) => {
+      if (index === 1) {
+        hook.handleSetDefaultProvider('p1');
+        const deps = runSetDefaultMock.mock.calls[0][1] as Deps;
+        (deps.setDefaultError as (next: string) => void)('기본 지정 실패');
+      }
+    });
+
+    expect(lastOf(sink).setDefaultError).toBe('기본 지정 실패');
+    // 재지정 실패는 provider 조회 error · llmError 축을 건드리지 않는다.
+    expect(lastOf(sink).providersError).toBeUndefined();
+    expect(lastOf(sink).llmError).toBeUndefined();
+  });
+
+  it('주입된 bumpRefresh 호출은 provider 조회 path 를 다음 nonce 로 바꾼다', () => {
+    renderProbe((hook, index) => {
+      if (index === 1) {
+        hook.handleSetDefaultProvider('p1');
+        const deps = runSetDefaultMock.mock.calls[0][1] as Deps;
+        (deps.bumpRefresh as () => void)();
+      }
+    });
+
+    // 재렌더의 provider 조회 인자만 nonce 1 경로로 바뀌고 mapping 축 nonce 는 그대로다.
+    const providerPaths = useApiResourceMock.mock.calls
+      .map((call) => call[0] as string)
+      .filter((path) => path.startsWith('/api/llm/providers'));
+    expect(providerPaths[0]).toBe(buildProvidersPath(0));
+    expect(providerPaths[providerPaths.length - 1]).toBe(buildProvidersPath(1));
+    expect(buildProvidersPath(1)).not.toBe(buildProvidersPath(0));
+  });
+
   it('handleEditProvider 는 목록에 있는 id 면 그 행 값으로 prefill 한다(apiKey 는 빈 값)', () => {
     const sink = renderProbe((hook, index) => {
       if (index === 1) hook.handleEditProvider('p1');
@@ -527,6 +625,43 @@ describe('useAdminLlmProviders — negative cases', () => {
     expect((runDeleteMock.mock.calls[0][1] as Deps).deleting).toBe(false);
   });
 
+  it('handleSetDefaultProvider 를 빈 문자열 id 로 불러도 hook 은 자체 판단 없이 그대로 위임한다', () => {
+    renderProbe((hook, index) => {
+      if (index === 1) hook.handleSetDefaultProvider('');
+    });
+
+    expect(runSetDefaultMock).toHaveBeenCalledTimes(1);
+    expect(runSetDefaultMock.mock.calls[0][0]).toBe('');
+    expect((runSetDefaultMock.mock.calls[0][1] as Deps).settingDefault).toBe(
+      false,
+    );
+  });
+
+  it('handleSetDefaultProvider 를 공백만 든 id 로 불러도 트림 없이 러너에 그대로 넘긴다', () => {
+    renderProbe((hook, index) => {
+      if (index === 1) hook.handleSetDefaultProvider('   ');
+    });
+
+    // 경계값 차단(trim 후 빈 문자열)은 러너 책임 — hook 은 원문 그대로 위임한다.
+    expect(runSetDefaultMock).toHaveBeenCalledTimes(1);
+    expect(runSetDefaultMock.mock.calls[0][0]).toBe('   ');
+  });
+
+  it('runSetDefaultProvider 가 undefined 를 돌려줘도 hook 반환 계약이 유지된다', () => {
+    runSetDefaultMock.mockReturnValue(undefined);
+    const returned: unknown[] = [];
+
+    const sink = renderProbe((hook, index) => {
+      if (index === 1) returned.push(hook.handleSetDefaultProvider('p1'));
+    });
+    const hook = lastOf(sink);
+
+    expect(returned).toEqual([undefined]);
+    expect(hook.settingDefault).toBe(false);
+    expect(hook.setDefaultError).toBeUndefined();
+    expect(typeof hook.handleSetDefaultProvider).toBe('function');
+  });
+
   it('handleAssign 을 빈 providerId 로 불러도 hook 은 가드 없이 러너에 그대로 위임한다', () => {
     renderProbe((hook, index) => {
       if (index === 1) hook.handleAssign('hard', '');
@@ -575,12 +710,15 @@ describe('useAdminLlmProviders — negative cases', () => {
       'resetEditProviderForm',
       'setEditingProviderId',
       'setDeletingProvider',
+      'setSettingDefault',
+      'setSetDefaultError',
       'setCreatingProvider',
       'setUpdatingProvider',
     ]) {
       expect(keys).not.toContain(hidden);
     }
-    // 공개 표면은 JSX 소비처가 실제로 쓰는 심볼 36 개로 고정된다.
-    expect(keys).toHaveLength(36);
+    // 공개 표면은 JSX 소비처가 실제로 쓰는 심볼 39 개로 고정된다(T-1899 에서 기본 provider 재지정
+    // 3 심볼을 더해 36 → 39).
+    expect(keys).toHaveLength(39);
   });
 });
