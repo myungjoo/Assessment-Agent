@@ -2,7 +2,7 @@
 id: T-1907
 title: AdminView 수집 대상 패널의 section 껍데기 + 목록 축(`1854 행` ~ `1905 행`)을 AdminCollectionTargetsSection 으로 분해 (경로 2 슬라이스 1/2)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-072]
 estimatedDiff: 285
