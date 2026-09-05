@@ -2,7 +2,7 @@
 id: T-1905
 title: REQ-080 탭 내비 축 재판정(IN_PROGRESS → DONE) + PLAN 134 행 승격 + components.md 동기
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-080]
 estimatedDiff: 40
@@ -43,17 +43,17 @@ plannerNote: "P6 · REQ-080 구현 arc(T-1858 · T-1903 · T-1904) 전량 머지
 
 ## Acceptance Criteria
 
-- [ ] `docs/requirements.md` `99 행` REQ-080 의 status 칸을 `IN_PROGRESS` → `DONE` 으로 바꾸고, 괄호 서술을 **현재 main 실측 기준으로 갱신**한다 — 두 축(전역 스타일(CSS) 도입 · 관리 화면 다수 섹션의 탭/구획 내비게이션)이 모두 shipped 임을 각각의 실체 좌표와 함께 적는다. 뒤 축 근거로 최소 다음 좌표를 포함: `web/src/components/AdminSectionNav.tsx`(순수 component · className anchor 3 종 · `selectSection` 순수 함수), `web/src/styles/global.css` `127` · `136` · `142 행`(anchor 규칙), `web/src/views/AdminView.tsx` `122 행`(import) · `455 행`(`runSelectAdminSection`) · `1024 행`(마운트) · 섹션 5 곳의 `id=` 부여, slice pointer `T-1903`(PR #1496) · `T-1904`(PR #1497).
-- [ ] 같은 row 에서 **거짓이 된 문장을 남기지 않는다** — "뒤 축 … 은 미shipped", "`role="tab"` … 매칭 0 건(head `edfb1a4b` 실측)", "그 1 건이 미shipped 인 것이 본 row 를 `DONE` 으로 올리지 않는 유일한 사유", "재판정 slice = T-1859" 4 문장을 갱신 서술로 대체한다.
-- [ ] 같은 row 의 **관련 task / ADR 칸**에 `T-1903` · `T-1904` pointer 를 추가한다(기존 `T-1858` · ADR-0061 표기는 유지).
-- [ ] 같은 row 의 **검증 위치 칸**(현재 `e2e`)을 실측으로 1 회 재판정한다 — 본 REQ 의 검증 실체가 colocated vitest(`web/src/styles/globalCssContract.test.ts` · `web/src/components/AdminSectionNav.test.tsx` · `web/src/views/AdminView.test.tsx` · `web/src/views/adminViewConstants.test.ts`)뿐이고 `test/e2e/` 에 이 REQ 를 덮는 spec 이 0 건이면 `unit` 으로 좁히고(REQ-082 의 `101 행` 선례와 동일 기준), 반대 근거가 나오면 칸을 유지하되 **어느 쪽이든 그 판단 근거를 status 괄호 안에 1 문장으로 박제**한다.
-- [ ] `docs/PLAN.md` `134 행` bullet 마커를 `[ ]` → `[x]` 로 승격하고, ① 후반부 서술을 "뒤 축도 shipped" 로 갱신한다 — 승격 근거는 `requirements.md` `99 행` REQ-080 이 `DONE` 이라는 사실과 구현 slice 2 개(T-1903 · T-1904)이며, 승격 주체가 본 slice(T-1905)임을 REQ-074 ~ REQ-077 승격 문장(T-1801 형식)과 같은 방식으로 명시한다.
-- [ ] 같은 bullet 에서 **잔여 · 진행 pointer 문장을 정리**한다 — "본 bullet 의 잔여는 ① 후반부의 AdminView 다수 섹션 탭/구획 내비게이션 1 건뿐", "마커는 `[ ]` 로 유지", "진행 pointer — … T-1904(`pr`)가 잇는다" 3 문장을 제거하거나 완료 서술로 대체해 남은 잔여 0 임을 분명히 한다.
-- [ ] `docs/architecture/components.md` `119 행` Web UI row 의 `AdminView` 서술에 **섹션 탭 내비 마운트 1 항목**을 추가한다(`AdminSectionNav` 마운트 + slice pointer T-1903 · T-1904). 기존 수치 표기("구별 패널 **10 종**" · "mutation 러너 **26 개**")는 **재측정하지 않고 그대로 두되**, 내비가 패널 종수에 포함되지 않는다는 사실을 한 구절로 명시해 `133~135 행` 각주와 모순되지 않게 한다.
-- [ ] 위 3 파일 외 다른 문서 · 코드 파일 변경 0 (`git status --porcelain` 이 `docs/requirements.md` · `docs/PLAN.md` · `docs/architecture/components.md` · 본 task 파일만 보여야 한다).
-- [ ] 신규 · 갱신 문장의 행 범위 표기가 [CLAUDE.md](../../CLAUDE.md) `§12` R1~R7 을 따른다(구분자 `~`, 단일 행은 `99 행`, `L` prefix 0). 기존 표기의 소급 치환은 하지 않는다.
-- [ ] 문서 링크 무결성 — 새로 추가한 상대 경로 링크(`tasks/T-1903-…` · `tasks/T-1904-…` 등)의 대상 파일이 실재함을 확인한다.
-- [ ] 분기 없음 · 코드 변경 0 — doc-only `direct` task 이므로 [CLAUDE.md](../../CLAUDE.md) `§3.2` R-112 의 test 항목(happy / error / 분기 / negative / coverage)은 **해당 없음**. R-110 의 tester 면제 대상(direct doc-only commit)이다.
+- [x] `docs/requirements.md` `99 행` REQ-080 의 status 칸을 `IN_PROGRESS` → `DONE` 으로 바꾸고, 괄호 서술을 **현재 main 실측 기준으로 갱신**한다 — 두 축(전역 스타일(CSS) 도입 · 관리 화면 다수 섹션의 탭/구획 내비게이션)이 모두 shipped 임을 각각의 실체 좌표와 함께 적는다. 뒤 축 근거로 최소 다음 좌표를 포함: `web/src/components/AdminSectionNav.tsx`(순수 component · className anchor 3 종 · `selectSection` 순수 함수), `web/src/styles/global.css` `127` · `136` · `142 행`(anchor 규칙), `web/src/views/AdminView.tsx` `122 행`(import) · `455 행`(`runSelectAdminSection`) · `1024 행`(마운트) · 섹션 5 곳의 `id=` 부여, slice pointer `T-1903`(PR #1496) · `T-1904`(PR #1497).
+- [x] 같은 row 에서 **거짓이 된 문장을 남기지 않는다** — "뒤 축 … 은 미shipped", "`role="tab"` … 매칭 0 건(head `edfb1a4b` 실측)", "그 1 건이 미shipped 인 것이 본 row 를 `DONE` 으로 올리지 않는 유일한 사유", "재판정 slice = T-1859" 4 문장을 갱신 서술로 대체한다.
+- [x] 같은 row 의 **관련 task / ADR 칸**에 `T-1903` · `T-1904` pointer 를 추가한다(기존 `T-1858` · ADR-0061 표기는 유지).
+- [x] 같은 row 의 **검증 위치 칸**(현재 `e2e`)을 실측으로 1 회 재판정한다 — 본 REQ 의 검증 실체가 colocated vitest(`web/src/styles/globalCssContract.test.ts` · `web/src/components/AdminSectionNav.test.tsx` · `web/src/views/AdminView.test.tsx` · `web/src/views/adminViewConstants.test.ts`)뿐이고 `test/e2e/` 에 이 REQ 를 덮는 spec 이 0 건이면 `unit` 으로 좁히고(REQ-082 의 `101 행` 선례와 동일 기준), 반대 근거가 나오면 칸을 유지하되 **어느 쪽이든 그 판단 근거를 status 괄호 안에 1 문장으로 박제**한다.
+- [x] `docs/PLAN.md` `134 행` bullet 마커를 `[ ]` → `[x]` 로 승격하고, ① 후반부 서술을 "뒤 축도 shipped" 로 갱신한다 — 승격 근거는 `requirements.md` `99 행` REQ-080 이 `DONE` 이라는 사실과 구현 slice 2 개(T-1903 · T-1904)이며, 승격 주체가 본 slice(T-1905)임을 REQ-074 ~ REQ-077 승격 문장(T-1801 형식)과 같은 방식으로 명시한다.
+- [x] 같은 bullet 에서 **잔여 · 진행 pointer 문장을 정리**한다 — "본 bullet 의 잔여는 ① 후반부의 AdminView 다수 섹션 탭/구획 내비게이션 1 건뿐", "마커는 `[ ]` 로 유지", "진행 pointer — … T-1904(`pr`)가 잇는다" 3 문장을 제거하거나 완료 서술로 대체해 남은 잔여 0 임을 분명히 한다.
+- [x] `docs/architecture/components.md` `119 행` Web UI row 의 `AdminView` 서술에 **섹션 탭 내비 마운트 1 항목**을 추가한다(`AdminSectionNav` 마운트 + slice pointer T-1903 · T-1904). 기존 수치 표기("구별 패널 **10 종**" · "mutation 러너 **26 개**")는 **재측정하지 않고 그대로 두되**, 내비가 패널 종수에 포함되지 않는다는 사실을 한 구절로 명시해 `133~135 행` 각주와 모순되지 않게 한다.
+- [x] 위 3 파일 외 다른 문서 · 코드 파일 변경 0 (`git status --porcelain` 이 `docs/requirements.md` · `docs/PLAN.md` · `docs/architecture/components.md` · 본 task 파일만 보여야 한다).
+- [x] 신규 · 갱신 문장의 행 범위 표기가 [CLAUDE.md](../../CLAUDE.md) `§12` R1~R7 을 따른다(구분자 `~`, 단일 행은 `99 행`, `L` prefix 0). 기존 표기의 소급 치환은 하지 않는다.
+- [x] 문서 링크 무결성 — 새로 추가한 상대 경로 링크(`tasks/T-1903-…` · `tasks/T-1904-…` 등)의 대상 파일이 실재함을 확인한다.
+- [x] 분기 없음 · 코드 변경 0 — doc-only `direct` task 이므로 [CLAUDE.md](../../CLAUDE.md) `§3.2` R-112 의 test 항목(happy / error / 분기 / negative / coverage)은 **해당 없음**. R-110 의 tester 면제 대상(direct doc-only commit)이다.
 
 ## Out of Scope
 
