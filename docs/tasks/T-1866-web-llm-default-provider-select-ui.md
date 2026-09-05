@@ -2,7 +2,9 @@
 id: T-1866
 title: Web UI — LLM provider 목록에 기본 배지 + "기본으로 지정" 버튼 + PUT 배선
 phase: P6
-status: PENDING
+status: SUPERSEDED
+supersededBy: [T-1897]
+supersededAt: 2026-09-05T03:47:00Z
 commitMode: pr
 coversReq: [REQ-049, REQ-051]
 independentStream: llm-default-provider
@@ -64,3 +66,13 @@ plannerNote: "오너 지시 2026-09-03 chain 5/7 — '웹 UI 로 선택할 수 �
 ## Follow-ups
 
 - (선택) 삭제 409 시 "먼저 다른 provider 를 기본으로 지정하라" 안내를 목록 error 영역에 한국어로 매핑 — 별도 slice.
+
+## Resolution — 2026-09-05 split (planner)
+
+착수 전 `origin/main` 436ff65b 로 재실측한 결과 본 slice 는 **파일 7 개** (`AdminView.llm-provider-list-contract.test.ts` 가 깨지면 8) 로 CLAUDE.md §3 파일 cap (≤ 5) 을 초과한다 — T-1887 (PR #1474) 이 provider 배선을 `useAdminLlmProviders.ts` 로 순수 추출한 결과다. 2026-09-05 03:42 저널의 planner 재실측 지시대로 읽기 축 / 쓰기 축으로 split 했고, 본 task 는 SUPERSEDED 로 닫는다.
+
+- **1/3 — [T-1897](T-1897-web-llm-default-provider-badge-read-axis.md)** (읽기 축, 4 파일): `LlmProviderRow.isDefault` + `deriveProviderConfigs` 보수 매핑 + `LlmProviderConfigList` `기본` 배지. `AdminView.tsx` · `useAdminLlmProviders.ts` 무수정 — 파생 결과가 이미 props 로 흐르므로 소비처 배선은 코드 0 줄로 충족된다.
+- **2/3 (예정, 쓰기 축 A, 2 파일)**: `runSetDefaultProvider(deps, id)` 러너 + spec — `PUT /api/llm/providers/default` body `{ llmProviderConfigId }`, 성공 시 `providersRefreshNonce` bump, 404 / 500 / network 한국어 문구, 진행 중 재진입 차단.
+- **3/3 (예정, 쓰기 축 B, 5 파일)**: `LlmProviderConfigList` 의 `onSetDefault` + "기본으로 지정" 버튼 (배지 행에는 미렌더) + spec, `useAdminLlmProviders.ts` 의 `settingDefault` · `setDefaultError` · `handleSetDefaultProvider` + spec, `AdminView.tsx` 배선 (destructure 키 + props 2).
+
+위 AC 본문은 2/3 · 3/3 slice 의 사양 원본으로 남겨둔다 (재작성 금지 — 해당 slice task 가 이 파일의 § 좌표를 인용한다). Q-0054 (drift-guard parity 가 5 파일 cap 을 busting 해 BLOCKED) 동형 사고를 착수 전에 차단했다.
