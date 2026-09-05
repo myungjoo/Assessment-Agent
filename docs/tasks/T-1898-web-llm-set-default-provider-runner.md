@@ -2,7 +2,7 @@
 id: T-1898
 title: Web UI — runSetDefaultProvider PUT 러너 (쓰기 축 A, T-1866 split 2/3)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-051]
 independentStream: llm-default-provider
