@@ -2,7 +2,7 @@
 id: T-1914
 title: requirements.md 22 행 REQ-003 의 "표시 축 프런트 렌더 미충족" stale drift 정정
 phase: P8
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-003]
 estimatedDiff: 35
@@ -35,13 +35,13 @@ plannerNote: "T-1913 Follow-up (a) / T-1912 Follow-up (c) — REQ-003 표시 축
 
 ## Acceptance Criteria
 
-- [ ] **표시 축 (b) 문단 재작성** — `22 행` 안의 `**표시 축 (b) 프런트 렌더는 미충족** 이다 — ...` 문단을 실측 기반 충족 서술로 교체한다. 근거에 (1) `DashboardView.tsx` 의 import 행 · 파생 행 · 마운트 행 번호, (2) `AssessmentResultTable` 의 실제 렌더 컬럼 6 종, (3) 양 축 `volume` · 질 축 `difficulty` · `contributionScore` 가 실제 컬럼임을 각각 명시한다. **행 번호는 파일에서 직접 재확인한 값**이어야 하고, 옛 서술의 `655 행` · `EvaluationResultRow` · `240 행 deriveScoreBuckets` 등 무효 좌표는 남기지 않는다.
-- [ ] **narrative 컬럼 제외 사실 보존** — 표가 `narrative` 를 표시 컬럼에서 제외한다는 점 (`AssessmentResultTable.tsx` 상단 주석의 제외 3 키) 을 충족 서술 안에 사실대로 적는다. 렌더 충족을 과장해 "모든 필드가 표에 노출된다" 로 적지 않는다.
-- [ ] **상태 enum 판정** — 위 재실측 결과 평가 축 · 저장 축 · 표시 축 (API) · 표시 축 (프런트 렌더) 4 축이 모두 충족이면 상태를 `DONE (implemented-on-main — ...)` 로 전이한다. 어느 한 축이라도 실측에서 미충족으로 나오면 `DONE` 으로 올리지 말고 `IN_PROGRESS (<충족 축> / <미충족 축>)` 를 유지하되 사유 문구를 실측으로 갱신한다.
-- [ ] **나머지 축 서술 보존** — 평가 축 · 저장 축 · 표시 축 (a) API · wiring 축 문단은 **재서술하지 않는다**. 본 task 는 (b) 문단과 그로 인해 무효가 된 문장 (상태 prefix 의 `표시 축 프런트 렌더 부재` 표현, `한계 —` 절의 `프런트는 필드명 계약이 backend 와 어긋나 ... 실렌더되지 않고` 문장) 만 최소 수정한다.
-- [ ] **한계 부기 유지** — `한계 —` 절에 (a) 단위 평가문이 `Contribution` 에 컬럼 없이 `Assessment.narrative` 로 join 되어 단위별 정성 근거 개별 조회 경로가 없다, (b) smoke 가 저장 축 · 표시 축을 0 건 cover 한다 (`검증 위치` 컬럼은 `unit + smoke`) 2 가지를 남긴다. (b) 는 `grep -rln "api/assessments" test/smoke` 로 재확인한 결과를 근거로 삼는다.
-- [ ] **표 무결성 검증** — 편집 후 `awk 'NR==22' docs/requirements.md | grep -o "|" | wc -l` 이 `8` 로 인접 `21 행` · `23 행` 과 동일하고, 상태 문자열 안에 리터럴 `|` 문자가 없으며 (T-1370 · T-1375 사고 재발 방지), `wc -l docs/requirements.md` = `121` 과 `grep -c "^| REQ-" docs/requirements.md` = `84` 가 편집 전후 불변임을 확인한다.
-- [ ] 본 task 파일의 frontmatter `status` 를 `DONE` 으로 바꾸고 본문 끝에 완료 시각 · 실측 요약 (인용한 행 번호 포함) 을 1~3 줄로 추가한다.
+- [x] **표시 축 (b) 문단 재작성** — `22 행` 안의 `**표시 축 (b) 프런트 렌더는 미충족** 이다 — ...` 문단을 실측 기반 충족 서술로 교체한다. 근거에 (1) `DashboardView.tsx` 의 import 행 · 파생 행 · 마운트 행 번호, (2) `AssessmentResultTable` 의 실제 렌더 컬럼 6 종, (3) 양 축 `volume` · 질 축 `difficulty` · `contributionScore` 가 실제 컬럼임을 각각 명시한다. **행 번호는 파일에서 직접 재확인한 값**이어야 하고, 옛 서술의 `655 행` · `EvaluationResultRow` · `240 행 deriveScoreBuckets` 등 무효 좌표는 남기지 않는다.
+- [x] **narrative 컬럼 제외 사실 보존** — 표가 `narrative` 를 표시 컬럼에서 제외한다는 점 (`AssessmentResultTable.tsx` 상단 주석의 제외 3 키) 을 충족 서술 안에 사실대로 적는다. 렌더 충족을 과장해 "모든 필드가 표에 노출된다" 로 적지 않는다.
+- [x] **상태 enum 판정** — 위 재실측 결과 평가 축 · 저장 축 · 표시 축 (API) · 표시 축 (프런트 렌더) 4 축이 모두 충족이면 상태를 `DONE (implemented-on-main — ...)` 로 전이한다. 어느 한 축이라도 실측에서 미충족으로 나오면 `DONE` 으로 올리지 말고 `IN_PROGRESS (<충족 축> / <미충족 축>)` 를 유지하되 사유 문구를 실측으로 갱신한다.
+- [x] **나머지 축 서술 보존** — 평가 축 · 저장 축 · 표시 축 (a) API · wiring 축 문단은 **재서술하지 않는다**. 본 task 는 (b) 문단과 그로 인해 무효가 된 문장 (상태 prefix 의 `표시 축 프런트 렌더 부재` 표현, `한계 —` 절의 `프런트는 필드명 계약이 backend 와 어긋나 ... 실렌더되지 않고` 문장) 만 최소 수정한다.
+- [x] **한계 부기 유지** — `한계 —` 절에 (a) 단위 평가문이 `Contribution` 에 컬럼 없이 `Assessment.narrative` 로 join 되어 단위별 정성 근거 개별 조회 경로가 없다, (b) smoke 가 저장 축 · 표시 축을 0 건 cover 한다 (`검증 위치` 컬럼은 `unit + smoke`) 2 가지를 남긴다. (b) 는 `grep -rln "api/assessments" test/smoke` 로 재확인한 결과를 근거로 삼는다.
+- [x] **표 무결성 검증** — 편집 후 `awk 'NR==22' docs/requirements.md | grep -o "|" | wc -l` 이 `8` 로 인접 `21 행` · `23 행` 과 동일하고, 상태 문자열 안에 리터럴 `|` 문자가 없으며 (T-1370 · T-1375 사고 재발 방지), `wc -l docs/requirements.md` = `121` 과 `grep -c "^| REQ-" docs/requirements.md` = `84` 가 편집 전후 불변임을 확인한다.
+- [x] 본 task 파일의 frontmatter `status` 를 `DONE` 으로 바꾸고 본문 끝에 완료 시각 · 실측 요약 (인용한 행 번호 포함) 을 1~3 줄로 추가한다.
 
 ## Out of Scope
 
@@ -59,4 +59,11 @@ plannerNote: "T-1913 Follow-up (a) / T-1912 Follow-up (c) — REQ-003 표시 축
 ## Follow-ups
 
 - (a) [docs/requirements.md](../requirements.md) REQ-004 `23 행` 의 프런트 노출 축 서술 재실측 (`direct`) — `deriveContributionMetrics` 필드 불일치 · 기간 지정 UI 부재 2 항목이 여전히 유효한지 실측 후 판정.
+- (c) [docs/requirements.md](../requirements.md) REQ-003 `22 행` 의 검증 위치 문단 중 "`ls test/smoke/` 150 파일 중 `api/assessments` ... 참조하는 spec 이 0" 수치 stale 정정 (`direct`) — 본 task 재측 기준 test/smoke 는 152 파일이고 `api/assessments` 참조 spec 은 1 건 (k6 harness 배선 drift guard 의 기대 문자열 — route 실행 cover 는 여전히 0). 본 task 는 (b) 문단 외 재서술 금지 경계라 한계 부기에만 적었다.
 - (b) transitive dependency 복수 version 판정 (lockfile 분석) 의 필요성 · 도구 유무 검토 — 새 도구가 필요하면 ADR + 사람 승인 선행 (T-1913 Follow-ups (b) 승계).
+
+## 완료 기록
+
+- 2026-09-06 완료 (head `125add51` 에서 직접 재측). 표시 축 (b) 문단을 `DashboardView.tsx` 27~33 행 (import) · 163 · 174 행 (path 조립) · 575 행 (`useApiResource`) · 632~640 행 (`visibleRows` 파생) · 861~867 행 (`<AssessmentResultTable>` 마운트) 실측 좌표로 교체했다.
+- 렌더 컬럼은 `AssessmentResultTable.tsx` 23~30 행 6 종 (`period` · `scope` · `periodStart` · `difficulty` · `contributionScore` · `volume`), 제외 3 키 (`id` · `personId` · `narrative`) 는 13~15 행 주석 근거로 보존. `EvaluationResultRow` · `deriveScoreBuckets` 는 `DashboardView.tsx` (984 행) 전수 참조 0 으로 확인해 무효 좌표를 제거했다.
+- 4 축 모두 충족이라 상태를 `DONE (implemented-on-main — ...)` 로 전이. 표 무결성 재확인 — `22 행` 파이프 8 개 (21 · 23 행과 동일) · 총 121 행 · `^| REQ-` 84 건 불변.
