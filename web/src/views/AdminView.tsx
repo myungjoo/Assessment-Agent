@@ -117,6 +117,9 @@ import type {
   DifficultyMappingRow,
   LlmProviderRow,
 } from './adminProviderDifficultyDerivations';
+// T-1903 순수 presentational 섹션 탭 내비의 소비처 배선(T-1904) — 활성 상태·스크롤은 본
+// 컨테이너 소유이고 component 에는 props 로만 내려보낸다(ADR-0041 Decision 1).
+import AdminSectionNav from '../components/AdminSectionNav';
 import GroupMemberList from '../components/GroupMemberList';
 import DifficultyModelSelector from '../components/DifficultyModelSelector';
 // T-1887 — `Difficulty` type 은 LLM 축과 함께 useAdminLlmProviders 로 옮겨져 본 컨테이너에서는
@@ -345,6 +348,11 @@ import {
 // 파일 끝 export 배럴이 공개 심볼 4 개를 그대로 re-export 하므로 기존 spec 의 `from './AdminView'`
 // 는 무수정으로 산다(공개 표면 무변경).
 import {
+  ADMIN_SECTION_COLLECTION_TARGETS_ID,
+  ADMIN_SECTION_GROUPS_ID,
+  ADMIN_SECTION_PARTS_ID,
+  ADMIN_SECTION_PERSONS_ID,
+  ADMIN_SECTION_USERS_ID,
   AUTH_ME_PATH,
   COLLECTION_TARGET_HEADING,
   CREATE_USER_EMAIL_HINT_ID,
@@ -370,6 +378,7 @@ import {
   REEVAL_WINDOW_OPTIONS,
   SERVICE_IDENTITY_NOT_ADMIN_NOTICE_TEXT,
   USER_HEADING,
+  buildAdminSectionDescriptors,
   createInFlightIdGate,
   resolveProviderSelectValue,
 } from './adminViewConstants';
@@ -417,6 +426,9 @@ interface AdminViewProps {
   // 초기 "휴직 인원 포함" 토글 값(선택, T-1804) — 정적 렌더 검증용 주입 affordance
   // (initialScheduleBusy 동형). 미주입 시 false = 활성 인원만 조회하는 실사용 초기 상태와 동일.
   initialPersonsIncludeInactive?: boolean;
+  // 초기 활성 섹션 id(선택, T-1904) — 활성 탭 표시 분기를 정적 렌더로 검증하기 위한 초기값 주입
+  // affordance(initialSelectedPartId 동형). 미주입 시 '' 라 어느 탭도 활성이 아니다(실사용 초기 상태).
+  initialActiveSectionId?: string;
 }
 
 // 등급 문자열 → Admin+ 여부 파생(순수 helper, ④h). backend role enum(api.md 71 —
@@ -427,6 +439,31 @@ interface AdminViewProps {
 // 안전하게 떨어진다(비-Admin 에게 Admin 패널을 노출하지 않는 안전 기본값).
 function isAdminRole(role: string | null | undefined): boolean {
   return role === 'Admin' || role === 'SuperAdmin';
+}
+
+// 섹션 탭 선택 발사의 주입 계약(T-1904) — DOM 조회는 배선부가 주입하는 getElement 로만 들어와
+// 러너 자체는 document 를 모른다(순수 유지 = 정적 렌더 환경에서도 단위 검증 가능).
+interface SelectAdminSectionDeps {
+  // 활성 섹션 상태 갱신 — 스크롤 성공 여부와 무관하게 **항상** 호출한다(활성 표시가 먼저다).
+  setActiveSectionId: (next: string) => void;
+  getElement?: (sectionId: string) => { scrollIntoView?: unknown } | null | undefined;
+}
+
+// 섹션 탭 선택 러너(순수, T-1904 — 기존 run* helper 관례). 활성 상태를 갱신한 뒤 해당 섹션
+// element 가 있으면 그 자리로 스크롤한다. (a) getElement 미전달 (b) element 미발견(gating 으로
+// 미마운트·목록 밖 id) (c) scrollIntoView 부재/함수 아님 은 스크롤만 건너뛸 뿐 throw 0 이다.
+function runSelectAdminSection(
+  sectionId: string,
+  deps: SelectAdminSectionDeps,
+): void {
+  deps.setActiveSectionId(sectionId);
+  if (typeof deps.getElement !== 'function') {
+    return;
+  }
+  const element = deps.getElement(sectionId);
+  if (element && typeof element.scrollIntoView === 'function') {
+    (element.scrollIntoView as () => void)();
+  }
 }
 
 // Admin 화면 컨테이너. useApiResource 로 GET /api/groups 결과를 소유하고, 선택 그룹 상태를
@@ -444,7 +481,25 @@ function AdminView({
   initialSelectedIdentityPersonId = '',
   initialEditingIdentityId = '',
   initialPersonsIncludeInactive = false,
+  initialActiveSectionId = '',
 }: AdminViewProps) {
+  // 활성 섹션 상태(T-1904) — 섹션 탭 내비의 활성 표시 원천(컨테이너 소유 lift-up).
+  const [activeSectionId, setActiveSectionId] = useState<string>(
+    initialActiveSectionId,
+  );
+
+  // 탭 클릭 배선(T-1904) — document 참조는 이 배선부에만 둔다(러너 순수 유지). 서버 렌더
+  // (document 부재)에서는 getElement 미전달이라 안전하다.
+  const handleSelectSection = useCallback((sectionId: string) => {
+    runSelectAdminSection(sectionId, {
+      setActiveSectionId,
+      getElement:
+        typeof document === 'undefined'
+          ? undefined
+          : (id: string) => document.getElementById(id),
+    });
+  }, []);
+
   // 선택 그룹 상태 — controlled lift-up(컨테이너 소유). <select> 선택이 이 값을 갱신한다.
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
     initialSelectedGroupId,
@@ -963,6 +1018,14 @@ function AdminView({
 
   return (
     <section aria-label="Admin 관리">
+      {/* 섹션 탭 내비(T-1904, REQ-080) — 섹션이 여럿이라 스크롤만으로는 구획을 찾기 어렵다. 탭 목록은
+          buildAdminSectionDescriptors 가 isAdmin 에 맞춰 조립하고(비-Admin 은 미마운트되는 사용자 탭
+          제외), 클릭은 활성 표시 + 스크롤까지만 한다(섹션 숨김·라우팅 없음). */}
+      <AdminSectionNav
+        sections={buildAdminSectionDescriptors(isAdmin)}
+        activeId={activeSectionId}
+        onSelect={handleSelectSection}
+      />
       {/* 그룹 선택 컨트롤 — 그룹 목록을 옵션으로 노출하고 선택 시 그 그룹의 멤버를 파생한다.
           loading 중에는 그룹 목록이 비어 옵션이 빈 선택지만 노출되고, 멤버 패널이 loading 을
           props 로 받아 진행 표시를 한다(컨테이너가 fetch 상태를 패널로 위임). */}
@@ -1264,7 +1327,7 @@ function AdminView({
               (T-1160)·역할 변경(T-1162) mutation 이 배선돼 있고, onChangeRole 은 isSuperAdmin 일
               때만 내려간다(비-SuperAdmin 에겐 undefined → 버튼 미렌더로 확정 403 사전 차단).
               UserList 의 named UserRow 를 조회 제네릭에 그대로 쓴다(컴포넌트 수정 0). */}
-          <section aria-label="사용자 관리 섹션">
+          <section id={ADMIN_SECTION_USERS_ID} aria-label="사용자 관리 섹션">
             <h2>{USER_HEADING}</h2>
             {/* 사용자 생성(T-1160, REQ-044/REQ-045) — 파트 생성 폼(T-1153) mirror, 입력만 2 필드.
                 빈 입력·진행 중엔 버튼·입력 비활성으로 발사 억제(러너도 no-op 가드로 이중 방어). */}
@@ -1392,7 +1455,7 @@ function AdminView({
           내려보낸다(다른 조회 상태와 섞지 않음 — ADR-0041 Decision 1, 컴포넌트는 fetch 를 모른다).
           data 가 undefined(미조회/진행 중/실패)이면 `?? []` 로 빈 배열을 안전하게 넘겨 throw 없이
           렌더한다. 생성 성공 시 personsRefreshNonce bump 로 권위 재조회한다(낙관 추가 없음). */}
-      <section aria-label={PERSON_HEADING}>
+      <section id={ADMIN_SECTION_PERSONS_ID} aria-label={PERSON_HEADING}>
         <h2>{PERSON_HEADING}</h2>
         {/* 휴직 인원 포함 토글(T-1804, REQ-071) — 체크하면 조회 path 에 `includeInactive=true` 가
             실려 backend 가 휴직(active:false) 인원까지 돌려준다(T-1803 query 계약). 그래야 휴직
@@ -1599,7 +1662,7 @@ function AdminView({
           빈·공백이거나 진행 중이면 버튼을 비활성화해 발사를 억제한다(runCreateGroup 도 no-op 가드로 이중
           방어), 입력은 진행 중에도 비활성화한다. 실패 문구(createGroupError)는 폼 하단에 role="alert" 로
           안전 표시한다. Group.name 은 @unique 미정의라 409 특수 분기 없이 일반 error 로 표면화한다. */}
-      <section aria-label={GROUP_HEADING}>
+      <section id={ADMIN_SECTION_GROUPS_ID} aria-label={GROUP_HEADING}>
         <h2>{GROUP_HEADING}</h2>
         <div>
           <input
@@ -1686,7 +1749,7 @@ function AdminView({
           partsRefreshNonce bump 로 권위 재조회한다(낙관 제거 없음). onEdit(handleEditPart)도 내려 각 행에
           수정 버튼을 배선한다(T-1155 — 파트 CRUD 완결). PartList 의 named PartRow 를 그대로 조회 제네릭·props 타입에 쓴다
           (로컬 PartRow 부재 — 이름 충돌 없음). */}
-      <section aria-label={PART_HEADING}>
+      <section id={ADMIN_SECTION_PARTS_ID} aria-label={PART_HEADING}>
         <h2>{PART_HEADING}</h2>
         {/* 파트 생성(T-1153, REQ-028/REQ-049) — 그룹 생성 폼(T-1146)을 mirror. name 단일 controlled
             input + "파트 추가" 버튼으로 POST /api/parts(body `{ name }`)를 발사하고, name 이 빈·공백
@@ -1797,7 +1860,10 @@ function AdminView({
           gating — backend GET 이 `@Roles("User")` 조회 tier 이고 본 섹션에는 편집 컨트롤이
           없으므로 isAdmin gating **바깥**에 둔다(403 유발 0 — 등록·수정·삭제 폼이 붙는 후속
           편집 slice 가 그 컨트롤에만 Admin+ gating 을 얹는다). */}
-      <section aria-label={COLLECTION_TARGET_HEADING}>
+      <section
+        id={ADMIN_SECTION_COLLECTION_TARGETS_ID}
+        aria-label={COLLECTION_TARGET_HEADING}
+      >
         <h2>{COLLECTION_TARGET_HEADING}</h2>
         <CollectionTargetList
           targets={collectionTargets}
@@ -1957,6 +2023,9 @@ export {
   resolveProviderSelectValue,
   LLM_PROVIDER_OPTIONS,
   isAdminRole,
+  // T-1904 — 섹션 탭 선택 러너. 컨테이너 state 는 정적 렌더로 관측되지 않아 스크롤 · fallback
+  // 계약을 단위로 잠그려면 export 가 필요하다(기존 run* 러너 선례 동형).
+  runSelectAdminSection,
 };
 export type {
   AdminViewProps,
@@ -2006,5 +2075,6 @@ export type {
   UpdatePartDeps,
   UpdateProviderFields,
   UpdateProviderDeps,
+  SelectAdminSectionDeps,
 };
 export default AdminView;

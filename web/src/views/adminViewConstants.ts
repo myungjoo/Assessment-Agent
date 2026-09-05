@@ -18,6 +18,9 @@
 // 을 그대로 re-export 하므로 기존 spec 의 `from './AdminView'` 는 무수정으로 산다.
 
 import type { ReEvaluationWindow } from '../components/ReEvaluationTriggerPanel';
+// T-1904 (REQ-080) — 섹션 탭 항목 계약 타입. T-1903 이 고정한 component 표면을 소비만 하며
+// type-only 라 런타임 의존 0 이다(AdminView import 0 인 단방향 규약 유지).
+import type { AdminSectionDescriptor } from '../components/AdminSectionNav';
 
 
 // 인원 관리 섹션 heading 문구(T-1142) — 기존 패널들과 시각적으로 구분되는 별도 섹션의 제목.
@@ -198,4 +201,31 @@ export function createInFlightIdGate(
       setState(next);
     },
   };
+}
+
+// T-1904 (REQ-080) — AdminView 섹션 anchor DOM id 5 종. AdminSectionNav 의 항목 id 이자 대상
+// <section> 의 id 로 **양쪽에서 같은 상수** 를 쓰게 해 두 곳이 어긋날 여지를 없앤다. 값은
+// admin-section-* 접두 규약을 따른다(CREATE_USER_*_HINT_ID 동형 — 화면별 접두로 충돌 회피).
+export const ADMIN_SECTION_USERS_ID = 'admin-section-users';
+export const ADMIN_SECTION_PERSONS_ID = 'admin-section-persons';
+export const ADMIN_SECTION_GROUPS_ID = 'admin-section-groups';
+export const ADMIN_SECTION_PARTS_ID = 'admin-section-parts';
+export const ADMIN_SECTION_COLLECTION_TARGETS_ID = 'admin-section-collection-targets';
+
+// 섹션 탭 목록 조립(순수, T-1904) — 라벨은 위 heading 상수를 **재사용** 해 탭 문구와 <h2> 문구가
+// 구조적으로 같은 값이 되게 한다(새 문구 상수 0 = drift 원천 0). 반환 순서는 AdminView 실제 렌더
+// 순서(사용자 → 인원 → 그룹 → 파트 → 수집 대상)와 같다. isAdmin === false 이면 사용자 섹션이
+// gating 안쪽에만 마운트돼 DOM 에 없으므로 그 탭을 빼 죽은 탭을 만들지 않는다(fail-closed).
+export function buildAdminSectionDescriptors(
+  isAdmin: boolean,
+): AdminSectionDescriptor[] {
+  const always = [
+    { id: ADMIN_SECTION_PERSONS_ID, label: PERSON_HEADING },
+    { id: ADMIN_SECTION_GROUPS_ID, label: GROUP_HEADING },
+    { id: ADMIN_SECTION_PARTS_ID, label: PART_HEADING },
+    { id: ADMIN_SECTION_COLLECTION_TARGETS_ID, label: COLLECTION_TARGET_HEADING },
+  ];
+  return isAdmin
+    ? [{ id: ADMIN_SECTION_USERS_ID, label: USER_HEADING }, ...always]
+    : always;
 }

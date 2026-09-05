@@ -83,7 +83,7 @@ describe('AdminView — 수집 대상 관리 섹션 마운트 (T-1825)', () => {
   // happy-path — 섹션 골격(aria-label + <h2>)이 실제로 뜬다.
   it('수집 대상 관리 <section aria-label> + <h2> 를 렌더한다 (happy-path — 섹션 마운트)', () => {
     const html = mount();
-    expect(html).toContain(`<section aria-label="${HEADING}">`);
+    expect(html).toMatch(new RegExp(`<section[^>]*aria-label="${HEADING}"`));
     expect(html).toContain(`<h2>${HEADING}</h2>`);
   });
 
