@@ -760,9 +760,10 @@ function AdminView({
 
   // LLM provider · 난이도 매핑 축 hook(T-1887) — 조회 2 + 경로·파생 5 + 합성 2 + 상태 18 +
   // 핸들러·리셋 7 = 37 선언을 useAdminLlmProviders 로 순수 추출했다(동작 변경 0). 컨테이너는
-  // JSX LLM 패널 구역이 쓰는 36 심볼만 되돌려 쓰고, 축 내부 nonce · 원본 응답 · setter 는 hook
-  // 안에 캡슐화된다. 호출 위치는 이동 전 블록이 있던 자리 그대로다 — 두 useApiResource 조회의
-  // 순번이 바뀌면 호출 순서로 route 를 구분하는 기존 spec 이 red 가 된다.
+  // JSX LLM 패널 구역이 쓰는 39 심볼만 되돌려 쓰고(T-1901 에서 기본 provider 재지정 3 심볼을
+  // 더해 36 → 39), 축 내부 nonce · 원본 응답 · setter 는 hook 안에 캡슐화된다. 호출 위치는 이동
+  // 전 블록이 있던 자리 그대로다 — 두 useApiResource 조회의 순번이 바뀌면 호출 순서로 route 를
+  // 구분하는 기존 spec 이 red 가 된다.
   const {
     providers,
     providerConfigs,
@@ -771,6 +772,11 @@ function AdminView({
     deletingProvider,
     deleteProviderError,
     handleDeleteProvider,
+    // 기본 provider 재지정 축(T-1899 hook · T-1900 버튼) 소비 3 심볼 — 선언 순서는 hook 반환
+    // 표면과 같게 handleDeleteProvider 뒤에 둔다(배선만 추가, 새 상태 · 새 핸들러 0).
+    settingDefault,
+    setDefaultError,
+    handleSetDefaultProvider,
     providerInput,
     setProviderInput,
     endpointUrlInput,
@@ -1025,13 +1031,19 @@ function AdminView({
               onDelete 로 내려 각 행에 삭제 버튼을 배선한다. loading 은 조회+삭제 in-flight 를 합성
               (providersLoading||deletingProvider — remove 패널 동형), error 는 삭제 실패를 우선 노출
               (deleteProviderError??providersError — mutation 우선). 성공 시 providersRefreshNonce bump
-              로 권위 재조회한다(낙관 제거 없음). 수정(PATCH)은 onEdit 배선 + 아래 인라인 폼(T-1137). */}
+              로 권위 재조회한다(낙관 제거 없음). 수정(PATCH)은 onEdit 배선 + 아래 인라인 폼(T-1137).
+              기본 provider 지정(T-1901)은 onSetDefault=handleSetDefaultProvider 배선으로 아직 기본이
+              아닌 각 행에 "기본으로 지정" 버튼을 띄운다(PUT /api/llm/providers/default → 성공 시
+              권위 재조회, 낙관 이동 없음). loading 에 settingDefault 를, error 에 setDefaultError 를
+              합성하되 error 우선순위를 setDefault → delete → 조회 순으로 둔 것은 방금 사용자가 한
+              mutation 의 실패를 가장 먼저 보여주는 게 진단에 유리하기 때문이다(mutation 우선 규약). */}
           <LlmProviderConfigList
             providers={providerConfigs}
-            loading={providersLoading || deletingProvider}
-            error={deleteProviderError ?? providersError}
+            loading={providersLoading || deletingProvider || settingDefault}
+            error={setDefaultError ?? deleteProviderError ?? providersError}
             onDelete={handleDeleteProvider}
             onEdit={handleEditProvider}
+            onSetDefault={handleSetDefaultProvider}
           />
           {/* provider 수정(T-1137, R-96) — 인라인 수정 폼. LlmProviderConfigList 각 행의 "수정"
               버튼(onEdit=handleEditProvider)이 편집 대상 id 를 세팅하면(editingProviderId !== null)

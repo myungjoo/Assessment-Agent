@@ -2240,6 +2240,137 @@ describe('AdminView — provider 수정 배선 (정적 렌더, T-1137)', () => {
   });
 });
 
+// R-112 — T-1901 기본 provider 지정 배선 렌더 검증. Admin 등급에서 목록 각 행에 "기본으로 지정"
+// 버튼(onSetDefault=handleSetDefaultProvider 배선)이 마운트되고, 이미 기본인 행 · loading · error ·
+// 빈 목록 · 비-Admin 경계에서는 버튼이 노출되지 않음을 정적 markup 으로 단언한다(클릭→PUT 발사
+// 자체는 runSetDefaultProvider 단위 test + LlmProviderConfigList 컴포넌트 onSetDefault test 가
+// cover — 본 파일은 jsdom 미사용 정적 렌더라 이벤트 비검증). T-1137 배선 블록 형식을 mirror 한다.
+describe('AdminView — 기본 provider 지정 배선 (정적 렌더, T-1901)', () => {
+  // 전원 비-default 인 provider 2 건 — 버튼이 행 수만큼 렌더되는 기준 fixture.
+  const CONFIG_ROWS: LlmProviderRow[] = [
+    { id: 'cfg1', provider: 'openai', modelId: 'gpt-4o' },
+    { id: 'cfg2', provider: 'anthropic', modelId: 'claude-3' },
+  ];
+  // 한 행만 기본인 fixture — 그 행에서만 버튼이 빠지고 배지가 대신 렌더된다(엄격 boolean true).
+  const ONE_DEFAULT_ROWS: LlmProviderRow[] = [
+    { id: 'cfg1', provider: 'openai', modelId: 'gpt-4o', isDefault: true },
+    { id: 'cfg2', provider: 'anthropic', modelId: 'claude-3' },
+  ];
+  // 모든 행이 기본인 경계 fixture — backend 불변식 위반 응답이어도 web 은 교정 없이 렌더한다.
+  const ALL_DEFAULT_ROWS: LlmProviderRow[] = [
+    { id: 'cfg1', provider: 'openai', modelId: 'gpt-4o', isDefault: true },
+    { id: 'cfg2', provider: 'anthropic', modelId: 'claude-3', isDefault: true },
+  ];
+  const SET_DEFAULT_BUTTON = '>기본으로 지정</button>';
+  const BADGE_TESTID = 'data-testid="llm-provider-default-badge"';
+  const countOccurrences = (haystack: string, needle: string) =>
+    haystack.split(needle).length - 1;
+
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // happy-path — Admin + 전원 비-default 목록이면 "기본으로 지정" 버튼이 provider 수만큼 렌더된다.
+  it('Admin + 전원 비-default 목록이면 각 행에 기본 지정 버튼을 렌더한다 (happy-path — onSetDefault 배선)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: CONFIG_ROWS, loading: false, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('기본으로 지정');
+    expect(countOccurrences(html, SET_DEFAULT_BUTTON)).toBe(CONFIG_ROWS.length);
+    // 전원 비-default 라 배지는 하나도 렌더되지 않는다(버튼과 배지가 배타적임을 함께 고정).
+    expect(countOccurrences(html, BADGE_TESTID)).toBe(0);
+  });
+
+  // error path — provider 조회 error 가 truthy 면 컴포넌트 error 우선 분기가 배선을 타고 재현돼
+  // 목록 대신 alert 만 렌더되고 기본 지정 버튼은 0 이다(error 합성 setDefaultError??delete??조회).
+  it('provider 조회 error 시 목록 대신 alert 만 렌더되고 기본 지정 버튼이 0 이다 (error path)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: {
+        data: undefined,
+        loading: false,
+        error: 'HTTP 500: Internal Server Error',
+      },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('HTTP 500: Internal Server Error');
+    expect(countOccurrences(html, SET_DEFAULT_BUTTON)).toBe(0);
+  });
+
+  // branch ① — 한 행이 isDefault:true 면 그 행에는 버튼이 빠지고(전체 − 1) "기본" 배지가 렌더된다.
+  it('한 행이 기본이면 그 행만 버튼이 빠지고 기본 배지가 렌더된다 (branch — isDefault true 행)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: ONE_DEFAULT_ROWS, loading: false, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(countOccurrences(html, SET_DEFAULT_BUTTON)).toBe(
+      ONE_DEFAULT_ROWS.length - 1,
+    );
+    expect(countOccurrences(html, BADGE_TESTID)).toBe(1);
+  });
+
+  // branch ② — providersLoading:true 면 loading 우선 분기로 진행 표시만 렌더되고 버튼은 0 이다.
+  it('provider 조회 loading 중에는 진행 표시만 렌더되고 기본 지정 버튼이 0 이다 (branch — loading 우선)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: CONFIG_ROWS, loading: true, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('불러오는 중…');
+    expect(countOccurrences(html, SET_DEFAULT_BUTTON)).toBe(0);
+  });
+
+  // negative ① — 비-Admin 등급이면 목록 패널 자체가 미마운트돼 버튼이 0 이다(fail-closed gating).
+  it('비-Admin 등급이면 기본 지정 버튼을 마운트하지 않는다 (negative — gating 경계)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: CONFIG_ROWS, loading: false, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+      [AUTH_ME]: { data: { role: 'User' }, loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(countOccurrences(html, SET_DEFAULT_BUTTON)).toBe(0);
+    expect(html).not.toContain('<span>openai</span>');
+  });
+
+  // negative ② — provider 목록이 빈 배열이면 빈 상태 문구만 렌더되고 버튼은 0 이다.
+  it('provider 목록이 비어 있으면 빈 상태 문구만 렌더되고 버튼이 0 이다 (negative — 빈 목록)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: [], loading: false, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain('등록된 LLM provider 가 없습니다');
+    expect(countOccurrences(html, SET_DEFAULT_BUTTON)).toBe(0);
+  });
+
+  // negative ③ — 모든 행이 기본인 경계에서는 무의미한 재지정 진입점을 하나도 노출하지 않는다.
+  it('모든 행이 기본이면 기본 지정 버튼이 하나도 렌더되지 않는다 (negative — 전원 default 경계)', () => {
+    setRoutes({
+      [GROUPS]: { data: [], loading: false, error: undefined },
+      [PROVIDERS]: { data: ALL_DEFAULT_ROWS, loading: false, error: undefined },
+      [MAPPINGS]: { data: [], loading: false, error: undefined },
+    });
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(countOccurrences(html, SET_DEFAULT_BUTTON)).toBe(0);
+    expect(countOccurrences(html, BADGE_TESTID)).toBe(
+      ALL_DEFAULT_ROWS.length,
+    );
+  });
+});
+
 // R-112 — T-1138 provider 입력 5-provider select constraint 검증. 생성·수정 폼의 provider 입력이
 // free-text 가 아니라 5-provider <select> 로 constrain 됨을 (1) LLM_PROVIDER_OPTIONS 상수 정합
 // (2) resolveProviderSelectValue 순수 helper 의 분기(지원값→그대로 / 미지원·빈값→placeholder
