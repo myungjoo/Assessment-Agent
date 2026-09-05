@@ -15,7 +15,7 @@ import {
   ConflictException,
   NotFoundException,
 } from "@nestjs/common";
-import type { LlmProviderConfig } from "@prisma/client";
+import type { LlmDefaultProvider, LlmProviderConfig } from "@prisma/client";
 
 import { buildPrismaError } from "../../test/helpers/prisma-mock";
 
@@ -40,9 +40,20 @@ function buildConfigFixture(
   };
 }
 
+// LlmDefaultProvider 슬롯 fixture (ADR-0062 §Decision 2 의 고정 id 1 row).
+function buildSlotFixture(llmProviderConfigId: string): LlmDefaultProvider {
+  return {
+    id: "default",
+    llmProviderConfigId,
+    createdAt: new Date("2026-02-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+  };
+}
+
 // repository / cipher mock factory — 각 test 마다 새 instance 를 만들어 호출
-// 카운터가 격리되도록 한다. service 가 사용하는 findMany / findById / create
-// (repository) + encrypt (cipher) 메서드를 mock 으로 정의.
+// 카운터가 격리되도록 한다. findMany / findById / create (repository) + encrypt
+// (cipher) + findSlot / setSlot (기본 provider 슬롯, T-1863) 을 mock 정의하며,
+// findSlot 기본값은 **슬롯 부재** 라 기존 test 가 그대로 성립한다 (isDefault false).
 function buildService(): {
   service: LlmProviderConfigService;
   repo: {
@@ -53,6 +64,7 @@ function buildService(): {
     delete: jest.Mock;
   };
   cipher: { encrypt: jest.Mock };
+  defaultRepo: { findSlot: jest.Mock; setSlot: jest.Mock };
 } {
   const repo = {
     findMany: jest.fn(),
@@ -65,8 +77,16 @@ function buildService(): {
   const cipher = {
     encrypt: jest.fn(),
   };
-  const service = new LlmProviderConfigService(repo as never, cipher as never);
-  return { service, repo, cipher };
+  const defaultRepo = {
+    findSlot: jest.fn().mockResolvedValue(null),
+    setSlot: jest.fn(),
+  };
+  const service = new LlmProviderConfigService(
+    repo as never,
+    cipher as never,
+    defaultRepo as never,
+  );
+  return { service, repo, cipher, defaultRepo };
 }
 
 // CreateLlmProviderConfigDto fixture — 유효한 4 필드. negative case 는 1 필드만 변형.
@@ -99,7 +119,8 @@ describe("LlmProviderConfigService", () => {
 
       expect(repo.findMany).toHaveBeenCalledTimes(1);
       expect(result).toHaveLength(2);
-      // apiKey 를 제외한 6 필드가 원본값 그대로 보존되는지 확인.
+      // apiKey 를 제외한 6 필드가 원본값 그대로 보존되고, 파생 필드 isDefault 가
+      // 더해져 7 필드가 되는지 확인 (슬롯 부재이므로 false).
       expect(result[0]).toEqual({
         id: "cfg-1",
         provider: "openai",
@@ -107,9 +128,56 @@ describe("LlmProviderConfigService", () => {
         modelId: "gpt-test",
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
         updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        isDefault: false,
       });
       expect(result[1].id).toBe("cfg-2");
       expect(result[1].provider).toBe("anthropic");
+    });
+
+    // ------------------------------------------------------------------
+    // Branch (isDefault 파생 — ADR-0062 §Decision 3): 슬롯이 가리키는 row 만 true.
+    // ------------------------------------------------------------------
+    it("슬롯이 가리키는 row 만 isDefault 가 true 다 (branch — 정확히 1 row true)", async () => {
+      const { service, repo, defaultRepo } = buildService();
+      repo.findMany.mockResolvedValueOnce([
+        buildConfigFixture({ id: "cfg-1" }),
+        buildConfigFixture({ id: "cfg-2" }),
+        buildConfigFixture({ id: "cfg-3" }),
+      ]);
+      defaultRepo.findSlot.mockResolvedValueOnce(buildSlotFixture("cfg-2"));
+
+      const result = await service.findAll();
+
+      expect(result.map((view) => view.isDefault)).toEqual([
+        false,
+        true,
+        false,
+      ]);
+      // N+1 금지 — row 가 3 개여도 슬롯 조회는 요청당 1 회.
+      expect(defaultRepo.findSlot).toHaveBeenCalledTimes(1);
+    });
+
+    // Branch (슬롯 부재) — 기본 미지정이면 모든 row 가 false (자동 승격 0 — 제약 1).
+    it("슬롯이 없으면 모든 row 의 isDefault 가 false 다 (branch — 기본 미지정, 자동 승격 0)", async () => {
+      const { service, repo, defaultRepo } = buildService();
+      repo.findMany.mockResolvedValueOnce([
+        buildConfigFixture({ id: "cfg-1" }),
+        buildConfigFixture({ id: "cfg-2" }),
+      ]);
+      defaultRepo.findSlot.mockResolvedValueOnce(null);
+
+      const result = await service.findAll();
+
+      expect(result.every((view) => view.isDefault === false)).toBe(true);
+    });
+
+    // Negative — 슬롯 조회가 reject 하면 swallow 없이 그대로 propagate.
+    it("findSlot 이 reject 하면 error 를 그대로 전파한다 (negative — 슬롯 조회 DB 장애)", async () => {
+      const { service, repo, defaultRepo } = buildService();
+      repo.findMany.mockResolvedValueOnce([buildConfigFixture()]);
+      defaultRepo.findSlot.mockRejectedValueOnce(new Error("slot-db-down"));
+
+      await expect(service.findAll()).rejects.toThrow("slot-db-down");
     });
 
     // ------------------------------------------------------------------
@@ -194,7 +262,7 @@ describe("LlmProviderConfigService", () => {
       // repository.findById 가 정확한 id 인자로 1 회 호출됨 검증.
       expect(repo.findById).toHaveBeenCalledTimes(1);
       expect(repo.findById).toHaveBeenCalledWith("existing-id");
-      // apiKey 를 제외한 6 필드가 원본값 그대로 보존.
+      // apiKey 를 제외한 6 필드가 원본값 그대로 보존 + 파생 isDefault = 7 필드.
       expect(result).toEqual({
         id: "existing-id",
         provider: "anthropic",
@@ -202,6 +270,7 @@ describe("LlmProviderConfigService", () => {
         modelId: "gpt-test",
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
         updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        isDefault: false,
       });
     });
 
@@ -684,6 +753,100 @@ describe("LlmProviderConfigService", () => {
 
       // 404/409 로 잘못 변환하지 않고 원본 그대로 propagate.
       await expect(service.delete("any-id")).rejects.toThrow("db-down");
+    });
+  });
+
+  // ====================================================================
+  // setDefault() — T-1864 acceptance (ADR-0062 §Decision 3). 슬롯 upsert 1 회 +
+  // P2003/P2025 → 404 변환 + 지정된 config 의 view (isDefault === true) 반환.
+  // ====================================================================
+  describe("setDefault()", () => {
+    // Happy path — 슬롯 교체 후 지정된 config 의 view 를 isDefault true 로 반환.
+    it("setSlot 을 호출하고 isDefault true 인 view 를 반환한다 (happy — 기본 provider 지정)", async () => {
+      const { service, repo, defaultRepo } = buildService();
+      defaultRepo.setSlot.mockResolvedValueOnce(buildSlotFixture("cfg-target"));
+      repo.findById.mockResolvedValueOnce(
+        buildConfigFixture({ id: "cfg-target", provider: "anthropic" }),
+      );
+
+      const result = await service.setDefault("cfg-target");
+
+      expect(defaultRepo.setSlot).toHaveBeenCalledTimes(1);
+      expect(defaultRepo.setSlot).toHaveBeenCalledWith("cfg-target");
+      expect(result.id).toBe("cfg-target");
+      expect(result.isDefault).toBe(true);
+      // 쓰기 직후 read-your-write — 슬롯을 다시 읽지 않는다 (조회 1 회 절약).
+      expect(defaultRepo.findSlot).not.toHaveBeenCalled();
+      // negative (핵심) — 지정 응답에도 apiKey 가 없다 (never-read-back 공유).
+      expect(result).not.toHaveProperty("apiKey");
+      expect(JSON.stringify(result)).not.toContain("sk-super-secret-plaintext");
+    });
+
+    // Error path / branch (P2003) — "가리키려는 config 가 없다" → 404. delete 의
+    // P2003 (409) 과 방향이 반대임을 박제 (ADR-0062 §Decision 3).
+    it("setSlot 이 P2003 reject 하면 NotFoundException (404) 으로 변환한다 (error/branch — 부재 config 지정)", async () => {
+      const { service, repo, defaultRepo } = buildService();
+      defaultRepo.setSlot.mockRejectedValue(
+        buildPrismaError("P2003", "Foreign key constraint failed"),
+      );
+
+      await expect(service.setDefault("missing-id")).rejects.toThrow(
+        NotFoundException,
+      );
+      // 409 (in-use) 로 잘못 변환되지 않음 — 같은 code, 반대 방향.
+      await expect(service.setDefault("missing-id")).rejects.not.toThrow(
+        ConflictException,
+      );
+      expect(repo.findById).not.toHaveBeenCalled();
+    });
+
+    // Error path / branch (P2025) — 부재 대상은 어느 code 로 오든 404 로 수렴.
+    it("setSlot 이 P2025 reject 하면 NotFoundException (404) 으로 변환한다 (error/branch — record not found)", async () => {
+      const { service, defaultRepo } = buildService();
+      defaultRepo.setSlot.mockRejectedValueOnce(
+        buildPrismaError("P2025", "Record to update not found"),
+      );
+
+      await expect(service.setDefault("missing-id")).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    // Negative — 빈 id 는 DTO 책임 (T-1865). service 는 raw forward 하고 FK 위반을
+    // 404 로 표면화한다 (임의 보정 / silent 성공 금지).
+    it("빈 문자열 id 도 그대로 forward 하고 P2003 을 404 로 표면화한다 (negative — 빈 id)", async () => {
+      const { service, defaultRepo } = buildService();
+      defaultRepo.setSlot.mockRejectedValueOnce(
+        buildPrismaError("P2003", "Foreign key constraint failed"),
+      );
+
+      await expect(service.setDefault("")).rejects.toThrow(NotFoundException);
+      expect(defaultRepo.setSlot).toHaveBeenCalledWith("");
+    });
+
+    // Negative — P2003/P2025 아닌 error (무관 Prisma code · code 없는 DB 장애) 는
+    // 404 로 잘못 변환하지 않고 raw propagate.
+    it("P2003/P2025 아닌 error 는 변환 없이 그대로 전파한다 (negative — raw propagate)", async () => {
+      const { service, defaultRepo } = buildService();
+      defaultRepo.setSlot
+        .mockRejectedValueOnce(buildPrismaError("P2002", "Unique constraint"))
+        .mockRejectedValueOnce(new Error("db-down"));
+
+      await expect(service.setDefault("any-id")).rejects.toMatchObject({
+        code: "P2002",
+      });
+      await expect(service.setDefault("any-id")).rejects.toThrow("db-down");
+    });
+
+    // Branch (방어적) — 슬롯은 잡혔으나 config 조회가 null (경합 삭제) → 404.
+    it("슬롯 교체 후 config 조회가 null 이면 NotFoundException 을 throw 한다 (branch — 경합 삭제 방어)", async () => {
+      const { service, repo, defaultRepo } = buildService();
+      defaultRepo.setSlot.mockResolvedValueOnce(buildSlotFixture("cfg-race"));
+      repo.findById.mockResolvedValueOnce(null);
+
+      await expect(service.setDefault("cfg-race")).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });
