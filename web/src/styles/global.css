@@ -121,3 +121,25 @@ input, select {
   color: var(--color-surface);
   font-size: 0.8rem;
 }
+
+/* 관리 화면 섹션 탭/구획 내비게이션 anchor — 정본 상수는
+   components/AdminSectionNav.tsx 의 className 3 종이다 (REQ-080). */
+.admin-section-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-section-nav__item {
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-md);
+  color: var(--color-muted);
+}
+
+.admin-section-nav__item--active {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
