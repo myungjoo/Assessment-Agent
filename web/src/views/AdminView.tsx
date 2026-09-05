@@ -221,10 +221,11 @@ import {
 // 정리했다(T-1887 의 `Difficulty` type 선례 동형). 다섯 심볼 모두 파일 끝 배럴의 재수출 대상이
 // 아니어서 제거해도 공개 표면은 한 글자도 바뀌지 않는다 — 배럴이 재수출하는 축 러너 4 · 경로 빌더 ·
 // 행 액션 5 · 타입 6 은 그대로 둔다.
-// 그룹 목록 마운트 대상(T-1148, T-1147 presentational) — default export 만 가져온다. GroupList 도
-// 자체 GroupRow 를 named export 하지만 여기서는 import 하지 않고 AdminView 로컬 GroupRow(L327)를
-// 그대로 props 로 넘긴다(구조적 타입 호환 — 중복 식별자·이름 충돌 회피, task Required Reading).
-import GroupList from '../components/GroupList';
+// 그룹 관리 섹션(껍데기 + 목록 축) 마운트 대상(T-1909 — PLAN 184 행 경로 2 슬라이스 1/2).
+// 종전 GroupList default import 는 그 섹션 컴포넌트로 옮겨가 여기서는 미사용이 됐다(배럴
+// 재수출 대상도 아니라 공개 표면 무변경 — AdminCollectionTargetsSection 선례 동형). 로컬
+// GroupRow 를 그대로 props 로 넘기는 구조적 타입 호환은 종전과 같다.
+import AdminGroupsSection from './AdminGroupsSection';
 // 파트 목록 마운트 대상(T-1152, T-1151 presentational) — default PartList 를 가져온다. 조회
 // 제네릭·props 타입에 쓰던 named PartRow 타입은 T-1893 이 파트 축 배선을 useAdminParts 로 옮기며
 // 이 파일에서 미사용이 되어 함께 정리했다(배럴 재수출 대상도 아니라 공개 표면 무변경 — 바로 아래
@@ -343,7 +344,6 @@ import {
 // 파일 끝 export 배럴이 공개 심볼 4 개를 그대로 re-export 하므로 기존 spec 의 `from './AdminView'`
 // 는 무수정으로 산다(공개 표면 무변경).
 import {
-  ADMIN_SECTION_GROUPS_ID,
   ADMIN_SECTION_PARTS_ID,
   ADMIN_SECTION_PERSONS_ID,
   ADMIN_SECTION_USERS_ID,
@@ -354,7 +354,6 @@ import {
   EMPTY_PART_PERSON_TEXT,
   EXPORT_SCOPE_OPTIONS,
   FALLBACK_GROUP_NAME,
-  GROUP_HEADING,
   INSTANCE_ACCESS_NO_USER_LABEL,
   LLM_PROVIDER_OPTIONS,
   LLM_PROVIDER_PLACEHOLDER_LABEL,
@@ -1647,15 +1646,17 @@ function AdminView({
           <p role="status">{SERVICE_IDENTITY_NOT_ADMIN_NOTICE_TEXT}</p>
         )}
       </section>
-      {/* 그룹 관리(T-1146, REQ-028/REQ-049) — 그룹 생성 폼을 담는 별도 섹션. 그룹 목록은 기존 select
-          조회부(useApiResource<GroupRow[]>)가 소유하므로 본 slice 는 생성 성공 시 groupsRefreshNonce
-          bump 로 그 조회를 권위 재조회만 갱신한다(별도 목록 카드 UI 는 Out of Scope). name 단일
-          controlled input + "그룹 추가" 버튼으로 POST /api/groups(body `{ name }`)를 발사하고, name 이
-          빈·공백이거나 진행 중이면 버튼을 비활성화해 발사를 억제한다(runCreateGroup 도 no-op 가드로 이중
-          방어), 입력은 진행 중에도 비활성화한다. 실패 문구(createGroupError)는 폼 하단에 role="alert" 로
-          안전 표시한다. Group.name 은 @unique 미정의라 409 특수 분기 없이 일반 error 로 표면화한다. */}
-      <section id={ADMIN_SECTION_GROUPS_ID} aria-label={GROUP_HEADING}>
-        <h2>{GROUP_HEADING}</h2>
+      {/* 그룹 관리(T-1146 생성 폼 · T-1148 목록 마운트 · T-1149 삭제 · T-1150 수정, T-1909 섹션
+          분해 1/2, REQ-028/REQ-049) — 섹션 껍데기 · <h2> · 목록 축은 AdminGroupsSection 으로 옮겼고
+          여기서는 그룹 조회 값(data/groupLoading/groupError)과 mutation 상태 · 핸들러만 내려보낸다.
+          생성 폼 · 인라인 수정 폼은 아직 이 컨테이너 소유라 children 으로 그대로 통과시킨다(2/2). */}
+      <AdminGroupsSection
+        groups={data ?? []}
+        loading={groupLoading || deletingGroup}
+        error={deleteGroupError ?? groupError}
+        onDelete={handleDeleteGroup}
+        onEdit={handleEditGroup}
+      >
         <div>
           <input
             aria-label="추가할 그룹 이름"
@@ -1711,25 +1712,7 @@ function AdminView({
             ) : null}
           </div>
         ) : null}
-        {/* 그룹 목록 카드(T-1148 마운트, T-1149 삭제 배선, REQ-028/REQ-049) — 기존 그룹 조회
-            (useApiResource<GroupRow[]>)의 data/loading/error 를 재사용해(새 fetch 추가 없음 —
-            double-fetch 회피) GroupList 로 내려보낸다. data 가 undefined(미조회/진행 중/실패)이면
-            `?? []` 로 빈 배열을 안전하게 넘겨 throw 없이 렌더한다(경계 방어). onDelete(handleDeleteGroup)
-            를 내려 각 행에 삭제 버튼을 배선한다(T-1149, PersonList onDelete 동형). loading 은 조회+삭제
-            in-flight 를 합성(groupLoading||deletingGroup), error 는 삭제 실패를 우선 노출
-            (deleteGroupError??groupError — mutation 우선). 성공 시 groupsRefreshNonce bump 로 권위
-            재조회한다(낙관 제거 없음). onEdit(handleEditGroup)를 내려 각 행에 수정 버튼을 배선한다
-            (T-1150, PersonList onEdit 동형 — 클릭 시 대상 id 로 인라인 수정 폼을 연다). 로컬 GroupRow 를
-            그대로 넘긴다(GroupList 의 named GroupRow 미import — 구조적 타입 호환). ADR-0041 Decision 1 —
-            presentational 컴포넌트는 fetch 를 모른다. */}
-        <GroupList
-          groups={data ?? []}
-          loading={groupLoading || deletingGroup}
-          error={deleteGroupError ?? groupError}
-          onDelete={handleDeleteGroup}
-          onEdit={handleEditGroup}
-        />
-      </section>
+      </AdminGroupsSection>
       {/* 파트 관리(T-1152 마운트, T-1153 생성 배선, T-1154 삭제 배선, T-1155 수정 배선,
           REQ-028/REQ-049) — 그룹
           마운트(T-1148)와 동형이나 재사용할 기존 파트 fetch 가 없어 useApiResource<PartRow[]>(PARTS_PATH)
