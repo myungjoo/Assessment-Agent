@@ -10,7 +10,7 @@ import {
   EMPTY_COLLECTION_TARGET_TEXT,
 } from './adminViewConstants';
 
-// R-112 — T-1907(수집 대상 패널 분해 1/2) presentational slice 검증. AdminSectionNav.test.tsx 와
+// R-112 — T-1907+T-1908(수집 대상 패널 분해 1/2 · 2/2) presentational slice 검증. AdminSectionNav.test.tsx 와
 // 같은 관례로 jsdom·@testing-library 없이 renderToStaticMarkup 정적 렌더 문자열만 본다(dep 0).
 // 이벤트 발화 계약은 이 껍데기의 책임이 아니라 CollectionTargetList 의 기존 spec 소관이므로,
 // 여기서는 "콜백 유무에 따라 컨트롤이 렌더되는가"라는 통과 계약만 마크업으로 검증한다.
@@ -19,7 +19,17 @@ const rows: CollectionTargetRow[] = [
   { id: 't1', type: 'GITHUB', instanceKey: 'gh-main', endpoint: 'https://gh.example', orgs: ['acme'] },
 ];
 
-const baseProps: AdminCollectionTargetsSectionProps = { targets: rows };
+// 등록 폼 축의 값 · 변경 콜백은 필수 prop 이라 기본값을 여기서 한 번만 고정한다(빈 문자열은
+// "입력 전" 상태 — 폼이 렌더되더라도 submit 은 차단된 채로 나온다).
+const baseProps: AdminCollectionTargetsSectionProps = {
+  targets: rows,
+  createType: 'GITHUB',
+  createInstanceKey: 'gh-main',
+  createEndpoint: 'https://gh.example',
+  onCreateTypeChange: () => {},
+  onCreateInstanceKeyChange: () => {},
+  onCreateEndpointChange: () => {},
+};
 
 const render = (props: Partial<AdminCollectionTargetsSectionProps> = {}) =>
   renderToStaticMarkup(<AdminCollectionTargetsSection {...baseProps} {...props} />);
@@ -66,13 +76,82 @@ describe('AdminCollectionTargetsSection 렌더', () => {
     expect(render()).toContain('<ul>');
   });
 
-  it('children 을 목록 뒤 슬롯에 통과시키고, 미전달이어도 정상 렌더한다 (branch (c) / negative (c))', () => {
-    const html = render({ children: <p>등록 폼 자리</p> });
-    expect(html).toContain('<p>등록 폼 자리</p>');
-    expect(html.indexOf('등록 폼 자리')).toBeGreaterThan(html.indexOf('</ul>'));
-    const noChildren = render();
-    expect(noChildren).not.toContain('<p>');
-    expect(noChildren).toContain(`id="${ADMIN_SECTION_COLLECTION_TARGETS_ID}"`);
+  it('오류 3 종·등록 폼을 목록 뒤에 선언 순서대로 렌더한다 (happy-path — children 슬롯 대체)', () => {
+    const html = render({
+      deleteError: '삭제 실패',
+      toggleError: '토글 실패',
+      updateError: '저장 실패',
+      onCreateSubmit: () => {},
+    });
+    // 목록 → 삭제 → 토글 → 편집 저장 → 등록 폼 순서가 이동 전 AdminView JSX 와 같다.
+    const order = ['</ul>', '삭제 실패', '토글 실패', '저장 실패', '<form'].map(
+      (needle) => html.indexOf(needle),
+    );
+    order.forEach((index) => expect(index).toBeGreaterThan(-1));
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+  });
+
+  it('목록 error 와 오류 alert 3 종이 동시에 와도 각 표면이 자기 자리에 렌더된다 (error path)', () => {
+    const html = render({
+      error: '목록 실패',
+      deleteError: '삭제 실패',
+      toggleError: '토글 실패',
+      updateError: '저장 실패',
+      onCreateSubmit: () => {},
+    });
+    expect((html.match(/role="alert"/g) ?? []).length).toBe(4);
+    expect(html.indexOf('목록 실패')).toBeLessThan(html.indexOf('삭제 실패'));
+    expect(html).toContain('<form');
+  });
+
+  it('deleteError·toggleError·updateError 는 각각 유/무로 독립 렌더된다 (branch (a)(b)(c) / negative (b))', () => {
+    expect(render({ deleteError: '삭제 실패' })).toContain(
+      '<div role="alert">삭제 실패</div>',
+    );
+    expect(render({ toggleError: '토글 실패' })).toContain(
+      '<div role="alert">토글 실패</div>',
+    );
+    expect(render({ updateError: '저장 실패' })).toContain(
+      '<div role="alert">저장 실패</div>',
+    );
+    // 셋이 동시에 truthy 여도 서로 자리를 뺏지 않는다(같은 alert 공유 금지 회귀 차단).
+    const all = render({
+      deleteError: '삭제 실패',
+      toggleError: '토글 실패',
+      updateError: '저장 실패',
+    });
+    expect((all.match(/role="alert"/g) ?? []).length).toBe(3);
+    // 하나만 준 경우 나머지 둘은 미렌더다(빈 alert 를 남기지 않는다).
+    expect(render({ deleteError: '삭제 실패' })).not.toContain('토글 실패');
+  });
+
+  it('onCreateSubmit 이 있으면 등록 폼이, 없으면 폼과 createError 가 모두 미렌더다 (branch (d) / negative (c))', () => {
+    const withForm = render({ onCreateSubmit: () => {}, createError: '등록 실패' });
+    expect(withForm).toContain('<form');
+    expect(withForm).toContain('등록 실패');
+    // 콜백 미전달(비-Admin 경로) — 폼이 없으므로 그 안의 createError 문구도 노출되지 않는다.
+    const noForm = render({ createError: '등록 실패' });
+    expect(noForm).not.toContain('<form');
+    expect(noForm).not.toContain('등록 실패');
+  });
+
+  it('오류 3 종·onCreateSubmit 이 모두 undefined 면 alert·폼 컨트롤이 0 개다 (negative (a) — 비-Admin 경로)', () => {
+    const html = render();
+    expect(html).not.toContain('role="alert"');
+    expect(html).not.toContain('<form');
+    expect(html).not.toContain('<select');
+    expect(html).toContain('gh-main');
+  });
+
+  it('등록 입력값이 빈 문자열이어도 throw 없이 렌더되고 submit 이 차단된다 (negative (d))', () => {
+    const html = render({
+      createType: '',
+      createInstanceKey: '',
+      createEndpoint: '',
+      onCreateSubmit: () => {},
+    });
+    expect(html).toContain('<form');
+    expect(html).toContain('<button type="submit" disabled=""');
   });
 
   it('editingId 가 행과 일치하면 인라인 편집 입력이 뜨고, 없으면 뜨지 않는다 (branch (d))', () => {
