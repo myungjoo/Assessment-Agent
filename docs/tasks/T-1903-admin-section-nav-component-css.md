@@ -2,7 +2,7 @@
 id: T-1903
 title: Admin 섹션 탭/구획 내비게이션 순수 component + 전역 CSS anchor 신설
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-080]
 independentStream: web-admin-section-nav
