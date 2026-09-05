@@ -2,7 +2,7 @@
 id: T-1901
 title: Web UI — AdminView 에 onSetDefault 배선 (쓰기 축 B3, T-1866 재split 3/3)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-051]
 independentStream: llm-default-provider
