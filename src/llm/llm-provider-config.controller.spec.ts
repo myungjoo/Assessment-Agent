@@ -84,6 +84,7 @@ function buildServiceMock(): {
     create: jest.Mock;
     update: jest.Mock;
     delete: jest.Mock;
+    setDefault: jest.Mock;
   };
 } {
   const serviceMock = {
@@ -92,6 +93,7 @@ function buildServiceMock(): {
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+    setDefault: jest.fn(),
   };
   return {
     service: serviceMock as unknown as LlmProviderConfigService,
@@ -319,6 +321,69 @@ describe("LlmProviderConfigController (unit)", () => {
     const controller = new LlmProviderConfigController(service);
     await expect(controller.delete("any-id")).rejects.toBe(rawError);
   });
+
+  // -----------------------------------------------------------------------
+  // setDefault (PUT /api/llm/providers/default) — T-1865. happy / error /
+  // 라우트 선언 순서 회귀. controller 는 dto.llmProviderConfigId 만 꺼내
+  // service.setDefault 로 raw forward (자체 분기 0).
+  // -----------------------------------------------------------------------
+  it("PUT default — service.setDefault 를 body 의 llmProviderConfigId 로 호출 + 결과 반환 (happy — forward)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const fixture = buildViewFixture({ id: "cfg-9", isDefault: true });
+    serviceMock.setDefault.mockResolvedValueOnce(fixture);
+
+    const controller = new LlmProviderConfigController(service);
+    const result = await controller.setDefault({
+      llmProviderConfigId: "cfg-9",
+    });
+
+    expect(serviceMock.setDefault).toHaveBeenCalledTimes(1);
+    expect(serviceMock.setDefault).toHaveBeenCalledWith("cfg-9");
+    expect(result).toBe(fixture);
+    expect(result.isDefault).toBe(true);
+  });
+
+  it("PUT default — service 의 NotFoundException (부재 id — P2003/P2025 수렴) 을 그대로 propagate (negative 핵심)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const notFound = new NotFoundException(
+      "llm provider config not found: gone",
+    );
+    serviceMock.setDefault.mockRejectedValueOnce(notFound);
+
+    const controller = new LlmProviderConfigController(service);
+
+    await expect(
+      controller.setDefault({ llmProviderConfigId: "gone" }),
+    ).rejects.toBe(notFound);
+  });
+
+  it("PUT default — service 가 던진 raw Error (DB 장애) 를 삼키지 않고 그대로 propagate (error path)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const rawError = new Error("slot-upsert-failed");
+    serviceMock.setDefault.mockRejectedValueOnce(rawError);
+
+    const controller = new LlmProviderConfigController(service);
+
+    await expect(
+      controller.setDefault({ llmProviderConfigId: "cfg-1" }),
+    ).rejects.toBe(rawError);
+  });
+
+  // 라우트 선언 순서 회귀 (정적) — NestJS path matching 은 **선언 순서 우선** 이라
+  // 정적 segment `default` 핸들러가 `:id` 동적 segment 핸들러들보다 뒤로 밀리면
+  // (특히 이후 `@Put(":id")` 가 추가되면) `PUT /providers/default` 가 조용히
+  // `:id = "default"` 로 오매칭된다. prototype 의 메서드 선언 순서로 그 위치를 박제.
+  it("라우트 선언 순서 — setDefault 핸들러가 모든 :id 핸들러보다 앞에 선언됨 (회귀 방지)", () => {
+    const order = Object.getOwnPropertyNames(
+      LlmProviderConfigController.prototype,
+    );
+    const defaultIdx = order.indexOf("setDefault");
+
+    expect(defaultIdx).toBeGreaterThanOrEqual(0);
+    for (const idHandler of ["findById", "update", "delete"]) {
+      expect(order.indexOf(idHandler)).toBeGreaterThan(defaultIdx);
+    }
+  });
 });
 
 // -----------------------------------------------------------------------
@@ -336,6 +401,7 @@ describe("LlmProviderConfigController (RBAC guard integration)", () => {
     create: jest.Mock;
     update: jest.Mock;
     delete: jest.Mock;
+    setDefault: jest.Mock;
   };
 
   // 통과 JwtAuthGuard mock — req.user 박제 + true 반환.
@@ -364,6 +430,7 @@ describe("LlmProviderConfigController (RBAC guard integration)", () => {
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      setDefault: jest.fn(),
     };
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [LlmProviderConfigController],
@@ -930,6 +997,127 @@ describe("LlmProviderConfigController (RBAC guard integration)", () => {
       .delete("/api/llm/providers/cfg-x")
       .expect(500);
   });
+
+  // == PUT default — 기본 provider 재지정 endpoint (T-1865) ========================
+  // DTO validation (ValidationPipe) + RBAC + 404 변환 + 라우트 순서를 HTTP-level 검증.
+
+  // -- happy (Admin+ tier) + 라우트 순서 회귀 (HTTP-level) ------------------------
+  // `:id = "default"` 로 오매칭됐다면 :id 소비 메서드 (findById/update/delete) 중
+  // 하나가 불리거나 setDefault 가 body id 가 아닌 path segment 로 불렸을 것이다.
+  it("PUT default — Admin 통과 시 200 + setDefault(body id) 위임 + :id 핸들러로 흘러가지 않음 (happy + 라우트 순서 회귀)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.setDefault.mockResolvedValueOnce(
+      buildViewFixture({ id: "cfg-9", isDefault: true }),
+    );
+
+    const res = await request(app.getHttpServer())
+      .put("/api/llm/providers/default")
+      .send({ llmProviderConfigId: "cfg-9" })
+      .expect(200);
+
+    expect(serviceMock.setDefault).toHaveBeenCalledTimes(1);
+    expect(serviceMock.setDefault).toHaveBeenCalledWith("cfg-9");
+    expect(serviceMock.setDefault).not.toHaveBeenCalledWith("default");
+    expect(serviceMock.findById).not.toHaveBeenCalled();
+    expect(serviceMock.update).not.toHaveBeenCalled();
+    expect(serviceMock.delete).not.toHaveBeenCalled();
+    expect(res.body.isDefault).toBe(true);
+    expect(res.body).not.toHaveProperty("apiKey");
+  });
+
+  // -- negative — DTO / ValidationPipe 위반 4 종 전부 400 + service 미호출 ---------
+  // extra 키 (forbidNonWhitelisted) · 빈 문자열 (@IsNotEmpty) · wrong type
+  // (@IsString) · body 부재 (필수 필드 누락). undefined body 는 아예 .send 하지 않음.
+  it.each([
+    [
+      "extra 키 (forbidNonWhitelisted)",
+      { llmProviderConfigId: "cfg-9", isDefault: true },
+    ],
+    ["빈 문자열 (isNotEmpty)", { llmProviderConfigId: "" }],
+    ["wrong type — number (isString)", { llmProviderConfigId: 42 }],
+    ["body 부재 (missing field)", undefined],
+  ])(
+    "PUT default — %s 시 400 + service 미호출 (negative — DTO 검증)",
+    async (_label, body) => {
+      app = await buildApp({
+        jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+        roles: ALLOW_ALL_ROLES,
+      });
+
+      const req = request(app.getHttpServer()).put(
+        "/api/llm/providers/default",
+      );
+      await (body === undefined ? req : req.send(body)).expect(400);
+
+      expect(serviceMock.setDefault).not.toHaveBeenCalled();
+    },
+  );
+
+  // -- negative 핵심 — service NotFoundException (부재 id) → 404 -------------------
+  it("PUT default — service 가 NotFoundException throw 시 404 (negative 핵심 — 부재 id P2003/P2025 수렴)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.setDefault.mockRejectedValueOnce(
+      new NotFoundException("llm provider config not found: gone"),
+    );
+
+    await request(app.getHttpServer())
+      .put("/api/llm/providers/default")
+      .send({ llmProviderConfigId: "gone" })
+      .expect(404);
+  });
+
+  // -- negative — 401 / 403 --------------------------------------------------------
+  it("PUT default — JwtAuthGuard reject 시 401 + service 미호출 (negative — 인증 부재)", async () => {
+    app = await buildApp({
+      jwt: {
+        canActivate: () => {
+          throw new UnauthorizedException("Unauthorized");
+        },
+      },
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .put("/api/llm/providers/default")
+      .send({ llmProviderConfigId: "cfg-9" })
+      .expect(401);
+
+    expect(serviceMock.setDefault).not.toHaveBeenCalled();
+  });
+
+  it("PUT default — RolesGuard reject 시 403 + service 미호출 (negative — User actor Admin+ 미달)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("user-1", "User"),
+      roles: { canActivate: () => false },
+    });
+
+    await request(app.getHttpServer())
+      .put("/api/llm/providers/default")
+      .send({ llmProviderConfigId: "cfg-9" })
+      .expect(403);
+
+    expect(serviceMock.setDefault).not.toHaveBeenCalled();
+  });
+
+  // -- error path — service reject (DB 장애) → 500 (raw propagate) ------------------
+  it("PUT default — service reject (DB 장애) 시 500 + raw propagate (error path)", async () => {
+    app = await buildApp({
+      jwt: makeAllowingJwtGuard("admin-1", "Admin"),
+      roles: ALLOW_ALL_ROLES,
+    });
+    serviceMock.setDefault.mockRejectedValueOnce(new Error("db-down"));
+
+    await request(app.getHttpServer())
+      .put("/api/llm/providers/default")
+      .send({ llmProviderConfigId: "cfg-9" })
+      .expect(500);
+  });
 });
 
 // -----------------------------------------------------------------------
@@ -946,6 +1134,7 @@ describe("LlmProviderConfigController (real RolesGuard escalation 분기)", () =
     create: jest.Mock;
     update: jest.Mock;
     delete: jest.Mock;
+    setDefault: jest.Mock;
   };
 
   function makeAllowingJwtGuard(sub: string, role: string) {
@@ -972,6 +1161,7 @@ describe("LlmProviderConfigController (real RolesGuard escalation 분기)", () =
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      setDefault: jest.fn(),
     };
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [LlmProviderConfigController],
@@ -1132,6 +1322,36 @@ describe("LlmProviderConfigController (real RolesGuard escalation 분기)", () =
         .expect(204);
 
       expect(serviceMock.delete).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  // PUT default 도 동일 Admin+ tier — User actor 는 실 RolesGuard escalation 으로 403.
+  it("PUT default — User actor 는 Admin+ tier 미달 → 403 (실 RolesGuard escalation)", async () => {
+    app = await buildAppWithRealRolesGuard("User");
+
+    await request(app.getHttpServer())
+      .put("/api/llm/providers/default")
+      .send({ llmProviderConfigId: "cfg-9" })
+      .expect(403);
+
+    expect(serviceMock.setDefault).not.toHaveBeenCalled();
+  });
+
+  // PUT default — Admin / SuperAdmin actor 통과 (escalation hierarchy descent) → 200.
+  it.each(["Admin", "SuperAdmin"])(
+    "PUT default — %s actor 는 Admin+ tier 통과 (200, escalation hierarchy descent)",
+    async (role) => {
+      app = await buildAppWithRealRolesGuard(role);
+      serviceMock.setDefault.mockResolvedValueOnce(
+        buildViewFixture({ id: "cfg-9", isDefault: true }),
+      );
+
+      await request(app.getHttpServer())
+        .put("/api/llm/providers/default")
+        .send({ llmProviderConfigId: "cfg-9" })
+        .expect(200);
+
+      expect(serviceMock.setDefault).toHaveBeenCalledTimes(1);
     },
   );
 });
