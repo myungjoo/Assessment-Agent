@@ -2,7 +2,7 @@
 id: T-1908
 title: AdminView 수집 대상 패널의 오류 alert 3 종 · 등록 폼을 AdminCollectionTargetsSection props 로 흡수 (경로 2 슬라이스 2/2)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-072]
 estimatedDiff: 250
