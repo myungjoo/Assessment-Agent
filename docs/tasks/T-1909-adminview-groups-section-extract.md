@@ -2,7 +2,7 @@
 id: T-1909
 title: AdminView 그룹 패널의 section 껍데기 + 목록 축(`1650 행` ~ `1658 행` · `1714 행` ~ `1732 행`)을 AdminGroupsSection 으로 분해 (경로 2 슬라이스 1/2)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-028, REQ-049]
 estimatedDiff: 235
