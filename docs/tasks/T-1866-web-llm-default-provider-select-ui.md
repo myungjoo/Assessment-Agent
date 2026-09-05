@@ -4,7 +4,7 @@ title: Web UI — LLM provider 목록에 기본 배지 + "기본으로 지정" �
 phase: P6
 status: PENDING
 commitMode: pr
-coversReq: [REQ-049, REQ-051, REQ-096]
+coversReq: [REQ-049, REQ-051]
 independentStream: llm-default-provider
 dependsOn: [T-1865]
 touchesFiles:
@@ -12,11 +12,13 @@ touchesFiles:
   - web/src/components/LlmProviderConfigList.test.tsx
   - web/src/views/adminLlmProviderMutationRunners.ts
   - web/src/views/adminLlmProviderMutationRunners.test.ts
+  - web/src/views/useAdminLlmProviders.ts
+  - web/src/views/useAdminLlmProviders.test.ts
   - web/src/views/AdminView.tsx
 estimatedDiff: 280
-estimatedFiles: 5
+estimatedFiles: 7
 created: 2026-09-03
-plannerNote: "오너 지시 2026-09-03 chain 5/7 — '웹 UI 로 선택할 수 있어야 한다' 의 실체. AdminView 는 배선 약 25 줄만 (god component 부채 PLAN 183 행 — 신규 로직은 runners 모듈에)"
+plannerNote: "오너 지시 2026-09-03 chain 5/7 — '웹 UI 로 선택할 수 있어야 한다' 의 실체. AdminView 는 배선 약 25 줄만 (god component 부채 PLAN 183 행 — 신규 로직은 runners 모듈에). **2026-09-05 재스코핑 의무 — 착수 전 planner 가 반드시 split 판정**: 작성 시점(09-03) 이후 T-1887(PR #1474)이 provider 배선 37 선언을 useAdminLlmProviders.ts 로 순수 추출해, 본 slice 의 state/handler 가 AdminView 가 아니라 그 hook 에 들어간다. 실측 필요 파일이 7 개(+ 소스 텍스트 guard AdminView.llm-provider-list-contract.test.ts 가 깨지면 8)로 CLAUDE.md §3 파일 cap(≤ 5) 을 초과하므로, T-1865 머지 직후 planner 가 현 head 로 재실측해 읽기 축(isDefault 배지)/쓰기 축(기본 지정 버튼 + PUT) 등으로 split 하거나 경계를 좁힌다. Q-0054(drift-guard parity 가 5 파일 cap 을 busting 해 BLOCKED) 와 동형 사고 차단."
 ---
 
 # T-1866 — Web UI — LLM provider 목록에 기본 배지 + "기본으로 지정" 버튼 + PUT 배선
@@ -33,14 +35,16 @@ plannerNote: "오너 지시 2026-09-03 chain 5/7 — '웹 UI 로 선택할 수 �
 - [web/src/components/LlmProviderConfigList.test.tsx](../../web/src/components/LlmProviderConfigList.test.tsx) — 버튼 조건부 렌더 / 콜백 인자 검증 패턴.
 - [web/src/views/adminLlmProviderMutationRunners.ts](../../web/src/views/adminLlmProviderMutationRunners.ts) — `runDeleteProvider` / `runUpdateProvider` 의 deps 타입 · fetch 발사 · nonce bump · error 문구 규약. `runSetDefaultProvider` 를 같은 형식으로.
 - [web/src/views/adminLlmProviderMutationRunners.test.ts](../../web/src/views/adminLlmProviderMutationRunners.test.ts) — fetch mock + deps spy 패턴.
-- [web/src/views/AdminView.tsx](../../web/src/views/AdminView.tsx) `517~535 행` (provider row 매핑 helper — `isDefault` 후보 추가), `739~760 행` (`toLlmProviderConfigRows` 파생), `2427~2450 행` (providersRefreshNonce · deleting state), `2600~2625 행` (`handleEditProvider` / `handleDeleteProvider`), `3716~3726 행` (LlmProviderConfigList JSX).
+- [web/src/views/useAdminLlmProviders.ts](../../web/src/views/useAdminLlmProviders.ts) — **본 slice 의 state · handler 가 들어갈 실제 목적지**(T-1887 이 AdminView 에서 순수 추출). `providersRefreshNonce` · `deletingProvider` · `deleteProviderError` 선언과 `handleDeleteProvider`(`81 행`) 의 `runDeleteProvider(id, { setBusy, setError, bumpRefresh })` 주입 규약을 그대로 mirror 해 `settingDefault` · `setDefaultError` · `handleSetDefaultProvider` 를 추가하고, 반환 object(`339 행`)에 노출한다.
+- [web/src/views/useAdminLlmProviders.test.ts](../../web/src/views/useAdminLlmProviders.test.ts) — hook 단위 test 패턴(`renderHook` + fetch mock).
+- [web/src/views/AdminView.tsx](../../web/src/views/AdminView.tsx) — **행 좌표를 쓰지 않는다**(PLAN `183 행` 리팩터 arc 진행 중이라 매 slice 마다 이동한다 — 착수 시 심볼로 재탐색). 읽을 지점은 `useAdminLlmProviders()` destructure 블록(현재 `885 행` 부근에서 끝남)과 `<LlmProviderConfigList` JSX(현재 `1111 행` 부근) 둘뿐이고, 본 slice 가 AdminView 에 넣는 것은 destructure 키 추가 + props 2 개뿐이다(신규 로직 0).
 - [docs/architecture/api.md](../architecture/api.md) UC-05 표 — T-1865 가 박제한 `PUT /api/llm/providers/default` 계약 (body · 200 · 404 · 409).
 
 ## Acceptance Criteria
 
 - [ ] `LlmProviderConfigRow` 에 `isDefault?: boolean` 추가. true 인 행은 라벨 옆에 `기본` 배지 (`data-testid="llm-provider-default-badge"` 또는 role 로 조회 가능) 렌더. `onSetDefault?: (id: string) => void` 추가 — 주어졌을 때만 **isDefault 가 아닌 행** 에 "기본으로 지정" 버튼 렌더 (이미 기본인 행은 버튼 대신 배지). 미전달 시 버튼 미렌더 (읽기 전용 하위 호환).
 - [ ] `runSetDefaultProvider(deps, id)` — `PUT /api/llm/providers/default` body `{ llmProviderConfigId: id }` (credentials include, JSON), 성공 시 `providersRefreshNonce` bump (권위 재조회 — 낙관 반영 없음), 실패 시 한국어 error (404 "설정을 찾을 수 없다" · 그 외 status 문구) 를 `setError` 로. 진행 중 플래그 (`settingDefault`) set/clear.
-- [ ] AdminView 배선 — provider 응답 row → `LlmProviderConfigRow.isDefault` 보수 매핑 (`typeof === "boolean"` 만), `handleSetDefaultProvider` → 러너 호출, `<LlmProviderConfigList onSetDefault=… loading={… || settingDefault} error={setDefaultError ?? deleteProviderError ?? providersError}>`. **DifficultyModelSelector 는 무변경**.
+- [ ] 배선 — `settingDefault` state · `setDefaultError` · `handleSetDefaultProvider`(러너 호출) 는 [useAdminLlmProviders.ts](../../web/src/views/useAdminLlmProviders.ts) 에 두고 반환 object 로 노출한다(T-1887 이후 실제 목적지 — AdminView 아님). provider 응답 row → `LlmProviderConfigRow.isDefault` 보수 매핑 (`typeof === "boolean"` 만) 도 같은 hook 에서. AdminView 는 destructure 키 추가 + `<LlmProviderConfigList onSetDefault=… loading={… || settingDefault} error={setDefaultError ?? deleteProviderError ?? providersError}>`. **DifficultyModelSelector 는 무변경**.
 - [ ] 컴포넌트 happy-path 1+ — isDefault 행에 배지 · 비-default 행에 버튼 · 클릭 시 `onSetDefault(row.id)` 1 회.
 - [ ] 컴포넌트 negative 각 1+ — `onSetDefault` 미전달 시 버튼 0 · 전부 `isDefault` 없음이면 배지 0 · loading 시 버튼 미렌더 · 기본 행에는 버튼 없음 (경계).
 - [ ] 러너 happy/error/분기/negative — 200 → nonce bump + error null · 404 → 한국어 문구 · 500 → 문구 · fetch reject (network) → 문구 + 플래그 clear · 빈 id 는 요청 없이 차단 · 진행 중 재진입 시 두 번째 요청 없음.

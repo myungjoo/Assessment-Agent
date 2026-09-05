@@ -35,7 +35,7 @@ plannerNote: "오너 지시 2026-09-03 — ADR-0048 §Decision 2 가 deferred �
 
 - [docs/decisions/ADR-0048-default-model-id-source.md](../decisions/ADR-0048-default-model-id-source.md) — §Decision 2 의 후속 ADR 검토 대상 4 안 (i)~(iv) 와 §Decision 4 의 "schema migration 0" 가정. 본 ADR 이 §Decision 2 를 supersede 한다.
 - [src/llm/llm-provider-config-resolver.service.ts](../../src/llm/llm-provider-config-resolver.service.ts) — 현 3 분기 fail-fast 의 정본. 본 ADR 의 우선순위 규칙이 이 분기를 어떻게 바꾸는지 명시.
-- [src/llm/difficulty-mapping.service.ts](../../src/llm/difficulty-mapping.service.ts) + [prisma/schema.prisma](../../prisma/schema.prisma) `406~440 행` — DifficultyMapping 의 "슬롯 → LlmProviderConfig FK, `onDelete: Restrict`" 패턴. 저장 형태 후보 (ii) 의 선례.
+- [src/llm/difficulty-mapping.service.ts](../../src/llm/difficulty-mapping.service.ts) + [prisma/schema.prisma](../../prisma/schema.prisma) `406 행` ~ `439 행` (LlmProviderConfig) · `441 행` 이후 (DifficultyMapping) — DifficultyMapping 의 "슬롯 → LlmProviderConfig FK, `onDelete: Restrict`" 패턴. 저장 형태 후보 (ii) 의 선례.
 - [deploy/seed-llm-config.sh](../../deploy/seed-llm-config.sh) `1~30 행`, `97~116 행` — seed 의 upsert 범위. ADR 이 seed 의 default 개입 한계를 정해야 한다.
 - [docs/architecture/data-model.md](../architecture/data-model.md) `31 행` (LlmProviderConfig 행), `57 행` (ERD), `80 행` (관계 8) — 동기 갱신 대상.
 - [.claude/agents/architect.md](../../.claude/agents/architect.md) — ADR 형식.

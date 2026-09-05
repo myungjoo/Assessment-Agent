@@ -27,7 +27,7 @@ chain T-1862 ~ T-1867 이 모두 머지된 뒤 **1 회만** 문서를 실측에 
 ## Required Reading
 
 - [docs/requirements.md](../requirements.md) `69~74 행` — REQ-050 ~ REQ-055 행. REQ-049 행 (Admin LLM 모델 지정) 도 같은 표.
-- [docs/PLAN.md](../PLAN.md) `87 행` (R-96 bullet), `106 행` (ADR-0048 deferred 문장), 본 chain 을 큐잉한 bullet (2026-09-03 오너 지시 bullet, `107 행` 부근).
+- [docs/PLAN.md](../PLAN.md) — **행 좌표를 신뢰하지 말고 문구로 재탐색한다**(본 chain 진행 중에도 bullet 이 추가·이동한다). 대상 3 곳: R-96 bullet (`Admin 이 LLM 모델 지정` 로 grep), ADR-0048 deferred 문장 (`후속 ADR 이 prerequisite` 로 grep), 본 chain 을 큐잉한 2026-09-03 오너 지시 bullet (`다중-row LlmProviderConfig 기본 provider 선택` 으로 grep).
 - [docs/decisions/ADR-0048-default-model-id-source.md](../decisions/ADR-0048-default-model-id-source.md) `50~57 행` §Decision 2.
 - [docs/decisions/ADR-0062-llm-default-provider-explicit-selection.md](../decisions/ADR-0062-llm-default-provider-explicit-selection.md) frontmatter status.
 - 머지된 PR 번호 / squash SHA — `git log --grep "T-186[3-7]"` 로 실측.
@@ -37,7 +37,7 @@ chain T-1862 ~ T-1867 이 모두 머지된 뒤 **1 회만** 문서를 실측에 
 - [ ] ADR-0062 frontmatter `status: PROPOSED` → `ACCEPTED` + 헤더 인용문에 구현 chain PR 번호.
 - [ ] ADR-0048 §Decision 2 첫 줄에 "**(superseded by [ADR-0062](ADR-0062-llm-default-provider-explicit-selection.md) — 2026-09 오너 지시, 명시 선택 최우선)**" 한 줄. 본문 나머지 무변경.
 - [ ] requirements.md REQ-049 · REQ-051 행의 비고에 "기본 provider 명시 선택 (Web UI, ADR-0062)" 반영. REQ-051 의 "custom 3 model 슬롯" 자체는 여전히 미구현이므로 status 는 실측대로 (DONE 표기 승격 금지 — 본 chain 은 prerequisite 만 닫았다).
-- [ ] PLAN.md `106 행` 의 "REQ-051 진입 시 … 후속 ADR 이 prerequisite (deferred)" 문장을 "ADR-0062 로 닫힘 (T-1862~T-1867)" 으로 교체. 2026-09-03 오너 지시 bullet 은 `[x]` + 머지 PR 목록.
+- [ ] PLAN.md 의 "REQ-051 진입 시 … 후속 ADR 이 prerequisite (deferred)" 문장(행 좌표 아닌 문구로 탐색)을 "ADR-0062 로 닫힘 (T-1862~T-1867)" 으로 교체. 2026-09-03 오너 지시 bullet 은 `[x]` + 머지 PR 목록.
 - [ ] markdown link 깨짐 0 (`git grep` 로 대상 파일 존재 확인). JSON 무변경.
 
 ## Out of Scope
