@@ -2,7 +2,7 @@
 id: T-1906
 title: PLAN 184 행 AdminView 부채 11 차 실측 갱신 — hook 화 6 슬라이스 반영 + 9 축 전량 소진 확정 + 경로 2(JSX 섹션 분해) 전환 지목
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-049]
 estimatedDiff: 20
@@ -75,4 +75,5 @@ plannerNote: "P5 PLAN 184 행 부채 bullet — hook 6 슬라이스(T-1891~T-189
 
 ## Follow-ups
 
-- (본 task 가 채울 자리) 본 갱신이 지목한 **JSX 패널 1 개 추출 `pr` 슬라이스** — planner 다음 turn 에서 큐잉.
+- **JSX 수집 대상 패널 추출 `pr` 슬라이스** — [docs/PLAN.md](../PLAN.md) `184 행` 이 지목한 경로 2 첫 슬라이스. `web/src/views/AdminView.tsx` `1863 행` ~ `1939 행`(77 줄, `<section id={ADMIN_SECTION_COLLECTION_TARGETS_ID}>`)을 신규 `web/src/views/AdminCollectionTargetsSection.tsx` 로 옮기고 AdminView 에 마운트 배선을 같은 슬라이스에 포함한다(`sizeExempt` 금지, 예상 순 감소 `-60 줄`, 예상 3 파일). planner 다음 turn 에서 큐잉.
+- **목표선 재역행 관찰** — T-1896 직후 1,998 줄로 목표선 ≤ 2,000 에 닿았으나 T-1901(`+12`) · T-1904(`+70`) 기능 증분이 2,080 으로 되올렸다. 경로 2 로 `-80` 을 회수해도 같은 역행이 반복될 수 있으므로, 승격 판정은 항상 **갱신 시점 실측**으로만 한다(bullet 마지막 문장에 박제).
