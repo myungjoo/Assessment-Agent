@@ -194,6 +194,16 @@ jobs:
           node-version: '20'
           cache: 'pnpm'
 
+      - name: 의존성 정합성 검증
+        # REQ-056 의 CI 판정 축 — root/web manifest 의 공통 의존성 version mismatch(J1),
+        # lockfile 단일성(J2, ADR-0040 §4), version 재작성 필드 금지(J3) 를 top-level
+        # 정적 판정만으로 검사. install 전에 돌려 mismatch 를 lockfile 해석보다 먼저 잡는다.
+        run: bash scripts/check-dependency-consistency.sh
+
+      - name: 의존성 정합성 script 자체 test
+        # 위 판정 logic 의 executable spec. spec-presence·doc-only 자체 test 와 동형 layer.
+        run: bash scripts/check-dependency-consistency.test.sh
+
       - name: 의존성 설치
         run: pnpm install --frozen-lockfile
 
