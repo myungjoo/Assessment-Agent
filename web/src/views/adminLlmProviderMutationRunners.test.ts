@@ -367,7 +367,7 @@ describe('adminLlmProviderMutationRunners 모듈 경계(T-1857 순수 추출)', 
 
     it('negative ⑦ / 분기 — 이미 기본인 id 재지정도 성공 경로 그대로다(멱등)', async () => {
       // backend 는 단일 슬롯 upsert 라 같은 id 재지정도 200 이다(api.md 134 행 "멱등").
-      // 러너에 "이미 기본" 사전 분기를 두지 않았음을 잠근다 — 발사도 재조회도 그대로 1 회.
+      // 러너에 "이미 기본" 사전 분기를 두지 않았음을 잠근다 — 호출한 만큼 발사도 재조회도 그대로 이어진다.
       const deps = makeSetDefaultDeps();
       await runSetDefaultProvider(PROVIDER_ID, deps);
       await runSetDefaultProvider(PROVIDER_ID, deps);
