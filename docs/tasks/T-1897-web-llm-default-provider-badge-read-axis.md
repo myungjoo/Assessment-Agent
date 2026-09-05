@@ -2,7 +2,7 @@
 id: T-1897
 title: Web UI — LLM provider 목록 기본 배지 (읽기 축, T-1866 split 1/3)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-051]
 independentStream: llm-default-provider
