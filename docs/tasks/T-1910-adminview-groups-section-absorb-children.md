@@ -2,7 +2,7 @@
 id: T-1910
 title: AdminView 그룹 패널의 생성 폼 · 인라인 수정 폼(`1660 행` ~ `1714 행`)을 AdminGroupsSection props 로 흡수 (경로 2 슬라이스 2/2)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-028, REQ-049]
 estimatedDiff: 260
