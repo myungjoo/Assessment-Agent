@@ -294,6 +294,82 @@ export async function runUpdateProvider(
   }
 }
 
+// 전역 기본 provider 재지정 PUT + state-전이 로직에 주입하는 deps(T-1898 — DeleteProviderDeps
+// (50 행) 를 1:1 mirror. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). runUpdateProvider 와
+// 달리 대상 id 가 path param 이 아니라 **body 필드** 로 가므로(PUT /api/llm/providers/default 는
+// 정적 path) deps 에 id 를 두지 않고 러너 인자로 받는다 — DeleteProviderDeps 와 같은 모양이다.
+// 컨테이너의 handleSetDefaultProvider(쓰기 축 B)는 이 러너에 현재 in-flight 여부(settingDefault)·
+// 상태 setter·재조회 트리거를 주입해 호출만 한다.
+export interface SetDefaultProviderDeps {
+  // PUT 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입). PATCH 축과 같은
+  // request 함수라 이름도 update 로 맞춘다(UpdateProviderDeps.update 동형 — method 만 다르다).
+  update: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 기본 재지정 in-flight 여부 — true 면 미발사(이중 PUT·경합 가드).
+  settingDefault: boolean;
+  setSettingDefault: (next: boolean) => void;
+  setDefaultError: (next: string | undefined) => void;
+  // 권위 provider 재조회 트리거 — providersRefreshNonce 를 +1 한다(path 변경 유발).
+  bumpRefresh: () => void;
+}
+
+// 전역 기본 provider 재지정 PUT /api/llm/providers/default + state-전이 로직을 캡슐화한 순수 async
+// 러너(T-1898 — runDeleteProvider 캡슐화 패턴 1:1 mirror). backend PUT(llm.controller, T-1865,
+// api.md 134 행 — body SetDefaultLlmProviderDto { llmProviderConfigId }, 200 + 방금 기본이 된
+// config 의 sanitize view(isDefault: true), 단일 슬롯 upsert 1 회라 기본이 0 개인 window 가 없고
+// 이미 기본인 config 재지정도 성공(멱등), 부재 id 는 P2003/P2025 를 service 가 404 로 수렴,
+// DTO 위반 400 / 미인증 401 / 비-Admin 403)를 발사한다.
+//
+// 인자 순서 판정 — T-1866 AC 본문은 runSetDefaultProvider(deps, id) 로 적었으나, 같은 모듈의
+// runDeleteProvider(id, deps) convention 에 맞춰 (id, deps) 로 뒤집는다(모듈 안에서 대상 식별자를
+// 앞에 두는 규약이 이미 정본이고, 호출부가 러너마다 순서를 기억해야 하는 부담을 없앤다).
+//
+// 동작:
+//  - 빈/공백/falsy id → 미발사(무의미한 400 왕복 회피 — trim 후 빈 문자열도 차단).
+//  - settingDefault(이전 발사 미완) → 미발사(이중 PUT·state 경합 차단 — deleting 가드 동형).
+//  - 발사 시 진행 on + 직전 error 비움 → PUT(id 는 path 가 아니라 JSON body 로 — 정적 path 라
+//    encodeURIComponent 대상이 없다) → 성공(권위 재조회 트리거) / 실패(사람-친화 문구 표면화 —
+//    throw 없이) → 진행 off(공통).
+export async function runSetDefaultProvider(
+  id: string,
+  deps: SetDefaultProviderDeps,
+): Promise<void> {
+  // 비정상 호출 가드 — 빈/공백/falsy id 는 PUT 미발사(불필요 요청·확정 400 회피). 공백만 든 id 도
+  // trim 후 빈 문자열이면 차단한다(경계값 — @IsNotEmpty 로 어차피 400 이 될 body).
+  if (!id || id.trim() === '') {
+    return;
+  }
+  // 동시 재호출 가드 — 이전 재지정 미완 중이면 미발사(이중 PUT·state 경합 차단).
+  if (deps.settingDefault) {
+    return;
+  }
+  deps.setSettingDefault(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리 — 새 재지정 진행만 남도록).
+  deps.setDefaultError(undefined);
+  try {
+    // PUT /api/llm/providers/default — 대상 id 는 body 의 llmProviderConfigId 단일 키로 간다
+    // (set-default-llm-provider.dto.ts 정본. forbidNonWhitelisted 라 extra 키를 더하면 400 이므로
+    // 키를 1 개로 고정한다). path 가 정적 문자열이라 인코딩할 param 이 없다. 응답 sanitize view 는
+    // 소비하지 않는다 — 목록 갱신은 아래 bumpRefresh 의 권위 재조회가 담당한다.
+    await deps.update(`${LLM_PROVIDERS_PATH}/default`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ llmProviderConfigId: id }),
+    });
+    // 성공 — 권위 provider 재조회 트리거(재조회로 목록의 isDefault 배지가 새 행으로 옮겨간다 —
+    // 낙관 반영·목록 직접 변형 없음).
+    deps.bumpRefresh();
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error state 로 안전 표시(throw 없이). 404 부재 id / 403 Admin+ 미만 /
+    // 401 미인증 / 400 DTO 위반 / 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로
+    // 표면화. 재조회 nonce 는 bump 하지 않는다(실패 시 목록·배지 그대로 유지).
+    deps.setDefaultError(deps.describeError(e));
+  } finally {
+    deps.setSettingDefault(false);
+  }
+}
+
 // onAssign 의 PATCH + state-전이 로직을 캡슐화한 순수 async 러너(④c, 테스트 가능성 —
 // jsdom/렌더러 없이 mutation 본체를 직접 검증한다. useApiResource 의 runFetch 가 effect
 // 본체를 분리해 jsdom 없이 검증한 convention 정합). 컨테이너의 handleAssign 은 이 러너에

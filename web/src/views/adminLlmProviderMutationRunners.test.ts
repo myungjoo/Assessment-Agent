@@ -18,6 +18,7 @@ import {
   runCreateProvider,
   runDeleteProvider,
   runUpdateProvider,
+  runSetDefaultProvider,
   runAssign,
 } from './adminLlmProviderMutationRunners';
 import {
@@ -73,6 +74,19 @@ function makeDeps() {
       bumpRefresh: vi.fn(),
       closeEdit: vi.fn(),
     },
+  };
+}
+
+// 기본 provider 재지정 러너(T-1898 쓰기 축 A)의 deps — 진행 플래그 settingDefault 는 호출부에서
+// 덮는다. 대상 id 는 deps 가 아니라 러너 인자로 가므로(정적 path + body 발사) 여기 없다.
+function makeSetDefaultDeps() {
+  return {
+    update: vi.fn(async () => undefined),
+    describeError,
+    settingDefault: false,
+    setSettingDefault: vi.fn(),
+    setDefaultError: vi.fn(),
+    bumpRefresh: vi.fn(),
   };
 }
 
@@ -304,6 +318,138 @@ describe('adminLlmProviderMutationRunners 모듈 경계(T-1857 순수 추출)', 
         `${LLM_PROVIDERS_PATH}/a%2Fb%3Fc%20d`,
         expect.objectContaining({ method: 'PATCH' }),
       );
+    });
+  });
+
+  describe('runSetDefaultProvider — 직접 import 경로(T-1898 쓰기 축 A)', () => {
+    // status 별 한국어 문구 파생 — 컨테이너가 주입하는 toErrorMessage 를 결정적으로 축약 mirror
+    // 한 것이라, 어떤 실패 status 든 사람-친화 한국어가 setDefaultError 로 실리는지 관찰할 수 있다.
+    const describeStatusError = (e: unknown) => {
+      const status = (e as { status?: number }).status;
+      if (status === 404) {
+        return '해당 provider 를 찾을 수 없습니다.';
+      }
+      if (status === 403) {
+        return '권한이 없습니다.';
+      }
+      if (status === 500) {
+        return '서버 오류가 발생했습니다.';
+      }
+      return '네트워크 오류가 발생했습니다.';
+    };
+    // ApiError 를 모듈 밖으로 내보내지 않으므로 status 를 단 Error 로 그 표면만 재현한다.
+    const withStatus = (status: number) =>
+      Object.assign(new Error(`HTTP ${status}`), { status });
+
+    it('happy-path: PUT 1 회(정적 path + body 단일 키) + 재조회 트리거', async () => {
+      const deps = makeSetDefaultDeps();
+      await runSetDefaultProvider(PROVIDER_ID, deps);
+      expect(deps.update).toHaveBeenCalledTimes(1);
+      // 정적 path(:id 세그먼트가 아니라 body 로 대상 지정 — api.md 134 행) + PUT + JSON 헤더 +
+      // SetDefaultLlmProviderDto 정본 body 를 한 번에 잠근다.
+      expect(deps.update).toHaveBeenCalledWith('/api/llm/providers/default', {
+        method: 'PUT',
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ llmProviderConfigId: PROVIDER_ID }),
+      });
+      // body 는 파싱해서도 정확히 일치 — 키 1 개(forbidNonWhitelisted 라 extra 키는 400).
+      const sent = JSON.parse(
+        (deps.update.mock.calls[0] as unknown as [string, { body: string }])[1]
+          .body,
+      ) as Record<string, unknown>;
+      expect(sent).toEqual({ llmProviderConfigId: PROVIDER_ID });
+      expect(Object.keys(sent)).toHaveLength(1);
+      expect(deps.bumpRefresh).toHaveBeenCalledTimes(1);
+      // 직전 error 비움은 발사 전에 1 회 — 성공 경로에서 문구가 실리지 않는다.
+      expect(deps.setDefaultError.mock.calls).toEqual([[undefined]]);
+      expect(deps.setSettingDefault.mock.calls).toEqual([[true], [false]]);
+    });
+
+    it('negative ⑦ / 분기 — 이미 기본인 id 재지정도 성공 경로 그대로다(멱등)', async () => {
+      // backend 는 단일 슬롯 upsert 라 같은 id 재지정도 200 이다(api.md 134 행 "멱등").
+      // 러너에 "이미 기본" 사전 분기를 두지 않았음을 잠근다 — 호출한 만큼 발사도 재조회도 그대로 이어진다.
+      const deps = makeSetDefaultDeps();
+      await runSetDefaultProvider(PROVIDER_ID, deps);
+      await runSetDefaultProvider(PROVIDER_ID, deps);
+      expect(deps.update).toHaveBeenCalledTimes(2);
+      expect(deps.bumpRefresh).toHaveBeenCalledTimes(2);
+      expect(deps.setDefaultError).not.toHaveBeenCalledWith(
+        expect.any(String),
+      );
+    });
+
+    it('error path: primitive reject 시 throw 없이 문구 표면화 + 진행 플래그 복귀', async () => {
+      const deps = makeSetDefaultDeps();
+      deps.update = vi.fn(async () => {
+        throw BOOM;
+      });
+      await expect(
+        runSetDefaultProvider(PROVIDER_ID, deps),
+      ).resolves.toBeUndefined();
+      expect(deps.setDefaultError).toHaveBeenLastCalledWith(describeError(BOOM));
+      // negative ④ — 실패 시 재조회 트리거는 돌지 않는다(목록·배지 그대로 유지).
+      expect(deps.bumpRefresh).not.toHaveBeenCalled();
+      // finally 보장 — 실패해도 진행 플래그는 반드시 false 로 복귀한다.
+      expect(deps.setSettingDefault.mock.calls).toEqual([[true], [false]]);
+    });
+
+    it.each([['', '빈 id'], ['   ', '공백만 든 id']])(
+      'negative ② — %s(%s)면 PUT 미발사',
+      async (id) => {
+        const deps = makeSetDefaultDeps();
+        await runSetDefaultProvider(id, deps);
+        expect(deps.update).not.toHaveBeenCalled();
+        expect(deps.setSettingDefault).not.toHaveBeenCalled();
+        expect(deps.setDefaultError).not.toHaveBeenCalled();
+        expect(deps.bumpRefresh).not.toHaveBeenCalled();
+      },
+    );
+
+    it('negative ③ — settingDefault in-flight 중 재호출은 이중 PUT 을 내지 않는다', async () => {
+      const deps = { ...makeSetDefaultDeps(), settingDefault: true };
+      await runSetDefaultProvider(PROVIDER_ID, deps);
+      expect(deps.update).not.toHaveBeenCalled();
+      expect(deps.setSettingDefault).not.toHaveBeenCalled();
+      expect(deps.setDefaultError).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      [404, '해당 provider 를 찾을 수 없습니다.', '부재 id'],
+      [403, '권한이 없습니다.', 'Admin+ 미만'],
+      [500, '서버 오류가 발생했습니다.', '서버 오류'],
+    ])(
+      'negative ⑧ — %i(%s / %s) reject 는 한국어 문구로 표면화된다',
+      async (status, message) => {
+        const deps = {
+          ...makeSetDefaultDeps(),
+          describeError: describeStatusError,
+        };
+        deps.update = vi.fn(async () => {
+          throw withStatus(status as number);
+        });
+        await expect(
+          runSetDefaultProvider(PROVIDER_ID, deps),
+        ).resolves.toBeUndefined();
+        expect(deps.setDefaultError).toHaveBeenLastCalledWith(message);
+        expect(deps.bumpRefresh).not.toHaveBeenCalled();
+      },
+    );
+
+    it('negative ⑨ — 네트워크 실패(Failed to fetch)도 문구 표면화 + 진행 플래그 clear', async () => {
+      const deps = {
+        ...makeSetDefaultDeps(),
+        describeError: describeStatusError,
+      };
+      deps.update = vi.fn(async () => {
+        throw new TypeError('Failed to fetch');
+      });
+      await expect(
+        runSetDefaultProvider(PROVIDER_ID, deps),
+      ).resolves.toBeUndefined();
+      expect(deps.setDefaultError).toHaveBeenLastCalledWith(
+        '네트워크 오류가 발생했습니다.',
+      );
+      expect(deps.setSettingDefault).toHaveBeenLastCalledWith(false);
     });
   });
 
