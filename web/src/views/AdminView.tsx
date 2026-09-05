@@ -153,6 +153,12 @@ import { useAdminParts } from './useAdminParts';
 // 컨테이너는 반환 9 심볼만 소비하고 축 내부 상태 · 조회 path · 러너 주입은 hook 이 소유한다.
 // props 유래 초기값 1 개만 인자로 넘긴다. 배럴에는 추가하지 않는다(공개 표면 무변경).
 import { useAdminPersons } from './useAdminPersons';
+// 멤버십 축 hook(T-1896 순수 추출 슬라이스) — 본 컨테이너의 멤버십 축 한 덩어리(멤버 파생 ·
+// 재조회 nonce · remove/add in-flight · 실패 문구 · 조회 path · 멤버십 조회 · 멤버십 파생 · 두
+// mutation 핸들러 · 추가 후보 12 선언)를 통째로 옮긴 모듈. 컨테이너는 반환 11 심볼만 소비하고
+// 축 내부 상태 · 조회 path · 러너 주입은 hook 이 소유한다. 축 밖 의존 3 개(groups ·
+// selectedGroupId · personData)만 단일 object 로 넘긴다. 배럴에는 추가하지 않는다(공개 표면 무변경).
+import { useAdminMemberships } from './useAdminMemberships';
 // T-1134 — R-96 LLM provider 관리 UI 마운트. 직전 slice(T-1133)가 신설한 순수 presentational
 // LlmProviderConfigList 를 Admin+ 패널에 배선한다. 컴포넌트 수정 0 으로 default import + named
 // type 만(ADR-0041 Decision 1 — 패널은 fetch 를 모른다). 기존 providerData 재사용(새 fetch 0).
@@ -733,112 +739,24 @@ function AdminView({
   // 표시용 그룹 목록 — data 미도착이면 빈 배열로 간주한다(<select> 옵션·파생의 안전 기준).
   const groups = useMemo(() => (Array.isArray(data) ? data : []), [data]);
 
-  // 선택 그룹의 멤버 파생(client-side, id = personId) — T-1129 부터 GroupMemberList 는 아래 신
-  // endpoint fetch 결과(groupMembers, id = membershipId)를 쓰므로, 본 client-side 파생은 재평가
-  // 인원 선택 <select> 의 personOptions 전용으로 남는다(재평가 POST 는 personId 를 path param 으로
-  // 쓰므로 membershipId 부적합). 미선택/미발견/멤버 미포함이면 빈 배열.
-  const members = useMemo(
-    () => deriveMembers(groups, selectedGroupId || undefined),
-    [groups, selectedGroupId],
-  );
-
-  // 멤버십 재조회 nonce(T-1130) — ④c remove DELETE 성공 시 이 값을 +1 해 groupMembersPath 를
-  // 변화시켜 useApiResource 재조회를 유발한다(read-only hook 수정 0 경로 — buildMappingsPath 동형).
-  const [membersRefreshNonce, setMembersRefreshNonce] = useState<number>(0);
-
-  // remove mutation in-flight 플래그(T-1130) — DELETE 진행 중 true. 진행 표시(loading 우선)와
-  // 동시 재호출 가드(이전 mutation 미완 중 재호출 차단)에 함께 쓴다(④c assigning 동형).
-  const [removing, setRemoving] = useState<boolean>(false);
-
-  // remove mutation 실패 문구(T-1130) — DELETE 실패 시 사람-친화 문구(toErrorMessage 파생)를
-  // 보관해 error props 로 안전 표시한다(throw 없음). 성공/재시도 시작 시 비운다(④c assignError 동형).
-  const [removeError, setRemoveError] = useState<string | undefined>(undefined);
-
-  // 선택 그룹의 멤버십 조회 path(T-1129 → T-1130 nonce) — 선택이 있을 때만 조건부 path 를 만든다
-  // (미선택 시 null → useApiResource 미조회 idle). 선택 변경 시 path 가 달라져 자동 refetch
-  // (path-change refetch)하고, remove 성공 시 membersRefreshNonce 증가가 `_r` query 로 재조회를 낸다.
-  const groupMembersPath = useMemo(
-    () => buildGroupMembersPath(selectedGroupId || undefined, membersRefreshNonce),
-    [selectedGroupId, membersRefreshNonce],
-  );
-
-  // 선택 그룹의 멤버십 조회(T-1129) — useApiResource 로 신 endpoint(GET /api/groups/:id/members,
-  // T-1128 findMembershipsByGroupId)를 조건부 fetch 한다. loading/error 는 컨테이너가 받아
-  // GroupMemberList 의 대응 props 로 내려보낸다(ADR-0041 Decision 1 — 패널은 fetch 를 모른다).
+  // 멤버십 축 hook(T-1896) — 멤버 파생 · 재조회 nonce · remove/add in-flight · 실패 문구 · 조회
+  // path · 멤버십 조회 · 멤버십 파생 · 두 mutation 핸들러 · 추가 후보 = 12 선언을
+  // useAdminMemberships 로 순수 추출했다(동작 변경 0). 컨테이너는 GroupMemberList 배선과
+  // useAdminSchedule 의 members 주입이 쓰는 11 심볼만 되돌려 쓰고, 축 내부 nonce · 원본 응답 ·
+  // 조회 path · setter 는 hook 안에 캡슐화된다. 호출 위치는 이동 전 블록이 있던 자리 그대로다 —
+  // useApiResource 발사 순번이 바뀌면 호출 순번으로 route 를 구분하는 기존 spec 이 red 가 된다.
   const {
-    data: membershipData,
-    loading: membersLoading,
-    error: membersError,
-  } = useApiResource<MembershipRow[]>(groupMembersPath);
-
-  // 멤버십 응답 → GroupMemberList 의 Member[] 파생(T-1129) — 각 Member.id 를 membershipId 로
-  // 설정하고, 표시명은 선택 그룹 응답의 person(personId 매칭)에서 채운다. 미선택/미도착/비정상이면 빈 배열.
-  const groupMembers = useMemo(
-    () =>
-      deriveMembersFromMemberships(
-        membershipData,
-        findGroup(groups, selectedGroupId || undefined),
-      ),
-    [membershipData, groups, selectedGroupId],
-  );
-
-  // onRemove 실 mutation 핸들러(T-1130) — 멤버 제거 DELETE(/api/groups/:id/members/:membershipId)
-  // 를 컨테이너 내부 async 로 발사한다(신규 mutation hook 미작성 — ④c runAssign 정합). 빈/falsy
-  // membershipId·이전 mutation 미완(removing) 발사 억제 + 성공(멤버십 재조회 트리거)/실패(error props
-  // 안전 표시, throw 없음) 전이는 runRemove 가 캡슐화한다. selectedGroupId(DELETE path param)·removing
-  // 을 deps 의존성에 포함해 stale 없이 최신 그룹·가드 상태로 발사한다.
-  const handleRemove = useCallback(
-    (membershipId: string) =>
-      runRemove(membershipId, {
-        remove: request,
-        describeError: toErrorMessage,
-        groupId: selectedGroupId,
-        removing,
-        setRemoving,
-        setRemoveError,
-        bumpRefresh: () => setMembersRefreshNonce((n) => n + 1),
-      }),
-    [selectedGroupId, removing],
-  );
-
-  // add mutation in-flight 플래그(T-1131) — POST 진행 중 true. 동시 재호출 가드(이전 mutation 미완
-  // 중 재발사 차단 — 이중 POST 방지)에 쓴다(remove removing 동형). T-1238: 후보 select 가 컴포넌트
-  // 로컬 state 로 이동해 컨테이너는 입력값을 더 이상 보유하지 않고, 이 플래그만 남아 in-flight 가드를 한다.
-  const [adding, setAdding] = useState<boolean>(false);
-
-  // add mutation 실패 문구(T-1131) — POST 실패 시 사람-친화 문구(toErrorMessage 파생)를 보관해
-  // GroupMemberList 근처에 안전 표시한다(throw 없음). 성공/재시도 시작 시 비운다(remove removeError 동형).
-  const [addError, setAddError] = useState<string | undefined>(undefined);
-
-  // 멤버 추가 실 mutation 핸들러(T-1131 → T-1238 컨테이너 배선) — GroupMemberList 의 onAdd 콜백으로
-  // 넘어가 선택된 후보의 personId 를 인자로 받아 멤버 추가 POST(/api/groups/:id/members, body
-  // `{ personId }`)를 발사한다(handleRemove 정합). 빈/공백 personId·그룹 미선택·이전 mutation 미완
-  // (adding) 발사 억제 + 성공(멤버십 재조회)/실패(error 안전 표시, throw 없음) 전이는 runAdd 가
-  // 캡슐화한다. selectedGroupId(POST path param)·adding 을 deps 에 포함해 stale 없이 최신 그룹·가드
-  // 상태로 발사한다. 후보 선택값은 컴포넌트 로컬 state 라 resetInput 은 무해화(no-op — 컨테이너 미보유).
-  const handleAdd = useCallback(
-    (personId: string) =>
-      runAdd(personId, {
-        add: request,
-        describeError: toErrorMessage,
-        groupId: selectedGroupId,
-        adding,
-        setAdding,
-        setAddError,
-        bumpRefresh: () => setMembersRefreshNonce((n) => n + 1),
-        resetInput: () => {},
-      }),
-    [selectedGroupId, adding],
-  );
-
-  // 추가 후보(persons − 현재 멤버) 파생(T-1238) — deriveAddCandidates 로 전체 인원에서 현재 그룹
-  // 멤버(membershipData 의 personId)를 제외한 Member[](id = personId)를 만든다. GroupMemberList 의
-  // addCandidates prop 으로 내려보내 컴포넌트의 select 옵션이 된다(정렬/검색은 Out of Scope). deps 에
-  // selectedGroupId 를 포함해(membershipData 는 이미 그룹별이지만) 그룹 전환 시 파생을 명시적으로 재평가한다.
-  const addCandidates = useMemo(
-    () => deriveAddCandidates(personData, membershipData),
-    [personData, membershipData, selectedGroupId],
-  );
+    members,
+    groupMembers,
+    membersLoading,
+    membersError,
+    removing,
+    removeError,
+    handleRemove,
+    addError,
+    handleAdd,
+    addCandidates,
+  } = useAdminMemberships({ groups, selectedGroupId, personData });
 
   // LLM provider · 난이도 매핑 축 hook(T-1887) — 조회 2 + 경로·파생 5 + 합성 2 + 상태 18 +
   // 핸들러·리셋 7 = 37 선언을 useAdminLlmProviders 로 순수 추출했다(동작 변경 0). 컨테이너는
