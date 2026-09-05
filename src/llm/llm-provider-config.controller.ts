@@ -14,6 +14,8 @@
 //   - DELETE /api/llm/providers/:id → service.delete (204 No Content, body 없음
 //     — T-0150. service 가 P2025→404 (id 부재) / P2003→409 (DifficultyMapping 슬롯
 //     사용 중, onDelete:Restrict) 변환. PATCH slice 는 split Follow-up)
+//   - PUT /api/llm/providers/default → service.setDefault (200, 전역 기본 provider
+//     슬롯 재지정 — T-1865, ADR-0062. 정적 segment 라 `:id` 계열보다 앞에 선언)
 //
 // ValidationPipe wire 결정 (DifficultyMappingController mirror):
 //   - Controller-scope `@UsePipes(new ValidationPipe({...}))` — DTO 입력 endpoint 신설
@@ -54,6 +56,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   UseGuards,
   UsePipes,
   ValidationPipe,
@@ -64,6 +67,7 @@ import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 
 import { CreateLlmProviderConfigDto } from "./dto/create-llm-provider-config.dto";
+import { SetDefaultLlmProviderDto } from "./dto/set-default-llm-provider.dto";
 import { UpdateLlmProviderConfigDto } from "./dto/update-llm-provider-config.dto";
 import {
   LlmProviderConfigService,
@@ -93,6 +97,37 @@ export class LlmProviderConfigController {
   @Roles("Admin")
   async findAll(): Promise<LlmProviderConfigView[]> {
     return this.service.findAll();
+  }
+
+  // PUT /api/llm/providers/default — 전역 기본 LLM provider 를 body 의 config 로
+  // 교체 (REQ-049 · REQ-051, T-1865, ADR-0062 (B)). 200 OK + 방금 기본이 된 config 의
+  // sanitize view (`isDefault: true` — service 가 read-your-write 로 보장). service
+  // setDefault 가 단일 슬롯 upsert 1 회라 기본이 0 개인 window 가 없고, 이미 기본인
+  // config 재지정도 성공한다 (멱등). 부재 id 지정은 service 가 P2003 / P2025 를 모두
+  // NotFoundException (404) 으로 수렴시키므로 controller 자체 분기 0 — raw forward.
+  //
+  // **선언 위치 고정 (라우트 순서 회귀 방지)** — 정적 segment `default` 는 아래
+  // `@Get(":id")` / `@Patch(":id")` / `@Delete(":id")` 계열보다 **반드시 앞** 에
+  // 선언한다. NestJS path matching 은 선언 순서 우선이라, 나중에 `@Put(":id")` 가
+  // 추가되면 뒤에 있는 `default` 는 `:id = "default"` 로 오매칭돼 조용히 다른 핸들러로
+  // 흘러간다 (`/api/admin/import` 의 `running` · `modes` literal 선행 선례와 동형).
+  // 이 순서는 spec 의 prototype 선언 순서 assertion 으로 박제돼 있다.
+  //
+  // @HttpCode(200) 은 `@Put` 의 NestJS 기본값과 같은 값을 **명시 고정** 한 것 —
+  // 새 row 생성이 아니라 기존 슬롯 재지정이므로 201 로 드리프트하지 않게 못 박는다.
+  // @Body() 는 controller-scope ValidationPipe 가 검증 (누락 / 빈 문자열 / wrong type
+  // / allow-list 밖 extra 키 → 400, service 미호출).
+  //
+  // RBAC — Admin+ tier (나머지 5 핸들러와 동일). @Roles("Admin") → Admin / SuperAdmin
+  // 통과 (RolesGuard escalation), User actor 403. 인증 부재 시 JwtAuthGuard 가 401.
+  @Put("default")
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
+  async setDefault(
+    @Body() dto: SetDefaultLlmProviderDto,
+  ): Promise<LlmProviderConfigView> {
+    return this.service.setDefault(dto.llmProviderConfigId);
   }
 
   // GET /api/llm/providers/:id — 단일 LLM provider config 를 id 로 조회 (REQ-096
