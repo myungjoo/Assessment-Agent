@@ -11,7 +11,8 @@
 //     controller 가 raw row 를 직접 직렬화하지 못하도록 sanitize 책임은 service 가 가짐.
 //   - sanitize 는 **명시적 field pick** 으로 구현 (전체 row spread 후 apiKey delete
 //     금지 — 새 secret 컬럼 추가 시 누락 방지 차원의 allow-list 정책). schema 에
-//     새 secret 이 추가돼도 view 는 명시 pick 한 6 필드만 노출 → leak 표면 최소.
+//     새 secret 이 추가돼도 view 는 명시 pick 한 non-secret 필드 + 파생 isDefault
+//     (T-1864) 만 노출 → leak 표면 최소.
 //
 // 책임 경계 (Out of Scope — task §Out of Scope 박제):
 //   - POST/PATCH/DELETE config CRUD (생성/수정/삭제) — Follow-up #1 (본 service 는
@@ -43,6 +44,7 @@ import type { LlmProviderConfig } from "@prisma/client";
 import type { CreateLlmProviderConfigDto } from "./dto/create-llm-provider-config.dto";
 import type { UpdateLlmProviderConfigDto } from "./dto/update-llm-provider-config.dto";
 import { LlmApiKeyCipher } from "./llm-apikey-cipher.service";
+import { LlmDefaultProviderRepository } from "./llm-default-provider.repository";
 import { isLlmProvider } from "./llm-gateway.interface";
 import {
   LlmProviderConfigRepository,
@@ -71,9 +73,18 @@ function getPrismaErrorCode(error: unknown): string | undefined {
 
 // LlmProviderConfigView — HTTP 응답으로 노출 가능한 LlmProviderConfig 의 view shape.
 // LlmProviderConfig 에서 **apiKey 만 제외** 한 6 필드 (id / provider / endpointUrl /
-// modelId / createdAt / updatedAt). apiKey 는 secret 이라 view 타입 자체에서 누락 —
-// 타입 레벨에서도 controller / caller 가 apiKey 에 접근하지 못하도록 차단.
-export type LlmProviderConfigView = Omit<LlmProviderConfig, "apiKey">;
+// modelId / createdAt / updatedAt) + 파생 필드 `isDefault` = 7 필드. apiKey 는 secret
+// 이라 view 타입 자체에서 누락 — 타입 레벨에서도 controller / caller 가 apiKey 에
+// 접근하지 못하도록 차단.
+//
+// isDefault (T-1864, ADR-0062 §Decision 3): "이 config 가 전역 기본 provider 인가".
+// 컬럼이 아니라 단일 슬롯 table (`LlmDefaultProvider`) 의 `llmProviderConfigId` 와
+// id 를 비교해 계산하는 **파생 필드** 다. 목록 응답에 얹어 Web UI (T-1866) 가 배지 ·
+// 버튼을 fetch 1 회로 그리게 한다 (별도 GET /default 를 두면 두 응답 사이 race 로
+// 배지가 어긋난다). secret 이 아니라 allow-list 확장에 문제 없음.
+export type LlmProviderConfigView = Omit<LlmProviderConfig, "apiKey"> & {
+  isDefault: boolean;
+};
 
 @Injectable()
 export class LlmProviderConfigService {
@@ -84,13 +95,31 @@ export class LlmProviderConfigService {
     // apiKey 를 ciphertext envelope 으로 변환할 때만 사용 (read path 는 미사용 —
     // never-decrypt-and-return, ADR-0014 §3).
     private readonly cipher: LlmApiKeyCipher,
+    // 전역 기본 provider 단일 슬롯 repository (T-1863 / ADR-0062 §Decision 2).
+    // 읽기 경로는 view 의 isDefault 계산에, 쓰기 경로는 setDefault 에 쓴다.
+    private readonly defaultProviderRepository: LlmDefaultProviderRepository,
   ) {}
+
+  // readDefaultConfigId — 전역 기본으로 지정된 config 의 id (미지정이면 null).
+  // PK 단건 1 회 = 상수 비용이며 목록 경로에서도 **요청당 1 회** 다 (N+1 금지).
+  private async readDefaultConfigId(): Promise<string | null> {
+    const slot = await this.defaultProviderRepository.findSlot();
+    if (slot === null) {
+      return null;
+    }
+    return slot.llmProviderConfigId;
+  }
 
   // sanitize — 단일 raw row → apiKey 제거 view 변환. 명시적 field pick (allow-list)
   // 으로 구현 — apiKey 는 destructure 한 뒤 폐기하지 않고 아예 view 객체 키에 포함
   // 시키지 않는다. 새 secret 컬럼이 schema 에 추가돼도 본 pick 에 없으면 view 에
   // 누출되지 않음 (deny-by-default).
-  private sanitize(row: LlmProviderConfig): LlmProviderConfigView {
+  // isDefault 는 호출자가 미리 읽은 `defaultConfigId` 와 row.id 를 비교해 계산한다
+  // (sanitize 자신이 슬롯을 조회하면 목록 변환에서 N+1 이 된다).
+  private sanitize(
+    row: LlmProviderConfig,
+    defaultConfigId: string | null,
+  ): LlmProviderConfigView {
     return {
       id: row.id,
       provider: row.provider,
@@ -98,6 +127,7 @@ export class LlmProviderConfigService {
       modelId: row.modelId,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+      isDefault: row.id === defaultConfigId,
     };
   }
 
@@ -108,7 +138,9 @@ export class LlmProviderConfigService {
   // 비어있지 않은 배열 → 각 row sanitize.
   async findAll(): Promise<LlmProviderConfigView[]> {
     const rows = await this.repository.findMany();
-    return rows.map((row) => this.sanitize(row));
+    // 슬롯 조회 1 회 → 모든 row 가 그 결과를 공유 (N+1 금지).
+    const defaultConfigId = await this.readDefaultConfigId();
+    return rows.map((row) => this.sanitize(row, defaultConfigId));
   }
 
   // findById — 단일 LlmProviderConfig 를 id 로 조회해 apiKey 제거 view 로 반환.
@@ -126,7 +158,7 @@ export class LlmProviderConfigService {
     if (row === null) {
       throw new NotFoundException(`llm provider config not found: ${id}`);
     }
-    return this.sanitize(row);
+    return this.sanitize(row, await this.readDefaultConfigId());
   }
 
   // create — 새 LlmProviderConfig 를 영속한 뒤 apiKey 제거 view 로 반환 (POST slice,
@@ -167,7 +199,8 @@ export class LlmProviderConfigService {
     });
 
     // (4) apiKey (ciphertext) 를 제거한 view 반환 — never-read-back invariant.
-    return this.sanitize(row);
+    // 새 row 의 자동 기본 승격은 0 (ADR-0062 제약 1) — isDefault 는 슬롯 비교 결과.
+    return this.sanitize(row, await this.readDefaultConfigId());
   }
 
   // update — 등록된 LlmProviderConfig 를 id 로 **부분 갱신** 한 뒤 apiKey 제거 view
@@ -234,7 +267,7 @@ export class LlmProviderConfigService {
     }
 
     // (5) apiKey 를 제거한 view 반환 — never-read-back invariant.
-    return this.sanitize(row);
+    return this.sanitize(row, await this.readDefaultConfigId());
   }
 
   // delete — 등록된 LlmProviderConfig 를 id 로 hard delete (DELETE slice, T-0150).
@@ -244,8 +277,10 @@ export class LlmProviderConfigService {
   //   - P2025 (record to delete not found — id 부재): NotFoundException (404).
   //     repository.delete 가 부재 id 에 던지는 raw P2025 를 호출자 가시성 있는
   //     404 로 표면화 (GroupRepository delete 의 P2025 propagate 정책 정합).
-  //   - P2003 (foreign key constraint failed — DifficultyMapping 슬롯이 본 config
-  //     를 사용 중): ConflictException (409). schema 의 `onDelete: Restrict`
+  //   - P2003 (foreign key constraint failed — DifficultyMapping 슬롯 **또는 전역
+  //     기본 provider 슬롯** 이 본 config 를 사용 중): ConflictException (409).
+  //     기본 provider 슬롯 (ADR-0062 §Decision 2) 도 `onDelete: Restrict` FK 라
+  //     "기본으로 지정된 row 의 삭제는 409" (제약 4) 가 새 분기 0 으로 성립한다. schema 의 `onDelete: Restrict`
   //     (prisma/schema.prisma §DifficultyMapping FK, ADR-0011 §2) 가 in-use config
   //     삭제를 차단해 던지는 P2003 을 409 로 변환 — Admin 이 먼저 슬롯을 재지정한
   //     뒤 삭제하라는 운영 가시성 (자동 cascade nullify 안 함, task §Out of Scope).
@@ -268,10 +303,48 @@ export class LlmProviderConfigService {
       }
       if (code === "P2003") {
         throw new ConflictException(
-          `llm provider config in-use: ${id} (먼저 DifficultyMapping 슬롯을 재지정한 뒤 삭제하세요)`,
+          `llm provider config in-use: ${id} (먼저 DifficultyMapping 슬롯 또는 기본 provider 지정을 다른 config 로 재지정한 뒤 삭제하세요)`,
         );
       }
       throw error;
     }
+  }
+
+  // setDefault — 전역 기본 LLM provider 를 `id` 의 config 로 **교체** 한다 (T-1864,
+  // ADR-0062 §Decision 2·3). 단일 슬롯 table 의 upsert 1 회라 "이전 해제 → 새 지정"
+  // 사이에 기본이 0 개인 window 가 존재하지 않으며, 이미 기본인 config 를 다시
+  // 지정하는 재호출도 성공한다 (멱등 — 후속 `PUT` endpoint 의 시멘틱 정합).
+  //
+  // error 변환 분기:
+  //   - P2003 (foreign key constraint failed): NotFoundException (404). 여기서의
+  //     P2003 은 **"가리키려는 config 가 없다"** 로, `delete` 의 P2003 ("이 config 를
+  //     누가 쓰고 있다" → 409) 과 **방향이 반대** 다 (ADR-0062 §Decision 3 명시 경고).
+  //     같은 code 가 호출 지점에 따라 다른 status 로 가므로 변환을 공용 helper 로
+  //     합치지 않고 각 메서드 안에 둔다.
+  //   - P2025 (record not found): 동일하게 404 — 부재 대상 지정이 어느 code 로
+  //     표면화되든 수렴시켜 controller 가 code 를 다시 분기하지 않게 한다.
+  //   - 그 외 error (DB 장애 등): swallow 없이 raw propagate (404 로 오변환 금지).
+  //
+  // 반환 view 의 `isDefault` 는 언제나 true — 방금 슬롯이 이 id 를 가리키게 만들었
+  // 으므로 슬롯을 다시 읽지 않고 id 를 비교 기준으로 넘긴다 (read-your-write).
+  //
+  // 분기: 성공 / P2003 (404) / P2025 (404) / 그 외 (raw propagate) / 슬롯은 잡혔으나
+  //       config row 조회가 null (경합 삭제 — 방어적 404).
+  async setDefault(id: string): Promise<LlmProviderConfigView> {
+    try {
+      await this.defaultProviderRepository.setSlot(id);
+    } catch (error) {
+      const code = getPrismaErrorCode(error);
+      if (code === "P2003" || code === "P2025") {
+        throw new NotFoundException(`llm provider config not found: ${id}`);
+      }
+      throw error;
+    }
+
+    const row = await this.repository.findById(id);
+    if (row === null) {
+      throw new NotFoundException(`llm provider config not found: ${id}`);
+    }
+    return this.sanitize(row, id);
   }
 }

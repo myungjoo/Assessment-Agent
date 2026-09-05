@@ -67,6 +67,9 @@ function buildViewFixture(
     modelId: "gpt-test",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    // isDefault (T-1864, ADR-0062 Decision 3) — view 7 번째 필드. controller 는 이
+    // 값을 계산하지 않고 service view 를 raw forward 만 한다.
+    isDefault: false,
     ...overrides,
   };
 }
