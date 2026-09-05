@@ -42,6 +42,11 @@ export interface LlmProviderRow {
   // endpointUrl 후보를 보수적으로 매핑한다(있으면 표시·없으면 생략). DifficultyModelSelector
   // 는 이 필드를 쓰지 않아 deriveProviders 동작은 불변이다.
   endpointUrl?: string;
+  // T-1897 — 전역 기본 provider 여부. backend LlmProviderConfigView 의 7 번째 필드인 **파생**
+  // 값이다(컬럼 아님 — 단일 슬롯 table 이 가리키는 row 만 true, ADR-0062 §Decision 3). 응답에
+  // 없을 수도 있는 선택 필드로 두어 구버전 응답 · 조회 전 상태도 throw 없이 받는다.
+  // deriveProviders(DifficultyModelSelector 경로) 는 이 필드를 쓰지 않아 동작 불변이다.
+  isDefault?: boolean;
 }
 
 // 난이도 매핑 row 의 frontend-local 최소 타입 — 슬롯 키(difficulty)와 할당된 provider config
@@ -96,6 +101,14 @@ export function deriveProviderConfigs(
     }
     if (row.endpointUrl) {
       config.endpointUrl = row.endpointUrl;
+    }
+    // isDefault 는 **엄격 boolean true** 일 때만 키로 싣는다(T-1897). truthy 검사 대신 === true
+    // 를 쓰는 이유는 이 값이 "기본 provider" 라는 단정적 표시를 화면에 띄우는 근거라, 문자열
+    // 'true' · 1 같은 비-boolean 응답을 참으로 오독하면 잘못된 행에 배지가 붙기 때문이다.
+    // false/undefined/비-boolean 은 키 자체를 생략한다(modelId·endpointUrl 의 선택 필드 계약
+    // 동형 — 생략된 키는 컴포넌트 렌더에서 자연 skip 되고, 기존 toEqual 단언도 그대로 산다).
+    if (row.isDefault === true) {
+      config.isDefault = true;
     }
     return config;
   });
