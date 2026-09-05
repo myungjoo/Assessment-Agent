@@ -2,7 +2,7 @@
 id: T-1864
 title: resolver 우선순위 — 명시 기본 provider 최우선 + service setDefault / isDefault view
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037, REQ-049, REQ-051]
 independentStream: llm-default-provider
