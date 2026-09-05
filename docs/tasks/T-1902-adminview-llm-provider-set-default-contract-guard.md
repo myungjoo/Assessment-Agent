@@ -2,7 +2,7 @@
 id: T-1902
 title: Web UI — 기본 provider 재지정 web↔backend 계약 drift guard spec (쓰기 축 B4)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-051]
 independentStream: llm-default-provider
