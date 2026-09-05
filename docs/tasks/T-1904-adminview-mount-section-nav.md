@@ -2,7 +2,7 @@
 id: T-1904
 title: AdminView 에 섹션 탭 내비 마운트 + 섹션 id 부여 (REQ-080 slice 2/2)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-080]
 estimatedDiff: 240
