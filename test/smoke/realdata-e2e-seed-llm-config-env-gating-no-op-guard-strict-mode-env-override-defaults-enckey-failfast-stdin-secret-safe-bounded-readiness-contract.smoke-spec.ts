@@ -626,3 +626,271 @@ describe("realdata-e2e step③ seed-llm-config.sh 내부 env-gating 계약 smoke
     });
   });
 });
+
+// ── T-1867 (ADR-0062 § Decision 5) 기본 provider 슬롯 bootstrap no-override 계약 ──────────────
+// seed 는 provider **row 는 매 재배포마다 DO UPDATE 로 덮어쓰지만**, 전역 기본 provider 지정
+// (LlmDefaultProvider 단일 슬롯)은 슬롯이 비었을 때 **최초 1 회만** INSERT 하고 이미 있으면
+// `ON CONFLICT ("id") DO NOTHING` 으로 **무변경**이다 — Admin 이 Web UI 에서 고른 명시 선택을
+// 어떤 자동 규칙도 덮어쓰지 않는다(ADR-0062 § Decision 1 제약 5). 이 비대칭이 깨지면(슬롯 문장이
+// DO UPDATE 로 바뀌거나 provider upsert 의 update 집합에 default 가 섞이면) 재배포가 조용히
+// 운영자의 명시 선택을 되돌린다. 순서 계약(슬롯 문장이 provider upsert **뒤**)은 T-0794 parity
+// spec 의 `extractOnConflictColumns`(첫 `DO UPDATE SET` 을 provider upsert 로 간주)가 드리프트하지
+// 않게 하는 전제이므로 함께 봉한다. 실 psql/DB 실행 0 — 실 shell 텍스트 정적 검증만.
+const PROVIDER_TABLE = "LlmProviderConfig";
+const DEFAULT_SLOT_TABLE = "LlmDefaultProvider";
+const DEFAULT_SLOT_ID_LITERAL = "'default'"; // 슬롯 고정 PK 리터럴(migration 의 DEFAULT 'default').
+const SLOT_INSERT_COLUMNS = [
+  "id",
+  "llmProviderConfigId",
+  "createdAt",
+  "updatedAt",
+]; // migration 20260903000000_llm_default_provider 의 scalar 컬럼 4종.
+const PROVIDER_UPDATE_SET_COLUMNS = [
+  "provider",
+  "endpointUrl",
+  "apiKey",
+  "modelId",
+  "updatedAt",
+]; // provider upsert 의 기존 5-컬럼 update 집합(무변경 대상).
+
+// 특정 table 의 `INSERT INTO "<table>" ... ;` 한 문장을 슬라이스. 매치 없으면 null.
+function extractInsertStatement(
+  shellSource: string,
+  table: string,
+): string | null {
+  const m = shellSource.match(
+    new RegExp('INSERT\\s+INTO\\s+"' + table + '"[\\s\\S]*?;'),
+  );
+  return m ? m[0] : null;
+}
+
+// 슬롯 INSERT 의 컬럼 튜플(순서 보존). 매치 없으면 null.
+function extractSlotInsertColumns(shellSource: string): string[] | null {
+  const stmt = extractInsertStatement(shellSource, DEFAULT_SLOT_TABLE);
+  if (!stmt) {
+    return null;
+  }
+  const paren = stmt.match(/\(([^)]*)\)/);
+  if (!paren) {
+    return null;
+  }
+  const cols = [...paren[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]);
+  return cols.length > 0 ? cols : null;
+}
+
+// 슬롯 INSERT 의 conflict action — "DO NOTHING"(정본) | "DO UPDATE"(금지) | null(문장/절 부재).
+function slotConflictAction(
+  shellSource: string,
+): "DO NOTHING" | "DO UPDATE" | null {
+  const stmt = extractInsertStatement(shellSource, DEFAULT_SLOT_TABLE);
+  if (!stmt) {
+    return null;
+  }
+  const m = stmt.match(
+    /ON\s+CONFLICT\s*\(\s*"[^"]+"\s*\)\s*DO\s+(NOTHING|UPDATE)\b/,
+  );
+  return m ? (m[1] === "NOTHING" ? "DO NOTHING" : "DO UPDATE") : null;
+}
+
+// provider upsert 의 `DO UPDATE SET` LHS 컬럼(T-0794 추출기 동형). 매치 없으면 null.
+function extractProviderUpdateSetColumns(shellSource: string): string[] | null {
+  const stmt = extractInsertStatement(shellSource, PROVIDER_TABLE);
+  if (!stmt) {
+    return null;
+  }
+  const m = stmt.match(/DO\s+UPDATE\s+SET([\s\S]*);/);
+  if (!m) {
+    return null;
+  }
+  const cols = [...m[1].matchAll(/"([^"]+)"\s*=/g)].map((x) => x[1]);
+  return cols.length > 0 ? cols : null;
+}
+
+// 순서 계약 — 슬롯 INSERT 가 provider INSERT **뒤**에 온다(FK 대상 row 선존재 + T-0794 전제).
+function slotInsertFollowsProviderUpsert(shellSource: string): boolean {
+  const p = shellSource.search(
+    new RegExp('INSERT\\s+INTO\\s+"' + PROVIDER_TABLE + '"'),
+  );
+  const s = shellSource.search(
+    new RegExp('INSERT\\s+INTO\\s+"' + DEFAULT_SLOT_TABLE + '"'),
+  );
+  return p >= 0 && s > p;
+}
+
+// 파일 안 첫 `DO UPDATE SET` 이 속한 INSERT 의 table — 정본은 provider table. 매치 없으면 null.
+function firstDoUpdateTargetTable(shellSource: string): string | null {
+  const idx = shellSource.search(/DO\s+UPDATE\s+SET/);
+  if (idx < 0) {
+    return null;
+  }
+  const before = [
+    ...shellSource.slice(0, idx).matchAll(/INSERT\s+INTO\s+"([^"]+)"/g),
+  ];
+  return before.length > 0 ? before[before.length - 1][1] : null;
+}
+
+// (집계) no-override 계약 불변식 — 하나라도 false 면 명시 선택이 재배포에 덮일 위험.
+interface DefaultSlotContract {
+  slotInsertPresent: boolean;
+  slotColumnsExact: boolean;
+  slotIdLiteral: boolean;
+  conflictDoNothing: boolean;
+  orderAfterProviderUpsert: boolean;
+  firstDoUpdateIsProviderTable: boolean;
+  providerUpdateSetUnchanged: boolean;
+}
+function extractDefaultSlotContract(shellSource: string): DefaultSlotContract {
+  const slotCols = extractSlotInsertColumns(shellSource);
+  const stmt = extractInsertStatement(shellSource, DEFAULT_SLOT_TABLE);
+  const providerSet = extractProviderUpdateSetColumns(shellSource);
+  return {
+    slotInsertPresent: stmt !== null,
+    slotColumnsExact:
+      JSON.stringify(slotCols) === JSON.stringify(SLOT_INSERT_COLUMNS),
+    slotIdLiteral: stmt !== null && stmt.includes(DEFAULT_SLOT_ID_LITERAL),
+    conflictDoNothing: slotConflictAction(shellSource) === "DO NOTHING",
+    orderAfterProviderUpsert: slotInsertFollowsProviderUpsert(shellSource),
+    firstDoUpdateIsProviderTable:
+      firstDoUpdateTargetTable(shellSource) === PROVIDER_TABLE,
+    providerUpdateSetUnchanged:
+      JSON.stringify(providerSet) ===
+        JSON.stringify(PROVIDER_UPDATE_SET_COLUMNS) &&
+      (providerSet ?? []).every((c) => !/default/i.test(c)),
+  };
+}
+
+describe("realdata-e2e step③ seed-llm-config.sh 기본 provider 슬롯 bootstrap no-override 계약 smoke — DO NOTHING 1 문 + 순서 계약 + provider update 집합 무변경 (T-1867 / ADR-0062 § Decision 5)", () => {
+  describe("Happy-path: 슬롯 bootstrap 문장이 실 소스에 정본 형태로 존재", () => {
+    it("provider upsert 뒤에 슬롯 INSERT + ON CONFLICT (\"id\") DO NOTHING 이 실재하고 슬롯 id 리터럴이 'default'", () => {
+      const shellSource = readFileSync(SEED_SH_PATH, "utf8");
+      const stmt = extractInsertStatement(shellSource, DEFAULT_SLOT_TABLE);
+      expect(stmt).not.toBeNull();
+      expect(stmt as string).toContain(DEFAULT_SLOT_ID_LITERAL);
+      expect(stmt as string).toContain('ON CONFLICT ("id") DO NOTHING');
+      expect(slotConflictAction(shellSource)).toBe("DO NOTHING");
+      expect(slotInsertFollowsProviderUpsert(shellSource)).toBe(true);
+    });
+
+    it("슬롯 INSERT 컬럼 튜플이 migration scalar 4종(id·llmProviderConfigId·createdAt·updatedAt)과 순서까지 일치", () => {
+      const shellSource = readFileSync(SEED_SH_PATH, "utf8");
+      expect(extractSlotInsertColumns(shellSource)).toEqual(
+        SLOT_INSERT_COLUMNS,
+      );
+    });
+
+    it("no-override 계약 집계 7 불변식이 실 소스에서 전부 true", () => {
+      const shellSource = readFileSync(SEED_SH_PATH, "utf8");
+      const contract = extractDefaultSlotContract(shellSource);
+      expect(Object.values(contract).every((v) => v)).toBe(true);
+      expect(contract).toEqual({
+        slotInsertPresent: true,
+        slotColumnsExact: true,
+        slotIdLiteral: true,
+        conflictDoNothing: true,
+        orderAfterProviderUpsert: true,
+        firstDoUpdateIsProviderTable: true,
+        providerUpdateSetUnchanged: true,
+      });
+    });
+  });
+
+  describe("error/negative — no-override 회귀·순서 드리프트·update 집합 오염 검출", () => {
+    it("negative (a) — 슬롯 문장에 `DO UPDATE` 가 0(명시 선택 덮어쓰기 경로 부재)", () => {
+      const shellSource = readFileSync(SEED_SH_PATH, "utf8");
+      const stmt = extractInsertStatement(
+        shellSource,
+        DEFAULT_SLOT_TABLE,
+      ) as string;
+      expect(/DO\s+UPDATE/.test(stmt)).toBe(false);
+      expect(slotConflictAction(shellSource)).not.toBe("DO UPDATE");
+    });
+
+    it("negative (b) — provider upsert 의 update 집합이 기존 5 컬럼 그대로이고 default 관련 컬럼 혼입 0", () => {
+      const shellSource = readFileSync(SEED_SH_PATH, "utf8");
+      const cols = extractProviderUpdateSetColumns(shellSource);
+      expect(cols).toEqual(PROVIDER_UPDATE_SET_COLUMNS);
+      (cols as string[]).forEach((c) => {
+        expect(/default/i.test(c)).toBe(false);
+      });
+      expect(cols).not.toContain("llmProviderConfigId");
+    });
+
+    it("negative (c) — 합성 mutant(슬롯 DO NOTHING → DO UPDATE SET) 에서 판정이 false 로 뒤집힘(silent PASS 아님)", () => {
+      const shellSource = readFileSync(SEED_SH_PATH, "utf8");
+      expect(extractDefaultSlotContract(shellSource).conflictDoNothing).toBe(
+        true,
+      );
+      const mutant = shellSource.replace(
+        'ON CONFLICT ("id") DO NOTHING;',
+        'ON CONFLICT ("id") DO UPDATE SET "llmProviderConfigId" = EXCLUDED."llmProviderConfigId";',
+      );
+      expect(mutant).not.toBe(shellSource); // 치환이 실제로 일어났음(공허한 mutant 아님).
+      expect(slotConflictAction(mutant)).toBe("DO UPDATE");
+      expect(extractDefaultSlotContract(mutant).conflictDoNothing).toBe(false);
+      expect(
+        Object.values(extractDefaultSlotContract(mutant)).every((v) => v),
+      ).toBe(false);
+    });
+
+    it("negative (d) — 슬롯 문장을 provider upsert 앞으로 옮긴 합성 사본에서 순서 계약 판정이 false", () => {
+      const shellSource = readFileSync(SEED_SH_PATH, "utf8");
+      const slotStmt = extractInsertStatement(
+        shellSource,
+        DEFAULT_SLOT_TABLE,
+      ) as string;
+      const providerStmt = extractInsertStatement(
+        shellSource,
+        PROVIDER_TABLE,
+      ) as string;
+      // 슬롯 문장을 제거한 뒤 provider upsert 앞에 다시 끼워 넣은 사본.
+      const mutant = shellSource
+        .replace(slotStmt, "")
+        .replace(providerStmt, slotStmt + "\n" + providerStmt);
+      expect(slotInsertFollowsProviderUpsert(shellSource)).toBe(true);
+      expect(slotInsertFollowsProviderUpsert(mutant)).toBe(false);
+      expect(extractDefaultSlotContract(mutant).orderAfterProviderUpsert).toBe(
+        false,
+      );
+    });
+
+    it("negative (e) — 슬롯 문장 전체를 지운 사본에서 존재 판정이 false(추출기 공허 성공 0)", () => {
+      const shellSource = readFileSync(SEED_SH_PATH, "utf8");
+      const slotStmt = extractInsertStatement(
+        shellSource,
+        DEFAULT_SLOT_TABLE,
+      ) as string;
+      const mutant = shellSource.replace(slotStmt, "");
+      expect(extractDefaultSlotContract(mutant).slotInsertPresent).toBe(false);
+      expect(extractDefaultSlotContract(mutant).slotColumnsExact).toBe(false);
+    });
+  });
+
+  describe("branch cover — 추출 helper 의 매치 없음 → null 분기", () => {
+    it("슬롯/provider 문장이 없는 소스에서 추출기가 모두 null(빈 배열 성공-위장 0)", () => {
+      const empty = "#!/usr/bin/env bash\necho no-sql\n";
+      expect(extractInsertStatement(empty, DEFAULT_SLOT_TABLE)).toBeNull();
+      expect(extractSlotInsertColumns(empty)).toBeNull();
+      expect(slotConflictAction(empty)).toBeNull();
+      expect(extractProviderUpdateSetColumns(empty)).toBeNull();
+      expect(firstDoUpdateTargetTable(empty)).toBeNull();
+      expect(slotInsertFollowsProviderUpsert(empty)).toBe(false);
+    });
+
+    it("슬롯 문장은 있으나 ON CONFLICT 절이 없는 사본 → conflict action null / 컬럼 추출은 유지", () => {
+      const noConflict =
+        'INSERT INTO "LlmDefaultProvider" ("id","llmProviderConfigId","createdAt","updatedAt")\nVALUES (\'default\',\'x\', NOW(), NOW());\n';
+      expect(slotConflictAction(noConflict)).toBeNull();
+      expect(extractSlotInsertColumns(noConflict)).toEqual(SLOT_INSERT_COLUMNS);
+    });
+
+    it("추출 helper 는 입력을 mutate 0 + 결정론(동일 입력 두 번 deep-equal)", () => {
+      const shellSource = readFileSync(SEED_SH_PATH, "utf8");
+      const snap = shellSource;
+      extractDefaultSlotContract(shellSource);
+      expect(shellSource).toBe(snap);
+      expect(extractDefaultSlotContract(shellSource)).toEqual(
+        extractDefaultSlotContract(shellSource),
+      );
+    });
+  });
+});

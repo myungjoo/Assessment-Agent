@@ -25,6 +25,10 @@
 #   SEED_LLM_CONFIG_ID     (기본 seed-local-llm) LlmProviderConfig 의 고정 id(멱등 키이자
 #                          평가 orchestrator 가 modelId 로 참조할 수 있는 안정 식별자)
 #   LLM_APIKEY_ENC_KEY     (.env 필수) apiKey 암호화 키 — 미설정 시 실패
+#
+# 기본 provider 비대칭(ADR-0062 § Decision 5): provider **row 는 매 재배포마다 덮어쓰지만**
+#   전역 기본 provider 지정(LlmDefaultProvider 슬롯)은 **최초 1 회만** bootstrap 하고 이후엔
+#   절대 덮어쓰지 않는다 — Admin 이 Web UI 에서 고른 명시 선택이 언제나 우선이다(DO NOTHING).
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/opt/assessment-agent}"
@@ -111,6 +115,13 @@ ON CONFLICT ("id") DO UPDATE SET
   "apiKey"      = EXCLUDED."apiKey",
   "modelId"     = EXCLUDED."modelId",
   "updatedAt"   = NOW();
+-- 5) 기본 provider 슬롯 bootstrap — 반드시 위 provider upsert 뒤에 온다(FK 대상 row 선존재 +
+--    T-0794 parity 추출기가 파일 첫 DO UPDATE SET 을 provider upsert 로 보는 순서 계약).
+--    슬롯이 이미 있으면(Admin 의 UI 명시 선택 또는 이전 seed) DO NOTHING 으로 무변경 —
+--    DO UPDATE 는 금지다(ADR-0062 Decision 1 제약 5 / Decision 5).
+INSERT INTO "LlmDefaultProvider" ("id","llmProviderConfigId","createdAt","updatedAt")
+VALUES ('default','$ID_E', NOW(), NOW())
+ON CONFLICT ("id") DO NOTHING;
 SQL
 
-echo "[seed-llm] OK — LlmProviderConfig 멱등 upsert 완료 (id=$CONFIG_ID)"
+echo "[seed-llm] OK — LlmProviderConfig 멱등 upsert + 기본 provider 슬롯 bootstrap(기존 선택 보존) 완료 (id=$CONFIG_ID)"

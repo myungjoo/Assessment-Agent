@@ -179,6 +179,11 @@ ssh deploy@192.168.0.7 "cd /opt/assessment-agent && SKIP_REDEPLOY=1 bash deploy/
 호출하며, **`.env`의 `SEED_LLM_ENDPOINT_URL`가 설정된 경우에만** 동작한다(미설정이면
 no-op — 다른 환경/공용 repo엔 영향 0).
 
+> **기본 provider는 덮어쓰지 않는다(ADR-0062 Decision 5)**: seed는 provider row 자체는
+> 재배포마다 멱등하게 덮어쓰지만, **전역 기본 provider 지정(`LlmDefaultProvider` 슬롯)은
+> 슬롯이 비어 있을 때 최초 1회만** 넣는다(`ON CONFLICT DO NOTHING`). Admin이 Web UI에서
+> 고른 명시 선택은 재배포로 절대 바뀌지 않는다.
+
 AA는 LLM 설정을 DB(`LlmProviderConfig`)에 두고 `apiKey`를 AES-256-GCM으로 암호화
 저장한다(ADR-0014). seed 스크립트는 평문 키를 DB에 넣지 않고, 실행 중인 `app`
 컨테이너 안에서 compiled cipher로 암호화한 ciphertext만 upsert한다(컨테이너 env의
