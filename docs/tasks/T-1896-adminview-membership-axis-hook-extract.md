@@ -2,7 +2,7 @@
 id: T-1896
 title: AdminView 멤버십 축 배선(`736 행` ~ `841 행`, 106 줄)을 useAdminMemberships hook 으로 순수 추출
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-026]
 independentStream: adminview-god-component-refactor
@@ -83,3 +83,14 @@ plannerNote: "P6 / PLAN 183 행 AdminView 부채 경로 1 열한째 슬라이스
 ## Follow-ups
 
 (생성 시 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 append)
+
+## 결과 (2026-09-05 01:01Z 완료)
+
+- **DONE** (`pr`, PR [#1483](https://github.com/myungjoo/Assessment-Agent/pull/1483) → main [`ed6bf4f6`](https://github.com/myungjoo/Assessment-Agent/commit/ed6bf4f6)). round 1 squash merge.
+- 멤버십 축 106 줄(12 선언)을 선행 주석까지 **글자-동일 이동**해 신규 [web/src/views/useAdminMemberships.ts](../../web/src/views/useAdminMemberships.ts) 로 추출했다. `useMemo` / `useCallback` deps 배열과 `runRemove`(7 키) · `runAdd`(8 키) 주입 키의 diff 는 0 이다.
+- 축 밖 의존 3 개(`groups` · `selectedGroupId` · `personData`)만 단일 object 파라미터로 받고, `membershipData` · `groupMembersPath` · `membersRefreshNonce` · setter 는 hook 안에 캡슐화해 반환 표면을 11 심볼로 좁혔다.
+- hook 호출을 **원 블록 자리**(그룹 `groups` 파생 직후, LLM provider hook 앞)에 두어 `useApiResource` 발사 순번을 보존했다 — T-1895 와 달리 순서 교환이 없다.
+- **AdminView.tsx 2,080 → 1,998 줄(-82)** — PLAN `183 행` bullet 의 **목표선 ≤ 2,000 줄 도달**. 4 파일 `+950/-108`.
+- 신규 colocated spec 28 케이스(happy 7 / error 4 / 분기 6 / negative 11)로 R-112 4 종을 cover 했다. web 139 파일 4,139 test green, backend 466 suite 13,495 test + `coverageThreshold`(line/function ≥ 80%) 통과.
+- anchor census 예측대로 소스 텍스트 anchor 는 [AdminView.group-members-contract.test.ts](../../web/src/views/AdminView.group-members-contract.test.ts) 1 파일뿐이었고 pointer 만 교체(계약 문장 무변경), 나머지 drift-guard 12 파일은 무수정 green 이었다.
+- 4-게이트 실측 — reviewer VERDICT=APPROVE(BLOCKER 0 / MAJOR 0 / MINOR 1 — `adding` 노출은 AC 명시 + 헤더 주석 박제라 수정 불요) · PR comment 외부 존재([#issuecomment-5548216896](https://github.com/myungjoo/Assessment-Agent/pull/1483#issuecomment-5548216896)) · integrator 자체 점검 통과 · CI green.
