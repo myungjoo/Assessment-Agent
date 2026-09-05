@@ -2,7 +2,7 @@
 id: T-1868
 title: 기본 provider 정책 doc-sync — ADR-0062 ACCEPTED + ADR-0048 supersede 한 줄 + REQ-049/051 + PLAN 106·107 행 + modules.md
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-049, REQ-051]
 independentStream: llm-default-provider
