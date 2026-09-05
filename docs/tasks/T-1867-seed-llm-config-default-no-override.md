@@ -2,7 +2,7 @@
 id: T-1867
 title: seed-llm-config.sh — 명시 기본 provider 를 절대 덮어쓰지 않는 bootstrap-only default
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-051]
 independentStream: llm-default-provider
