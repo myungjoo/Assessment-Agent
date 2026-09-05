@@ -8,8 +8,8 @@
 // 최상위 import 로 해결하므로 hook 은 **주입 파라미터를 받지 않는다**(T-1884 의
 // `initialImportConfirmText` 같은 props 유래 초기값이 본 축에는 0 건임을 사전 실측했다).
 //
-// 반환은 JSX LLM 패널 구역이 실제로 쓰는 36 심볼만 공개한다(task 본문이 열거한 심볼 목록
-// 전부 — 본문의 '35' 는 계수 오차이고 열거 자체는 36 개다) — `providersRefreshNonce` ·
+// 반환은 JSX LLM 패널 구역이 실제로 쓰는 39 심볼만 공개한다(T-1887 추출 시점 36 + T-1899 의
+// 기본 provider 재지정 3) — `providersRefreshNonce` ·
 // `providerData` · `mappingData` · `mappingsLoading` · `mappingsError` · `providersPath` ·
 // `mappingsPath` · `refreshNonce` · `optimisticMapping` · `assigning` · `assignError` ·
 // `resetEditProviderForm` 와 나머지 내부 setter 는 노출하지 않는다(캡슐화 — 축 밖에서 이 축의
@@ -34,6 +34,7 @@ import {
   runAssign,
   runCreateProvider,
   runDeleteProvider,
+  runSetDefaultProvider,
   runUpdateProvider,
 } from './adminLlmProviderMutationRunners';
 import {
@@ -89,6 +90,34 @@ export function useAdminLlmProviders() {
         bumpRefresh: () => setProvidersRefreshNonce((n) => n + 1),
       }),
     [deletingProvider],
+  );
+
+  // 전역 기본 provider 재지정 mutation in-flight 플래그(T-1899) — PUT 진행 중 true. 진행 표시와
+  // 동시 재호출 가드(이전 mutation 미완 중 재호출 차단)에 함께 쓴다(deletingProvider 동형).
+  const [settingDefault, setSettingDefault] = useState<boolean>(false);
+
+  // 기본 provider 재지정 mutation 실패 문구(T-1899) — PUT 실패 시 사람-친화 문구(toErrorMessage
+  // 파생)를 보관해 목록 패널의 error props 로 안전 표시한다(throw 없음). 성공/재시도 시작 시 비운다.
+  const [setDefaultError, setSetDefaultError] = useState<string | undefined>(
+    undefined,
+  );
+
+  // onSetDefault 실 mutation 핸들러(T-1899) — 전역 기본 provider 재지정 PUT(/api/llm/providers/
+  // default, api.md 134 행)을 컨테이너 내부 async 로 발사한다. 빈/공백/falsy id·이전 mutation
+  // 미완(settingDefault) 발사 억제 + 성공(provider 재조회 트리거)/실패(error 안전 표시, throw
+  // 없음) 전이는 runSetDefaultProvider 가 캡슐화한다 — hook 은 자체 가드 판단을 하지 않는다.
+  // settingDefault 를 deps 의존성에 포함해 stale 없이 최신 가드 상태로 발사한다.
+  const handleSetDefaultProvider = useCallback(
+    (id: string) =>
+      runSetDefaultProvider(id, {
+        update: request,
+        describeError: toErrorMessage,
+        settingDefault,
+        setSettingDefault,
+        setDefaultError: setSetDefaultError,
+        bumpRefresh: () => setProvidersRefreshNonce((n) => n + 1),
+      }),
+    [settingDefault],
   );
 
   // provider 생성 4 controlled input 상태(T-1136) — 컨테이너 소유. "추가" 클릭 시
@@ -333,9 +362,10 @@ export function useAdminLlmProviders() {
   );
 
   // 반환 표면 — JSX LLM 패널 구역(provider 목록 · 생성 폼 · 인라인 편집 폼 · 난이도 슬롯 선택기)이
-  // 실제로 소비하는 36 심볼만 공개한다. 내부 전용(원본 응답 2 · 재조회 nonce 2 · 경로 2 · 낙관 override ·
-  // mapping 조회 loading/error · assign in-flight/실패 문구 · 편집 폼 리셋 helper · 나머지 setter)은
-  // 의도적으로 빼 축 밖에서 이 축의 내부 상태를 건드릴 경로를 만들지 않는다.
+  // 실제로 소비하는 39 심볼만 공개한다(T-1899 에서 기본 provider 재지정 3 심볼을 더해 36 → 39).
+  // 내부 전용(원본 응답 2 · 재조회 nonce 2 · 경로 2 · 낙관 override · mapping 조회 loading/error ·
+  // assign in-flight/실패 문구 · 편집 폼 리셋 helper · 나머지 setter)은 의도적으로 빼 축 밖에서 이
+  // 축의 내부 상태를 건드릴 경로를 만들지 않는다.
   return {
     providers,
     providerConfigs,
@@ -344,6 +374,9 @@ export function useAdminLlmProviders() {
     deletingProvider,
     deleteProviderError,
     handleDeleteProvider,
+    settingDefault,
+    setDefaultError,
+    handleSetDefaultProvider,
     providerInput,
     setProviderInput,
     endpointUrlInput,
