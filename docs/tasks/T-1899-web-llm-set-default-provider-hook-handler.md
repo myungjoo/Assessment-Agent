@@ -2,7 +2,7 @@
 id: T-1899
 title: Web UI — useAdminLlmProviders 기본 provider 재지정 핸들러 (쓰기 축 B1, T-1866 split 3/3 재split 1/3)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-051]
 independentStream: llm-default-provider
