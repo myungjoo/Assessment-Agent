@@ -12,6 +12,8 @@ const EDIT_LABEL = '수정';
 // 기본 provider 배지 라벨/조회 토큰 (구현의 DEFAULT_BADGE_LABEL / DEFAULT_BADGE_TESTID 와 정합, T-1897).
 const DEFAULT_BADGE_LABEL = '기본';
 const BADGE_TESTID_ATTR = 'data-testid="llm-provider-default-badge"';
+// 기본 지정 버튼 라벨 (구현의 SET_DEFAULT_LABEL 과 정합, T-1900).
+const SET_DEFAULT_LABEL = '기본으로 지정';
 
 // markup 안의 기본 배지 개수 — 라벨 문자열이 아니라 data-testid 토큰으로 센다.
 function countBadges(html: string): number {
@@ -509,5 +511,205 @@ describe('LlmProviderConfigList', () => {
     expect(html).not.toContain(EDIT_LABEL);
     expect(countBadges(html)).toBe(1);
     expect(html).not.toContain('apiKey');
+  });
+
+  // ── T-1900 기본 provider 지정 버튼(쓰기 축 B2) ────────────────────────────────
+  // onSetDefault 는 onEdit/onDelete 와 동형의 선택 콜백이되, "이미 기본인 행" 에는 버튼을
+  // 렌더하지 않는다(무의미한 재지정 차단). 렌더 순서는 기존 수정→삭제 뒤 마지막.
+
+  // happy-path — onSetDefault 전달 시 비-default 행 수만큼 "기본으로 지정" 버튼이 렌더된다.
+  it('onSetDefault 전달 시 비-default 행 수만큼 기본 지정 버튼을 렌더한다 (happy-path — onSetDefault 전달, T-1900)', () => {
+    const html = renderToStaticMarkup(
+      <LlmProviderConfigList providers={sampleProviders} onSetDefault={() => undefined} />,
+    );
+    expect(html).toContain('<button');
+    expect(html).toContain(SET_DEFAULT_LABEL);
+    // sampleProviders 2 건은 모두 비-default → 버튼 = 기본 지정만 2 개.
+    const btnCount = (html.match(/<button/g) ?? []).length;
+    expect(btnCount).toBe(sampleProviders.length);
+  });
+
+  // happy-path(콜백) — 기본 지정 버튼 클릭 시 해당 행의 row.id 로 onSetDefault 가 호출된다.
+  it('기본 지정 버튼 클릭 시 해당 행 id 로 onSetDefault 를 호출한다 (happy-path — 콜백 발화, T-1900)', () => {
+    const onSetDefault = vi.fn();
+    const tree = LlmProviderConfigList({ providers: sampleProviders, onSetDefault });
+    const buttons = collectButtons(tree);
+    // 비-default 행 수만큼 수집되고, 각 버튼 클릭이 대응 row.id 로 콜백을 호출한다(순서 보존).
+    expect(buttons).toHaveLength(2);
+    buttons[0]?.onClick?.();
+    expect(onSetDefault).toHaveBeenLastCalledWith('p1');
+    buttons[1]?.onClick?.();
+    expect(onSetDefault).toHaveBeenLastCalledWith('p2');
+    expect(onSetDefault).toHaveBeenCalledTimes(2);
+  });
+
+  // error path — error 우선 정책은 onSetDefault 전달과 무관하다(alert 만, 버튼 0).
+  it('onSetDefault 전달 + error truthy → 목록/버튼 대신 alert 우선 (error path, T-1900)', () => {
+    const html = renderToStaticMarkup(
+      <LlmProviderConfigList
+        providers={sampleProviders}
+        error="기본 provider 지정에 실패했습니다"
+        onSetDefault={() => undefined}
+      />,
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('기본 provider 지정에 실패했습니다');
+    expect(html).not.toContain('<button');
+    expect(html).not.toContain('<ul>');
+  });
+
+  // branch(a) — loading 우선 정책도 onSetDefault 전달과 무관하다(로딩 표시만, 버튼 0).
+  it('onSetDefault 전달 + loading=true → 로딩 표시 우선, 버튼 0 (branch — loading 우선, T-1900)', () => {
+    const html = renderToStaticMarkup(
+      <LlmProviderConfigList
+        providers={sampleProviders}
+        loading={true}
+        onSetDefault={() => undefined}
+      />,
+    );
+    expect(html).toContain('role="status"');
+    expect(html).toContain(LOADING_TOKEN);
+    expect(html).not.toContain('<button');
+    expect(html).not.toContain(SET_DEFAULT_LABEL);
+  });
+
+  // branch(b) — isDefault: true 행에는 버튼 미렌더·배지만, 같은 목록의 비-default 행에는 버튼 렌더.
+  it('isDefault: true 행은 배지만·버튼 미렌더, 비-default 행에만 기본 지정 버튼을 렌더한다 (branch — 행별 대응, T-1900)', () => {
+    const rows: LlmProviderConfigRow[] = [
+      { id: 'p1', provider: 'openai', modelId: 'gpt-4o' },
+      { id: 'p2', provider: 'anthropic', modelId: 'claude-3', isDefault: true },
+      { id: 'p3', provider: 'ollama' },
+    ];
+
+    const html = renderToStaticMarkup(
+      <LlmProviderConfigList providers={rows} onSetDefault={() => undefined} />,
+    );
+
+    expect(countBadges(html)).toBe(1);
+    const btnCount = (html.match(/<button/g) ?? []).length;
+    expect(btnCount).toBe(2);
+    // <li> 단위로 쪼개 배지가 실린 행에는 버튼이 없고, 나머지 두 행에는 버튼이 있는지 확인한다.
+    const items = html.split('<li>').slice(1);
+    expect(items).toHaveLength(3);
+    expect(items[1]).toContain(BADGE_TESTID_ATTR);
+    expect(items[1]).not.toContain(SET_DEFAULT_LABEL);
+    expect(items[0]).toContain(SET_DEFAULT_LABEL);
+    expect(items[2]).toContain(SET_DEFAULT_LABEL);
+  });
+
+  // branch(c) — 3 종 콜백 동시 전달 시 비-default 행당 버튼 3 개, 행별 [수정, 삭제, 기본으로 지정] 순.
+  it('onSetDefault + onEdit + onDelete 동시 전달 시 행별 [수정, 삭제, 기본으로 지정] 순으로 각 콜백을 대응 id 로 호출한다 (branch — 콜백 순서, T-1900)', () => {
+    const onEdit = vi.fn();
+    const onDelete = vi.fn();
+    const onSetDefault = vi.fn();
+    const tree = LlmProviderConfigList({
+      providers: sampleProviders,
+      onEdit,
+      onDelete,
+      onSetDefault,
+    });
+    const buttons = collectButtons(tree);
+    // 비-default 행 2 개 × 3 종 → [edit p1, delete p1, setDefault p1, edit p2, delete p2, setDefault p2].
+    expect(buttons).toHaveLength(6);
+    buttons[0]?.onClick?.();
+    expect(onEdit).toHaveBeenLastCalledWith('p1');
+    buttons[1]?.onClick?.();
+    expect(onDelete).toHaveBeenLastCalledWith('p1');
+    buttons[2]?.onClick?.();
+    expect(onSetDefault).toHaveBeenLastCalledWith('p1');
+    buttons[3]?.onClick?.();
+    expect(onEdit).toHaveBeenLastCalledWith('p2');
+    buttons[4]?.onClick?.();
+    expect(onDelete).toHaveBeenLastCalledWith('p2');
+    buttons[5]?.onClick?.();
+    expect(onSetDefault).toHaveBeenLastCalledWith('p2');
+    expect(onSetDefault).toHaveBeenCalledTimes(2);
+  });
+
+  // negative(a) — onSetDefault 미전달 → 버튼 0 · 기존 렌더 불변(읽기 전용 하위 호환, T-1134 마운트 보존).
+  it('onSetDefault 미전달 → 기본 지정 버튼 0 · 목록 렌더 불변 (negative — 미전달 하위 호환, T-1900)', () => {
+    const html = renderToStaticMarkup(<LlmProviderConfigList providers={sampleProviders} />);
+
+    expect(html).not.toContain('<button');
+    expect(html).not.toContain(SET_DEFAULT_LABEL);
+    expect(html).toContain('<ul>');
+    expect(html).toContain('openai');
+    expect(html).toContain('anthropic');
+  });
+
+  // negative(b) — 빈 배열 + onSetDefault 전달 → 버튼 0 + 빈 상태 문구(empty 분기 우선).
+  it('빈 목록 + onSetDefault 전달 → 버튼 0 + 빈 상태 문구 (negative — empty, T-1900)', () => {
+    const html = renderToStaticMarkup(
+      <LlmProviderConfigList providers={[]} onSetDefault={() => undefined} />,
+    );
+
+    expect(html).toContain(DEFAULT_EMPTY);
+    expect(html).not.toContain('<button');
+    expect(html).not.toContain(SET_DEFAULT_LABEL);
+  });
+
+  // negative(c) — 모든 행이 isDefault: true 인 backend 불변식 위반 응답. 버튼은 0 이지만 throw
+  // 없이 배지는 각 행에 그대로 렌더한다(화면이 응답을 있는 그대로 비춘다 — 배지 정책 동형).
+  it('모든 행 isDefault: true → 기본 지정 버튼 0, throw 없이 배지는 각 행에 렌더 (negative — 불변식 위반 미교정, T-1900)', () => {
+    const rows: LlmProviderConfigRow[] = [
+      { id: 'p1', provider: 'openai', isDefault: true },
+      { id: 'p2', provider: 'anthropic', isDefault: true },
+    ];
+
+    const render = () =>
+      renderToStaticMarkup(
+        <LlmProviderConfigList providers={rows} onSetDefault={() => undefined} />,
+      );
+
+    expect(render).not.toThrow();
+    const html = render();
+    expect(html).not.toContain('<button');
+    expect(html).not.toContain(SET_DEFAULT_LABEL);
+    expect(countBadges(html)).toBe(2);
+  });
+
+  // negative(d) — 비-boolean isDefault("true"/1) → 엄격 === true 비교라 배지 0 이고, 비-default
+  // 취급이므로 버튼은 **렌더된다**(경계값 — 배지 분기와 버튼 분기가 같은 기준을 쓴다).
+  it('isDefault: "true" 같은 비-boolean → 배지 0 이지만 기본 지정 버튼은 렌더된다 (negative — 경계값, T-1900)', () => {
+    const rows = [
+      { id: 'p1', provider: 'openai', isDefault: 'true' },
+      { id: 'p2', provider: 'anthropic', isDefault: 1 },
+    ] as unknown as LlmProviderConfigRow[];
+
+    const html = renderToStaticMarkup(
+      <LlmProviderConfigList providers={rows} onSetDefault={() => undefined} />,
+    );
+
+    expect(countBadges(html)).toBe(0);
+    expect(html).toContain(SET_DEFAULT_LABEL);
+    const btnCount = (html.match(/<button/g) ?? []).length;
+    expect(btnCount).toBe(2);
+  });
+
+  // negative(e) — 계약 불변: onSetDefault 전달 상태에서도 markup 에 secret 토큰이 등장하지 않는다.
+  it('onSetDefault 전달 상태에서도 apiKey 등 secret 토큰이 markup 에 없다 (negative — secret 미노출, T-1900)', () => {
+    const rows = [
+      { id: 'p1', provider: 'openai', modelId: 'gpt-4o', apiKey: 'sk-must-not-render' },
+    ] as unknown as LlmProviderConfigRow[];
+
+    const html = renderToStaticMarkup(
+      <LlmProviderConfigList providers={rows} onSetDefault={() => undefined} />,
+    );
+
+    expect(html).toContain(SET_DEFAULT_LABEL);
+    expect(html).not.toContain('apiKey');
+    expect(html).not.toContain('sk-must-not-render');
+  });
+
+  // 배지 판정 오탐 방지 — '기본으로 지정' 라벨이 배지 라벨 '기본' 을 부분 문자열로 포함하지만
+  // 배지 개수는 data-testid 토큰으로 세므로 버튼이 배지로 오탐되지 않는다(기존 spec 무영향 근거).
+  it('기본 지정 버튼 라벨이 배지 라벨을 포함해도 배지 개수 판정에 오탐이 없다 (계약 불변, T-1900)', () => {
+    const html = renderToStaticMarkup(
+      <LlmProviderConfigList providers={sampleProviders} onSetDefault={() => undefined} />,
+    );
+
+    expect(html).toContain(SET_DEFAULT_LABEL);
+    expect(html).toContain(DEFAULT_BADGE_LABEL);
+    expect(countBadges(html)).toBe(0);
   });
 });
