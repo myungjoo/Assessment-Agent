@@ -2,7 +2,7 @@
 id: T-1862
 title: 다중-row LlmProviderConfig 의 기본 provider 선택 정책 ADR — Web UI 명시 선택 최우선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-051]
 independentStream: llm-default-provider
@@ -71,3 +71,10 @@ plannerNote: "오너 지시 2026-09-03 — ADR-0048 §Decision 2 가 deferred �
 
 - T-1863: 택1 (A) 에 따른 schema + migration + repository.
 - T-1868: ADR-0062 status ACCEPTED 승격 + ADR-0048 §Decision 2 "superseded by ADR-0062" 한 줄 (direct).
+
+## Result (2026-09-05)
+
+- `Status: DONE` — PR [#1485](https://github.com/myungjoo/Assessment-Agent/pull/1485) round 2 squash 머지 (`9e8f901d`).
+- ADR-0062 신설. 저장 형태는 **(ii) 단일 슬롯 table `LlmDefaultProvider`** 택1 — upsert 1 회 원자 교체 · 삭제 409 가 기존 P2003 변환 재사용 · DifficultyMapping 패턴 mirror. API 는 **`PUT /api/llm/providers/default`** + 목록 view 의 `isDefault`.
+- `data-model.md` 의 LlmProviderConfig 행 · ERD · 관계 12 번 동기. 코드 0 LOC (`pnpm lint && pnpm build && pnpm test` 466 suite · 13495 test 통과).
+- reviewer MINOR finding 1 건 (PUT 실패 매핑의 `P2003` 방향 오매핑 위험) 은 §3 Nit-in-PR closure 로 round 2 (`127f168c`) 에서 본 PR 안에서 처리.
