@@ -63,8 +63,10 @@ function extractHandlerMethods(source: string): Record<string, HandlerDecorator>
   }
   return found;
 }
-// AdminView 멤버십 조회 call site 발사 method 추론. `useApiResource<MembershipRow[]>(groupMembersPath)` 를
+// 멤버십 조회 call site 발사 method 추론. `useApiResource<MembershipRow[]>(groupMembersPath)` 를
 // 옵션 인자 없이(단일 인자) 호출 → fetch default GET. 인자 2+ 면 non-GET. 소문자 groupMembersPath anchor.
+// T-1896 — 그 call site 가 AdminView.tsx 에서 useAdminMemberships.ts 로 순수 추출됐다. 아래 소스
+// pointer 만 새 hook 모듈로 옮기고 계약 문장(정규식·기대값)은 한 글자도 바꾸지 않는다.
 function extractMembersFireMethod(source: string): string | null {
   const matched = /useApiResource<MembershipRow\[\]>\(\s*(groupMembersPath[^)]*)\)/.exec(stripComments(source));
   if (!matched) {
@@ -105,14 +107,14 @@ function diffContract(fire: WebFire, backend: BackendContract, id: string): stri
   return issues;
 }
 const CONTROLLER_SOURCE = readFileSync(new URL('../../../src/user/group.controller.ts', import.meta.url), 'utf8');
-const ADMIN_VIEW_SOURCE = readFileSync(new URL('./AdminView.tsx', import.meta.url), 'utf8');
+const MEMBERSHIPS_HOOK_SOURCE = readFileSync(new URL('./useAdminMemberships.ts', import.meta.url), 'utf8');
 const ROUTE = extractControllerRoute(CONTROLLER_SOURCE);
 const HANDLERS = extractHandlerMethods(CONTROLLER_SOURCE);
 const FIND_ALL = HANDLERS.findAll ?? null;
 const FIND_BY_ID = HANDLERS.findById ?? null;
 const FIND_PERSONS = HANDLERS.findPersons ?? null;
 const FIND_MEMBERS = HANDLERS.findMembers ?? null;
-const WEB_FIRE_METHOD = extractMembersFireMethod(ADMIN_VIEW_SOURCE);
+const WEB_FIRE_METHOD = extractMembersFireMethod(MEMBERSHIPS_HOOK_SOURCE);
 const MEMBERS_CONTRACT: BackendContract = {
   route: ROUTE,
   method: FIND_MEMBERS?.method ?? null,
