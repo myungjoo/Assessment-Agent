@@ -37,6 +37,7 @@ import { DifficultyMappingController } from "./difficulty-mapping.controller";
 import { DifficultyMappingRepository } from "./difficulty-mapping.repository";
 import { DifficultyMappingService } from "./difficulty-mapping.service";
 import { LlmApiKeyCipher } from "./llm-apikey-cipher.service";
+import { LlmDefaultProviderRepository } from "./llm-default-provider.repository";
 import { LlmHttpGateway } from "./llm-http-gateway.service";
 import { LlmProviderConfigResolver } from "./llm-provider-config-resolver.service";
 import { LlmProviderConfigController } from "./llm-provider-config.controller";
@@ -55,6 +56,11 @@ import { LlmStubGateway } from "./llm-stub-gateway.service";
     LlmProviderConfigService,
     DifficultyMappingRepository,
     DifficultyMappingService,
+    // LlmDefaultProviderRepository (T-1863, ADR-0062 §Decision 2) — 전역 기본 provider
+    // 단일 슬롯 table 의 읽기 / 교체 repository. 소비처 배선 (resolver 우선순위 + service
+    // setDefault) 은 T-1864 소관이라 본 등록만으로는 어떤 실행 경로도 바뀌지 않는다 —
+    // 후속 slice 가 LlmModule 안에서 inject 하고, 다른 module 도 쓸 수 있도록 export.
+    LlmDefaultProviderRepository,
     // LlmApiKeyCipher (T-0147) — apiKey AES-256-GCM 암복호화 helper. 후속 config
     // write CRUD service (Follow-up #2) 가 inject 해 encrypt 후 영속하므로 export.
     LlmApiKeyCipher,
@@ -79,6 +85,7 @@ import { LlmStubGateway } from "./llm-stub-gateway.service";
     LlmProviderConfigService,
     DifficultyMappingRepository,
     DifficultyMappingService,
+    LlmDefaultProviderRepository,
     LlmApiKeyCipher,
     LlmHttpGateway,
     LlmProviderConfigResolver,
