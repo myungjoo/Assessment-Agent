@@ -2,7 +2,7 @@
 id: T-1863
 title: 기본 provider 저장 — schema + migration + repository 읽기/지정 메서드
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-051]
 independentStream: llm-default-provider
@@ -59,3 +59,10 @@ plannerNote: "오너 지시 2026-09-03 chain 2/7. DB schema 변경 — CLAUDE.md
 ## Follow-ups
 
 - **소비처 배선 (T-1864 — 파일 · 배선 명시)**: `src/llm/llm-provider-config-resolver.service.ts` 의 `resolveDefaultModelId()` 가 `repository.findDefault()` 를 **먼저** 호출 (명시 선택 최우선) 하고 null 일 때만 기존 `findMany()` 3 분기로 fallback. `src/llm/llm-provider-config.service.ts` 에 `setDefault(id)` (P2025 → 404) + sanitize view 에 `isDefault` 필드.
+
+## Result (2026-09-05)
+
+- `Status: DONE` — PR [#1486](https://github.com/myungjoo/Assessment-Agent/pull/1486) round 1 squash 머지 (`ae3bbe2e`). 5 파일 +413.
+- **ADR-0062 의 택1 (ii) 단일 슬롯 table `LlmDefaultProvider` 를 따랐다** — 본 task 파일이 전제하던 `isDefault` 컬럼 · `findDefault` / `setDefault` 명명과는 괴리가 있으며, ADR 이 상위 권위이므로 ADR §Follow-ups 의 `findSlot()` / `setSlot()` 명명을 채택했다. 후속 T-1864 는 이 명명을 전제로 배선한다.
+- migration SQL 은 `prisma migrate diff` 산출물 그대로 (schema drift 0), 자동 승격 경로 0. `P2003` / `P2025` 는 repository 가 그대로 propagate 하고 HTTP 매핑은 T-1865 소관.
+- 신규 repository line / branch / function 100%, 전체 line 99.94% / function 100% (임계 80% 상회). `pnpm lint && pnpm build && pnpm test:cov` green.
