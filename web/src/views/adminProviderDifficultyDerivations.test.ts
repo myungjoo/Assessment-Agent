@@ -74,6 +74,19 @@ describe('deriveProviders', () => {
     expect(option.provider).not.toBeUndefined();
     expect(option.modelId).not.toBeUndefined();
   });
+
+  // T-1897 — 신설 선택 필드 isDefault 는 DifficultyModelSelector 경로가 쓰지 않는다.
+  // row 에 실려 와도 ProviderOption 3 필드만 나오는 것이 계약(동작 불변의 회귀 방어).
+  it('row 에 isDefault 가 있어도 ProviderOption 3 필드만 매핑한다(동작 불변, T-1897)', () => {
+    const rows: LlmProviderRow[] = [
+      { id: 'c-1', provider: 'openai', modelId: 'gpt-4o', isDefault: true },
+    ];
+
+    expect(deriveProviders(rows)).toEqual([
+      { id: 'c-1', provider: 'openai', modelId: 'gpt-4o' },
+    ]);
+    expect('isDefault' in deriveProviders(rows)[0]).toBe(false);
+  });
 });
 
 describe('deriveProviderConfigs', () => {
@@ -153,6 +166,69 @@ describe('deriveProviderConfigs', () => {
 
     expect('apiKey' in config).toBe(false);
     expect(JSON.stringify(config)).not.toContain('sk-super-secret');
+  });
+
+  // T-1897 happy-path — backend LlmProviderConfigView 형태(7 필드)의 row 를 받아 파생 필드
+  // isDefault: true 를 그대로 보존한다. createdAt/updatedAt 같은 미지 키는 무시된다(기존 계약).
+  it('backend 7 필드 row 의 isDefault: true 를 보존한다(happy-path, T-1897)', () => {
+    const rows = [
+      {
+        id: 'c-1',
+        provider: 'openai',
+        modelId: 'gpt-4o',
+        endpointUrl: 'https://api.example.com',
+        isDefault: true,
+        createdAt: '2026-09-05T00:00:00.000Z',
+        updatedAt: '2026-09-05T00:00:00.000Z',
+      },
+    ] as unknown as LlmProviderRow[];
+
+    expect(deriveProviderConfigs(rows)).toEqual([
+      {
+        id: 'c-1',
+        provider: 'openai',
+        modelId: 'gpt-4o',
+        endpointUrl: 'https://api.example.com',
+        isDefault: true,
+      },
+    ]);
+  });
+
+  it('isDefault 가 false/미전달이면 키 자체를 생략한다(선택 필드 계약, negative, T-1897)', () => {
+    const [explicitFalse] = deriveProviderConfigs([
+      { id: 'c-1', provider: 'openai', isDefault: false },
+    ]);
+    const [absent] = deriveProviderConfigs([{ id: 'c-2', provider: 'openai' }]);
+
+    expect('isDefault' in explicitFalse).toBe(false);
+    expect('isDefault' in absent).toBe(false);
+    // 기존 단언 형태(선택 키 없는 최소 객체)가 그대로 green 임을 고정한다.
+    expect(explicitFalse).toEqual({ id: 'c-1', provider: 'openai' });
+    expect(absent).toEqual({ id: 'c-2', provider: 'openai' });
+  });
+
+  it('비-boolean isDefault("true"/1)는 참으로 오독하지 않고 생략한다(negative, T-1897)', () => {
+    const rows = [
+      { id: 'c-1', provider: 'openai', isDefault: 'true' },
+      { id: 'c-2', provider: 'anthropic', isDefault: 1 },
+    ] as unknown as LlmProviderRow[];
+
+    const configs = deriveProviderConfigs(rows);
+
+    expect('isDefault' in configs[0]).toBe(false);
+    expect('isDefault' in configs[1]).toBe(false);
+  });
+
+  it('isDefault: true 인 row 가 여럿이어도 throw 없이 각각 보존한다(backend 불변식 위반은 web 이 교정하지 않는다, negative, T-1897)', () => {
+    const rows: LlmProviderRow[] = [
+      { id: 'c-1', provider: 'openai', isDefault: true },
+      { id: 'c-2', provider: 'anthropic', isDefault: true },
+    ];
+
+    expect(() => deriveProviderConfigs(rows)).not.toThrow();
+    expect(deriveProviderConfigs(rows).map((config) => config.isDefault)).toEqual(
+      [true, true],
+    );
   });
 });
 

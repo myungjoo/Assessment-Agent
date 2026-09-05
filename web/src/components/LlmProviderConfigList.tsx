@@ -18,6 +18,10 @@ interface LlmProviderConfigRow {
   modelId?: string;
   // provider 엔드포인트 URL(선택) — 있으면 함께 표시, 없으면 throw 없이 생략한다.
   endpointUrl?: string;
+  // 전역 기본 provider 여부(선택, T-1897) — backend view 의 파생 필드 isDefault(ADR-0062
+  // §Decision 3) 를 그대로 받는다. true 인 행에만 "기본" 배지를 렌더하고, false/미전달이면
+  // 배지를 생략한다(선택 필드 계약 — modelId/endpointUrl 동형).
+  isDefault?: boolean;
 }
 
 // loading 중 노출할 기본 한국어 문구.
@@ -28,6 +32,12 @@ const DEFAULT_EMPTY_MESSAGE = '등록된 LLM provider 가 없습니다';
 const DELETE_LABEL = '삭제';
 // provider 수정 버튼 라벨(T-1137) — onEdit 전달 시에만 각 행에 렌더한다(DELETE_LABEL 동형).
 const EDIT_LABEL = '수정';
+// 기본 provider 배지 라벨(T-1897) — row.isDefault === true 인 행에만 렌더한다(DELETE_LABEL /
+// EDIT_LABEL 상수 규약 동형). 배지는 표시 전용이라 클릭 대상이 아니다(기본 지정 버튼은 후속 slice).
+const DEFAULT_BADGE_LABEL = '기본';
+// 기본 배지 조회용 test id — spec 이 라벨 문자열 대신 이 토큰으로 배지 개수를 세도록 고정한다
+// ('기본' 두 글자는 다른 문구에도 흔히 섞여 오탐이 나기 쉽다).
+const DEFAULT_BADGE_TESTID = 'llm-provider-default-badge';
 
 interface LlmProviderConfigListProps {
   // 표시할 provider 목록 — controlled component 라 상위가 이미 fetch·정렬된 배열을 보유한다.
@@ -84,6 +94,13 @@ function LlmProviderConfigList({
         <li key={row.id}>
           {/* provider 는 항상 표시한다(주 라벨). */}
           <span>{row.provider}</span>
+          {/* isDefault === true 인 행에만 "기본" 배지를 주 라벨 옆에 렌더한다(T-1897). 엄격
+              boolean 비교라 false/undefined/비-boolean 은 배지 없음. backend 불변식(true 인 row
+              는 0 또는 1 개) 위반 응답이 와도 web 은 교정하지 않고 각 해당 행에 그대로 렌더한다 —
+              화면이 응답을 있는 그대로 비추게 두는 편이 이상을 숨기는 것보다 낫다. */}
+          {row.isDefault === true ? (
+            <span data-testid={DEFAULT_BADGE_TESTID}>{DEFAULT_BADGE_LABEL}</span>
+          ) : null}
           {/* modelId 는 있을 때만 함께 표시한다(없으면 throw 없이 생략). */}
           {row.modelId ? <span>{row.modelId}</span> : null}
           {/* endpointUrl 은 있을 때만 함께 표시한다(없으면 throw 없이 생략). */}
