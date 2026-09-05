@@ -234,11 +234,10 @@ import PartList from '../components/PartList';
 // 제네릭에 쓰던 named UserRow 타입은 T-1891 이 조회를 useAdminUsers 로 옮기며 이 파일에서 미사용이
 // 되어 함께 정리했다(배럴 재수출 대상도 아니라 공개 표면 무변경 — 위 CollectionTargetRow 선례 동형).
 import UserList from '../components/UserList';
-// 수집 대상 목록 마운트 대상(T-1825, ADR-0059 §Follow-ups (e)) — default CollectionTargetList 를
-// 가져온다. 조회 제네릭에 쓰던 named CollectionTargetRow 타입은 T-1886 이 조회를
-// useAdminCollectionTargets 로 옮기며 이 파일에서 미사용이 되어 함께 정리했다(배럴 재수출 대상도
-// 아니라 공개 표면 무변경 — PartRow / UserRow 의 default import 관행은 그대로다).
-import CollectionTargetList from '../components/CollectionTargetList';
+// 수집 대상 관리 섹션(껍데기 + 목록 축) 마운트 대상(T-1907 — PLAN 184 행 경로 2 슬라이스 1/2).
+// 종전 CollectionTargetList default import 는 그 섹션 컴포넌트로 옮겨가 여기서는 미사용이 됐다
+// (배럴 재수출 대상도 아니라 공개 표면 무변경 — CollectionTargetRow 타입 정리 선례 동형).
+import AdminCollectionTargetsSection from './AdminCollectionTargetsSection';
 // 수집 대상 등록 폼 마운트 대상(T-1826, ADR-0059 §Follow-ups (e) 편집 축) — 목록 아래에
 // Admin+ 일 때만 렌더한다(POST 가 `@Roles("Admin")` 편집 tier). 허용 type 목록
 // (COLLECTION_TARGET_TYPES)은 T-1886 이 등록 입력 상태와 함께 hook 으로 옮겨 여기서는 쓰지 않는다.
@@ -348,16 +347,13 @@ import {
 // 파일 끝 export 배럴이 공개 심볼 4 개를 그대로 re-export 하므로 기존 spec 의 `from './AdminView'`
 // 는 무수정으로 산다(공개 표면 무변경).
 import {
-  ADMIN_SECTION_COLLECTION_TARGETS_ID,
   ADMIN_SECTION_GROUPS_ID,
   ADMIN_SECTION_PARTS_ID,
   ADMIN_SECTION_PERSONS_ID,
   ADMIN_SECTION_USERS_ID,
   AUTH_ME_PATH,
-  COLLECTION_TARGET_HEADING,
   CREATE_USER_EMAIL_HINT_ID,
   CREATE_USER_PASSWORD_HINT_ID,
-  EMPTY_COLLECTION_TARGET_TEXT,
   EMPTY_MEMBER_TEXT,
   EMPTY_PART_PERSON_TEXT,
   EXPORT_SCOPE_OPTIONS,
@@ -1851,58 +1847,30 @@ function AdminView({
           }
         />
       </section>
-      {/* 수집 대상 관리(T-1825 마운트, ADR-0059 §Follow-ups (e), REQ-070/REQ-072) — 파트 관리
-          섹션 뒤, 최외곽 </section> 앞에 새 읽기 축 섹션을 추가한다. 위 useApiResource
-          <CollectionTargetRow[]>(COLLECTION_TARGETS_PATH) **한 호출**의 data/loading/error 를
-          그대로 CollectionTargetList 로 내려보낸다(ADR-0041 Decision 1 — 컴포넌트는 fetch 를
-          모른다). data 는 위에서 Array.isArray 로 정상화한 collectionTargets 를 쓰므로 미조회/
-          진행 중/실패/비-배열 응답 어디서도 throw 하지 않는다.
-          gating — backend GET 이 `@Roles("User")` 조회 tier 이고 본 섹션에는 편집 컨트롤이
-          없으므로 isAdmin gating **바깥**에 둔다(403 유발 0 — 등록·수정·삭제 폼이 붙는 후속
-          편집 slice 가 그 컨트롤에만 Admin+ gating 을 얹는다). */}
-      <section
-        id={ADMIN_SECTION_COLLECTION_TARGETS_ID}
-        aria-label={COLLECTION_TARGET_HEADING}
+      {/* 수집 대상 관리(T-1825 마운트 · T-1907 섹션 분해 1/2, ADR-0059 §Follow-ups (e),
+          REQ-070/REQ-072) — <section> 껍데기 · <h2> · 목록 마운트는 AdminCollectionTargetsSection
+          으로 옮겼고 여기서는 훅 값과 gating 삼항만 내려보낸다. 목록 축은 GET 이 `@Roles("User")`
+          라 isAdmin 바깥에 두고, 편집 콜백만 Admin 일 때 내려 403 확정 컨트롤을 숨긴다. */}
+      <AdminCollectionTargetsSection
+        targets={collectionTargets}
+        loading={collectionTargetLoading}
+        error={collectionTargetError}
+        onDelete={isAdmin ? handleDeleteCollectionTarget : undefined}
+        onToggleActive={
+          isAdmin ? handleToggleCollectionTargetActive : undefined
+        }
+        onEditStart={isAdmin ? handleStartEditCollectionTarget : undefined}
+        editingId={isAdmin ? editingCollectionTargetId : undefined}
+        editEndpoint={collectionTargetEndpointEditInput}
+        onEditEndpointChange={setCollectionTargetEndpointEditInput}
+        onEditSubmit={isAdmin ? handleSubmitEditCollectionTarget : undefined}
+        onEditCancel={handleCancelEditCollectionTarget}
+        editBusy={updatingCollectionTargetId !== undefined}
+        editScopes={collectionTargetScopeEditInput}
+        onEditScopeChange={
+          isAdmin ? handleChangeCollectionTargetScope : undefined
+        }
       >
-        <h2>{COLLECTION_TARGET_HEADING}</h2>
-        <CollectionTargetList
-          targets={collectionTargets}
-          loading={collectionTargetLoading}
-          error={collectionTargetError}
-          emptyMessage={EMPTY_COLLECTION_TARGET_TEXT}
-          /* 삭제 진입점(T-1828) — backend `@Delete(":id")` 가 `@Roles("Admin")` 이라 non-Admin
-             에게는 콜백을 내리지 않아 버튼 자체가 렌더되지 않는다(403 확정 컨트롤 미노출 —
-             등록 폼 gating 과 동형). 목록 본체는 종전대로 gating 바깥에 남는다. */
-          onDelete={isAdmin ? handleDeleteCollectionTarget : undefined}
-          /* 활성/비활성 토글 진입점(T-1829) — backend `@Patch(":id")` 가 `@Roles("Admin")` 이라
-             non-Admin 에게는 콜백을 내리지 않아 버튼 자체가 렌더되지 않는다(REQ-073 RBAC
-             게이팅 — 403 확정 컨트롤 미노출). 목록 본체는 종전대로 gating 바깥에 남는다. */
-          onToggleActive={
-            isAdmin ? handleToggleCollectionTargetActive : undefined
-          }
-          /* 값 편집(endpoint) 진입점 + 인라인 폼 배선(T-1831) — backend `@Patch(":id")` 가
-             `@Roles("Admin")` 이라 non-Admin 에게는 편집 콜백을 일체 내리지 않아 버튼·폼이
-             렌더되지 않는다(REQ-073 RBAC 게이팅 — 403 확정 컨트롤 미노출). editingId 도
-             Admin 일 때만 내려 non-Admin 화면에서 폼이 뜰 경로 자체를 없앤다. 값·입력 변경·
-             취소 3 props 는 gating 하지 않는데, 폼이 뜨는 조건(editingId 일치)이 이미 Admin
-             에서만 성립해 non-Admin 에게는 호출될 경로가 없는 inert 값이기 때문이다. */
-          onEditStart={isAdmin ? handleStartEditCollectionTarget : undefined}
-          editingId={isAdmin ? editingCollectionTargetId : undefined}
-          editEndpoint={collectionTargetEndpointEditInput}
-          onEditEndpointChange={setCollectionTargetEndpointEditInput}
-          onEditSubmit={isAdmin ? handleSubmitEditCollectionTarget : undefined}
-          onEditCancel={handleCancelEditCollectionTarget}
-          editBusy={updatingCollectionTargetId !== undefined}
-          /* 범위 배열 3 축 편집 배선(T-1832) — 변경 콜백은 편집 진입점과 같은 기준으로 Admin
-             일 때만 내린다(같은 `@Roles("Admin")` PATCH — 403 확정 컨트롤 미노출, REQ-073).
-             콜백이 없으면 목록이 범위 입력을 아예 렌더하지 않으므로 non-Admin 화면에는 입력
-             자체가 없다. 값(editScopes)은 gating 하지 않는데, 입력이 뜨는 조건이 이미 Admin
-             에서만 성립해 non-Admin 에게는 inert 값이기 때문이다(editEndpoint 동형). */
-          editScopes={collectionTargetScopeEditInput}
-          onEditScopeChange={
-            isAdmin ? handleChangeCollectionTargetScope : undefined
-          }
-        />
         {/* 삭제 실패 문구(T-1828) — 목록·등록 폼과 별도 축이라 섹션 안 독립 alert 로 노출한다
             (등록 폼의 error props 와 섞이면 어느 동작이 실패했는지 구분되지 않는다). 값이
             없으면 미렌더라 정상 화면에는 빈 alert 가 남지 않는다. */}
@@ -1936,7 +1904,7 @@ function AdminView({
             error={createCollectionTargetError}
           />
         ) : null}
-      </section>
+      </AdminCollectionTargetsSection>
     </section>
   );
 }
