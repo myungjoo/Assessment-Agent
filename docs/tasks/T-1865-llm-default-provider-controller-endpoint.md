@@ -2,7 +2,7 @@
 id: T-1865
 title: PUT /api/llm/providers/default 엔드포인트 + DTO + 기본 row 삭제 409 + api.md
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-051]
 independentStream: llm-default-provider
