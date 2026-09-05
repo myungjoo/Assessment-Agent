@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { RequestOptions } from '../api/apiClient';
 import type { SetDefaultProviderDeps } from './adminLlmProviderMutationRunners';
 import { runSetDefaultProvider } from './adminLlmProviderMutationRunners';
-// 공용 invariant 추출기(T-1201) import — 공용과 **글자-동일한 6종만** 가져온다(T-1224 이관 판정과 동일 규약).
+// 공용 invariant 추출기(T-1201) import — 공용과 **글자-동일한 7종만** 가져온다(T-1224 이관 판정과 동일 규약).
 // 공용에 없는 richer 추출기(extractDtoFields·BackendContract/WebFire·diffContract·toFire·decoratorIndex)만 inline 유지.
 import {
   composeRoute,
