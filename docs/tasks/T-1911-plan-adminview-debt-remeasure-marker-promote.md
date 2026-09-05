@@ -2,7 +2,7 @@
 id: T-1911
 title: PLAN 184 행 AdminView 부채 12 차 실측 갱신 — 경로 2 4 슬라이스 반영 + 목표선 도달 마커 승격
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-049]
 estimatedDiff: 20
