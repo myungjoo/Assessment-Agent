@@ -2,7 +2,7 @@
 id: T-1900
 title: Web UI — LlmProviderConfigList "기본으로 지정" 버튼 (쓰기 축 B2, T-1866 재split 2/3)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-051]
 independentStream: llm-default-provider
