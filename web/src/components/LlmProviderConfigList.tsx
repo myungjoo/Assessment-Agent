@@ -32,8 +32,13 @@ const DEFAULT_EMPTY_MESSAGE = '등록된 LLM provider 가 없습니다';
 const DELETE_LABEL = '삭제';
 // provider 수정 버튼 라벨(T-1137) — onEdit 전달 시에만 각 행에 렌더한다(DELETE_LABEL 동형).
 const EDIT_LABEL = '수정';
+// 기본 provider 지정 버튼 라벨(T-1900) — onSetDefault 전달 + 그 행이 아직 기본이 아닐 때만
+// 렌더한다(EDIT_LABEL / DELETE_LABEL 상수 규약 동형 — 인라인 문자열 금지). 배지 라벨 '기본' 을
+// 부분 문자열로 포함하지만 배지 판정은 data-testid 토큰 기반이라 오탐이 없다.
+const SET_DEFAULT_LABEL = '기본으로 지정';
 // 기본 provider 배지 라벨(T-1897) — row.isDefault === true 인 행에만 렌더한다(DELETE_LABEL /
-// EDIT_LABEL 상수 규약 동형). 배지는 표시 전용이라 클릭 대상이 아니다(기본 지정 버튼은 후속 slice).
+// EDIT_LABEL 상수 규약 동형). 배지는 표시 전용이라 클릭 대상이 아니다(지정 행위는 별도 버튼 —
+// SET_DEFAULT_LABEL, T-1900).
 const DEFAULT_BADGE_LABEL = '기본';
 // 기본 배지 조회용 test id — spec 이 라벨 문자열 대신 이 토큰으로 배지 개수를 세도록 고정한다
 // ('기본' 두 글자는 다른 문구에도 흔히 섞여 오탐이 나기 쉽다).
@@ -57,6 +62,12 @@ interface LlmProviderConfigListProps {
   // 실 PATCH 요청·인라인 수정 폼·재조회 배선은 상위 컨테이너 책임(controlled 계약 — 목록은
   // 콜백만 호출하고 수정 폼을 모른다). apiKey 는 여전히 목록 어디에도 미노출.
   onEdit?: (id: string) => void;
+  // 기본 provider 지정 콜백(선택, T-1900) — 주어졌을 때만, 그리고 그 행이 아직 기본이 아닐 때만
+  // "기본으로 지정" 버튼을 렌더하고 클릭 시 row.id 로 호출한다(onEdit 와 동형). 미전달 시 버튼
+  // 미렌더(읽기 전용 하위 호환 — T-1134 마운트 보존). 실 PUT 요청(/api/llm/providers/default)·
+  // 재조회·낙관적 UI 배선은 상위 컨테이너 책임(controlled 계약 — 목록은 콜백만 호출하고 요청을
+  // 모른다). 소비처 시그니처는 useAdminLlmProviders 의 handleSetDefaultProvider(T-1899) 와 정합.
+  onSetDefault?: (id: string) => void;
 }
 
 // LLM provider 설정 목록. 실 fetch·생성/수정/삭제 로직은 수행하지 않고 props 의 providers 를
@@ -69,6 +80,7 @@ function LlmProviderConfigList({
   emptyMessage,
   onDelete,
   onEdit,
+  onSetDefault,
 }: LlmProviderConfigListProps) {
   // loading 우선 정책 — 진행 중이면 error·providers 유무와 무관하게 로딩 표시만 렌더한다.
   if (loading === true) {
@@ -115,6 +127,17 @@ function LlmProviderConfigList({
           {onDelete ? (
             <button type="button" onClick={() => onDelete(row.id)}>
               {DELETE_LABEL}
+            </button>
+          ) : null}
+          {/* onSetDefault 가 주어졌고 그 행이 아직 기본이 아닐 때만 "기본으로 지정" 버튼을
+              렌더하고 클릭 시 row.id 로 콜백 호출(T-1900). 이미 기본인 행은 배지만 남기고 버튼을
+              내려 무의미한 재지정을 차단한다. 렌더 순서를 기존 수정→삭제 **뒤**(마지막)로 둔 것은
+              기존 두 버튼의 상대 순서와 그 순서를 단언하는 기존 spec 기대값을 한 줄도 바꾸지
+              않기 위함이다. isDefault 비교는 배지와 같은 엄격 boolean(!== true)이라 비-boolean
+              값은 비-default 로 취급된다. */}
+          {onSetDefault && row.isDefault !== true ? (
+            <button type="button" onClick={() => onSetDefault(row.id)}>
+              {SET_DEFAULT_LABEL}
             </button>
           ) : null}
         </li>
