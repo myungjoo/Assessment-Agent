@@ -49,6 +49,8 @@ Q-0045 옵션1 run-side 사슬은 T-0556~T-0566 으로 순수 조각 → orchest
 
 ### Decision §2 — 다중-row 분기는 후속 ADR (REQ-051 진입 시) 로 deferred — 현 단계는 **단일-row 운용 가정 + 비단일 시 fail-fast**
 
+**(부분 superseded by [ADR-0062](ADR-0062-llm-default-provider-explicit-selection.md) — 2026-09 오너 지시, Web UI 명시 선택 최우선)**
+
 **채택: 본 ADR 시점의 운용은 LlmProviderConfig row 수가 정확히 1 임을 전제한다. resolver 가 `findMany()` 결과의 length 를 점검해 다음 3 분기를 한국어 메시지로 fail-fast 한다 — (a) length === 1 → 그 row 의 `modelId` 채택, (b) length === 0 → "LLM provider 가 설정되지 않았다" (운영자 설정 누락), (c) length ≥ 2 → "LlmProviderConfig 다중-row 운용 — 명시적 default 선택 정책 미박제 (후속 ADR 필요)". 다중-row default 선택 정책 (예: schema `isDefault` flag / env var pointer / `updatedAt` 최신 / per-provider default) 의 택1 결정은 [REQ-051](../requirements.md) (custom 3 model 슬롯) 실구현 진입 시 별도 follow-up ADR 로 박제한다.**
 
 - **단일-row 운용 가정의 근거**: 본 ADR 시점 (2026-06-21) 의 실배치 LlmProviderConfig row 수는 0~1 이다 (PLAN.md P5 bullet 99 REQ-051 PLANNED 상태 — 다중-model 슬롯 운용 task 미진입). 따라서 단일-row 가정은 **현실 운용 상태의 박제**이지 future-restriction 이 아니다 — REQ-051 진입 시점에 본 가정이 자연스럽게 깨지므로 그 시점에 후속 ADR 이 다중-row 정책을 박제하면 된다 (YAGNI — 현재 필요한 결정만).

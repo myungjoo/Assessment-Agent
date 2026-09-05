@@ -1,9 +1,9 @@
 ---
 id: ADR-0062
 title: 다중-row LlmProviderConfig 의 기본 provider 선택 정책 — Web UI 명시 선택 최우선 (단일 슬롯 table + PUT /api/llm/providers/default)
-status: PROPOSED
+status: ACCEPTED
 date: 2026-09-05
-relatedTask: [T-1862]
+relatedTask: [T-1862, T-1863, T-1864, T-1865, T-1867, T-1868, T-1897, T-1898, T-1899, T-1900, T-1901, T-1902]
 relatedReq: [REQ-049, REQ-051]
 supersedes: null
 augments: [ADR-0045, ADR-0048]
@@ -13,7 +13,9 @@ augments: [ADR-0045, ADR-0048]
 
 ## Status
 
-**PROPOSED**. 본 ADR 은 **결정만 박제** 하며 코드를 1 LOC 도 만들지 않는다 — 본 slice 의 diff 는 본 문서와 [data-model.md](../architecture/data-model.md) 동기 갱신 2 개뿐이고 `src/` · `web/` · `test/` · `prisma/` · `package.json` · `.github/workflows/` 변경이 **0** 이다. schema · migration · repository · resolver · controller · DTO · Web UI · seed 배선은 전부 § Follow-ups 로 이월한다 ([ADR-0058](ADR-0058-service-identity-management-api.md) · [ADR-0059](ADR-0059-collection-target-registration.md) · [ADR-0060](ADR-0060-evaluation-run-status-endpoint.md) 의 doc-only ADR 선례 동형).
+**ACCEPTED**. 본 ADR 은 **결정만 박제** 하며 코드를 1 LOC 도 만들지 않는다 — 본 slice 의 diff 는 본 문서와 [data-model.md](../architecture/data-model.md) 동기 갱신 2 개뿐이고 `src/` · `web/` · `test/` · `prisma/` · `package.json` · `.github/workflows/` 변경이 **0** 이다. schema · migration · repository · resolver · controller · DTO · Web UI · seed 배선은 전부 § Follow-ups 로 이월한다 ([ADR-0058](ADR-0058-service-identity-management-api.md) · [ADR-0059](ADR-0059-collection-target-registration.md) · [ADR-0060](ADR-0060-evaluation-run-status-endpoint.md) 의 doc-only ADR 선례 동형).
+
+**구현 chain 전량 머지 (PR #1485~#1495, 2026-09-05)** — § Follow-ups 로 이월했던 배선은 T-1862 (본 ADR, #1485) · T-1863 (schema + migration + repository, #1486) · T-1864 (resolver 명시 최우선 + service, #1487) · T-1865 (`PUT /api/llm/providers/default`, #1488) · T-1897~T-1902 (Web UI 읽기 · 쓰기 축, #1489~#1494) · T-1867 (seed no-override, #1495) 로 전량 머지됐고, doc-sync (T-1868) 가 본 status 를 PROPOSED → ACCEPTED 로 승격했다. 결정 내용 (§ Decision) 은 무변경 이다.
 
 **ADR-0048 과의 관계는 부분 supersede 다** — [ADR-0048](ADR-0048-default-model-id-source.md) 은 전체로는 ACCEPTED 유지이고, 본 ADR 이 대체하는 것은 그 `§ Decision 2` 가 "REQ-051 진입 시 후속 ADR 로 deferred" 한 **다중-row default 선택 정책 1 건** 뿐이다 (`§ Decision 1` 의 "source = LlmProviderConfig row 의 modelId", `§ Decision 3` 의 request body 필드 제거, `§ Decision 4` 의 새 env 0 / 새 dep 0 은 그대로 승계). ADR-0048 본문에 "superseded by ADR-0062" 한 줄을 박는 것과 본 ADR 의 status 를 ACCEPTED 로 올리는 것은 **T-1868 (direct)** 소관이며 본 slice 는 ADR-0048 을 건드리지 않는다.
 
