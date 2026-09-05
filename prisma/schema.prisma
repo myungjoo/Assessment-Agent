@@ -415,6 +415,12 @@ model LlmProviderConfig {
   // 역방향 relation — 본 config 를 가리키는 DifficultyMapping 슬롯들 (N:1 의 1 측).
   // custom provider 1 config 가 3 슬롯 모두 차지 가능 (REQ-051) → N row.
   difficultyMappings DifficultyMapping[]
+
+  // 역방향 relation — 전역 기본 provider 슬롯 (ADR-0062 §Decision 2, T-1863).
+  // LlmDefaultProvider.llmProviderConfigId 가 `@unique` 라 1:1 이며, 본 config 가
+  // 기본으로 지정돼 있지 않으면 null 이다 (optional). Prisma 의 back-relation 요건
+  // 충족용 필드로, 실제 읽기 경로는 슬롯 측 findUnique 단건 조회다.
+  defaultSlot LlmDefaultProvider?
 }
 
 // DifficultyMapping — data-model.md §2 row "DifficultyMapping" + §3 관계 8 +
@@ -449,6 +455,40 @@ model DifficultyMapping {
   updatedAt DateTime @updatedAt
 
   @@unique([difficulty])
+}
+
+// LlmDefaultProvider — ADR-0062 §Decision 2 가 택1 한 **단일 슬롯 table** (T-1863).
+// "전역 기본 LLM provider" 를 LlmProviderConfig 의 `isDefault` Boolean 컬럼이 아니라
+// 고정 id 1 row 만 사는 별도 table 로 표현한다 (ADR-0062 §Alternatives B 미채택).
+// DifficultyMapping (ADR-0011 §2) 의 "고정 슬롯 row → llmProviderConfigId FK →
+// onDelete: Restrict" 패턴을 그대로 mirror 하므로 읽는 사람이 새 개념을 배우지 않는다.
+//
+// 컬럼 결정 (ADR-0062 §Decision 2 코드 블록 1:1):
+//   - id — 고정 PK 리터럴 `"default"` (`@default("default")`). PK 자체가 "슬롯은
+//     1 개" 를 표현하므로 partial unique index 나 raw SQL 제약이 필요 없다. `id` 가
+//     `"default"` 가 아닌 잉여 row 가 DB 직접 조작으로 생겨도 읽기 경로가
+//     findUnique({ id: "default" }) 하나뿐이라 **무해하게 무시** 된다 (fail-safe
+//     비대칭 — isDefault 컬럼안의 "true 가 2 row" 모호와 대조).
+//   - llmProviderConfigId — 기본으로 지정된 LlmProviderConfig 를 가리키는 FK.
+//     `@unique` 는 단일 row 전제에서 중복 제약이지만, index 1 개 비용으로 "한 config
+//     가 슬롯을 두 번 차지할 수 없다" 를 DB 레벨에 남기므로 유지한다 (ADR-0062 §2).
+//   - onDelete: Restrict — 기본으로 지정된 config 의 삭제를 DB 가 차단 (ADR-0062
+//     §Decision 1 제약 4). LlmProviderConfigService.delete 의 기존 P2003 → 409 변환이
+//     그대로 재사용되므로 새 분기 0 (메시지 확장은 T-1864 소관).
+//   - createdAt / updatedAt — 표준 timestamp 패턴 (mutable entity — 슬롯 교체 시
+//     updatedAt 갱신, data-model.md §5).
+//
+// 기존 row 의 자동 default 승격은 **금지** 다 (ADR-0062 §Decision 1 제약 1 "명시 선택
+// 최우선") — migration 은 빈 table 을 만들 뿐 backfill 이 0 이고, 슬롯 부재 시 resolver
+// 는 ADR-0048 (a) 하위 호환 분기로 떨어진다 (T-1864).
+model LlmDefaultProvider {
+  id                  String @id @default("default")
+  llmProviderConfigId String @unique
+
+  llmProviderConfig LlmProviderConfig @relation(fields: [llmProviderConfigId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // PermissionDeniedRecord — ADR-0022 §1·§3·§4·§5 의 schema 박제 (T-0208).
