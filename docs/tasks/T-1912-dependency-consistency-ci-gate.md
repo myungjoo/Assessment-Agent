@@ -2,7 +2,7 @@
 id: T-1912
 title: 의존성 version mismatch · 단일 lockfile · override 금지 판정 script 신설 + CI step 배선 (REQ-056 CI 축)
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-056]
 estimatedDiff: 265
