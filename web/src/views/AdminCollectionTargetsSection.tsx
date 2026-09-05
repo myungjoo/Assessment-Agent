@@ -1,15 +1,15 @@
-// 수집 대상 관리 패널의 section 껍데기 + 목록 축(T-1907 — PLAN 184 행 경로 2 슬라이스 1/2).
-// AdminView 안에 있던 <section> · <h2> · <CollectionTargetList> 3 요소를 마크업 그대로 옮겨 온
-// controlled presentational component 다: 조회 · 훅 호출 · 상태 · 새 분기 0 이고 props 만 받는다
-// (ADR-0041 §Decision 1 — 컴포넌트는 fetch 를 모른다). isAdmin gating 삼항은 호출부에 남겨 두고
-// 여기서는 받은 콜백을 그대로 내려보내기만 한다(콜백이 undefined 면 목록이 그 컨트롤을 렌더하지
-// 않는다 — 403 확정 컨트롤 미노출 계약 무변경). 오류 alert 3 종 · 등록 폼은 children 슬롯으로
-// 통과시켜 이동 전과 동일한 DOM 순서를 보존한다(슬라이스 2/2 가 그 슬롯을 props 로 흡수한다).
-import type { ReactNode } from 'react';
+// 수집 대상 관리 패널 전체(T-1907 슬라이스 1/2 + T-1908 슬라이스 2/2 — PLAN 184 행 경로 2).
+// AdminView 안에 있던 <section> · <h2> · <CollectionTargetList> · 오류 alert 3 종 · 등록 폼을
+// 마크업 그대로 옮겨 온 controlled presentational component 다: 조회 · 훅 호출 · 상태 · 새 분기
+// 0 이고 props 만 받는다(ADR-0041 §Decision 1 — 컴포넌트는 fetch 를 모른다). isAdmin gating
+// 삼항은 호출부에 남겨 두고 여기서는 받은 콜백을 그대로 내려보내기만 한다(콜백이 undefined 면
+// 목록이 그 컨트롤을, 등록 폼은 폼 자체를 렌더하지 않는다 — 403 확정 컨트롤 미노출 계약 무변경).
+// 슬라이스 1/2 가 임시로 열어 둔 children 슬롯은 소비처 0 이 되어 함께 제거했다.
 import CollectionTargetList, {
   type CollectionTargetRow,
   type CollectionTargetScopeField,
 } from '../components/CollectionTargetList';
+import CollectionTargetAddForm from '../components/CollectionTargetAddForm';
 import {
   ADMIN_SECTION_COLLECTION_TARGETS_ID,
   COLLECTION_TARGET_HEADING,
@@ -33,13 +33,27 @@ interface AdminCollectionTargetsSectionProps {
   editBusy?: boolean;
   editScopes?: { orgs?: string; repos?: string; spaces?: string };
   onEditScopeChange?: (field: CollectionTargetScopeField, next: string) => void;
-  // 목록 아래에 이어 붙는 오류 alert 3 종 · 등록 폼 슬롯(슬라이스 2/2 이관 대상).
-  // 미전달이면 목록만 렌더한다 — 빈 자식으로도 section 은 정상 렌더된다.
-  children?: ReactNode;
+  // 오류 alert 3 축(T-1828 · T-1829 · T-1831) — 삭제 · 토글 · 편집 저장은 서로 다른 동작이라
+  // 같은 자리를 공유하지 않고 각자 독립 alert 로 렌더한다. falsy 면 미렌더다.
+  deleteError?: string;
+  toggleError?: string;
+  updateError?: string;
+  // 등록 폼 축 — 값 · 변경 콜백은 CollectionTargetAddFormProps 와 1:1 이고 그대로 통과시킨다.
+  createType: string;
+  createInstanceKey: string;
+  createEndpoint: string;
+  onCreateTypeChange: (value: string) => void;
+  onCreateInstanceKeyChange: (value: string) => void;
+  onCreateEndpointChange: (value: string) => void;
+  // 등록 제출 콜백 — 미전달이면 폼 자체를 렌더하지 않는다(호출부의 isAdmin 삼항이 gating 정본).
+  onCreateSubmit?: () => void;
+  createLoading?: boolean;
+  createError?: string;
 }
 
-// 섹션 껍데기 + 목록. 분기가 하나도 없어 어떤 props 조합에서도 throw 하지 않는다
-// (빈 목록 · 오류 · 로딩 분기는 전부 CollectionTargetList 안 종전 로직 그대로다).
+// 섹션 껍데기 + 목록 + 오류 alert 3 종 + 등록 폼. 분기는 값 truthy 여부 4 개(alert 3 · 폼 1)
+// 뿐이라 어떤 props 조합에서도 throw 하지 않는다(빈 목록 · 오류 · 로딩 분기는 전부
+// CollectionTargetList 안 종전 로직 그대로다).
 function AdminCollectionTargetsSection({
   targets,
   loading,
@@ -55,7 +69,18 @@ function AdminCollectionTargetsSection({
   editBusy,
   editScopes,
   onEditScopeChange,
-  children,
+  deleteError,
+  toggleError,
+  updateError,
+  createType,
+  createInstanceKey,
+  createEndpoint,
+  onCreateTypeChange,
+  onCreateInstanceKeyChange,
+  onCreateEndpointChange,
+  onCreateSubmit,
+  createLoading,
+  createError,
 }: AdminCollectionTargetsSectionProps) {
   return (
     <section
@@ -82,7 +107,27 @@ function AdminCollectionTargetsSection({
         editScopes={editScopes}
         onEditScopeChange={onEditScopeChange}
       />
-      {children}
+      {/* 삭제 · 토글 · 편집 저장 실패 문구는 각각 독립 alert 다(같은 자리를 쓰면 어느 동작이
+          실패했는지 구분되지 않는다). 값이 없으면 미렌더라 정상 화면에 빈 alert 는 없다. */}
+      {deleteError ? <div role="alert">{deleteError}</div> : null}
+      {toggleError ? <div role="alert">{toggleError}</div> : null}
+      {updateError ? <div role="alert">{updateError}</div> : null}
+      {/* 등록 폼(T-1826, ADR-0059 §Follow-ups (e) 편집 축) — POST 가 `@Roles("Admin")` 편집
+          tier 라 호출부가 Admin 일 때만 onCreateSubmit 을 내려보낸다. 위 목록은 GET 이
+          `@Roles("User")` 라 gating 바깥에 그대로 둔다 — 읽기 축 회귀 0. */}
+      {onCreateSubmit ? (
+        <CollectionTargetAddForm
+          type={createType}
+          instanceKey={createInstanceKey}
+          endpoint={createEndpoint}
+          onTypeChange={onCreateTypeChange}
+          onInstanceKeyChange={onCreateInstanceKeyChange}
+          onEndpointChange={onCreateEndpointChange}
+          onSubmit={onCreateSubmit}
+          loading={createLoading}
+          error={createError}
+        />
+      ) : null}
     </section>
   );
 }

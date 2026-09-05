@@ -234,14 +234,10 @@ import PartList from '../components/PartList';
 // 제네릭에 쓰던 named UserRow 타입은 T-1891 이 조회를 useAdminUsers 로 옮기며 이 파일에서 미사용이
 // 되어 함께 정리했다(배럴 재수출 대상도 아니라 공개 표면 무변경 — 위 CollectionTargetRow 선례 동형).
 import UserList from '../components/UserList';
-// 수집 대상 관리 섹션(껍데기 + 목록 축) 마운트 대상(T-1907 — PLAN 184 행 경로 2 슬라이스 1/2).
+// 수집 대상 관리 섹션(패널 전체) 마운트 대상(T-1907 · T-1908 — PLAN 184 행 경로 2 슬라이스 2/2).
 // 종전 CollectionTargetList default import 는 그 섹션 컴포넌트로 옮겨가 여기서는 미사용이 됐다
 // (배럴 재수출 대상도 아니라 공개 표면 무변경 — CollectionTargetRow 타입 정리 선례 동형).
 import AdminCollectionTargetsSection from './AdminCollectionTargetsSection';
-// 수집 대상 등록 폼 마운트 대상(T-1826, ADR-0059 §Follow-ups (e) 편집 축) — 목록 아래에
-// Admin+ 일 때만 렌더한다(POST 가 `@Roles("Admin")` 편집 tier). 허용 type 목록
-// (COLLECTION_TARGET_TYPES)은 T-1886 이 등록 입력 상태와 함께 hook 으로 옮겨 여기서는 쓰지 않는다.
-import CollectionTargetAddForm from '../components/CollectionTargetAddForm';
 // 수집 대상 러너 군(T-1830 순수 추출) — 등록 POST · 삭제 DELETE · 활성 토글 PATCH 세 러너와
 // prefill 접기/축 조립 helper 를 담은 모듈. 본문은 한 줄도 바뀌지 않았고, 파일 끝 export 목록이
 // 이 5 심볼을 그대로 re-export 하므로 기존 spec 의 `from './AdminView'` 도 그대로 산다
@@ -1847,10 +1843,10 @@ function AdminView({
           }
         />
       </section>
-      {/* 수집 대상 관리(T-1825 마운트 · T-1907 섹션 분해 1/2, ADR-0059 §Follow-ups (e),
-          REQ-070/REQ-072) — <section> 껍데기 · <h2> · 목록 마운트는 AdminCollectionTargetsSection
-          으로 옮겼고 여기서는 훅 값과 gating 삼항만 내려보낸다. 목록 축은 GET 이 `@Roles("User")`
-          라 isAdmin 바깥에 두고, 편집 콜백만 Admin 일 때 내려 403 확정 컨트롤을 숨긴다. */}
+      {/* 수집 대상 관리(T-1825 마운트 · T-1907+T-1908 섹션 분해, ADR-0059 §Follow-ups (e),
+          REQ-070/REQ-072) — 패널 마크업 전체를 AdminCollectionTargetsSection 으로 옮겼고 여기서는
+          훅 값과 gating 삼항만 내려보낸다. 목록 축은 GET 이 `@Roles("User")` 라 isAdmin 바깥에
+          두고, 편집 · 등록 콜백만 Admin 일 때 내려 403 확정 컨트롤을 숨긴다. */}
       <AdminCollectionTargetsSection
         targets={collectionTargets}
         loading={collectionTargetLoading}
@@ -1870,41 +1866,19 @@ function AdminView({
         onEditScopeChange={
           isAdmin ? handleChangeCollectionTargetScope : undefined
         }
-      >
-        {/* 삭제 실패 문구(T-1828) — 목록·등록 폼과 별도 축이라 섹션 안 독립 alert 로 노출한다
-            (등록 폼의 error props 와 섞이면 어느 동작이 실패했는지 구분되지 않는다). 값이
-            없으면 미렌더라 정상 화면에는 빈 alert 가 남지 않는다. */}
-        {deleteCollectionTargetError ? (
-          <div role="alert">{deleteCollectionTargetError}</div>
-        ) : null}
-        {/* 토글 실패 문구(T-1829) — 삭제 문구와 별도 alert 다(같은 자리를 쓰면 어느 동작이
-            실패했는지 구분되지 않는다). 값이 없으면 미렌더라 정상 화면에 빈 alert 는 없다. */}
-        {toggleCollectionTargetError ? (
-          <div role="alert">{toggleCollectionTargetError}</div>
-        ) : null}
-        {/* 편집 저장 실패 문구(T-1831) — 삭제·토글 문구와 또 별도 alert 다(어느 동작이 실패했는지
-            구분되게). 값이 없으면 미렌더라 정상 화면에 빈 alert 는 남지 않는다. */}
-        {updateCollectionTargetError ? (
-          <div role="alert">{updateCollectionTargetError}</div>
-        ) : null}
-        {/* 등록 폼(T-1826, ADR-0059 §Follow-ups (e) 편집 축) — POST /api/collection-targets 가
-            `@Roles("Admin")` 편집 tier 라 isAdmin 이 true 일 때만 렌더한다(non-Admin 에게
-            보이면 403 이 확정된 컨트롤을 노출하는 셈). 위 목록은 GET 이 `@Roles("User")` 라
-            종전대로 gating 바깥에 그대로 둔다 — 읽기 축 회귀 0. */}
-        {isAdmin ? (
-          <CollectionTargetAddForm
-            type={collectionTargetTypeInput}
-            instanceKey={collectionTargetInstanceKeyInput}
-            endpoint={collectionTargetEndpointInput}
-            onTypeChange={setCollectionTargetTypeInput}
-            onInstanceKeyChange={setCollectionTargetInstanceKeyInput}
-            onEndpointChange={setCollectionTargetEndpointInput}
-            onSubmit={handleCreateCollectionTarget}
-            loading={creatingCollectionTarget}
-            error={createCollectionTargetError}
-          />
-        ) : null}
-      </AdminCollectionTargetsSection>
+        deleteError={deleteCollectionTargetError}
+        toggleError={toggleCollectionTargetError}
+        updateError={updateCollectionTargetError}
+        createType={collectionTargetTypeInput}
+        createInstanceKey={collectionTargetInstanceKeyInput}
+        createEndpoint={collectionTargetEndpointInput}
+        onCreateTypeChange={setCollectionTargetTypeInput}
+        onCreateInstanceKeyChange={setCollectionTargetInstanceKeyInput}
+        onCreateEndpointChange={setCollectionTargetEndpointInput}
+        onCreateSubmit={isAdmin ? handleCreateCollectionTarget : undefined}
+        createLoading={creatingCollectionTarget}
+        createError={createCollectionTargetError}
+      />
     </section>
   );
 }
