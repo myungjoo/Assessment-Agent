@@ -1646,73 +1646,26 @@ function AdminView({
           <p role="status">{SERVICE_IDENTITY_NOT_ADMIN_NOTICE_TEXT}</p>
         )}
       </section>
-      {/* 그룹 관리(T-1146 생성 폼 · T-1148 목록 마운트 · T-1149 삭제 · T-1150 수정, T-1909 섹션
-          분해 1/2, REQ-028/REQ-049) — 섹션 껍데기 · <h2> · 목록 축은 AdminGroupsSection 으로 옮겼고
-          여기서는 그룹 조회 값(data/groupLoading/groupError)과 mutation 상태 · 핸들러만 내려보낸다.
-          생성 폼 · 인라인 수정 폼은 아직 이 컨테이너 소유라 children 으로 그대로 통과시킨다(2/2). */}
+      {/* 그룹 관리(T-1146·T-1148·T-1149·T-1150 배선 → T-1909·T-1910 섹션 분해 2/2, REQ-028/REQ-049) — 껍데기 · 폼 2 종 · 목록은 AdminGroupsSection 소유고 여기선 조회 값 · 상태 · 핸들러만 내려보낸다. */}
       <AdminGroupsSection
         groups={data ?? []}
         loading={groupLoading || deletingGroup}
         error={deleteGroupError ?? groupError}
         onDelete={handleDeleteGroup}
         onEdit={handleEditGroup}
-      >
-        <div>
-          <input
-            aria-label="추가할 그룹 이름"
-            type="text"
-            value={groupNameInput}
-            onChange={(event) => setGroupNameInput(event.target.value)}
-            disabled={creatingGroup}
-          />
-          <button
-            type="button"
-            onClick={handleCreateGroup}
-            disabled={creatingGroup || !groupNameInput.trim()}
-          >
-            그룹 추가
-          </button>
-          {createGroupError ? <p role="alert">{createGroupError}</p> : null}
-        </div>
-        {/* 그룹 수정(T-1150, REQ-028/REQ-049) — 인라인 수정 폼. GroupList 각 행의 "수정" 버튼(onEdit=
-            handleEditGroup)이 편집 대상 id 를 세팅하면(editingGroupId !== null) 본 폼이 렌더된다. name
-            단일 controlled input 은 클릭한 row 의 현재 name 으로 prefill 되고, 원본 name 스냅샷
-            (editGroupOriginalName)과 함께 저장된다. "그룹 수정" 클릭 시 handleUpdateGroup 이 PATCH
-            /api/groups/:id(body `{ name }`)를 발사하고, 성공 시 groupsRefreshNonce bump 로 권위 재조회 +
-            편집 종료한다(낙관 갱신 없음 — 인원 수정 동형). 진행 중(updatingGroup)이면 입력·버튼을
-            비활성화해 이중 PATCH 를 억제하고(runUpdateGroup 도 빈·공백·미변경 name/in-flight 를 no-op
-            가드로 이중 방어), "취소" 로 발사 없이 편집을 닫을 수 있다. 실패 문구(updateGroupError)는 폼
-            하단에 role="alert" 로 안전 표시한다(생성/삭제 error 와 별도). ADR-0041 Decision 1 —
-            presentational 목록은 수정 폼을 모르므로 컨테이너가 직접 소유한다. */}
-        {editingGroupId !== null ? (
-          <div>
-            <input
-              aria-label="수정할 그룹 이름"
-              type="text"
-              value={editGroupNameInput}
-              onChange={(event) => setEditGroupNameInput(event.target.value)}
-              disabled={updatingGroup}
-            />
-            <button
-              type="button"
-              onClick={handleUpdateGroup}
-              disabled={updatingGroup || !editGroupNameInput.trim()}
-            >
-              그룹 수정
-            </button>
-            <button
-              type="button"
-              onClick={handleCancelEditGroup}
-              disabled={updatingGroup}
-            >
-              취소
-            </button>
-            {updateGroupError ? (
-              <p role="alert">{updateGroupError}</p>
-            ) : null}
-          </div>
-        ) : null}
-      </AdminGroupsSection>
+        createName={groupNameInput}
+        onCreateNameChange={(next) => setGroupNameInput(next)}
+        onCreateSubmit={handleCreateGroup}
+        createLoading={creatingGroup}
+        createError={createGroupError}
+        editingId={editingGroupId}
+        editName={editGroupNameInput}
+        onEditNameChange={(next) => setEditGroupNameInput(next)}
+        onEditSubmit={handleUpdateGroup}
+        onEditCancel={handleCancelEditGroup}
+        editLoading={updatingGroup}
+        editError={updateGroupError}
+      />
       {/* 파트 관리(T-1152 마운트, T-1153 생성 배선, T-1154 삭제 배선, T-1155 수정 배선,
           REQ-028/REQ-049) — 그룹
           마운트(T-1148)와 동형이나 재사용할 기존 파트 fetch 가 없어 useApiResource<PartRow[]>(PARTS_PATH)
