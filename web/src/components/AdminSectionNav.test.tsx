@@ -6,7 +6,6 @@ import AdminSectionNav, {
   ADMIN_SECTION_NAV_CLASS,
   ADMIN_SECTION_NAV_ITEM_CLASS,
   ADMIN_SECTION_NAV_LABEL,
-  sectionItemClassName,
   selectSection,
   type AdminSectionDescriptor,
 } from './AdminSectionNav';
@@ -59,11 +58,14 @@ describe('AdminSectionNav 렌더', () => {
   });
 
   it('활성 / 비활성 항목의 className 이 분기된다 (branch (a) — active className)', () => {
-    expect(sectionItemClassName(true)).toBe(`${ADMIN_SECTION_NAV_ITEM_CLASS} ${ADMIN_SECTION_NAV_ACTIVE_CLASS}`);
-    expect(sectionItemClassName(false)).toBe(ADMIN_SECTION_NAV_ITEM_CLASS);
-    expect(sectionItemClassName(false)).not.toContain(ADMIN_SECTION_NAV_ACTIVE_CLASS);
-    // 비활성 항목도 item anchor 는 반드시 갖는다(스타일 누락 방지).
+    // className 조립은 내부 함수라 렌더 결과로만 검증한다(public 표면은 AC 고정 목록뿐).
     const html = render({ activeId: 'users' });
+    expect(buttonTag(html, '사용자')).toContain(
+      `class="${ADMIN_SECTION_NAV_ITEM_CLASS} ${ADMIN_SECTION_NAV_ACTIVE_CLASS}"`,
+    );
+    expect(buttonTag(html, '그룹')).toContain(`class="${ADMIN_SECTION_NAV_ITEM_CLASS}"`);
+    expect(buttonTag(html, '그룹')).not.toContain(ADMIN_SECTION_NAV_ACTIVE_CLASS);
+    // 비활성 항목도 item anchor 는 반드시 갖는다(스타일 누락 방지).
     sections.forEach((s) => expect(buttonTag(html, s.label)).toContain(ADMIN_SECTION_NAV_ITEM_CLASS));
   });
 

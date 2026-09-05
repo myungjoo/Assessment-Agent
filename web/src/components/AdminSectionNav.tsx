@@ -57,7 +57,8 @@ function selectSection(
   return true;
 }
 
-// 항목 className 조립(순수) — 활성일 때만 active anchor 를 덧붙인다.
+// 항목 className 조립(순수) — 활성일 때만 active anchor 를 덧붙인다. public 표면은 task AC 가
+// 고정한 목록(상수 3 · 라벨 · 타입 · selectSection · component) 뿐이라 export 하지 않는다.
 function sectionItemClassName(active: boolean): string {
   return active
     ? `${ADMIN_SECTION_NAV_ITEM_CLASS} ${ADMIN_SECTION_NAV_ACTIVE_CLASS}`
@@ -99,7 +100,6 @@ export {
   ADMIN_SECTION_NAV_LABEL,
   AdminSectionNav,
   selectSection,
-  sectionItemClassName,
 };
 export type { AdminSectionDescriptor, AdminSectionNavProps };
 export default AdminSectionNav;
