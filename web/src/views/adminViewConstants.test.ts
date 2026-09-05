@@ -20,6 +20,21 @@ import {
   resolveProviderSelectValue,
 } from './adminViewConstants';
 import type { InFlightIdGate } from './adminViewConstants';
+// T-1904 — 섹션 탭 내비 배선이 소비하는 anchor id 5 종과 descriptor 조립 순수 함수. 라벨 재사용
+// 계약(새 문구 상수 0)을 heading 상수와 **같은 모듈에서** 직접 대조하기 위해 함께 import 한다.
+import {
+  ADMIN_SECTION_COLLECTION_TARGETS_ID,
+  ADMIN_SECTION_GROUPS_ID,
+  ADMIN_SECTION_PARTS_ID,
+  ADMIN_SECTION_PERSONS_ID,
+  ADMIN_SECTION_USERS_ID,
+  COLLECTION_TARGET_HEADING,
+  GROUP_HEADING,
+  PART_HEADING,
+  PERSON_HEADING,
+  USER_HEADING,
+  buildAdminSectionDescriptors,
+} from './adminViewConstants';
 import {
   LLM_PROVIDER_OPTIONS as reexportedLlmProviderOptions,
   createInFlightIdGate as reexportedCreateInFlightIdGate,
@@ -186,5 +201,51 @@ describe('adminViewConstants — 문구 · 경로 상수와 AdminView 배럴 재
     expect(reexportedResolveProviderSelectValue).toBe(resolveProviderSelectValue);
     expect(reexportedCreateInFlightIdGate).toBe(createInFlightIdGate);
     expect(reexportedLlmProviderOptions).toBe(LLM_PROVIDER_OPTIONS);
+  });
+});
+
+// R-112 — T-1904 (REQ-080) 섹션 탭 descriptor 조립의 경계 spec. 렌더 없이 결정되는 순수 표면
+// 이라 모듈 경계에서 순서 · 라벨 재사용(새 문구 상수 0) · isAdmin 분기 · id 고유성을 잠근다.
+describe('adminViewConstants — 섹션 anchor id 와 탭 descriptor 조립 (T-1904, REQ-080)', () => {
+  it('섹션 anchor id 5 종이 admin-section-* 접두의 고유 값이다 (happy-path — 값 계약)', () => {
+    const ids = [
+      ADMIN_SECTION_USERS_ID,
+      ADMIN_SECTION_PERSONS_ID,
+      ADMIN_SECTION_GROUPS_ID,
+      ADMIN_SECTION_PARTS_ID,
+      ADMIN_SECTION_COLLECTION_TARGETS_ID,
+    ];
+    expect(ids).toEqual([
+      'admin-section-users',
+      'admin-section-persons',
+      'admin-section-groups',
+      'admin-section-parts',
+      'admin-section-collection-targets',
+    ]);
+    // 같은 문서에 5 개가 동시에 존재하므로 중복이면 anchor 가 깨진다(id 고유성 계약).
+    expect(new Set(ids).size).toBe(5);
+  });
+
+  it('Admin 이면 화면 렌더 순서대로 5 개 descriptor 를 낸다 (happy-path — 순서 · 라벨 재사용)', () => {
+    expect(buildAdminSectionDescriptors(true)).toEqual([
+      { id: ADMIN_SECTION_USERS_ID, label: USER_HEADING },
+      { id: ADMIN_SECTION_PERSONS_ID, label: PERSON_HEADING },
+      { id: ADMIN_SECTION_GROUPS_ID, label: GROUP_HEADING },
+      { id: ADMIN_SECTION_PARTS_ID, label: PART_HEADING },
+      { id: ADMIN_SECTION_COLLECTION_TARGETS_ID, label: COLLECTION_TARGET_HEADING },
+    ]);
+  });
+
+  it('비-Admin 이면 사용자 탭을 뺀 4 개만 낸다 (분기 a — isAdmin false)', () => {
+    const descriptors = buildAdminSectionDescriptors(false);
+    expect(descriptors).toHaveLength(4);
+    expect(descriptors[0]).toEqual({ id: ADMIN_SECTION_PERSONS_ID, label: PERSON_HEADING });
+    expect(descriptors[3].id).toBe(ADMIN_SECTION_COLLECTION_TARGETS_ID);
+  });
+
+  it('비-Admin 반환에 admin-section-users 가 없다 (negative a — 죽은 탭 미노출)', () => {
+    const ids = buildAdminSectionDescriptors(false).map((item) => item.id);
+    expect(ids).not.toContain(ADMIN_SECTION_USERS_ID);
+    expect(buildAdminSectionDescriptors(false).map((item) => item.label)).not.toContain(USER_HEADING);
   });
 });

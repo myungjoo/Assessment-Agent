@@ -9988,3 +9988,130 @@ describe('AdminView — 사용자 추가 폼 조건 사전 안내 (T-1711, REQ-0
     expect(source).not.toContain('비밀번호는 최소');
   });
 });
+
+// T-1904 — 섹션 탭 내비 검증 심볼. 기존 import 블록 무수정을 위해 별도 블록으로 둔다(hoist).
+import { runSelectAdminSection } from './AdminView';
+import {
+  ADMIN_SECTION_COLLECTION_TARGETS_ID,
+  ADMIN_SECTION_GROUPS_ID,
+  ADMIN_SECTION_PARTS_ID,
+  ADMIN_SECTION_PERSONS_ID,
+  ADMIN_SECTION_USERS_ID,
+  COLLECTION_TARGET_HEADING,
+  GROUP_HEADING,
+  PART_HEADING,
+  PERSON_HEADING,
+  USER_HEADING,
+} from './adminViewConstants';
+import {
+  ADMIN_SECTION_NAV_ACTIVE_CLASS,
+  ADMIN_SECTION_NAV_CLASS,
+  ADMIN_SECTION_NAV_ITEM_CLASS,
+  ADMIN_SECTION_NAV_LABEL,
+} from '../components/AdminSectionNav';
+
+// R-112 — T-1904 (REQ-080) 섹션 탭 내비 마운트 + 섹션 anchor id 부여 검증. 정적 렌더로 표면
+// (nav · 탭 개수 · 섹션 id · 활성 표시)을 잠근다(jsdom 미사용 — ADR-0040 §5 게이트).
+describe('AdminView — 섹션 탭 내비 마운트 (T-1904, REQ-080)', () => {
+  const USER_ME = { data: { role: 'User' }, loading: false, error: undefined };
+  const SECTION_IDS = [
+    ADMIN_SECTION_USERS_ID,
+    ADMIN_SECTION_PERSONS_ID,
+    ADMIN_SECTION_GROUPS_ID,
+    ADMIN_SECTION_PARTS_ID,
+    ADMIN_SECTION_COLLECTION_TARGETS_ID,
+  ];
+
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // nav element 만 잘라낸다 — 탭 개수 · 라벨 단언이 다른 마크업에 오염되지 않게 한다.
+  function renderNav(routes: Record<string, ApiResourceState<unknown>> = {}, activeId?: string): string {
+    setRoutes(routes);
+    const html = renderToStaticMarkup(
+      activeId === undefined ? <AdminView /> : <AdminView initialActiveSectionId={activeId} />,
+    );
+    const start = html.indexOf(`<nav aria-label="${ADMIN_SECTION_NAV_LABEL}"`);
+    expect(start).toBeGreaterThanOrEqual(0);
+    return html.slice(start, html.indexOf('</nav>', start));
+  }
+
+  const countTabs = (nav: string) =>
+    (nav.match(new RegExp(`class="${ADMIN_SECTION_NAV_ITEM_CLASS}[^"]*"`, 'g')) ?? []).length;
+
+  it('Admin 렌더에 탭 5 개와 섹션 anchor id 5 종이 함께 존재한다 (happy-path — 정적 렌더)', () => {
+    setRoutes({});
+    const html = renderToStaticMarkup(<AdminView />);
+    expect(html).toContain(`<nav aria-label="${ADMIN_SECTION_NAV_LABEL}" class="${ADMIN_SECTION_NAV_CLASS}"`);
+    SECTION_IDS.forEach((id) => expect(html).toContain(`id="${id}"`));
+    expect(html.split(`class="${ADMIN_SECTION_NAV_CLASS}"`)).toHaveLength(2);
+  });
+
+  it('활성 섹션을 주입하면 활성 className 이 정확히 1 개다 (분기 d — 활성 지정)', () => {
+    const nav = renderNav({}, ADMIN_SECTION_PARTS_ID);
+    expect(nav.split(ADMIN_SECTION_NAV_ACTIVE_CLASS)).toHaveLength(2);
+    expect(nav).toContain('aria-current="true"');
+    expect(countTabs(nav)).toBe(5);
+  });
+
+  it('활성 섹션 미지정이면 활성 className 이 0 개다 (분기 d — 미지정)', () => {
+    const nav = renderNav();
+    expect(nav).not.toContain(ADMIN_SECTION_NAV_ACTIVE_CLASS);
+    expect(nav).not.toContain('aria-current');
+    expect(countTabs(nav)).toBe(5);
+  });
+
+  it('비-Admin 렌더의 탭 목록에 사용자 탭이 없다 (negative b — 죽은 탭 미노출)', () => {
+    const nav = renderNav({ [AUTH_ME]: USER_ME });
+    expect(countTabs(nav)).toBe(4);
+    expect(nav).not.toContain(USER_HEADING);
+    expect(nav).toContain(PERSON_HEADING);
+  });
+
+  it('nav 추가 후에도 기존 섹션 heading 이 그대로 렌더된다 (negative f — 정적 렌더 회귀)', () => {
+    setRoutes({});
+    const html = renderToStaticMarkup(<AdminView />);
+    [PERSON_HEADING, GROUP_HEADING, PART_HEADING, COLLECTION_TARGET_HEADING].forEach((h) =>
+      expect(html).toContain(`<h2>${h}</h2>`),
+    );
+  });
+});
+
+// R-112 — T-1904 선택 러너 계약. 컨테이너 state 는 정적 렌더로 관측되지 않아 export 된 순수
+// 러너를 직접 호출해 상태 갱신 · 스크롤 · fallback 을 잠근다(run* 러너 spec 관례).
+describe('runSelectAdminSection — 섹션 탭 선택 발사 (T-1904)', () => {
+  it('활성 상태를 갱신하고 해당 섹션으로 스크롤한다 (happy-path)', () => {
+    const scrollIntoView = vi.fn();
+    const setActiveSectionId = vi.fn();
+    const getElement = vi.fn(() => ({ scrollIntoView }));
+    runSelectAdminSection(ADMIN_SECTION_GROUPS_ID, { setActiveSectionId, getElement });
+    expect(setActiveSectionId).toHaveBeenCalledWith(ADMIN_SECTION_GROUPS_ID);
+    expect(getElement).toHaveBeenCalledWith(ADMIN_SECTION_GROUPS_ID);
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+  });
+
+  it('getElement 미전달이면 조회 없이 상태만 갱신한다 (분기 b — 미전달)', () => {
+    const setActiveSectionId = vi.fn();
+    expect(() => runSelectAdminSection(ADMIN_SECTION_PARTS_ID, { setActiveSectionId })).not.toThrow();
+    expect(setActiveSectionId).toHaveBeenCalledWith(ADMIN_SECTION_PARTS_ID);
+  });
+
+  // 스크롤 불가 4 경우 — element 미발견(error path · negative e 목록 밖 id 포함) · undefined
+  // 반환(negative c) · scrollIntoView 가 함수 아님(분기 c · negative d). 모두 throw 0.
+  it.each([
+    ['element 미발견(null) — 섹션 미마운트', ADMIN_SECTION_USERS_ID, null],
+    ['getElement 가 undefined 반환', ADMIN_SECTION_PERSONS_ID, undefined],
+    ['scrollIntoView 가 함수가 아님', ADMIN_SECTION_PERSONS_ID, { scrollIntoView: 42 }],
+    ['목록에 없는 sectionId', 'admin-section-unknown', null],
+  ])('%s 이어도 throw 0 · 상태 갱신만 일어난다 (error path · 분기 c · negative c~e)', (_label, sectionId, element) => {
+    const setActiveSectionId = vi.fn();
+    const getElement = vi.fn(() => element as { scrollIntoView?: unknown } | null | undefined);
+    expect(() => runSelectAdminSection(sectionId, { setActiveSectionId, getElement })).not.toThrow();
+    expect(setActiveSectionId).toHaveBeenCalledWith(sectionId);
+    expect(getElement).toHaveBeenCalledTimes(1);
+  });
+});
