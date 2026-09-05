@@ -11,7 +11,8 @@
 //     controller 가 raw row 를 직접 직렬화하지 못하도록 sanitize 책임은 service 가 가짐.
 //   - sanitize 는 **명시적 field pick** 으로 구현 (전체 row spread 후 apiKey delete
 //     금지 — 새 secret 컬럼 추가 시 누락 방지 차원의 allow-list 정책). schema 에
-//     새 secret 이 추가돼도 view 는 명시 pick 한 6 필드만 노출 → leak 표면 최소.
+//     새 secret 이 추가돼도 view 는 명시 pick 한 non-secret 필드 + 파생 isDefault
+//     (T-1864) 만 노출 → leak 표면 최소.
 //
 // 책임 경계 (Out of Scope — task §Out of Scope 박제):
 //   - POST/PATCH/DELETE config CRUD (생성/수정/삭제) — Follow-up #1 (본 service 는

@@ -353,7 +353,7 @@ describe("LlmProviderConfigService", () => {
         apiKey: "ENVELOPE-CIPHERTEXT-base64",
         modelId: "gpt-test",
       });
-      // 반환 view 에 apiKey 키가 부재 (id / provider 등 6 필드만).
+      // 반환 view 에 apiKey 키가 부재 (id / provider 등 non-secret 필드만).
       expect(result).not.toHaveProperty("apiKey");
       expect(result.id).toBe("cfg-new");
     });
