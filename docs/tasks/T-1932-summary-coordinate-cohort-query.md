@@ -2,7 +2,7 @@
 id: T-1932
 title: 좌표 기준 다중 person Summary 조회 primitive + service 위임 (REQ-036 배선 1/3)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-036]
 estimatedDiff: 330
