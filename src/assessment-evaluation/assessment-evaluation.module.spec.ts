@@ -125,6 +125,8 @@ import { SummaryAggregateOrchestratorService } from "./summary-aggregate-orchest
 import { SummaryNarrativeService } from "./summary-narrative.service";
 // eslint-disable-next-line import/first
 import { SummaryPersistService } from "./summary-persist.service";
+// eslint-disable-next-line import/first
+import { SummaryRelativeComparisonReader } from "./summary-relative-comparison-reader.service";
 
 describe("AssessmentEvaluationModule", () => {
   // T-1629 — env 누수 차단 가드. 본 spec 은 `LOAD_TEST_STUB` 를 켜고 끄며 LLM_GATEWAY
@@ -232,6 +234,18 @@ describe("AssessmentEvaluationModule", () => {
     const fillPlanner = moduleRef.get(EvaluationUnevaluatedFillPlanner);
     expect(fillPlanner).toBeDefined();
     expect(fillPlanner).toBeInstanceOf(EvaluationUnevaluatedFillPlanner);
+
+    // SummaryRelativeComparisonReader(T-1933, REQ-036 상대 비교 배선 2/3)도 같은 module
+    // 에서 resolve 되며 유일한 생성자 의존 SummaryService(UserModule export)를 본 module
+    // 이 이미 import 중인 UserModule 로 DI 주입받는다(provider 등록 누락 시 본 resolve 가
+    // fail — 배선 게이트).
+    const relativeComparisonReader = moduleRef.get(
+      SummaryRelativeComparisonReader,
+    );
+    expect(relativeComparisonReader).toBeDefined();
+    expect(relativeComparisonReader).toBeInstanceOf(
+      SummaryRelativeComparisonReader,
+    );
 
     await moduleRef.close();
   });

@@ -54,6 +54,7 @@ import { SummaryAggregateOrchestratorService } from "./summary-aggregate-orchest
 import { SummaryBatchOrchestratorService } from "./summary-batch-orchestrator.service";
 import { SummaryNarrativeService } from "./summary-narrative.service";
 import { SummaryPersistService } from "./summary-persist.service";
+import { SummaryRelativeComparisonReader } from "./summary-relative-comparison-reader.service";
 import { UnevaluatedFillRunOrchestratorService } from "./unevaluated-fill-run-orchestrator.service";
 
 @Module({
@@ -144,6 +145,12 @@ import { UnevaluatedFillRunOrchestratorService } from "./unevaluated-fill-run-or
     // module 의 provider 가 되므로 같은 module 내 DI 로 resolve 된다(추가 import 0).
     // T-0543 wiring slice 가 등록 — 후속 orchestrator/controller 소비처가 inject 받는다.
     EvaluationUnevaluatedFillPlanner,
+    // SummaryRelativeComparisonReader — T-1933(REQ-036 상대 비교 배선 2/3). 유일한
+    // 생성자 의존 SummaryService 가 UserModule export(user.module.ts `205 행`)라 본
+    // module 이 이미 import 중인 UserModule(`80 행`)로 DI resolve 된다 — imports 배열
+    // 변경 0. 조회(findByCoordinate) → Decimal→number 매핑 → computeRelativeComparison
+    // 위임의 한 경로를 닫아 helper 의 production 소비처를 만든다.
+    SummaryRelativeComparisonReader,
     // UnevaluatedFillRunOrchestratorService — T-0564(Q-0045 옵션1 run-side 사슬 slice 1'
     // loop-level @Injectable wiring). PersonService(UserModule export, 이미 import 중)와
     // PeriodBridgeAdminPersistService(같은 module provider)를 주입받아 person lookup
@@ -196,6 +203,9 @@ import { UnevaluatedFillRunOrchestratorService } from "./unevaluated-fill-run-or
     // 다른 module 또는 같은 module DI 로 inject 받도록 export(T-0543 wiring slice).
     EvaluationPersistedRecordsReader,
     EvaluationUnevaluatedFillPlanner,
+    // 후속 배선 3/3(좌표 상대 비교 HTTP 표면)이 read-adapter 를 같은 module 내 DI 로
+    // inject 받도록 export(T-1933).
+    SummaryRelativeComparisonReader,
     // 후속 controller slice(POST /unevaluated-fill-run)가 person+persist 바인딩 compose
     // orchestrator 를 같은 module 내 DI 로 inject 받도록 export(T-0564).
     UnevaluatedFillRunOrchestratorService,
