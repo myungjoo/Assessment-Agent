@@ -1400,8 +1400,9 @@ describe("EvaluationOrchestratorService", () => {
       );
 
       // floor 강등 0 — `"zero"` 가 없다. a1 은 code 1 건으로 batch 평균(0.5) × 1.5
-      // 를 넘어 notable 이라 T-1921 step (6) uplift 로 `"high"` 가 된다.
-      expect(results.map((r) => r.contribution)).toEqual(["high", "low"]);
+      // 를 넘어 notable 이라 T-1921 step (6) uplift 로 `"high"` 가 되고, a2 는
+      // document 1 건으로 같은 임계를 넘어 T-1926 step (7) uplift 로 `"high"` 다.
+      expect(results.map((r) => r.contribution)).toEqual(["high", "high"]);
     });
 
     it("(branch c) dedup 으로 일부 제거된 batch → detection 이 dedup 후 입력 위에서 동작", async () => {

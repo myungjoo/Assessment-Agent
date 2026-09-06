@@ -1,18 +1,20 @@
 // evaluation-adjustments-pipeline.ts 의 colocated unit test (CLAUDE.md §3.2 R-112 —
 // happy / error / branch / negative cases 충분 cover). `applyEvaluationAdjustments`
-// 결정적 순수 composer 의 5-step thread(abuse → update-count → quality →
-// underperformer → notable → flatten) 가 orchestrator inline chain 과 byte-identical
-// 한 산출을 내는지를 검증한다. service mock(LLM scoring) 없이 5 위임 helper 의 직접
-// thread 만으로 검증 가능한 것이 본 composer 추출의 핵심 ROI 다.
+// 결정적 순수 composer 의 7-step thread(abuse → update-count → quality →
+// underperformer → notable → notable uplift → document uplift → flatten) 가
+// orchestrator inline chain 과 byte-identical 한 산출을 내는지를 검증한다. service
+// mock(LLM scoring) 없이 7 위임 helper 의 직접 thread 만으로 검증 가능한 것이 본
+// composer 추출의 핵심 ROI 다.
 //
 // 검증 축(R-112 4 종 + 결정성/비변형):
-//   - happy: 5 signal 모두 정상 → 5 step 산출이 entries 의 result 위에 결정적으로
-//     반영(volume 감점 + 중립 + contribution floor + 두 narrative marker).
-//   - error: entries / signals / signals 의 각 5 필드 null/undefined → `TypeError`.
+//   - happy: 6 signal 모두 정상 → 7 step 산출이 entries 의 result 위에 결정적으로
+//     반영(volume 감점 + 중립 + contribution floor + 두 narrative marker + 두 축
+//     contribution 상향).
+//   - error: entries / signals / signals 의 각 6 필드 null/undefined → `TypeError`.
 //     위임 helper 가 던지는 throw 는 composer 가 잡지 않고 전파.
-//   - branch: 빈 entries 경로 / 5 signal 모두 무대상 경로 / 일부 author 만 대상
+//   - branch: 빈 entries 경로 / 6 signal 모두 무대상 경로 / 일부 author 만 대상
 //     혼합 경로.
-//   - negative: 5 signal 각 필드 누락 / entries 가 배열 아님 / 위임 helper 가 던질
+//   - negative: 6 signal 각 필드 누락 / entries 가 배열 아님 / 위임 helper 가 던질
 //     수 있는 입력 정합 — 각 위임 경계마다 1+ test.
 //   - 결정성·무공유: 동일 입력 2 회 호출 deep-equal + 입력 mutate 0 + 산출 not-same-ref.
 
@@ -22,6 +24,7 @@ import {
   type EvaluationAdjustEntry,
   type EvaluationAdjustmentSignals,
 } from "./evaluation-adjustments-pipeline";
+import { DOCUMENT_CONTRIBUTION_UPLIFT_LEVEL } from "./evaluation-document-contribution-adjust";
 import type { DocumentContributionSignal } from "./evaluation-document-contribution-signal";
 import {
   NOTABLE_CONTRIBUTION_NARRATIVE_MARKER,
@@ -51,8 +54,8 @@ function makeResult(
 
 // 빈 6 signal — 모두 "무대상"(byAuthor 가 빈 배열, detected/suspected flag false)
 // 인 결정적 패시브 신호 묶음. 5 step 전부 무변경 passthrough 경로의 baseline.
-// documentContribution(T-1924)은 container 필수 필드이지만 현재 어떤 adjuster 도
-// 소비하지 않으므로 빈 신호로만 채운다(adjuster 동작 무변경 확인용).
+// documentContribution(T-1924 detection)은 step (7) document uplift 가 소비하지만
+// (T-1926 배선), 빈 신호이므로 전 단위 무변경 passthrough 가 된다(baseline).
 function makeEmptySignals(): EvaluationAdjustmentSignals {
   const abuse: AbuseSignal = {
     totalUnitCount: 0,
@@ -101,7 +104,7 @@ function makeEmptySignals(): EvaluationAdjustmentSignals {
 
 describe("applyEvaluationAdjustments", () => {
   describe("happy path", () => {
-    it("5 signal 모두 정상 동작 시 5-step thread 산출을 결정적으로 산출한다", () => {
+    it("6 signal 모두 정상 동작 시 7-step thread 산출을 결정적으로 산출한다", () => {
       // 시나리오: spammer 는 abuse suspected(volume 감점), neutral-doc-author 는
       // update-count 중립(volume base 보존), zero-author 는 quality floor 강등
       // (contribution → "zero"), under-author 는 저성과(narrative `[저성과자] `
@@ -396,7 +399,7 @@ describe("applyEvaluationAdjustments", () => {
     });
   });
 
-  describe("negative cases — 5 signal 필드 누락 (각 step 경계 cover)", () => {
+  describe("negative cases — 6 signal 필드 누락 (각 step 경계 cover)", () => {
     it("signals.abuse 가 null 이면 한국어 TypeError 를 던진다(step 1 guard)", () => {
       const signals = makeEmptySignals();
       signals.abuse = null as unknown as AbuseSignal;
@@ -466,6 +469,22 @@ describe("applyEvaluationAdjustments", () => {
       const signals = makeEmptySignals();
       signals.notableContribution =
         undefined as unknown as NotableContributionSignal;
+      expect(() => applyEvaluationAdjustments([], signals)).toThrow(TypeError);
+    });
+
+    it("signals.documentContribution 이 null 이면 한국어 TypeError 를 던진다(step 7 guard)", () => {
+      const signals = makeEmptySignals();
+      signals.documentContribution =
+        null as unknown as DocumentContributionSignal;
+      expect(() => applyEvaluationAdjustments([], signals)).toThrow(
+        "signals.documentContribution 은 null 또는 undefined 일 수 없습니다.",
+      );
+    });
+
+    it("signals.documentContribution 이 undefined 이면 한국어 TypeError 를 던진다(step 7 guard)", () => {
+      const signals = makeEmptySignals();
+      signals.documentContribution =
+        undefined as unknown as DocumentContributionSignal;
       expect(() => applyEvaluationAdjustments([], signals)).toThrow(TypeError);
     });
   });
@@ -597,5 +616,163 @@ describe("applyEvaluationAdjustments — notable uplift 배선(T-1921)", () => {
     // u3 — 비대상 author 는 등급 · narrative 모두 무변경(negative).
     expect(out[2].contribution).toBe("low");
     expect(out[2].narrative).toBe("정상 기여");
+  });
+});
+
+// ── T-1926: step (7) document uplift 배선 — 문서 축 상향이 floor 하한 · marker
+// 접두 · 필드 직교성 · 입력 비변형을 깨지 않는지까지 한 describe 로 모은다
+// (T-1921 describe 와 동형 위치 · 동형 구성).
+describe("applyEvaluationAdjustments — document uplift 배선(T-1926)", () => {
+  // 문서 축 신호 빌더 — byAuthor 만 바꿔 쓰는 결정적 fixture.
+  function docSignal(
+    byAuthor: DocumentContributionSignal["byAuthor"],
+  ): DocumentContributionSignal {
+    return {
+      totalAuthorCount: byAuthor.length,
+      meanDocumentUnitCount: 2,
+      byAuthor,
+      notableDetected: byAuthor.some((entry) => entry.notable),
+    };
+  }
+
+  it("문서 축 notable author 의 low/medium 단위만 high 로 상향되고 다른 필드는 무변경", () => {
+    // happy + 분기 (b) 비대상 무변경 + negative ① 필드 오염 0.
+    const entries: EvaluationAdjustEntry[] = [
+      {
+        author: "doc-author",
+        result: makeResult({
+          unitId: "unit-42",
+          narrative: "문서 정성 평가문",
+          difficulty: "easy",
+          contribution: "low",
+          volume: 777,
+        }),
+      },
+      {
+        author: "doc-author",
+        result: makeResult({ unitId: "u2", contribution: "medium" }),
+      },
+      { author: "normal", result: makeResult({ unitId: "u3" }) },
+    ];
+    const signals = makeEmptySignals();
+    signals.documentContribution = docSignal([
+      { author: "doc-author", documentUnitCount: 9, notable: true },
+      { author: "normal", documentUnitCount: 1, notable: false },
+    ]);
+
+    const out = applyEvaluationAdjustments(entries, signals);
+
+    // contribution 만 갱신 — narrative / difficulty / volume / unitId 오염 0.
+    expect(out[0]).toEqual({
+      unitId: "unit-42",
+      narrative: "문서 정성 평가문",
+      difficulty: "easy",
+      contribution: DOCUMENT_CONTRIBUTION_UPLIFT_LEVEL,
+      volume: 777,
+    });
+    expect(out[1].contribution).toBe(DOCUMENT_CONTRIBUTION_UPLIFT_LEVEL);
+    expect(out[2].contribution).toBe("medium");
+    // 길이 · 순서 보존.
+    expect(out.map((result) => result.unitId)).toEqual(["unit-42", "u2", "u3"]);
+  });
+
+  it("빈 문서 축 신호는 전 단위 무변경, 빈 entries 는 빈 배열을 반환한다", () => {
+    // 분기 (a) baseline + negative ④ 빈 배열 계약.
+    const entries: EvaluationAdjustEntry[] = [
+      { author: "a1", result: makeResult({ unitId: "u1" }) },
+    ];
+    const targeted = makeEmptySignals();
+    targeted.documentContribution = docSignal([
+      { author: "a1", documentUnitCount: 9, notable: true },
+    ]);
+
+    expect(applyEvaluationAdjustments(entries, makeEmptySignals())).toEqual(
+      entries.map((entry) => entry.result),
+    );
+    expect(applyEvaluationAdjustments([], targeted)).toEqual([]);
+  });
+
+  it("quality floor 표적 단위는 문서 축 notable 이어도 zero 로 남는다(하한 우선)", () => {
+    // 분기 (c) — step (3) floor 와 step (7) uplift 의 충돌 batch.
+    const entries: EvaluationAdjustEntry[] = [
+      { author: "conflicted", result: makeResult({ unitId: "u1" }) },
+      { author: "conflicted", result: makeResult({ unitId: "u2" }) },
+    ];
+    const signals = makeEmptySignals();
+    signals.quality = {
+      totalUnitCount: 2,
+      totalZeroContributionCount: 1,
+      byAuthor: [
+        {
+          author: "conflicted",
+          zeroContributionCount: 1,
+          zeroContributionUnitIds: ["u1"],
+          zeroContribution: true,
+        },
+      ],
+      zeroContributionDetected: true,
+    };
+    signals.documentContribution = docSignal([
+      { author: "conflicted", documentUnitCount: 8, notable: true },
+    ]);
+
+    const out = applyEvaluationAdjustments(entries, signals);
+
+    expect(out[0].contribution).toBe("zero");
+    expect(out[1].contribution).toBe(DOCUMENT_CONTRIBUTION_UPLIFT_LEVEL);
+  });
+
+  it("코드 축·문서 축 동시 notable 도 high 로 수렴하고 두 marker 접두가 보존된다", () => {
+    // 분기 (d) 중복 상향 수렴 + negative ② step 4·5 marker 보존.
+    const entries: EvaluationAdjustEntry[] = [
+      {
+        author: "both",
+        result: makeResult({
+          unitId: "u1",
+          narrative: "기여 정성 평가문",
+          contribution: "low",
+        }),
+      },
+    ];
+    const signals = makeEmptySignals();
+    signals.underPerformer = {
+      ...signals.underPerformer,
+      byAuthor: [{ author: "both", codeUnitCount: 0, underPerformer: true }],
+      underPerformerDetected: true,
+    };
+    signals.notableContribution = {
+      ...signals.notableContribution,
+      byAuthor: [{ author: "both", codeUnitCount: 10, notable: true }],
+      notableDetected: true,
+    };
+    signals.documentContribution = docSignal([
+      { author: "both", documentUnitCount: 10, notable: true },
+    ]);
+
+    const out = applyEvaluationAdjustments(entries, signals);
+
+    expect(out[0].contribution).toBe(DOCUMENT_CONTRIBUTION_UPLIFT_LEVEL);
+    expect(out[0].contribution).toBe(NOTABLE_CONTRIBUTION_UPLIFT_LEVEL);
+    expect(out[0].narrative).toBe(
+      `${NOTABLE_CONTRIBUTION_NARRATIVE_MARKER}${UNDERPERFORMER_NARRATIVE_MARKER}기여 정성 평가문`,
+    );
+  });
+
+  it("문서 축 상향 경로에서도 입력 entries·signals 는 변형되지 않는다", () => {
+    // negative ③ — 입력 비변형(deep-equal 스냅샷 대조).
+    const entries: EvaluationAdjustEntry[] = [
+      { author: "doc-author", result: makeResult({ contribution: "low" }) },
+    ];
+    const signals = makeEmptySignals();
+    signals.documentContribution = docSignal([
+      { author: "doc-author", documentUnitCount: 9, notable: true },
+    ]);
+    const entriesSnap = JSON.parse(JSON.stringify(entries));
+    const signalsSnap = JSON.parse(JSON.stringify(signals));
+
+    applyEvaluationAdjustments(entries, signals);
+
+    expect(entries).toEqual(entriesSnap);
+    expect(signals).toEqual(signalsSnap);
   });
 });
