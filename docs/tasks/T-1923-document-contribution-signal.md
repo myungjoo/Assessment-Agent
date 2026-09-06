@@ -2,7 +2,7 @@
 id: T-1923
 title: 문서 축 조직 기여 식별 신호 computeDocumentContributionSignal 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-020]
 estimatedDiff: 340
