@@ -2,7 +2,7 @@
 id: T-1917
 title: 평가 partial-reset route e2e RBAC · 계약 왕복 (REQ-037 e2e 1/2)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037]
 estimatedDiff: 270
