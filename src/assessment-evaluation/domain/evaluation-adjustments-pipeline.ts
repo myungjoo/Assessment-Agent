@@ -1,4 +1,4 @@
-// applyEvaluationAdjustments — P5 평가 후처리(post-scoring adjustment) 5-step
+// applyEvaluationAdjustments — P5 평가 후처리(post-scoring adjustment) 6-step
 // thread 를 묶는 결정적 순수 domain composer(T-0606). 본 helper 는
 // `EvaluationOrchestratorService` 가 inline 으로 묶고 있던 5-step chain(L258~315 —
 // abuse → update-count → quality → underperformer → notable → flatten)을
@@ -40,12 +40,15 @@
 //      (`[저성과자] ` / `[중요기여] `), 임계 분리(평균 × 0.5↓ vs × 1.5↑ — disjoint)
 //      로 한 author 가 동시에 둘 다일 수 없다. edge case 로 동시 발생 시 두 marker
 //      가 순차 접두된다(spec 박제).
-//   6. flatten — `.map((e) => e.result)` 로 entries 형태를 `EvaluationResult[]` 로
-//      flatten 해 반환. mid-pipe 5 step 은 entries 형태 그대로 thread.
+//   6. notable uplift — `applyNotableContributionUplift(entries, signals.notableContribution)`
+//      — 중요기여 author 단위 `contribution` 을 `"high"` 로 상향(T-1921 / REQ-011).
+//      step 3 floor **뒤**여야 "하한 우선"(floor 의 `"zero"` 불변) 이 성립한다.
+//   7. flatten — `.map((e) => e.result)` 로 entries 형태를 `EvaluationResult[]` 로
+//      flatten 해 반환. mid-pipe 6 step 은 entries 형태 그대로 thread.
 //
 // 필드 직교성(순서 무관 보장):
 //   - step 1·2 : `volume` 만 갱신.
-//   - step 3   : `contribution` 만 갱신.
+//   - step 3·6 : `contribution` 만 갱신(3 = 하한 floor, 6 = 상한 uplift — 순서 고정).
 //   - step 4·5 : `narrative` 만 갱신.
 //   세 필드 그룹이 서로 겹치지 않아 같은 결과면 어떤 순열로 적용해도 산출이 동일
 //   하다. 그래도 v1 순서 고정 — 결정성 + spec 명료성 + 동시 marker 접두 순서 박제.
@@ -69,7 +72,10 @@ import {
   type AbuseAdjustEntry,
 } from "./evaluation-abuse-adjust";
 import type { AbuseSignal } from "./evaluation-abuse-signal";
-import { applyNotableContributionAnnotation } from "./evaluation-notable-contribution-adjust";
+import {
+  applyNotableContributionAnnotation,
+  applyNotableContributionUplift,
+} from "./evaluation-notable-contribution-adjust";
 import type { NotableContributionSignal } from "./evaluation-notable-contribution-signal";
 import { applyContributionQualityFloor } from "./evaluation-quality-adjust";
 import type { ContributionQualitySignal } from "./evaluation-quality-signal";
@@ -124,7 +130,8 @@ export interface EvaluationAdjustmentSignals {
  *      — narrative 앞에 `[저성과자] ` marker 접두.
  *   5. notable — `applyNotableContributionAnnotation(entries'''', signals.notableContribution)`
  *      — narrative 앞에 `[중요기여] ` marker 접두.
- *   6. flatten — `.map((e) => e.result)` 로 entries 를 `EvaluationResult[]` 로 변환.
+ *   6. notable uplift — contribution 상향(`"zero"` 제외 — step 3 floor 우선).
+ *   7. flatten — `.map((e) => e.result)` 로 entries 를 `EvaluationResult[]` 로 변환.
  *
  * 방어(throw 0 흡수 정책 — 5 helper 정합):
  *   - 빈 `entries: []` → 빈 배열 `[]` 반환(전 5 위임 무변경 통과 + flatten 0 건).
@@ -221,14 +228,20 @@ export function applyEvaluationAdjustments(
     signals.underPerformer,
   );
 
-  // (5) 중요·어려운 기여 annotation + (6) flatten — 중요기여 author 의 모든 단위
-  //     narrative 앞에 `[중요기여] ` marker 접두 후 `.map((e) => e.result)` 로
-  //     entries 를 `EvaluationResult[]` 로 flatten. underperformer 와 같은
+  // (5) 중요·어려운 기여 annotation — 중요기여 author 의 모든 단위
+  //     narrative 앞에 `[중요기여] ` marker 접두. underperformer 와 같은
   //     narrative 필드를 다루지만 marker 접두가 서로 달라 동시 발생 edge case
   //     에서는 underperformer marker 가 먼저 접두된 narrative 위에 notable
   //     marker 가 다시 접두된다(spec 박제). orchestrator L312~315.
-  return applyNotableContributionAnnotation(
+  const notableAnnotated = applyNotableContributionAnnotation(
     underPerformerAnnotated,
+    signals.notableContribution,
+  );
+
+  // (6) 중요기여 등급 상향 + (7) flatten — **반드시 step (3) quality floor 뒤**여야
+  //     floor 의 `"zero"` 를 되돌리지 않는 "하한 우선" 이 성립한다(T-1921/REQ-011).
+  return applyNotableContributionUplift(
+    notableAnnotated,
     signals.notableContribution,
   ).map((entry) => entry.result);
 }

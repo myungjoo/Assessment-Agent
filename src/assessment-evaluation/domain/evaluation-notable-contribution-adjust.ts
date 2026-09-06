@@ -27,9 +27,9 @@
 //     판정** (`byAuthor[*].notable` boolean — 해당 author 의 전 단위가 중요기여
 //     대상)이다. 따라서 unitId 매칭 없이, notable=true 인 author 의 **모든** 평가
 //     단위를 일관 annotation 한다(author-level 전파, T-0531 동형).
-//   - 또 본 helper 는 `volume` / `contribution` 같은 정량/등급 필드를 손대지 않고
-//     `narrative` 에 marker 만 접두한다(중요기여 사실의 외화 — 점수 반영은 별도
-//     task).
+//   - 또 `applyNotableContributionAnnotation` 은 `narrative` 에 marker 만 접두하고
+//     (중요기여 사실의 외화), 등급 반영은 같은 파일의 T-1921
+//     `applyNotableContributionUplift` 가 `contribution` 만 상향해 담당한다.
 //
 // annotation 규칙 v1(결정적 · 비파괴 · 멱등 · 단조 · LLM 무관):
 //   - `signal.byAuthor` 를 author → NotableContributionEntry 로 색인한다.
@@ -65,7 +65,12 @@ import type {
   NotableContributionEntry,
   NotableContributionSignal,
 } from "./evaluation-notable-contribution-signal";
-import type { EvaluationResult } from "./evaluation-result";
+import { CONTRIBUTION_QUALITY_FLOOR_LEVEL } from "./evaluation-quality-adjust";
+import {
+  isContributionLevel,
+  type ContributionLevel,
+  type EvaluationResult,
+} from "./evaluation-result";
 
 // NOTABLE_CONTRIBUTION_NARRATIVE_MARKER — 중요기여로 식별된 author 의 평가 단위
 // `narrative` 앞에 접두하는 표준 한국어 marker single-source. R-25 / REQ-011 의
@@ -171,4 +176,61 @@ function annotateNarrative(narrative: string): string {
     return narrative;
   }
   return `${NOTABLE_CONTRIBUTION_NARRATIVE_MARKER}${narrative}`;
+}
+
+// NOTABLE_CONTRIBUTION_UPLIFT_LEVEL — 중요기여 author 단위 `contribution` 상향
+// 목표 등급 single-source(T-1921 — REQ-011 "더 높은 점수" 축). 한 등급씩 올리는
+// step 방식은 재적용 시 계속 올라 **비멱등**이라 고정 목표 등급으로 강제한다.
+// `CONTRIBUTION_QUALITY_FLOOR_LEVEL`(단조 하한) 의 대칭 상한. v1 = `"high"`.
+export const NOTABLE_CONTRIBUTION_UPLIFT_LEVEL: ContributionLevel = "high";
+
+/**
+ * 중요기여 신호를 소비해, 중요기여 author 의 **모든** 단위 `contribution` 을
+ * `NOTABLE_CONTRIBUTION_UPLIFT_LEVEL`(= `"high"`) 로 결정적 상향한 새 entries 를
+ * 반환한다(REQ-011 "더 높은 점수" 축). annotation 과 필드 직교 — `narrative` 는
+ * 손대지 않는다. 규칙(결정적 · 단조 비하향 · 멱등 · LLM 무관): (1) author 미매칭
+ * / (2) `notable === false` → 무변경 passthrough. (3) `notable === true` 라도 현재
+ * `"zero"` 면 **무변경**(quality floor 하한 우선). (4) `"low"` / `"medium"` →
+ * `"high"` 상향. (5) 이미 `"high"` → 값 동일(멱등). (6) 등급이 enum 외 → 무변경.
+ * 빈 `entries` / 빈 `byAuthor` / 미매칭은 흡수(무변경 복제), 입력 비변형 · 길이 ·
+ * 순서 보존, throw 는 `entries` / `signal` null/undefined 의 한국어 `TypeError` 뿐.
+ *
+ * @param entries 조정 대상 단위 배열. 변형하지 않는다.
+ * @param signal computeNotableContributionSignal 산출 신호. 변형하지 않는다.
+ * @returns 같은 길이 · 같은 순서의 새 entries 배열.
+ */
+export function applyNotableContributionUplift(
+  entries: NotableContributionAdjustEntry[],
+  signal: NotableContributionSignal,
+): NotableContributionAdjustEntry[] {
+  if (entries === null || entries === undefined) {
+    throw new TypeError("entries 는 null 또는 undefined 일 수 없습니다.");
+  }
+  if (signal === null || signal === undefined) {
+    throw new TypeError("signal 은 null 또는 undefined 일 수 없습니다.");
+  }
+
+  const byAuthor = new Map<string, NotableContributionEntry>(
+    signal.byAuthor.map((entry) => [entry.author, entry]),
+  );
+
+  return entries.map((entry) => {
+    const authorSignal = byAuthor.get(entry.author);
+    const current = entry.result.contribution;
+    // 규칙 3·6 — `"zero"`(하한 우선) 와 enum 외 값은 상향 대상에서 제외한다.
+    const upliftable =
+      authorSignal !== undefined &&
+      authorSignal.notable &&
+      isContributionLevel(current) &&
+      current !== CONTRIBUTION_QUALITY_FLOOR_LEVEL;
+
+    // 입력 비변형 — 항상 새 객체로 복제한다(contribution 만 갱신, 나머지 전사).
+    return {
+      author: entry.author,
+      result: {
+        ...entry.result,
+        contribution: upliftable ? NOTABLE_CONTRIBUTION_UPLIFT_LEVEL : current,
+      },
+    };
+  });
 }

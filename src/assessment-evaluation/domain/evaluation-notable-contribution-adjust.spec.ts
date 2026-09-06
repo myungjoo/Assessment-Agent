@@ -16,7 +16,9 @@
 
 import {
   applyNotableContributionAnnotation,
+  applyNotableContributionUplift,
   NOTABLE_CONTRIBUTION_NARRATIVE_MARKER,
+  NOTABLE_CONTRIBUTION_UPLIFT_LEVEL,
   type NotableContributionAdjustEntry,
 } from "./evaluation-notable-contribution-adjust";
 import type {
@@ -371,5 +373,149 @@ describe("applyNotableContributionAnnotation", () => {
         `${NOTABLE_CONTRIBUTION_NARRATIVE_MARKER}원본`,
       );
     });
+  });
+});
+
+// ── T-1921: applyNotableContributionUplift — 중요기여 author 등급 상향(REQ-011).
+describe("applyNotableContributionUplift", () => {
+  // notable=true 인 achiever 1 명만 담은 baseline 신호 + notable=false normal 혼합.
+  const notableSignal = makeSignal([makeAuthorEntry({ author: "achiever" })]);
+  const mixedSignal = makeSignal([
+    makeAuthorEntry({ author: "achiever" }),
+    makeAuthorEntry({ author: "normal", notable: false }),
+  ]);
+
+  it("(happy) notable=true author 의 모든 단위를 high 로 상향한다", () => {
+    const entries: NotableContributionAdjustEntry[] = [
+      {
+        author: "achiever",
+        result: makeResult({ unitId: "u1", contribution: "low" }),
+      },
+      {
+        author: "achiever",
+        result: makeResult({
+          unitId: "u2",
+          narrative: "본문",
+          difficulty: "hard",
+          volume: 42,
+          contribution: "medium",
+        }),
+      },
+    ];
+
+    const out = applyNotableContributionUplift(entries, notableSignal);
+
+    // author-level 전파 — 같은 author 의 모든 단위가 대상. 길이·순서 보존.
+    expect(out.map((e) => e.result.contribution)).toEqual([
+      NOTABLE_CONTRIBUTION_UPLIFT_LEVEL,
+      "high",
+    ]);
+    // contribution 외 필드(unitId / narrative / difficulty / volume)는 전사.
+    expect(out[1].result).toEqual({
+      unitId: "u2",
+      narrative: "본문",
+      difficulty: "hard",
+      volume: 42,
+      contribution: "high",
+    });
+  });
+
+  it.each([null, undefined])(
+    "(error) entries 가 %p 면 한국어 TypeError",
+    (bad) => {
+      const call = (): unknown =>
+        applyNotableContributionUplift(
+          bad as unknown as NotableContributionAdjustEntry[],
+          notableSignal,
+        );
+      expect(call).toThrow(TypeError);
+      expect(call).toThrow("entries 는 null 또는 undefined 일 수 없습니다.");
+    },
+  );
+
+  it.each([null, undefined])(
+    "(error) signal 이 %p 면 한국어 TypeError",
+    (bad) => {
+      const call = (): unknown =>
+        applyNotableContributionUplift(
+          [],
+          bad as unknown as NotableContributionSignal,
+        );
+      expect(call).toThrow(TypeError);
+      expect(call).toThrow("signal 은 null 또는 undefined 일 수 없습니다.");
+    },
+  );
+
+  // 설계 규칙 1~6 분기 + negative(무변경) 케이스를 한 표로 cover 한다.
+  it.each([
+    ["(1) signal 미매칭 author → 무변경", "ghost", "low", "low"],
+    ["(2) notable=false author → 무변경", "normal", "medium", "medium"],
+    ["(3) zero 는 상향하지 않는다(하한 우선)", "achiever", "zero", "zero"],
+    ["(4a) low → high 상향", "achiever", "low", "high"],
+    ["(4b) medium → high 상향", "achiever", "medium", "high"],
+    ["(5) 이미 high 면 값 동일(멱등)", "achiever", "high", "high"],
+    ["(6) enum 외 값은 보수적 무변경", "achiever", "bogus", "bogus"],
+  ])("%s", (_label, author, contribution, expected) => {
+    const entries: NotableContributionAdjustEntry[] = [
+      {
+        author,
+        result: makeResult({
+          contribution: contribution as EvaluationResult["contribution"],
+        }),
+      },
+    ];
+
+    const out = applyNotableContributionUplift(entries, mixedSignal);
+
+    expect(out[0].result.contribution).toBe(expected);
+    // 어떤 분기든 항상 새 객체로 복제한다(입력 비변형 보장).
+    expect(out[0].result).not.toBe(entries[0].result);
+  });
+
+  it("(negative) 빈 entries → 빈 배열, 빈 byAuthor → 전 단위 무변경", () => {
+    expect(applyNotableContributionUplift([], makeSignal([]))).toEqual([]);
+    const entries: NotableContributionAdjustEntry[] = [
+      { author: "achiever", result: makeResult({ contribution: "low" }) },
+    ];
+    expect(
+      applyNotableContributionUplift(entries, makeSignal([]))[0].result
+        .contribution,
+    ).toBe("low");
+  });
+
+  it("(negative) 입력 entries / result / signal 을 변형하지 않는다", () => {
+    const entries = Object.freeze([
+      Object.freeze({
+        author: "achiever",
+        result: Object.freeze(makeResult({ contribution: "medium" })),
+      }),
+    ]) as unknown as NotableContributionAdjustEntry[];
+    const snapshot = JSON.parse(JSON.stringify(entries));
+    const signalSnapshot = JSON.parse(JSON.stringify(notableSignal));
+
+    const out = applyNotableContributionUplift(entries, notableSignal);
+
+    expect(out[0].result.contribution).toBe("high");
+    expect(entries).toEqual(snapshot);
+    expect(notableSignal).toEqual(signalSnapshot);
+  });
+
+  it("(멱등) 2 회 연속 적용 결과가 1 회 적용 결과와 같다", () => {
+    const entries: NotableContributionAdjustEntry[] = [
+      {
+        author: "achiever",
+        result: makeResult({ unitId: "u1", contribution: "low" }),
+      },
+      {
+        author: "achiever",
+        result: makeResult({ unitId: "u2", contribution: "zero" }),
+      },
+    ];
+
+    const once = applyNotableContributionUplift(entries, notableSignal);
+    const twice = applyNotableContributionUplift(once, notableSignal);
+
+    expect(twice).toEqual(once);
+    expect(once.map((e) => e.result.contribution)).toEqual(["high", "zero"]);
   });
 });

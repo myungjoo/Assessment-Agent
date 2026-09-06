@@ -1378,7 +1378,7 @@ describe("EvaluationOrchestratorService", () => {
       expect(results.map((r) => r.contribution)).toEqual(["zero", "medium"]);
     });
 
-    it("(branch b) 전 단위 비대상(titleLength>임계) → 전 단위 contribution 무변경", async () => {
+    it("(branch b) 전 단위 floor 비대상(titleLength>임계) → zero 강등 0", async () => {
       const scoring = makeScoringServiceWithContribution("low");
       const orchestrator = makeOrchestrator(scoring);
       const activities: Activity[] = [
@@ -1399,7 +1399,9 @@ describe("EvaluationOrchestratorService", () => {
         OPTIONS,
       );
 
-      expect(results.map((r) => r.contribution)).toEqual(["low", "low"]);
+      // floor 강등 0 — `"zero"` 가 없다. a1 은 code 1 건으로 batch 평균(0.5) × 1.5
+      // 를 넘어 notable 이라 T-1921 step (6) uplift 로 `"high"` 가 된다.
+      expect(results.map((r) => r.contribution)).toEqual(["high", "low"]);
     });
 
     it("(branch c) dedup 으로 일부 제거된 batch → detection 이 dedup 후 입력 위에서 동작", async () => {

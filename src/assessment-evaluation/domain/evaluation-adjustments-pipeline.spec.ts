@@ -22,7 +22,10 @@ import {
   type EvaluationAdjustEntry,
   type EvaluationAdjustmentSignals,
 } from "./evaluation-adjustments-pipeline";
-import { NOTABLE_CONTRIBUTION_NARRATIVE_MARKER } from "./evaluation-notable-contribution-adjust";
+import {
+  NOTABLE_CONTRIBUTION_NARRATIVE_MARKER,
+  NOTABLE_CONTRIBUTION_UPLIFT_LEVEL,
+} from "./evaluation-notable-contribution-adjust";
 import type { NotableContributionSignal } from "./evaluation-notable-contribution-signal";
 import type { ContributionQualitySignal } from "./evaluation-quality-signal";
 import type { EvaluationResult } from "./evaluation-result";
@@ -513,5 +516,62 @@ describe("applyEvaluationAdjustments", () => {
       // 산출 result 객체도 새 객체(위임 helper 가 모두 새 객체로 복제).
       expect(out[0]).not.toBe(entries[0].result);
     });
+  });
+});
+
+// ── T-1921: step (6) notable uplift 배선 — marker 접두 + 등급 상향 동시 만족.
+describe("applyEvaluationAdjustments — notable uplift 배선(T-1921)", () => {
+  it("중요기여 author 단위는 marker 접두 + contribution=high 를 동시에 만족하고 floor 표적은 zero 로 남는다", () => {
+    // conflicted 는 notable 이면서 u1 만 zero-contribution 표적인 신호 충돌 batch.
+    const entries: EvaluationAdjustEntry[] = [
+      {
+        author: "conflicted",
+        result: makeResult({ unitId: "u1", contribution: "medium" }),
+      },
+      {
+        author: "conflicted",
+        result: makeResult({
+          unitId: "u2",
+          narrative: "기여 정성 평가문",
+          contribution: "low",
+        }),
+      },
+      {
+        author: "normal",
+        result: makeResult({ unitId: "u3", contribution: "low" }),
+      },
+    ];
+    const signals = makeEmptySignals();
+    signals.quality = {
+      totalUnitCount: 3,
+      totalZeroContributionCount: 1,
+      byAuthor: [
+        {
+          author: "conflicted",
+          zeroContributionCount: 1,
+          zeroContributionUnitIds: ["u1"],
+          zeroContribution: true,
+        },
+      ],
+      zeroContributionDetected: true,
+    };
+    signals.notableContribution = {
+      ...signals.notableContribution,
+      byAuthor: [{ author: "conflicted", codeUnitCount: 10, notable: true }],
+      notableDetected: true,
+    };
+
+    const out = applyEvaluationAdjustments(entries, signals);
+
+    // u1 — step 3 floor 표적이라 `"zero"` 유지(step 6 uplift 미적용, 하한 우선).
+    expect(out[0].contribution).toBe("zero");
+    // u2 — marker 접두(step 5)와 등급 상향(step 6)을 동시에 만족.
+    expect(out[1].narrative).toBe(
+      `${NOTABLE_CONTRIBUTION_NARRATIVE_MARKER}기여 정성 평가문`,
+    );
+    expect(out[1].contribution).toBe(NOTABLE_CONTRIBUTION_UPLIFT_LEVEL);
+    // u3 — 비대상 author 는 등급 · narrative 모두 무변경(negative).
+    expect(out[2].contribution).toBe("low");
+    expect(out[2].narrative).toBe("정상 기여");
   });
 });
