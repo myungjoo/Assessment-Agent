@@ -2,7 +2,7 @@
 id: T-1935
 title: REQ-036 상대 비교 arc doc-sync — api.md §5 route 행 + 합계 재집계 + REQ-036 재판정 1 회
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-036]
 estimatedDiff: 55
