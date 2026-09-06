@@ -36,6 +36,7 @@
 //   - e2e HTTP 통합 spec(supertest 실 부팅 + RBAC/Validation 통합 검증) — 후속 slice.
 //     본 task 는 colocated controller unit(orchestrator mock)까지.
 import {
+  BadRequestException,
   Body,
   Controller,
   ForbiddenException,
@@ -60,18 +61,23 @@ import {
   KST_TIMEZONE,
   parseKstPeriodInput,
 } from "../common/period-boundary";
+import { isDifficulty } from "../llm/difficulty";
 import { LlmProviderConfigResolver } from "../llm/llm-provider-config-resolver.service";
 import { RunStatusService } from "../run-status/run-status.service";
 import { PersonService } from "../user/person.service";
 import { UserService } from "../user/user.service";
 
 import type { EvaluationResult } from "./domain/evaluation-result";
+import { isContributionLevel } from "./domain/evaluation-result";
 import type { EvaluationPersistContext } from "./domain/evaluation-result.persist.mapper";
+import type { SummaryBatchContext } from "./domain/summary-batch-prompt";
 import type { RelativeComparisonResult } from "./domain/summary-relative-comparison";
 import { EvaluateActivitiesDto } from "./dto/evaluate-activities.dto";
 import { PeriodBridgeDto } from "./dto/period-bridge.dto";
 import { RelativeComparisonQueryDto } from "./dto/relative-comparison-query.dto";
 import { ResetByPeriodRequestDto } from "./dto/reset-by-period-request.dto";
+import type { SummaryAggregateUnitResultDto } from "./dto/summary-aggregate-request.dto";
+import { SummaryAggregateRequestDto } from "./dto/summary-aggregate-request.dto";
 import { UnevaluatedFillPlanRequestDto } from "./dto/unevaluated-fill-plan-request.dto";
 import { toIntendedPeriodCoordinatesInput } from "./dto/unevaluated-fill-plan-request.mapper";
 import {
@@ -88,6 +94,8 @@ import {
 import { EvaluationUnevaluatedFillPlanner } from "./evaluation-unevaluated-fill-planner.service";
 import { PeriodBridgeAdminPersistService } from "./period-bridge-admin-persist.service";
 import { PeriodBridgeEphemeralService } from "./period-bridge-ephemeral.service";
+import type { SummaryAggregateResult } from "./summary-aggregate-orchestrator.service";
+import { SummaryAggregateOrchestratorService } from "./summary-aggregate-orchestrator.service";
 import { SummaryPersistService } from "./summary-persist.service";
 import { SummaryRelativeComparisonReader } from "./summary-relative-comparison-reader.service";
 import { UnevaluatedFillRunOrchestratorService } from "./unevaluated-fill-run-orchestrator.service";
@@ -232,6 +240,14 @@ export class AssessmentEvaluationController {
     // 호출 최소 충격 — T-1842 / T-1916 이 지킨 규약). test 는 jest mock
     // { readForCoordinate } 를 주입해 실 DB read 0 / 실 네트워크 0 으로 위임 정합만 검증한다.
     private readonly relativeComparisonReader: SummaryRelativeComparisonReader,
+    // SummaryAggregateOrchestratorService — POST /summary 의 유일한 위임 대상(T-1937,
+    // REQ-004 배선 2/2). 같은 module(assessment-evaluation.module.ts)이 이미 `110 행`
+    // provider 등록 · `192 행` export 를 끝낸 상태라 **본 task 의 module 파일 변경은 0**
+    // 이고 생성자 주입만으로 inject 된다(추가 token 배선 0). **기존 12 param 의 위치 ·
+    // 순서는 불변** 이고 본 param 만 맨 끝에 추가된다(spec 의 위치 인자 호출 최소 충격 —
+    // T-1842 / T-1916 / T-1934 가 지킨 규약). test 는 jest mock { evaluateAndPersist }
+    // 를 주입해 실 LLM 호출 0 / 실 DB write 0 / 실 네트워크 0 으로 위임 정합만 검증한다.
+    private readonly summaryAggregateOrchestrator: SummaryAggregateOrchestratorService,
   ) {}
 
   // POST /api/assessment-evaluation/evaluate — 평가 manual trigger + persist.
@@ -810,5 +826,110 @@ export class AssessmentEvaluationController {
       dto.period,
       new Date(dto.periodStart),
     );
+  }
+
+  // POST /api/assessment-evaluation/summary — REQ-004 "지정 기간의 주요 활동 종합 요약"
+  // 의 HTTP 진입점(T-1937, 배선 2/2). 좌표 종합 코멘트 chain(`SummaryNarrativeService`
+  // → `SummaryPersistService` → `SummaryAggregateOrchestratorService.evaluateAndPersist`)
+  // 은 이미 전부 머지돼 프로세스 안에서 동작하나 HTTP caller 가 0 이었고, 본 route 가
+  // 그 chain 을 노출만 한다(새 결정 0 / 새 dependency 0 / module 배선 변경 0).
+  //
+  //   - 200 OK + `SummaryAggregateResult`(`{ evaluated, result? }`). 응답 mapper 불요 —
+  //     boolean + `{ summaryId: string, created: boolean }` 축만 가져 이미 JSON-safe 다
+  //     (summary-persist.service.ts 43~48 행). Date 직렬화 축 0.
+  //   - **skip 은 오류가 아니다** — 시점 게이트가 "아직 기간이 안 끝났다" 로 판정한
+  //     `{ evaluated: false }` 를 404 / 409 로 바꾸지 않고 200 본문 그대로 통과시킨다
+  //     (부재 · 미도래를 오류로 만들지 않음 — relative-comparison 의 빈 좌표 판단과 동형).
+  //   - orchestrator 반환값 가공 0 — 참조 그대로 반환한다(재조립 · 복제 0).
+  //   - service reject 는 raw 전파(swallow 0 · 자체 status 매핑 0) — persist 경합
+  //     `ConflictException`, 알 수 없는 period 의 게이트 throw, Invalid Date 의
+  //     `TypeError` 모두 NestJS 가 응답으로 매핑하게 둔다.
+  //   - 입력 검증 분담: **형식** 은 controller-scope ValidationPipe + `SummaryAggregate
+  //     RequestDto`(정의 외 필드 · 필수 누락 · wrong type → 400), **허용 literal 값** 은
+  //     domain type-guard(`isDifficulty` / `isContributionLevel`) 호출로만 판정한다 —
+  //     controller 는 허용 집합을 재구현하지 않는다(단일 출처 유지, DTO 머리 주석 계약).
+  //   - RunStatus 전이는 `689`·`731 행` shape 복제(ADR-0060 §Decision 4) — begin 을 try
+  //     **밖**에 둬 begin 이 던지면 finally 에 진입조차 않게 하고("짝 없는 end" 차단),
+  //     위임은 **return await** 로 받아 finally 가 해소 **이후**에만 돌게 한다. 종합
+  //     코멘트 생성은 LLM round-trip 을 타는 평가 **실행** 이라 카운터 대상이 맞다
+  //     (읽기인 relative-comparison / 삭제인 reset 이 전이 0 인 것과 대비).
+  //   - 매핑 실패 400 은 **begin 이전** 에 일어난다 — 실행에 진입하지도 못한 요청이
+  //     카운터를 올리거나 짝 없는 end 를 남기지 않게 하기 위해 DTO → 도메인 변환을
+  //     전부 begin 앞에 배치한다.
+  //   - RBAC 는 인접 `evaluate` / `reset` route stack mirror(새 auth 결정 0). 비용 있는
+  //     LLM round-trip + 영속 write 라 완화할 이유가 없다.
+  @Post("summary")
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
+  async summarize(
+    @Body() dto: SummaryAggregateRequestDto,
+  ): Promise<SummaryAggregateResult> {
+    // (1) DTO → 도메인 변환 — 전부 begin 앞(위 주석의 400/카운터 분리 근거).
+    //     periodStart 의 `Date` 변환은 소비처 책임이다(summary-aggregate-request.dto.ts
+    //     머리 주석). 비-ISO 문자열은 DTO 의 `@IsISO8601()` 이 이미 400 으로 잘라내므로
+    //     여기서 Invalid Date 재검증을 중복 소유하지 않는다.
+    const context: SummaryBatchContext = {
+      personId: dto.personId,
+      period: dto.period,
+      periodStart: new Date(dto.periodStart),
+    };
+    const results = dto.results.map((item) => this.toEvaluationResult(item));
+    const mode = this.toPersistMode(dto.mode);
+    const options = { modelId: dto.modelId };
+
+    // (2) 실행 전이 + 위임. `now` 는 요청 본문이 아니라 여기서 주입한다(시점 게이트의
+    //     결정성 — DTO 가 소유하면 caller 가 게이트를 우회할 수 있다).
+    this.runStatus.begin("evaluation");
+    try {
+      return await this.summaryAggregateOrchestrator.evaluateAndPersist(
+        context,
+        results,
+        mode,
+        options,
+        new Date(),
+      );
+    } finally {
+      this.runStatus.end("evaluation");
+    }
+  }
+
+  // toEvaluationResult — nested 입력 DTO 1 건을 도메인 `EvaluationResult` 로 좁힌다.
+  // 허용 literal 집합을 controller 가 재구현하지 않고 domain type-guard 호출로만
+  // 판정한다 — `isDifficulty`(src/llm/difficulty.ts) · `isContributionLevel`
+  // (domain/evaluation-result.ts 47 행)이 각 축의 단일 출처다. 미허용 값은
+  // `BadRequestException`(400)으로 거부한다: 무검증 `as unknown as` cast 로 통과시키면
+  // 허용 집합 밖 값이 prompt · 영속 row 까지 흘러들어가 조용히 왜곡되기 때문이다.
+  private toEvaluationResult(
+    item: SummaryAggregateUnitResultDto,
+  ): EvaluationResult {
+    if (!isDifficulty(item.difficulty)) {
+      throw new BadRequestException(
+        `허용되지 않은 difficulty: ${item.difficulty} (unitId=${item.unitId})`,
+      );
+    }
+    if (!isContributionLevel(item.contribution)) {
+      throw new BadRequestException(
+        `허용되지 않은 contribution: ${item.contribution} (unitId=${item.unitId})`,
+      );
+    }
+    return {
+      unitId: item.unitId,
+      narrative: item.narrative,
+      difficulty: item.difficulty,
+      contribution: item.contribution,
+      volume: item.volume,
+    };
+  }
+
+  // toPersistMode — mode 축을 `PersistMode`(evaluation-result-persist.service.ts 45 행)
+  // 로 좁힌다. difficulty / contribution 과 달리 이 축에는 domain type-guard 가 없어
+  // 리터럴 2 개 비교만 한다(집합 재구현이 아니라 타입 좁히기 — 값이 늘어나면
+  // `PersistMode` 확장이 compile 에러로 여기를 가리킨다). 미허용 값은 400 거부.
+  private toPersistMode(value: string): PersistMode {
+    if (value !== "fill" && value !== "reeval") {
+      throw new BadRequestException(`허용되지 않은 mode: ${value}`);
+    }
+    return value;
   }
 }

@@ -48,6 +48,10 @@ import {
 import { PeriodBridgeDto } from "./dto/period-bridge.dto";
 import { RelativeComparisonQueryDto } from "./dto/relative-comparison-query.dto";
 import { ResetByPeriodRequestDto } from "./dto/reset-by-period-request.dto";
+import {
+  SummaryAggregateRequestDto,
+  SummaryAggregateUnitResultDto,
+} from "./dto/summary-aggregate-request.dto";
 import { UnevaluatedFillPlanRequestDto } from "./dto/unevaluated-fill-plan-request.dto";
 import { UnevaluatedFillRunRequestDto } from "./dto/unevaluated-fill-run-request.dto";
 import type { UnevaluatedFillRunResult } from "./dto/unevaluated-fill-run-result";
@@ -62,6 +66,10 @@ import type {
   PeriodBridgeAdminPersistService,
 } from "./period-bridge-admin-persist.service";
 import type { PeriodBridgeEphemeralService } from "./period-bridge-ephemeral.service";
+import type {
+  SummaryAggregateOrchestratorService,
+  SummaryAggregateResult,
+} from "./summary-aggregate-orchestrator.service";
 import type { SummaryPersistService } from "./summary-persist.service";
 import type { SummaryRelativeComparisonReader } from "./summary-relative-comparison-reader.service";
 import type { UnevaluatedFillRunOrchestratorService } from "./unevaluated-fill-run-orchestrator.service";
@@ -184,6 +192,7 @@ function makeController(
       runStatus,
       summaryPersistService,
       forbidRelativeComparisonReader(),
+      forbidSummaryAggregateOrchestrator(),
     ),
     evaluateSpy,
     persistSpy,
@@ -308,6 +317,7 @@ function makePeriodController(opts: {
       runStatus,
       summaryPersistService,
       forbidRelativeComparisonReader(),
+      forbidSummaryAggregateOrchestrator(),
     ),
     generateSpy,
     adminSpy,
@@ -442,6 +452,7 @@ function makeFillController(
       runStatus,
       summaryPersistService,
       forbidRelativeComparisonReader(),
+      forbidSummaryAggregateOrchestrator(),
     ),
     plannerSpy,
     findUserSpy,
@@ -3052,6 +3063,7 @@ function makeRunController(
       runStatus,
       summaryPersistService,
       forbidRelativeComparisonReader(),
+      forbidSummaryAggregateOrchestrator(),
     ),
     runSpy,
     resolveSpy,
@@ -3862,6 +3874,9 @@ function makeResetController(
       {
         readForCoordinate: forbid("relativeComparisonReader"),
       } as unknown as SummaryRelativeComparisonReader,
+      {
+        evaluateAndPersist: forbid("summaryAggregateOrchestrator"),
+      } as unknown as SummaryAggregateOrchestratorService,
     ),
     assessmentResetSpy,
     summaryResetSpy,
@@ -4084,6 +4099,7 @@ function makeRelativeComparisonController(
       {
         readForCoordinate: readSpy,
       } as unknown as SummaryRelativeComparisonReader,
+      dep("evaluateAndPersist"),
     ),
     readSpy,
     forbiddenSpies,
@@ -4289,5 +4305,347 @@ describe("AssessmentEvaluationController.readRelativeComparison (RBAC / route me
         AssessmentEvaluationController.prototype.readRelativeComparison,
       ),
     ).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /summary (T-1937, REQ-004 배선 2/2 — 좌표 종합 코멘트 생성 endpoint)
+// ---------------------------------------------------------------------------
+
+// forbidSummaryAggregateOrchestrator — 기존 builder 들의 13 번째 인자용 throw mock.
+// 종합 코멘트 orchestrator 는 신규 route 전용이라 다른 경로가 건드리면 즉시 실패해야 한다.
+function forbidSummaryAggregateOrchestrator(): SummaryAggregateOrchestratorService {
+  return {
+    evaluateAndPersist: jest.fn(() => {
+      throw new Error(
+        "이 경로는 summaryAggregateOrchestrator 를 호출하면 안 된다",
+      );
+    }),
+  } as unknown as SummaryAggregateOrchestratorService;
+}
+
+// makeSummaryController — POST /summary 전용 builder(T-1937). orchestrator 의
+// evaluateAndPersist 와 runStatus 의 begin/end 만 관측 mock 이고 나머지 11 의존은
+// throw mock 이라 격리 위반(무관 의존 호출)이 즉시 실패한다(T-1934 패턴 mirror).
+function makeSummaryController(opts: {
+  evaluateImpl?: (...args: unknown[]) => Promise<SummaryAggregateResult>;
+  beginImpl?: () => void;
+}): {
+  controller: AssessmentEvaluationController;
+  evaluateSpy: jest.Mock;
+  beginSpy: jest.Mock;
+  endSpy: jest.Mock;
+  forbiddenSpies: jest.Mock[];
+} {
+  const defaultEvaluate = async (): Promise<SummaryAggregateResult> => ({
+    evaluated: true,
+    result: { summaryId: "summary-1", created: true },
+  });
+  const evaluateSpy = jest.fn(opts.evaluateImpl ?? defaultEvaluate);
+  const beginSpy = jest.fn(opts.beginImpl ?? ((): void => undefined));
+  const endSpy = jest.fn();
+  const forbiddenSpies: jest.Mock[] = [];
+  // dep — 주어진 메서드 이름들을 전부 throw mock 으로 채운 의존 대역(T-1934 mirror).
+  const dep = (...methods: string[]): never => {
+    const stub: Record<string, jest.Mock> = {};
+    for (const method of methods) {
+      const spy = jest.fn(() => {
+        throw new Error(`summarize() 는 ${method} 를 호출하면 안 된다`);
+      });
+      forbiddenSpies.push(spy);
+      stub[method] = spy;
+    }
+    return stub as never;
+  };
+  return {
+    controller: new AssessmentEvaluationController(
+      dep("evaluateActivities"),
+      dep("persist", "resetByPeriod"),
+      dep("generateEphemeral"),
+      dep("generateAndPersist"),
+      dep("findByIdWithIdentities"),
+      dep("planUnevaluatedFill"),
+      dep("run"),
+      dep("resolveDefaultModelId"),
+      dep("findById"),
+      { begin: beginSpy, end: endSpy } as unknown as RunStatusService,
+      dep("resetByPeriod"),
+      dep("readForCoordinate"),
+      {
+        evaluateAndPersist: evaluateSpy,
+      } as unknown as SummaryAggregateOrchestratorService,
+    ),
+    evaluateSpy,
+    beginSpy,
+    endSpy,
+    forbiddenSpies,
+  };
+}
+
+// makeSummaryUnitDto — nested 단위 평가 fixture(유효 base — 허용 literal 축 2 종 정상).
+function makeSummaryUnitDto(
+  overrides: Partial<SummaryAggregateUnitResultDto> = {},
+): SummaryAggregateUnitResultDto {
+  const dto = new SummaryAggregateUnitResultDto();
+  dto.unitId = "github:owner/repo:101";
+  dto.narrative = "리뷰 반영과 회귀 테스트 보강을 함께 수행했다.";
+  dto.difficulty = "medium";
+  dto.contribution = "high";
+  dto.volume = 3;
+  return Object.assign(dto, overrides);
+}
+
+// makeSummaryDto — SummaryAggregateRequestDto fixture(유효 base).
+function makeSummaryDto(
+  overrides: Partial<SummaryAggregateRequestDto> = {},
+): SummaryAggregateRequestDto {
+  const dto = new SummaryAggregateRequestDto();
+  dto.personId = "person-1";
+  dto.period = "week";
+  dto.periodStart = "2026-05-01T00:00:00.000Z";
+  dto.mode = "fill";
+  dto.modelId = "gpt-4o-mini";
+  dto.results = [makeSummaryUnitDto()];
+  return Object.assign(dto, overrides);
+}
+
+describe("AssessmentEvaluationController.summarize (unit — 좌표 종합 코멘트 thin delegate)", () => {
+  it("정상 payload 로 orchestrator 가 정확히 1 회 · 5 인자로 호출된다 (happy — DTO → 도메인 변환 계약)", async () => {
+    const { controller, evaluateSpy } = makeSummaryController({});
+
+    await controller.summarize(makeSummaryDto());
+
+    expect(evaluateSpy).toHaveBeenCalledTimes(1);
+    const [context, results, mode, options, now] = evaluateSpy.mock
+      .calls[0] as [
+      { personId: string; period: string; periodStart: unknown },
+      EvaluationResult[],
+      string,
+      { modelId: string },
+      unknown,
+    ];
+    // context — 3-tuple 좌표. periodStart 는 소비처 책임인 string → Date 변환 결과다.
+    expect(context.personId).toBe("person-1");
+    expect(context.period).toBe("week");
+    expect(context.periodStart).toBeInstanceOf(Date);
+    expect((context.periodStart as Date).getTime()).toBe(
+      new Date("2026-05-01T00:00:00.000Z").getTime(),
+    );
+    // results — domain guard 로 좁혀진 5 필드만(정의 외 축 유입 0).
+    expect(results).toEqual([
+      {
+        unitId: "github:owner/repo:101",
+        narrative: "리뷰 반영과 회귀 테스트 보강을 함께 수행했다.",
+        difficulty: "medium",
+        contribution: "high",
+        volume: 3,
+      },
+    ]);
+    expect(mode).toBe("fill");
+    expect(options).toEqual({ modelId: "gpt-4o-mini" });
+    // now — 요청 본문이 아니라 controller 가 주입(시점 게이트 결정성).
+    expect(now).toBeInstanceOf(Date);
+  });
+
+  it("orchestrator 반환 객체가 가공 없이 그대로 응답이 된다 (happy — 참조 동일성)", async () => {
+    const expected: SummaryAggregateResult = {
+      evaluated: true,
+      result: { summaryId: "summary-9", created: true },
+    };
+    const { controller } = makeSummaryController({
+      evaluateImpl: async () => expected,
+    });
+
+    const result = await controller.summarize(makeSummaryDto());
+
+    expect(result).toBe(expected);
+  });
+
+  it("evaluated:false skip 을 404/409 로 바꾸지 않고 200 본문 그대로 통과시킨다 (branch — skip 은 오류가 아님)", async () => {
+    const { controller } = makeSummaryController({
+      evaluateImpl: async () => ({ evaluated: false }),
+    });
+
+    await expect(controller.summarize(makeSummaryDto())).resolves.toEqual({
+      evaluated: false,
+    });
+  });
+
+  it("results 빈 배열도 거부 없이 그대로 위임된다 (branch — 빈 묶음 경계)", async () => {
+    const { controller, evaluateSpy } = makeSummaryController({});
+
+    await controller.summarize(makeSummaryDto({ results: [] }));
+
+    expect(evaluateSpy).toHaveBeenCalledTimes(1);
+    expect((evaluateSpy.mock.calls[0] as [unknown, unknown[]])[1]).toEqual([]);
+  });
+
+  it("mode 'reeval' 분기도 좁혀져 그대로 forward 된다 (branch — PersistMode 2 값)", async () => {
+    const { controller, evaluateSpy } = makeSummaryController({});
+
+    await controller.summarize(makeSummaryDto({ mode: "reeval" }));
+
+    expect((evaluateSpy.mock.calls[0] as [unknown, unknown, string])[2]).toBe(
+      "reeval",
+    );
+  });
+
+  it("orchestrator reject 는 삼켜지지 않고 그대로 전파되며 그 경우에도 end 가 호출된다 (error path)", async () => {
+    const rejected = new ConflictException("summary 좌표 경합");
+    const { controller, beginSpy, endSpy } = makeSummaryController({
+      evaluateImpl: async () => {
+        throw rejected;
+      },
+    });
+
+    await expect(controller.summarize(makeSummaryDto())).rejects.toBe(rejected);
+    expect(beginSpy).toHaveBeenCalledTimes(1);
+    expect(endSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("정상 종료에서도 begin/end 가 정확히 1 회씩 짝을 이룬다 (branch — RunStatus 전이)", async () => {
+    const { controller, beginSpy, endSpy } = makeSummaryController({});
+
+    await controller.summarize(makeSummaryDto());
+
+    expect(beginSpy).toHaveBeenCalledWith("evaluation");
+    expect(beginSpy).toHaveBeenCalledTimes(1);
+    expect(endSpy).toHaveBeenCalledWith("evaluation");
+    expect(endSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("미허용 difficulty 는 400 이고 orchestrator · begin 모두 미호출이다 (negative ① — 매핑 실패는 begin 이전)", async () => {
+    const { controller, evaluateSpy, beginSpy, endSpy } = makeSummaryController(
+      {},
+    );
+
+    await expect(
+      controller.summarize(
+        makeSummaryDto({
+          results: [makeSummaryUnitDto({ difficulty: "trivial" })],
+        }),
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(evaluateSpy).not.toHaveBeenCalled();
+    expect(beginSpy).not.toHaveBeenCalled();
+    expect(endSpy).not.toHaveBeenCalled();
+  });
+
+  it("미허용 contribution 은 400 이고 orchestrator · begin 모두 미호출이다 (negative ②)", async () => {
+    const { controller, evaluateSpy, beginSpy, endSpy } = makeSummaryController(
+      {},
+    );
+
+    await expect(
+      controller.summarize(
+        makeSummaryDto({
+          results: [makeSummaryUnitDto({ contribution: "extreme" })],
+        }),
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(evaluateSpy).not.toHaveBeenCalled();
+    expect(beginSpy).not.toHaveBeenCalled();
+    expect(endSpy).not.toHaveBeenCalled();
+  });
+
+  it("미허용 mode 는 400 이고 orchestrator · begin 모두 미호출이다 (negative ③)", async () => {
+    const { controller, evaluateSpy, beginSpy, endSpy } = makeSummaryController(
+      {},
+    );
+
+    await expect(
+      controller.summarize(makeSummaryDto({ mode: "overwrite" })),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(evaluateSpy).not.toHaveBeenCalled();
+    expect(beginSpy).not.toHaveBeenCalled();
+    expect(endSpy).not.toHaveBeenCalled();
+  });
+
+  it("begin 이 throw 하면 end 는 호출되지 않는다 (negative ④ — 짝 없는 end 차단)", async () => {
+    const failure = new Error("runStatus.begin 실패");
+    const { controller, evaluateSpy, endSpy } = makeSummaryController({
+      beginImpl: () => {
+        throw failure;
+      },
+    });
+
+    await expect(controller.summarize(makeSummaryDto())).rejects.toBe(failure);
+    expect(endSpy).not.toHaveBeenCalled();
+    expect(evaluateSpy).not.toHaveBeenCalled();
+  });
+
+  it("게이트의 알 수 없는 period TypeError 도 은폐 없이 전파된다 (negative ⑤ — 자체 status 매핑 0)", async () => {
+    const rejected = new TypeError("알 수 없는 period: quarter");
+    const { controller, endSpy } = makeSummaryController({
+      evaluateImpl: async () => {
+        throw rejected;
+      },
+    });
+
+    await expect(
+      controller.summarize(makeSummaryDto({ period: "quarter" })),
+    ).rejects.toBe(rejected);
+    expect(endSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("종합 코멘트 경로는 orchestrator · runStatus 밖의 무관 의존을 호출하지 않는다 (negative ⑥ — 격리)", async () => {
+    const { controller, forbiddenSpies } = makeSummaryController({});
+
+    await controller.summarize(makeSummaryDto());
+
+    for (const spy of forbiddenSpies) {
+      expect(spy).not.toHaveBeenCalled();
+    }
+  });
+
+  it("정의 외 body 필드 차단은 controller-scope ValidationPipe 소관이다 (negative ⑦ — pipe 재구현 0)", () => {
+    const classPipes = Reflect.getMetadata(
+      "__pipes__",
+      AssessmentEvaluationController,
+    ) as unknown[];
+    expect(classPipes.some((pipe) => pipe instanceof ValidationPipe)).toBe(
+      true,
+    );
+    expect(
+      Reflect.getMetadata(
+        "__pipes__",
+        AssessmentEvaluationController.prototype.summarize,
+      ),
+    ).toBeUndefined();
+  });
+});
+
+describe("AssessmentEvaluationController.summarize (RBAC / route metadata)", () => {
+  const reflector = new Reflector();
+
+  it("summarize 핸들러에 @Roles('Admin') metadata 부착 (LLM 비용 + 영속 write 라 Admin+ gate)", () => {
+    const roles = reflector.get<string[]>(
+      ROLES_METADATA_KEY,
+      AssessmentEvaluationController.prototype.summarize,
+    );
+    expect(roles).toEqual(["Admin"]);
+  });
+
+  it("summarize 핸들러에 @UseGuards(JwtAuthGuard, RolesGuard) 부착 (인증 + RBAC gate)", () => {
+    const guards = Reflect.getMetadata(
+      "__guards__",
+      AssessmentEvaluationController.prototype.summarize,
+    ) as unknown[];
+    expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
+  });
+
+  it("summarize 는 POST 'summary' route 다 (경로 · method 계약)", () => {
+    const handler = AssessmentEvaluationController.prototype.summarize;
+    expect(Reflect.getMetadata("path", handler)).toBe("summary");
+    expect(Reflect.getMetadata("method", handler)).toBe(RequestMethod.POST);
+  });
+
+  it("summarize 핸들러에 @HttpCode(200) 부착 (skip 도 200)", () => {
+    expect(
+      Reflect.getMetadata(
+        "__httpCode__",
+        AssessmentEvaluationController.prototype.summarize,
+      ),
+    ).toBe(200);
   });
 });
