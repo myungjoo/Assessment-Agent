@@ -2,7 +2,7 @@
 id: T-1938
 title: REQ-004 좌표 종합 코멘트 arc doc-sync — api.md §5 route 행 + 합계 재집계 + REQ-004 재판정 1 회
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 55
