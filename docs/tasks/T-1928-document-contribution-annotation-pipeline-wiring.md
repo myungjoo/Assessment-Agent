@@ -2,7 +2,7 @@
 id: T-1928
 title: 문서 축 narrative annotation helper 를 adjustments pipeline step (8) 로 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-020]
 estimatedDiff: 260
