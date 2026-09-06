@@ -12,9 +12,11 @@
 //   3. RBAC metadata 단언 — Reflector 로 @Roles("Admin") + @UseGuards(JwtAuthGuard,
 //      RolesGuard) 부착 검증.
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
+  RequestMethod,
   ServiceUnavailableException,
   ValidationPipe,
 } from "@nestjs/common";
@@ -35,11 +37,16 @@ import { AssessmentEvaluationController } from "./assessment-evaluation.controll
 import type { IntendedPeriodCoordinatesInput } from "./domain/evaluation-intended-period-coordinates";
 import type { EvaluationResult } from "./domain/evaluation-result";
 import type { UnevaluatedFillBatchPlan } from "./domain/evaluation-unevaluated-fill-batch-plan";
+import type {
+  PersonRelativeStanding,
+  RelativeComparisonResult,
+} from "./domain/summary-relative-comparison";
 import {
   EvaluateActivitiesDto,
   ActivityItemDto,
 } from "./dto/evaluate-activities.dto";
 import { PeriodBridgeDto } from "./dto/period-bridge.dto";
+import { RelativeComparisonQueryDto } from "./dto/relative-comparison-query.dto";
 import { ResetByPeriodRequestDto } from "./dto/reset-by-period-request.dto";
 import { UnevaluatedFillPlanRequestDto } from "./dto/unevaluated-fill-plan-request.dto";
 import { UnevaluatedFillRunRequestDto } from "./dto/unevaluated-fill-run-request.dto";
@@ -56,6 +63,7 @@ import type {
 } from "./period-bridge-admin-persist.service";
 import type { PeriodBridgeEphemeralService } from "./period-bridge-ephemeral.service";
 import type { SummaryPersistService } from "./summary-persist.service";
+import type { SummaryRelativeComparisonReader } from "./summary-relative-comparison-reader.service";
 import type { UnevaluatedFillRunOrchestratorService } from "./unevaluated-fill-run-orchestrator.service";
 
 // context 4-tuple(ADR-0033 §51) — 모든 evaluate dto fixture 의 base. persist 호출
@@ -175,6 +183,7 @@ function makeController(
       userService,
       runStatus,
       summaryPersistService,
+      forbidRelativeComparisonReader(),
     ),
     evaluateSpy,
     persistSpy,
@@ -298,6 +307,7 @@ function makePeriodController(opts: {
       userService,
       runStatus,
       summaryPersistService,
+      forbidRelativeComparisonReader(),
     ),
     generateSpy,
     adminSpy,
@@ -431,6 +441,7 @@ function makeFillController(
       userService,
       runStatus,
       summaryPersistService,
+      forbidRelativeComparisonReader(),
     ),
     plannerSpy,
     findUserSpy,
@@ -3040,6 +3051,7 @@ function makeRunController(
       userService,
       runStatus,
       summaryPersistService,
+      forbidRelativeComparisonReader(),
     ),
     runSpy,
     resolveSpy,
@@ -3847,6 +3859,9 @@ function makeResetController(
       { findById } as unknown as UserService,
       { begin, end } as unknown as RunStatusService,
       { resetByPeriod: summaryResetSpy } as unknown as SummaryPersistService,
+      {
+        readForCoordinate: forbid("relativeComparisonReader"),
+      } as unknown as SummaryRelativeComparisonReader,
     ),
     assessmentResetSpy,
     summaryResetSpy,
@@ -4009,5 +4024,270 @@ describe("AssessmentEvaluationController.resetByPeriod (RBAC / HttpCode metadata
         AssessmentEvaluationController.prototype.resetByPeriod,
       ),
     ).toBe(200);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /relative-comparison (T-1934, REQ-036 배선 3/3)
+// ---------------------------------------------------------------------------
+
+// forbidRelativeComparisonReader — 기존 builder 들의 12 번째 인자용 throw mock. 상대
+// 비교 reader 는 신규 route 전용이라 다른 경로가 건드리면 즉시 실패해야 한다.
+function forbidRelativeComparisonReader(): SummaryRelativeComparisonReader {
+  return {
+    readForCoordinate: jest.fn(() => {
+      throw new Error("이 경로는 relativeComparisonReader 를 호출하면 안 된다");
+    }),
+  } as unknown as SummaryRelativeComparisonReader;
+}
+
+// makeRelativeComparisonController — GET /relative-comparison 전용 builder(T-1934).
+// adapter 의 readForCoordinate 만 관측 mock 이고 나머지 11 의존은 throw mock 이라
+// 격리 위반(무관 의존 호출)이 즉시 실패한다.
+function makeRelativeComparisonController(
+  readImpl: (...args: unknown[]) => Promise<RelativeComparisonResult>,
+): {
+  controller: AssessmentEvaluationController;
+  readSpy: jest.Mock;
+  forbiddenSpies: jest.Mock[];
+} {
+  const readSpy = jest.fn(readImpl);
+  const forbiddenSpies: jest.Mock[] = [];
+  // dep — 주어진 메서드 이름들을 전부 throw mock 으로 채운 의존 대역. 호출되면 그
+  // 자리에서 실패하므로 "상대 비교 경로가 무관 의존을 건드리지 않는다" 가 강제된다.
+  const dep = (...methods: string[]): never => {
+    const stub: Record<string, jest.Mock> = {};
+    for (const method of methods) {
+      const spy = jest.fn(() => {
+        throw new Error(
+          `readRelativeComparison() 는 ${method} 를 호출하면 안 된다`,
+        );
+      });
+      forbiddenSpies.push(spy);
+      stub[method] = spy;
+    }
+    return stub as never;
+  };
+  return {
+    controller: new AssessmentEvaluationController(
+      dep("evaluateActivities"),
+      dep("persist", "resetByPeriod"),
+      dep("generateEphemeral"),
+      dep("generateAndPersist"),
+      dep("findByIdWithIdentities"),
+      dep("planUnevaluatedFill"),
+      dep("run"),
+      dep("resolveDefaultModelId"),
+      dep("findById"),
+      dep("begin", "end"),
+      dep("resetByPeriod"),
+      {
+        readForCoordinate: readSpy,
+      } as unknown as SummaryRelativeComparisonReader,
+    ),
+    readSpy,
+    forbiddenSpies,
+  };
+}
+
+// makeRelativeComparisonDto — RelativeComparisonQueryDto fixture(유효 base).
+function makeRelativeComparisonDto(
+  overrides: Partial<RelativeComparisonQueryDto> = {},
+): RelativeComparisonQueryDto {
+  const dto = new RelativeComparisonQueryDto();
+  dto.period = "week";
+  dto.periodStart = "2026-05-01T00:00:00.000Z";
+  return Object.assign(dto, overrides);
+}
+
+// sampleResult — adapter 가 돌려주는 정상 산출 fixture(rank 오름차순).
+function sampleResult(): RelativeComparisonResult {
+  const byPerson: PersonRelativeStanding[] = [
+    { personId: "person-a", metricScore: 90, rank: 1, percentile: 100 },
+    { personId: "person-b", metricScore: 70, rank: 2, percentile: 50 },
+    { personId: "person-c", metricScore: 50, rank: 3, percentile: 0 },
+  ];
+  return { cohortSize: 3, mean: 70, byPerson };
+}
+
+describe("AssessmentEvaluationController.readRelativeComparison (unit — 좌표 상대 비교 thin delegate)", () => {
+  it("유효 query 로 adapter 가 1 회 호출되고 반환이 가공 없이 그대로 실린다 (happy)", async () => {
+    const expected = sampleResult();
+    const { controller, readSpy } = makeRelativeComparisonController(
+      async () => expected,
+    );
+
+    const result = await controller.readRelativeComparison(
+      makeRelativeComparisonDto(),
+    );
+
+    // 참조 동일성 — 재조립 / 복제 / 재정렬이 0 임을 가장 강하게 단언한다.
+    expect(result).toBe(expected);
+    expect(readSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("둘째 인자가 Date instance 이고 getTime 이 원문 ISO 와 동일하다 (happy — string → Date 변환 책임)", async () => {
+    const { controller, readSpy } = makeRelativeComparisonController(async () =>
+      sampleResult(),
+    );
+
+    await controller.readRelativeComparison(makeRelativeComparisonDto());
+
+    const [periodArg, periodStartArg] = readSpy.mock.calls[0] as [
+      string,
+      unknown,
+    ];
+    expect(periodArg).toBe("week");
+    expect(periodStartArg).toBeInstanceOf(Date);
+    expect((periodStartArg as Date).getTime()).toBe(
+      new Date("2026-05-01T00:00:00.000Z").getTime(),
+    );
+  });
+
+  it("period 축은 검증 · 정규화 없이 그대로 forward 된다 — 허용 literal 판정은 SummaryService 소관 (branch — handler 분기 0)", async () => {
+    const { controller, readSpy } = makeRelativeComparisonController(async () =>
+      sampleResult(),
+    );
+
+    await controller.readRelativeComparison(
+      makeRelativeComparisonDto({ period: "day" }),
+    );
+
+    expect(readSpy).toHaveBeenCalledTimes(1);
+    expect((readSpy.mock.calls[0] as [string, Date])[0]).toBe("day");
+  });
+
+  it("adapter 의 BadRequestException 은 변환 없이 그대로 전파된다 (error path — 자체 status 매핑 0)", async () => {
+    const rejected = new BadRequestException("허용되지 않은 period: quarter");
+    const { controller } = makeRelativeComparisonController(async () => {
+      throw rejected;
+    });
+
+    await expect(
+      controller.readRelativeComparison(
+        makeRelativeComparisonDto({ period: "quarter" }),
+      ),
+    ).rejects.toBe(rejected);
+  });
+
+  it("좌표 계약 위반 TypeError(중복 personId)도 은폐 없이 전파된다 (error path)", async () => {
+    const rejected = new TypeError("좌표 안에 personId 가 중복이다");
+    const { controller } = makeRelativeComparisonController(async () => {
+      throw rejected;
+    });
+
+    await expect(
+      controller.readRelativeComparison(makeRelativeComparisonDto()),
+    ).rejects.toBe(rejected);
+  });
+
+  it("일반 rejection(의존성 실패)도 그대로 전파된다 (error path — swallow 0)", async () => {
+    const rejected = new Error("summary findByCoordinate 실패");
+    const { controller } = makeRelativeComparisonController(async () => {
+      throw rejected;
+    });
+
+    await expect(
+      controller.readRelativeComparison(makeRelativeComparisonDto()),
+    ).rejects.toBe(rejected);
+  });
+
+  it("빈 좌표 산출(cohortSize 0)을 404 로 바꾸지 않고 200 본문으로 통과시킨다 (negative ⑤ — 부재를 오류로 만들지 않음)", async () => {
+    const empty: RelativeComparisonResult = {
+      cohortSize: 0,
+      mean: 0,
+      byPerson: [],
+    };
+    const { controller } = makeRelativeComparisonController(async () => empty);
+
+    await expect(
+      controller.readRelativeComparison(makeRelativeComparisonDto()),
+    ).resolves.toEqual({ cohortSize: 0, mean: 0, byPerson: [] });
+  });
+
+  it("byPerson 배열을 mutate / 재정렬하지 않는다 — 참조 · 순서 보존 (negative ⑥)", async () => {
+    const expected = sampleResult();
+    const originalArray = expected.byPerson;
+    const originalOrder = originalArray.map((entry) => entry.personId);
+    const { controller } = makeRelativeComparisonController(
+      async () => expected,
+    );
+
+    const result = await controller.readRelativeComparison(
+      makeRelativeComparisonDto(),
+    );
+
+    expect(result.byPerson).toBe(originalArray);
+    expect(result.byPerson.map((entry) => entry.personId)).toEqual(
+      originalOrder,
+    );
+    expect(result.cohortSize).toBe(3);
+    expect(result.mean).toBe(70);
+  });
+
+  it("상대 비교 경로는 orchestrator / persist / runStatus 등 무관 의존을 호출하지 않는다 (negative — 격리)", async () => {
+    const { controller, forbiddenSpies } = makeRelativeComparisonController(
+      async () => sampleResult(),
+    );
+
+    await controller.readRelativeComparison(makeRelativeComparisonDto());
+
+    for (const spy of forbiddenSpies) {
+      expect(spy).not.toHaveBeenCalled();
+    }
+  });
+
+  it("정의 외 query 필드 차단은 controller-scope ValidationPipe(forbidNonWhitelisted) 소관이다 (negative ③ — pipe 재구현 0)", () => {
+    // handler 는 pipe metadata 0(검증 재구현 0)이고 class-scope ValidationPipe 가
+    // 소유한다. 실 거부 동작은 colocated DTO spec 이 이미 단언한다.
+    const classPipes = Reflect.getMetadata(
+      "__pipes__",
+      AssessmentEvaluationController,
+    ) as unknown[];
+    expect(classPipes.some((pipe) => pipe instanceof ValidationPipe)).toBe(
+      true,
+    );
+    expect(
+      Reflect.getMetadata(
+        "__pipes__",
+        AssessmentEvaluationController.prototype.readRelativeComparison,
+      ),
+    ).toBeUndefined();
+  });
+});
+
+describe("AssessmentEvaluationController.readRelativeComparison (RBAC / route metadata)", () => {
+  const reflector = new Reflector();
+
+  it("readRelativeComparison 핸들러에 @Roles('Admin') metadata 부착 (전체 person 상대 위치 노출이라 Admin+ gate)", () => {
+    const roles = reflector.get<string[]>(
+      ROLES_METADATA_KEY,
+      AssessmentEvaluationController.prototype.readRelativeComparison,
+    );
+    expect(roles).toEqual(["Admin"]);
+  });
+
+  it("readRelativeComparison 핸들러에 @UseGuards(JwtAuthGuard, RolesGuard) 부착 (인증 + RBAC gate)", () => {
+    const guards = Reflect.getMetadata(
+      "__guards__",
+      AssessmentEvaluationController.prototype.readRelativeComparison,
+    ) as unknown[];
+    expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
+  });
+
+  it("readRelativeComparison 는 GET 'relative-comparison' route 다 (경로 · method 계약)", () => {
+    const handler =
+      AssessmentEvaluationController.prototype.readRelativeComparison;
+    expect(Reflect.getMetadata("path", handler)).toBe("relative-comparison");
+    expect(Reflect.getMetadata("method", handler)).toBe(RequestMethod.GET);
+  });
+
+  it("readRelativeComparison 에는 @HttpCode 를 붙이지 않는다 — GET 기본 200 사용 (계약)", () => {
+    expect(
+      Reflect.getMetadata(
+        "__httpCode__",
+        AssessmentEvaluationController.prototype.readRelativeComparison,
+      ),
+    ).toBeUndefined();
   });
 });
