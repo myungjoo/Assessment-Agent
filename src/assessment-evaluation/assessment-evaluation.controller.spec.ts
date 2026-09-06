@@ -40,6 +40,7 @@ import {
   ActivityItemDto,
 } from "./dto/evaluate-activities.dto";
 import { PeriodBridgeDto } from "./dto/period-bridge.dto";
+import { ResetByPeriodRequestDto } from "./dto/reset-by-period-request.dto";
 import { UnevaluatedFillPlanRequestDto } from "./dto/unevaluated-fill-plan-request.dto";
 import { UnevaluatedFillRunRequestDto } from "./dto/unevaluated-fill-run-request.dto";
 import type { UnevaluatedFillRunResult } from "./dto/unevaluated-fill-run-result";
@@ -54,6 +55,7 @@ import type {
   PeriodBridgeAdminPersistService,
 } from "./period-bridge-admin-persist.service";
 import type { PeriodBridgeEphemeralService } from "./period-bridge-ephemeral.service";
+import type { SummaryPersistService } from "./summary-persist.service";
 import type { UnevaluatedFillRunOrchestratorService } from "./unevaluated-fill-run-orchestrator.service";
 
 // context 4-tuple(ADR-0033 §51) — 모든 evaluate dto fixture 의 base. persist 호출
@@ -154,6 +156,12 @@ function makeController(
     begin: beginSpy,
     end: endSpy,
   } as unknown as RunStatusService;
+  // summaryPersistService — POST /reset 전용(T-1916) 미사용 의존이라 throw mock.
+  const summaryPersistService = {
+    resetByPeriod: jest.fn(() => {
+      throw new Error("evaluate() 는 summaryPersist 호출 금지");
+    }),
+  } as unknown as SummaryPersistService;
   return {
     controller: new AssessmentEvaluationController(
       orchestrator,
@@ -166,6 +174,7 @@ function makeController(
       llmProviderConfigResolver,
       userService,
       runStatus,
+      summaryPersistService,
     ),
     evaluateSpy,
     persistSpy,
@@ -270,6 +279,12 @@ function makePeriodController(opts: {
     begin: beginSpy,
     end: endSpy,
   } as unknown as RunStatusService;
+  // summaryPersistService — POST /reset 전용(T-1916) 미사용 의존이라 throw mock.
+  const summaryPersistService = {
+    resetByPeriod: jest.fn(() => {
+      throw new Error("period() 는 summaryPersist 호출 금지");
+    }),
+  } as unknown as SummaryPersistService;
   return {
     controller: new AssessmentEvaluationController(
       orchestrator,
@@ -282,6 +297,7 @@ function makePeriodController(opts: {
       llmProviderConfigResolver,
       userService,
       runStatus,
+      summaryPersistService,
     ),
     generateSpy,
     adminSpy,
@@ -396,6 +412,12 @@ function makeFillController(
     begin: beginSpy,
     end: endSpy,
   } as unknown as RunStatusService;
+  // summaryPersistService — POST /reset 전용(T-1916) 미사용 의존이라 throw mock.
+  const summaryPersistService = {
+    resetByPeriod: jest.fn(() => {
+      throw new Error("planUnevaluatedFill() 는 summaryPersist 호출 금지");
+    }),
+  } as unknown as SummaryPersistService;
   return {
     controller: new AssessmentEvaluationController(
       orchestrator,
@@ -408,6 +430,7 @@ function makeFillController(
       llmProviderConfigResolver,
       userService,
       runStatus,
+      summaryPersistService,
     ),
     plannerSpy,
     findUserSpy,
@@ -2998,6 +3021,12 @@ function makeRunController(
     begin: beginSpy,
     end: endSpy,
   } as unknown as RunStatusService;
+  // summaryPersistService — POST /reset 전용(T-1916) 미사용 의존이라 throw mock.
+  const summaryPersistService = {
+    resetByPeriod: jest.fn(() => {
+      throw new Error("runUnevaluatedFill() 는 summaryPersist 호출 금지");
+    }),
+  } as unknown as SummaryPersistService;
   return {
     controller: new AssessmentEvaluationController(
       orchestrator,
@@ -3010,6 +3039,7 @@ function makeRunController(
       llmProviderConfigResolver,
       userService,
       runStatus,
+      summaryPersistService,
     ),
     runSpy,
     resolveSpy,
@@ -3766,5 +3796,218 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (RBAC / HttpCode met
       AssessmentEvaluationController.prototype.runUnevaluatedFill,
     ) as number;
     expect(httpCode).toBe(200);
+  });
+});
+
+// makeResetController — POST /reset 전용 builder(T-1916). 두 persist service 의
+// resetByPeriod 만 관측 mock, 나머지 의존은 throw mock(격리 위반 즉시 실패).
+function makeResetController(
+  assessmentImpl: (...args: unknown[]) => Promise<number>,
+  summaryImpl: (...args: unknown[]) => Promise<number>,
+): {
+  controller: AssessmentEvaluationController;
+  assessmentResetSpy: jest.Mock;
+  summaryResetSpy: jest.Mock;
+  forbiddenSpies: jest.Mock[];
+} {
+  const assessmentResetSpy = jest.fn(assessmentImpl);
+  const summaryResetSpy = jest.fn(summaryImpl);
+  const forbiddenSpies: jest.Mock[] = [];
+  const forbid = (name: string): jest.Mock => {
+    const spy = jest.fn(() => {
+      throw new Error(`resetByPeriod() 는 ${name} 를 호출하면 안 된다`);
+    });
+    forbiddenSpies.push(spy);
+    return spy;
+  };
+  const evaluateActivities = forbid("orchestrator");
+  const persist = forbid("persistService.persist");
+  const generateEphemeral = forbid("ephemeralBridge");
+  const generateAndPersist = forbid("adminBridge");
+  const findByIdWithIdentities = forbid("personService");
+  const planUnevaluatedFill = forbid("unevaluatedFillPlanner");
+  const run = forbid("unevaluatedFillRunOrchestrator");
+  const resolveDefaultModelId = forbid("llmProviderConfigResolver");
+  const findById = forbid("userService");
+  const begin = forbid("runStatus.begin");
+  const end = forbid("runStatus.end");
+  return {
+    controller: new AssessmentEvaluationController(
+      { evaluateActivities } as unknown as EvaluationOrchestratorService,
+      {
+        persist,
+        resetByPeriod: assessmentResetSpy,
+      } as unknown as EvaluationResultPersistService,
+      { generateEphemeral } as unknown as PeriodBridgeEphemeralService,
+      { generateAndPersist } as unknown as PeriodBridgeAdminPersistService,
+      { findByIdWithIdentities } as unknown as PersonService,
+      { planUnevaluatedFill } as unknown as EvaluationUnevaluatedFillPlanner,
+      { run } as unknown as UnevaluatedFillRunOrchestratorService,
+      { resolveDefaultModelId } as unknown as LlmProviderConfigResolver,
+      { findById } as unknown as UserService,
+      { begin, end } as unknown as RunStatusService,
+      { resetByPeriod: summaryResetSpy } as unknown as SummaryPersistService,
+    ),
+    assessmentResetSpy,
+    summaryResetSpy,
+    forbiddenSpies,
+  };
+}
+
+// makeResetDto — ResetByPeriodRequestDto fixture(유효 base).
+function makeResetDto(
+  overrides: Partial<ResetByPeriodRequestDto> = {},
+): ResetByPeriodRequestDto {
+  const dto = new ResetByPeriodRequestDto();
+  dto.personId = "person-1";
+  dto.period = "week";
+  return Object.assign(dto, overrides);
+}
+
+describe("AssessmentEvaluationController.resetByPeriod (unit — Assessment → Summary 순차 partial-reset 위임)", () => {
+  it("유효 body 로 두 service 가 각각 1 회 호출되고 삭제 건수가 응답에 그대로 실린다 (happy)", async () => {
+    const { controller, assessmentResetSpy, summaryResetSpy } =
+      makeResetController(
+        async () => 3,
+        async () => 2,
+      );
+
+    const result = await controller.resetByPeriod(makeResetDto());
+
+    expect(result).toEqual({
+      personId: "person-1",
+      period: "week",
+      deletedAssessments: 3,
+      deletedSummaries: 2,
+    });
+    expect(assessmentResetSpy).toHaveBeenCalledTimes(1);
+    expect(assessmentResetSpy).toHaveBeenCalledWith("person-1", "week");
+    expect(summaryResetSpy).toHaveBeenCalledTimes(1);
+    expect(summaryResetSpy).toHaveBeenCalledWith("person-1", "week");
+    // 위임 순서 계약 — Assessment(원본) 가 Summary(집계) 보다 먼저.
+    expect(assessmentResetSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      summaryResetSpy.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("삭제 건수 0 좌표에서도 0/0 을 정상 반환한다 — 부재를 오류로 만들지 않는다 (negative)", async () => {
+    const { controller } = makeResetController(
+      async () => 0,
+      async () => 0,
+    );
+
+    await expect(
+      controller.resetByPeriod(makeResetDto({ personId: "person-none" })),
+    ).resolves.toEqual({
+      personId: "person-none",
+      period: "week",
+      deletedAssessments: 0,
+      deletedSummaries: 0,
+    });
+  });
+
+  it("첫 위임(Assessment) reject 시 error 가 raw 전파되고 Summary 는 미호출이다 (error path — 부분 삭제 확산 차단)", async () => {
+    const boom = new Error("assessment deleteMany 실패");
+    const { controller, assessmentResetSpy, summaryResetSpy } =
+      makeResetController(
+        async () => {
+          throw boom;
+        },
+        async () => 2,
+      );
+
+    await expect(controller.resetByPeriod(makeResetDto())).rejects.toBe(boom);
+    expect(assessmentResetSpy).toHaveBeenCalledTimes(1);
+    expect(summaryResetSpy).not.toHaveBeenCalled();
+  });
+
+  it("둘째 위임(Summary) reject 시 error 가 raw 전파된다 (error path)", async () => {
+    const boom = new Error("summary deleteMany 실패");
+    const { controller, assessmentResetSpy, summaryResetSpy } =
+      makeResetController(
+        async () => 4,
+        async () => {
+          throw boom;
+        },
+      );
+
+    await expect(controller.resetByPeriod(makeResetDto())).rejects.toBe(boom);
+    expect(assessmentResetSpy).toHaveBeenCalledTimes(1);
+    expect(summaryResetSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("허용 외 period literal 을 service 가 거부하면 controller 자체 매핑 없이 전파한다 (negative — assertValidPeriod 소유권)", async () => {
+    // 실 service 의 assertValidPeriod throw 를 mirror 한 mock. controller 는 허용
+    // literal 을 재구현하지 않으므로 같은 Error 인스턴스가 그대로 나와야 한다.
+    const invalid = new Error("허용되지 않은 period: quarter");
+    const { controller, summaryResetSpy } = makeResetController(
+      async () => {
+        throw invalid;
+      },
+      async () => 0,
+    );
+
+    await expect(
+      controller.resetByPeriod(makeResetDto({ period: "quarter" })),
+    ).rejects.toBe(invalid);
+    expect(summaryResetSpy).not.toHaveBeenCalled();
+  });
+
+  it("reset 경로는 orchestrator / persist / runStatus 등 무관 의존을 호출하지 않는다 (negative — 격리)", async () => {
+    const { controller, forbiddenSpies } = makeResetController(
+      async () => 1,
+      async () => 1,
+    );
+
+    await controller.resetByPeriod(makeResetDto());
+
+    for (const spy of forbiddenSpies) {
+      expect(spy).not.toHaveBeenCalled();
+    }
+  });
+
+  it("정의 외 필드 차단은 controller-scope ValidationPipe(forbidNonWhitelisted) 소관이다 (negative — pipe 재구현 0)", () => {
+    // handler 는 pipe metadata 0(검증 재구현 0)이고 class-scope ValidationPipe 가
+    // 소유한다. 실 거부 동작은 colocated DTO spec 이 이미 단언한다.
+    const classPipes = Reflect.getMetadata(
+      "__pipes__",
+      AssessmentEvaluationController,
+    ) as unknown[];
+    expect(classPipes.some((p) => p instanceof ValidationPipe)).toBe(true);
+    expect(
+      Reflect.getMetadata(
+        "__pipes__",
+        AssessmentEvaluationController.prototype.resetByPeriod,
+      ),
+    ).toBeUndefined();
+  });
+});
+
+describe("AssessmentEvaluationController.resetByPeriod (RBAC / HttpCode metadata)", () => {
+  const reflector = new Reflector();
+
+  it("resetByPeriod 핸들러에 @Roles('Admin') metadata 부착 (파괴적 연산 Admin+ gate)", () => {
+    const roles = reflector.get<string[]>(
+      ROLES_METADATA_KEY,
+      AssessmentEvaluationController.prototype.resetByPeriod,
+    );
+    expect(roles).toEqual(["Admin"]);
+  });
+
+  it("resetByPeriod 핸들러에 @UseGuards(JwtAuthGuard, RolesGuard) 부착 (인증 + RBAC gate)", () => {
+    const guards = Reflect.getMetadata(
+      "__guards__",
+      AssessmentEvaluationController.prototype.resetByPeriod,
+    ) as unknown[];
+    expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
+  });
+
+  it("resetByPeriod 핸들러에 @HttpCode(200) 부착 (삭제 건수 0 도 200)", () => {
+    expect(
+      Reflect.getMetadata(
+        "__httpCode__",
+        AssessmentEvaluationController.prototype.resetByPeriod,
+      ),
+    ).toBe(200);
   });
 });

@@ -67,6 +67,7 @@ import type { EvaluationResult } from "./domain/evaluation-result";
 import type { EvaluationPersistContext } from "./domain/evaluation-result.persist.mapper";
 import { EvaluateActivitiesDto } from "./dto/evaluate-activities.dto";
 import { PeriodBridgeDto } from "./dto/period-bridge.dto";
+import { ResetByPeriodRequestDto } from "./dto/reset-by-period-request.dto";
 import { UnevaluatedFillPlanRequestDto } from "./dto/unevaluated-fill-plan-request.dto";
 import { toIntendedPeriodCoordinatesInput } from "./dto/unevaluated-fill-plan-request.mapper";
 import {
@@ -83,6 +84,7 @@ import {
 import { EvaluationUnevaluatedFillPlanner } from "./evaluation-unevaluated-fill-planner.service";
 import { PeriodBridgeAdminPersistService } from "./period-bridge-admin-persist.service";
 import { PeriodBridgeEphemeralService } from "./period-bridge-ephemeral.service";
+import { SummaryPersistService } from "./summary-persist.service";
 import { UnevaluatedFillRunOrchestratorService } from "./unevaluated-fill-run-orchestrator.service";
 
 // EvaluateResponse — POST /evaluate 반환 shape(ADR-0033 §Follow-ups slice 4 — "persists
@@ -115,6 +117,15 @@ export interface PeriodBridgeAdminResponse {
   scope: string;
   periodStart: string;
   created: boolean;
+}
+
+// ResetByPeriodResponse — POST /reset 반환 shape(T-1916). 요청 좌표 2 축 echo(무엇을
+// 지웠는지)+ 저장소별 삭제 건수(ADR-0033 §Decision §3 / ADR-0035 98 행).
+export interface ResetByPeriodResponse {
+  personId: string;
+  period: string;
+  deletedAssessments: number;
+  deletedSummaries: number;
 }
 
 // isAdminRole — principal role 이 Admin tier 이상(Admin / SuperAdmin)인지 판별한다.
@@ -203,6 +214,11 @@ export class AssessmentEvaluationController {
     // 위치·순서는 불변**이고 본 param 이 마지막에 추가된다(spec 의 위치 인자 호출 최소 충격).
     // test 는 jest mock { begin, end } 를 주입해 실 부작용 0 으로 전이 계약만 검증한다.
     private readonly runStatus: RunStatusService,
+    // SummaryPersistService — POST /reset 의 둘째 위임 대상(T-1916, ADR-0035 98 행
+    // partial-reset). `EvaluationResultPersistService` 는 위 `persistService` 로 이미
+    // 주입돼 재주입 0 이고, 두 service 모두 같은 module 의 기존 provider·export 라 module
+    // 배선 변경 0. **기존 10 param 의 위치·순서 불변** — 본 param 만 맨 끝에 추가한다.
+    private readonly summaryPersistService: SummaryPersistService,
   ) {}
 
   // POST /api/assessment-evaluation/evaluate — 평가 manual trigger + persist.
@@ -701,5 +717,45 @@ export class AssessmentEvaluationController {
     } finally {
       this.runStatus.end("evaluation");
     }
+  }
+
+  // POST /api/assessment-evaluation/reset — REQ-037 "Reset & Reeval" 의 **명시적
+  // partial-reset** 진입점(T-1916, T-1915 DTO 의 소비처 slice 2/2). 두 persist service
+  // 의 기존 `resetByPeriod` 를 HTTP 로 노출만 한다(새 결정 0 / 새 dependency 0).
+  //
+  //   - 200 OK + `ResetByPeriodResponse`. 삭제 건수 0 은 **오류가 아니다** — 지울 게
+  //     없었다는 정상 결과라 404 대신 200 + 0/0(멱등 재호출 안전).
+  //   - controller-scope ValidationPipe(whitelist + forbidNonWhitelisted + transform)가
+  //     DTO 2 축의 형식만 검증한다 — 정의 외 필드 400 차단으로 오타로 인한 "의도보다 넓은
+  //     삭제" 를 막는다. 허용 period literal 은 service `assertValidPeriod` 소관(재구현 0).
+  //   - 위임 순서는 **Assessment → Summary** 고정(spec 단언 계약). Summary 는 Assessment
+  //     파생 집계라, 원본만 남는 중간 상태보다 집계가 잠시 남는 쪽이 재평가로 복구하기
+  //     쉽다. 첫 위임이 reject 하면 둘째는 호출조차 않는다(부분 삭제 확산 차단).
+  //   - service error 는 raw 전파(swallow 0) — 자체 status 매핑 0, NestJS 에 맡긴다.
+  //   - RunStatus 전이 없음 — reset 은 평가 **실행** 이 아니라 삭제라 ADR-0060
+  //     §Decision 4 카운터 대상이 아니다.
+  //   - RBAC 는 인접 `unevaluated-fill-run` route 의 stack mirror(새 auth 결정 0).
+  //     파괴적 연산이라 완화할 이유가 없다.
+  @Post("reset")
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
+  async resetByPeriod(
+    @Body() dto: ResetByPeriodRequestDto,
+  ): Promise<ResetByPeriodResponse> {
+    const deletedAssessments = await this.persistService.resetByPeriod(
+      dto.personId,
+      dto.period,
+    );
+    const deletedSummaries = await this.summaryPersistService.resetByPeriod(
+      dto.personId,
+      dto.period,
+    );
+    return {
+      personId: dto.personId,
+      period: dto.period,
+      deletedAssessments,
+      deletedSummaries,
+    };
   }
 }
