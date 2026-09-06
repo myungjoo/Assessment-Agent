@@ -2,7 +2,7 @@
 id: T-1931
 title: 좌표별 개발자 간 상대 비교 순수 helper 신설 (REQ-036 상대 비교 산출 축)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-036]
 estimatedDiff: 320
