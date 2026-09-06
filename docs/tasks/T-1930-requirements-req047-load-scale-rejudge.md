@@ -2,7 +2,7 @@
 id: T-1930
 title: k6 부하 harness 실측으로 REQ-047 재판정 (requirements.md 66 행)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 estimatedDiff: 60
