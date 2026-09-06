@@ -54,13 +54,14 @@ function buildCreateInput(
   };
 }
 
-// SummaryRepository mock factory — 4 메서드 모두 jest.fn() 으로 대체.
+// SummaryRepository mock factory — 5 메서드 모두 jest.fn() 으로 대체.
 function buildRepositoryMock(): {
   repository: SummaryRepository;
   repoMock: {
     create: jest.Mock;
     findById: jest.Mock;
     findByPerson: jest.Mock;
+    findByCoordinate: jest.Mock;
     delete: jest.Mock;
   };
 } {
@@ -68,6 +69,7 @@ function buildRepositoryMock(): {
     create: jest.fn(),
     findById: jest.fn(),
     findByPerson: jest.fn(),
+    findByCoordinate: jest.fn(),
     delete: jest.fn(),
   };
   return {
@@ -318,6 +320,101 @@ describe("SummaryService", () => {
         service.findByPerson("person-1", { period: "daily" }),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(repoMock.findByPerson).not.toHaveBeenCalled();
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // findByCoordinate — 분기 3 개 (period literal 실패 / periodStart 실패 / 정상
+  // forward) 각 1+ · 빈 결과 negative · 무가공 전달 negative · VALID_PERIODS 3 값 통과
+  // -----------------------------------------------------------------------
+  describe("findByCoordinate()", () => {
+    const COORDINATE_START = new Date("2026-05-25T00:00:00.000Z");
+
+    it("유효 period + 유효 Date 면 repository 결과를 가공 없이 그대로 반환한다 (happy + branch)", async () => {
+      const { repository, repoMock } = buildRepositoryMock();
+      const fixture = [
+        buildSummaryFixture({ id: "id-a", personId: "person-a" }),
+        buildSummaryFixture({ id: "id-b", personId: "person-b" }),
+      ];
+      repoMock.findByCoordinate.mockResolvedValueOnce(fixture);
+
+      const service = new SummaryService(repository);
+      const result = await service.findByCoordinate("week", COORDINATE_START);
+
+      expect(repoMock.findByCoordinate).toHaveBeenCalledTimes(1);
+      expect(repoMock.findByCoordinate).toHaveBeenCalledWith(
+        "week",
+        COORDINATE_START,
+      );
+      // 무가공 전달 — 반환 참조 동일성 (Decimal 변환 · 정렬 재조정 0).
+      expect(result).toBe(fixture);
+      expect(result[0].personId).toBe("person-a");
+    });
+
+    it("VALID_PERIODS 의 day / week / month 3 값이 모두 통과한다 (branch)", async () => {
+      const { repository, repoMock } = buildRepositoryMock();
+      repoMock.findByCoordinate.mockResolvedValue([]);
+
+      const service = new SummaryService(repository);
+      for (const period of ["day", "week", "month"]) {
+        await service.findByCoordinate(period, COORDINATE_START);
+      }
+
+      expect(repoMock.findByCoordinate).toHaveBeenCalledTimes(3);
+    });
+
+    it("period 가 허용 집합 밖 (year) 이면 BadRequestException — repository 미호출 (error/negative)", async () => {
+      const { repository, repoMock } = buildRepositoryMock();
+
+      const service = new SummaryService(repository);
+      await expect(
+        service.findByCoordinate("year", COORDINATE_START),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(repoMock.findByCoordinate).not.toHaveBeenCalled();
+    });
+
+    it("periodStart 가 Date 가 아니면 (문자열) BadRequestException — repository 미호출 (error/negative)", async () => {
+      const { repository, repoMock } = buildRepositoryMock();
+
+      const service = new SummaryService(repository);
+      await expect(
+        service.findByCoordinate(
+          "week",
+          "2026-05-25T00:00:00.000Z" as unknown as Date,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(repoMock.findByCoordinate).not.toHaveBeenCalled();
+    });
+
+    it("periodStart 가 Invalid Date 면 BadRequestException — repository 미호출 (error/negative)", async () => {
+      const { repository, repoMock } = buildRepositoryMock();
+
+      const service = new SummaryService(repository);
+      await expect(
+        service.findByCoordinate("week", new Date("not-a-date")),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(repoMock.findByCoordinate).not.toHaveBeenCalled();
+    });
+
+    it("매칭 row 0 시 빈 배열 [] 을 그대로 반환한다 (NotFoundException 던지지 않음) (negative)", async () => {
+      const { repository, repoMock } = buildRepositoryMock();
+      repoMock.findByCoordinate.mockResolvedValueOnce([]);
+
+      const service = new SummaryService(repository);
+      const result = await service.findByCoordinate("month", COORDINATE_START);
+
+      expect(result).toEqual([]);
+    });
+
+    it("repository 가 reject 하면 변환 없이 그대로 전파한다 (error)", async () => {
+      const { repository, repoMock } = buildRepositoryMock();
+      const dbError = new Error("db-down");
+      repoMock.findByCoordinate.mockRejectedValueOnce(dbError);
+
+      const service = new SummaryService(repository);
+      await expect(
+        service.findByCoordinate("week", COORDINATE_START),
+      ).rejects.toBe(dbError);
     });
   });
 

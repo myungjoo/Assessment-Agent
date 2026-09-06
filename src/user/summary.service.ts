@@ -123,6 +123,29 @@ export class SummaryService {
     return this.repository.findByPerson(personId, options);
   }
 
+  // findByCoordinate — REQ-036 개발자 간 상대 비교의 입력 집합 조회. 좌표
+  // `(period, periodStart)` 를 고정해 그 좌표에 속한 전체 person 의 Summary 를 반환.
+  // 검증은 2 단계 — (1) period literal 은 기존 assertValidPeriod 재사용 (새 검증
+  // helper / 새 상수 신설 0), (2) periodStart 는 Date instance 이며 Invalid Date 가
+  // 아님을 확인. 둘 중 하나라도 실패하면 repository 를 호출하지 않고 BadRequestException.
+  //
+  // 검증 통과 시 repository 결과를 가공 없이 그대로 반환 — Decimal → number 변환 0 ·
+  // 정렬 재조정 0 (metricScore 변환은 상대 비교 helper 를 호출하는 평가 쪽 adapter 의
+  // 책임, modules.md `176`·`179 행` 의 의존 방향). 매칭 row 0 시 빈 배열 [] 그대로
+  // 반환 (NotFoundException 던지지 않음 — 컬렉션 조회의 정상 결과, findByPerson 정합).
+  async findByCoordinate(
+    period: string,
+    periodStart: Date,
+  ): Promise<Summary[]> {
+    this.assertValidPeriod(period);
+    if (!(periodStart instanceof Date) || Number.isNaN(periodStart.getTime())) {
+      throw new BadRequestException(
+        `invalid periodStart: ${String(periodStart)}`,
+      );
+    }
+    return this.repository.findByCoordinate(period, periodStart);
+  }
+
   // remove — hard delete (REQ-041 Admin 개별 manual delete + 재계산 lifecycle,
   // ADR-0006 §3 / §6). repository.delete 가 propagate 한 P2025 를 NotFoundException
   // 으로 변환 (ContributionService.remove mirror). Person 전체 hard delete 시 동반
