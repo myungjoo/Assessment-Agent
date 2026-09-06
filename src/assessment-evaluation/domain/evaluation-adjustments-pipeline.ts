@@ -1,20 +1,21 @@
-// applyEvaluationAdjustments — P5 평가 후처리(post-scoring adjustment) 6-step
+// applyEvaluationAdjustments — P5 평가 후처리(post-scoring adjustment) 7-step
 // thread 를 묶는 결정적 순수 domain composer(T-0606). 본 helper 는
 // `EvaluationOrchestratorService` 가 inline 으로 묶고 있던 5-step chain(L258~315 —
 // abuse → update-count → quality → underperformer → notable → flatten)을
 // orchestrator 와 **byte-identical** 한 순서·계약으로 mirror 한다. 추출의 ROI 는
-// service mock(LLM scoring) 없이도 5-step thread 순서·필드 직교성·entries↔result
+// service mock(LLM scoring) 없이도 7-step thread 순서·필드 직교성·entries↔result
 // flatten 계약을 단위로 검증 가능하다는 점이다(scoring service 분리).
 //
 // 책임 경계(본 task = composer 신설만, Out of Scope):
-//   - 본 composer 는 5 위임 helper(`applyAbuseSignalToVolume` /
+//   - 본 composer 는 7 위임 helper(`applyAbuseSignalToVolume` /
 //     `applyUpdateCountNeutralizationToVolume` / `applyContributionQualityFloor` /
-//     `applyUnderPerformerAnnotation` / `applyNotableContributionAnnotation`)를
+//     `applyUnderPerformerAnnotation` / `applyNotableContributionAnnotation` /
+//     `applyNotableContributionUplift` / `applyDocumentContributionUplift`)를
 //     v1 고정 순서로 thread + 마지막 `.map((e) => e.result)` flatten 만 한다.
 //     감점 / 중립 / floor / annotation 로직 재구현 0 — 위임만.
 //   - orchestrator 가 본 composer 를 호출하도록 배선하는 일은 별도 follow-up
 //     (파일 disjoint · 동시성 보존). 본 task 는 composer + colocated spec 신설.
-//   - 5 signal detection helper(`evaluation-*-signal.ts` /
+//   - 6 signal detection helper(`evaluation-*-signal.ts` /
 //     `evaluation-update-count-neutral.ts`) 변경 0 — 본 composer 는 신호를 인자로만
 //     받는다(컴퓨트 0).
 //
@@ -43,27 +44,38 @@
 //   6. notable uplift — `applyNotableContributionUplift(entries, signals.notableContribution)`
 //      — 중요기여 author 단위 `contribution` 을 `"high"` 로 상향(T-1921 / REQ-011).
 //      step 3 floor **뒤**여야 "하한 우선"(floor 의 `"zero"` 불변) 이 성립한다.
-//   7. flatten — `.map((e) => e.result)` 로 entries 형태를 `EvaluationResult[]` 로
-//      flatten 해 반환. mid-pipe 6 step 은 entries 형태 그대로 thread.
+//   7. document uplift — `applyDocumentContributionUplift(entries, signals.documentContribution)`
+//      — 문서 축 notable author 단위 `contribution` 을 `"high"` 로 상향
+//      (T-1926 / REQ-020 — README `39 행` "문서 기여 → 더 높은 점수"). step 3
+//      floor **뒤**여야 `"zero"` 하한 우선이 성립한다(helper 규칙 (3) 과 정합).
+//      step 6 과 같은 `contribution` 필드를 다루지만 목표 등급이 `"high"` 로
+//      동일하고 두 helper 모두 멱등이라, 한 author 가 코드 축·문서 축 모두
+//      notable 이어도 산출이 `"high"` 로 수렴한다(순서 무관 — v1 순서 고정).
+//   8. flatten — `.map((e) => e.result)` 로 entries 형태를 `EvaluationResult[]` 로
+//      flatten 해 반환. mid-pipe 7 step 은 entries 형태 그대로 thread.
 //
 // 필드 직교성(순서 무관 보장):
 //   - step 1·2 : `volume` 만 갱신.
-//   - step 3·6 : `contribution` 만 갱신(3 = 하한 floor, 6 = 상한 uplift — 순서 고정).
+//   - step 3·6·7 : `contribution` 만 갱신(3 = 하한 floor, 6 = 코드 축 상한
+//     uplift, 7 = 문서 축 상한 uplift — 두 uplift 는 목표 등급 동일 · 멱등이라
+//     서로 순서 무관, 그래도 v1 순서 고정).
 //   - step 4·5 : `narrative` 만 갱신.
 //   세 필드 그룹이 서로 겹치지 않아 같은 결과면 어떤 순열로 적용해도 산출이 동일
 //   하다. 그래도 v1 순서 고정 — 결정성 + spec 명료성 + 동시 marker 접두 순서 박제.
 //
-// throw 경계(5 위임 helper 와 정합):
+// throw 경계(7 위임 helper 와 정합):
 //   - `entries` / `signals` / `signals` 의 각 필드(abuse / updateCount / quality /
-//     underPerformer / notableContribution) 가 null/undefined 면 한국어 `TypeError`.
-//     본 composer 의 entry-level guard 는 5 위임 호출 전에 박제해, 위임 helper 가
+//     underPerformer / notableContribution / documentContribution) 가
+//     null/undefined 면 한국어 `TypeError`.
+//     본 composer 의 entry-level guard 는 7 위임 호출 전에 박제해, 위임 helper 가
 //     자기 guard 로 throw 하기 전에 어느 step 이 비었는지를 명시적으로 외화한다.
 //   - 위임 helper 가 throw 하는 입력(예: 위임 자체가 추가 guard 검출)에서는 본
 //     composer 는 자체 try/catch 없이 그대로 **전파**한다(흡수 0). caller 가
-//     5 step 중 어느 helper 가 던졌는지를 그대로 볼 수 있어야 한다(투명성).
+//     7 step 중 어느 helper 가 던졌는지를 그대로 볼 수 있어야 한다(투명성).
 //
 // 재현 0:
-//   - 본 composer 는 5 helper 의 산출 / 알고리즘 / 감점·중립·floor·annotation 공식
+//   - 본 composer 는 7 helper 의 산출 / 알고리즘 / 감점·중립·floor·annotation·상향
+//     공식
 //     을 재구현하지 않는다(위임만). 한 helper 의 v1 정책이 바뀌면 본 composer 는
 //     변경 없이 그 변화를 그대로 흘려보낸다.
 
@@ -72,6 +84,7 @@ import {
   type AbuseAdjustEntry,
 } from "./evaluation-abuse-adjust";
 import type { AbuseSignal } from "./evaluation-abuse-signal";
+import { applyDocumentContributionUplift } from "./evaluation-document-contribution-adjust";
 import type { DocumentContributionSignal } from "./evaluation-document-contribution-signal";
 import {
   applyNotableContributionAnnotation,
@@ -86,12 +99,13 @@ import type { UnderPerformerSignal } from "./evaluation-underperformer-signal";
 import { applyUpdateCountNeutralizationToVolume } from "./evaluation-update-count-adjust";
 import type { UpdateCountNeutralization } from "./evaluation-update-count-neutral";
 
-// EvaluationAdjustEntry — 5 위임 helper 가 공통으로 받는 입력/출력 단위.
+// EvaluationAdjustEntry — 7 위임 helper 가 공통으로 받는 입력/출력 단위.
 // `AbuseAdjustEntry` / `UpdateCountAdjustEntry` / `ContributionQualityAdjustEntry`
-// / `UnderPerformerAdjustEntry` / `NotableContributionAdjustEntry` 가 모두 동형
+// / `UnderPerformerAdjustEntry` / `NotableContributionAdjustEntry` /
+// `DocumentContributionAdjustEntry` 가 모두 동형
 // shape (`{ author: string; result: EvaluationResult }`) 이므로, T-0522 박제
-// `AbuseAdjustEntry` 를 single-source 로 re-export 해 5 helper 간 entries 변환 0 을
-// 보장한다(타입 재정의 0). caller 는 본 alias 하나만 import 하면 5-step thread
+// `AbuseAdjustEntry` 를 single-source 로 re-export 해 7 helper 간 entries 변환 0 을
+// 보장한다(타입 재정의 0). caller 는 본 alias 하나만 import 하면 7-step thread
 // 입력을 그대로 구성할 수 있다.
 export type EvaluationAdjustEntry = AbuseAdjustEntry;
 
@@ -99,10 +113,9 @@ export type EvaluationAdjustEntry = AbuseAdjustEntry;
 // detection helper 산출 타입을 그대로 재사용한다(재정의 0). 앞 5 필드명은
 // orchestrator 의 5-step 의도(abuse → updateCount → quality → underPerformer →
 // notableContribution)와 정합 — 호출부 가독성을 위해 camelCase 단일 형식.
-// 6 번째 `documentContribution`(T-1924)은 detection 축에서만 채워지는 신호로,
-// 현재 `applyEvaluationAdjustments` 의 5-step thread 는 이를 소비하지 않는다
-// (상향 adjuster 편입은 후속 slice). container 를 단일 source 로 유지하기 위해
-// 필수 필드로 둔다.
+// 6 번째 `documentContribution`(T-1924 detection)은 step (7) document uplift 가
+// 소비한다(T-1926 배선) — 문서 축 notable author 단위 `contribution` 상향의
+// 입력이다. container 를 단일 source 로 유지하기 위해 필수 필드로 둔다.
 export interface EvaluationAdjustmentSignals {
   // R-26/R-40 abusing 감점 신호. `computeAbuseSignal` 산출.
   abuse: AbuseSignal;
@@ -121,11 +134,12 @@ export interface EvaluationAdjustmentSignals {
 }
 
 /**
- * P5 평가 후처리 5-step thread 를 묶는 결정적 순수 composer.
+ * P5 평가 후처리 7-step thread 를 묶는 결정적 순수 composer.
  *
- * orchestrator L262~315 와 **byte-identical** 한 순서로 5 위임 helper 를 thread 한
- * 뒤 마지막에 `.map((e) => e.result)` 로 flatten 해 `EvaluationResult[]` 를 반환
- * 한다. 본 composer 는 감점·중립·floor·annotation 로직을 재구현하지 않고 5 helper
+ * orchestrator L262~315 의 5-step chain 을 mirror 한 뒤 등급 상향 2 step(코드 축
+ * T-1921 · 문서 축 T-1926)을 이어 붙인 v1 고정 순서로 7 위임 helper 를 thread 하고,
+ * 마지막에 `.map((e) => e.result)` 로 flatten 해 `EvaluationResult[]` 를 반환한다.
+ * 본 composer 는 감점·중립·floor·annotation·상향 로직을 재구현하지 않고 7 helper
  * 에 위임만 한다(투명한 thread).
  *
  * 적용 규칙(결정적 · LLM 무관):
@@ -138,12 +152,14 @@ export interface EvaluationAdjustmentSignals {
  *      — narrative 앞에 `[저성과자] ` marker 접두.
  *   5. notable — `applyNotableContributionAnnotation(entries'''', signals.notableContribution)`
  *      — narrative 앞에 `[중요기여] ` marker 접두.
- *   6. notable uplift — contribution 상향(`"zero"` 제외 — step 3 floor 우선).
- *   7. flatten — `.map((e) => e.result)` 로 entries 를 `EvaluationResult[]` 로 변환.
+ *   6. notable uplift — 코드 축 contribution 상향(`"zero"` 제외 — step 3 floor 우선).
+ *   7. document uplift — `applyDocumentContributionUplift(entries''''', signals.documentContribution)`
+ *      — 문서 축 contribution 상향(`"zero"` 제외 — step 3 floor 우선).
+ *   8. flatten — `.map((e) => e.result)` 로 entries 를 `EvaluationResult[]` 로 변환.
  *
- * 방어(throw 0 흡수 정책 — 5 helper 정합):
- *   - 빈 `entries: []` → 빈 배열 `[]` 반환(전 5 위임 무변경 통과 + flatten 0 건).
- *   - 5 signal 모두 "무대상"(예: 빈 `byAuthor`) → entries 의 result 가 무변경
+ * 방어(throw 0 흡수 정책 — 7 helper 정합):
+ *   - 빈 `entries: []` → 빈 배열 `[]` 반환(전 7 위임 무변경 통과 + flatten 0 건).
+ *   - 6 signal 모두 "무대상"(예: 빈 `byAuthor`) → entries 의 result 가 무변경
  *     복제만 되어 최종 산출이 entries 의 result 복제와 deep-equal.
  *   - 입력 `entries` / `signals` / `signals` 의 각 필드 / 원소 비변형 — 모든 위임
  *     helper 가 새 배열 + 새 객체만 반환(referential transparency).
@@ -152,22 +168,23 @@ export interface EvaluationAdjustmentSignals {
  *   - `entries` 가 null/undefined → 한국어 `TypeError`.
  *   - `signals` 가 null/undefined → 한국어 `TypeError`.
  *   - `signals.abuse` / `signals.updateCount` / `signals.quality` /
- *     `signals.underPerformer` / `signals.notableContribution` 중 하나라도
- *     null/undefined → 한국어 `TypeError`(어느 signal 이 비었는지 명시).
+ *     `signals.underPerformer` / `signals.notableContribution` /
+ *     `signals.documentContribution` 중 하나라도 null/undefined → 한국어
+ *     `TypeError`(어느 signal 이 비었는지 명시).
  *   - 위 guard 통과 후 위임 helper 가 throw 하면 본 composer 는 그대로 전파한다
  *     (try/catch 0). 어느 step 이 던졌는지 caller 가 그대로 볼 수 있어야 한다.
  *
  * 결정성·무공유 보장:
  *   - 동일 입력 2 회 호출 → deep-equal(byte-identical) 산출.
- *   - 입력 `entries`/`signals` mutate 0 — 5 helper 모두 입력 비변형.
- *   - 산출 배열은 5 step 위임의 산출 + flatten 의 누적이라 입력 entries 배열과
+ *   - 입력 `entries`/`signals` mutate 0 — 7 helper 모두 입력 비변형.
+ *   - 산출 배열은 7 step 위임의 산출 + flatten 의 누적이라 입력 entries 배열과
  *     not-same-ref(새 배열).
  *
- * @param entries 5-step thread 의 시작 entries(`{ author, result }[]`). 변형 0.
+ * @param entries 7-step thread 의 시작 entries(`{ author, result }[]`). 변형 0.
  *                각 원소는 scoring 후 entries 조립(`deduped[i].author` +
  *                `results[i]`) 결과여야 한다(orchestrator L258~261 동기).
- * @param signals 5 detection helper 산출 신호 container. 변형 0.
- * @returns 5-step thread + flatten 산출 `EvaluationResult[]` — 길이·순서는 입력
+ * @param signals 6 detection helper 산출 신호 container. 변형 0.
+ * @returns 7-step thread + flatten 산출 `EvaluationResult[]` — 길이·순서는 입력
  *          entries 와 정합(같은 길이·같은 순서).
  */
 export function applyEvaluationAdjustments(
@@ -180,7 +197,7 @@ export function applyEvaluationAdjustments(
   if (signals === null || signals === undefined) {
     throw new TypeError("signals 는 null 또는 undefined 일 수 없습니다.");
   }
-  // 5 signal 필드 guard — 어느 step 의 signal 이 비었는지를 명시적으로 외화해
+  // 6 signal 필드 guard — 어느 step 의 signal 이 비었는지를 명시적으로 외화해
   // 위임 helper 의 일반 throw 보다 caller 디버깅을 쉽게 한다(throw 메시지가 step
   // 이름을 포함).
   if (signals.abuse === null || signals.abuse === undefined) {
@@ -207,6 +224,14 @@ export function applyEvaluationAdjustments(
   ) {
     throw new TypeError(
       "signals.notableContribution 은 null 또는 undefined 일 수 없습니다.",
+    );
+  }
+  if (
+    signals.documentContribution === null ||
+    signals.documentContribution === undefined
+  ) {
+    throw new TypeError(
+      "signals.documentContribution 은 null 또는 undefined 일 수 없습니다.",
     );
   }
 
@@ -246,10 +271,20 @@ export function applyEvaluationAdjustments(
     signals.notableContribution,
   );
 
-  // (6) 중요기여 등급 상향 + (7) flatten — **반드시 step (3) quality floor 뒤**여야
+  // (6) 중요기여(코드 축) 등급 상향 — **반드시 step (3) quality floor 뒤**여야
   //     floor 의 `"zero"` 를 되돌리지 않는 "하한 우선" 이 성립한다(T-1921/REQ-011).
-  return applyNotableContributionUplift(
+  const notableUplifted = applyNotableContributionUplift(
     notableAnnotated,
     signals.notableContribution,
+  );
+
+  // (7) 문서 축 기여 등급 상향 + (8) flatten — step (6) 산출을 받아 문서 축 notable
+  //     author 단위의 contribution 을 `"high"` 로 상향한다(T-1926/REQ-020).
+  //     (a) step (3) floor 뒤라 `"zero"` 하한이 우선 보존되고, (b) step (6) 과
+  //     목표 등급이 `"high"` 로 같고 두 helper 모두 멱등이라 한 author 가 코드
+  //     축·문서 축 모두 notable 이어도 산출이 `"high"` 로 수렴한다(순서 무관).
+  return applyDocumentContributionUplift(
+    notableUplifted,
+    signals.documentContribution,
   ).map((entry) => entry.result);
 }
