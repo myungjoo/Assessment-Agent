@@ -1,9 +1,10 @@
 // evaluation-detection-signals-pipeline.ts 의 colocated unit test (CLAUDE.md §3.2
 // R-112 — happy / error / branch / negative cases 충분 cover). detection-side 단일
-// 진입 순수 composer `computeEvaluationAdjustmentSignals(deduped)` 가 5 detection
-// helper(abuse → update-count → quality → underperformer → notable)를 v1 고정 순서로
-// 위임 호출한 뒤 `EvaluationAdjustmentSignals` container 5 필드에 동명 매핑만 함을
-// 박제한다. 위임 외 변환 0(byte-identical) · 결정성 · 무공유 · 입력 비변형 · 위임
+// 진입 순수 composer `computeEvaluationAdjustmentSignals(deduped)` 가 6 detection
+// helper(abuse → update-count → quality → underperformer → notable → document)를 v1
+// 고정 순서로 위임 호출한 뒤 `EvaluationAdjustmentSignals` container 6 필드에 동명
+// 매핑만 함을 박제한다. 위임 외 변환 0(byte-identical) · 결정성 · 무공유 · 입력
+// 비변형 · 위임
 // throw transparent 전파를 검증한다. 신규 파일 100% 지향.
 
 import type {
@@ -13,6 +14,7 @@ import type {
 
 import { computeAbuseSignal } from "./evaluation-abuse-signal";
 import { computeEvaluationAdjustmentSignals } from "./evaluation-detection-signals-pipeline";
+import { computeDocumentContributionSignal } from "./evaluation-document-contribution-signal";
 import type { EvaluationInput } from "./evaluation-input";
 import { computeNotableContributionSignal } from "./evaluation-notable-contribution-signal";
 import { computeContributionQualitySignal } from "./evaluation-quality-signal";
@@ -54,6 +56,18 @@ function codeUnit(
   });
 }
 
+// document 단위 빌더 — author 별 documentUnitCount 조절용(고유 unitId).
+function docUnit(i: number, author: string, titleLength = 50): EvaluationInput {
+  return makeInput({
+    unitId: `conf:wiki:doc-${author}-${i}`,
+    author,
+    contributionKind: "document",
+    sourceType: "confluence" as ActivitySourceType,
+    instanceKey: "wiki",
+    titleLength,
+  });
+}
+
 // 저-volume 반복(같은 unitId) 단위 — abusing 시그니처(LOW_VOLUME × 반복).
 function lowVolumeRepeated(author = "spammer"): EvaluationInput {
   return makeInput({
@@ -65,9 +79,9 @@ function lowVolumeRepeated(author = "spammer"): EvaluationInput {
 }
 
 describe("computeEvaluationAdjustmentSignals", () => {
-  describe("happy-path — 5 detection 위임 결과와 deep-equal", () => {
-    it("정상 fixture 에서 5 필드가 각 detection helper 직접 호출 결과와 deep-equal", () => {
-      // 다수 author + 다수 code 단위 — 5 detection 모두 비-자명 산출이 나오는 fixture.
+  describe("happy-path — 6 detection 위임 결과와 deep-equal", () => {
+    it("정상 fixture 에서 6 필드가 각 detection helper 직접 호출 결과와 deep-equal", () => {
+      // 다수 author + 다수 code 단위 — 6 detection 모두 비-자명 산출이 나오는 fixture.
       const deduped: EvaluationInput[] = [
         codeUnit(1, "alice"),
         codeUnit(2, "alice"),
@@ -80,7 +94,7 @@ describe("computeEvaluationAdjustmentSignals", () => {
 
       const signals = computeEvaluationAdjustmentSignals(deduped);
 
-      // 5 필드 각각이 해당 helper 직접 호출 산출과 deep-equal(위임 외 변환 0).
+      // 6 필드 각각이 해당 helper 직접 호출 산출과 deep-equal(위임 외 변환 0).
       expect(signals.abuse).toEqual(computeAbuseSignal(deduped));
       expect(signals.updateCount).toEqual(
         computeUpdateCountNeutralization(deduped),
@@ -94,15 +108,42 @@ describe("computeEvaluationAdjustmentSignals", () => {
       expect(signals.notableContribution).toEqual(
         computeNotableContributionSignal(deduped),
       );
+      expect(signals.documentContribution).toEqual(
+        computeDocumentContributionSignal(deduped),
+      );
     });
 
-    it("container 가 정확히 5 필드(abuse/updateCount/quality/underPerformer/notableContribution)만 가진다", () => {
+    it("다수 author document fixture 에서 documentContribution 이 직접 호출 산출과 deep-equal(T-1924 배선)", () => {
+      // 문서 축이 비-자명한 fixture — dave 가 document 다수, erin 이 소수.
+      const deduped: EvaluationInput[] = [
+        docUnit(1, "dave"),
+        docUnit(2, "dave"),
+        docUnit(3, "dave"),
+        docUnit(4, "dave"),
+        docUnit(1, "erin"),
+        codeUnit(1, "erin"),
+      ];
+
+      const signals = computeEvaluationAdjustmentSignals(deduped);
+
+      // 위임 외 변환 0 — 6 번째 필드도 직접 호출 산출 그대로.
+      expect(signals.documentContribution).toEqual(
+        computeDocumentContributionSignal(deduped),
+      );
+      // 문서 축 신호가 실제로 채워진다(자명한 빈 신호가 아님).
+      expect(signals.documentContribution.totalAuthorCount).toBe(2);
+      expect(signals.documentContribution.byAuthor.length).toBe(2);
+    });
+
+    it("container 가 정확히 6 필드(abuse/updateCount/quality/underPerformer/notableContribution/documentContribution)만 가진다", () => {
       const signals = computeEvaluationAdjustmentSignals([
         codeUnit(1, "alice"),
       ]);
+      // negative ① — 7 번째 필드가 유입되면 본 단언이 fail 한다(정확히 6 필드).
       expect(Object.keys(signals).sort()).toEqual(
         [
           "abuse",
+          "documentContribution",
           "notableContribution",
           "quality",
           "underPerformer",
@@ -113,7 +154,7 @@ describe("computeEvaluationAdjustmentSignals", () => {
   });
 
   describe("byte-identical — 위임 외 변환 0 박제", () => {
-    it("임의 fixture: 5 detection 직접 5 호출 결과와 composer 1 호출 결과가 각 필드 deep-equal", () => {
+    it("임의 fixture: 6 detection 직접 6 호출 결과와 composer 1 호출 결과가 각 필드 deep-equal", () => {
       const deduped: EvaluationInput[] = [
         codeUnit(1, "alice", 80),
         codeUnit(2, "bob", 10),
@@ -131,20 +172,21 @@ describe("computeEvaluationAdjustmentSignals", () => {
 
       const signals = computeEvaluationAdjustmentSignals(deduped);
 
-      // 5 detection 을 직접 5 번 호출한 산출과 합성 산출의 5 필드가 각각 deep-equal.
+      // 6 detection 을 직접 6 번 호출한 산출과 합성 산출의 6 필드가 각각 deep-equal.
       const direct = {
         abuse: computeAbuseSignal(deduped),
         updateCount: computeUpdateCountNeutralization(deduped),
         quality: computeContributionQualitySignal(deduped),
         underPerformer: computeUnderPerformerSignal(deduped),
         notableContribution: computeNotableContributionSignal(deduped),
+        documentContribution: computeDocumentContributionSignal(deduped),
       };
       expect(signals).toEqual(direct);
     });
   });
 
   describe("flow / branch 분기 cover", () => {
-    it("(a) 빈 deduped [] → 5 필드 모두 빈 신호 채워진 container, throw 0", () => {
+    it("(a) 빈 deduped [] → 6 필드 모두 빈 신호 채워진 container, throw 0", () => {
       const signals = computeEvaluationAdjustmentSignals([]);
 
       // 빈 입력에 대한 각 helper 의 빈 산출과 일치(throw 0).
@@ -155,12 +197,19 @@ describe("computeEvaluationAdjustmentSignals", () => {
       expect(signals.notableContribution).toEqual(
         computeNotableContributionSignal([]),
       );
+      expect(signals.documentContribution).toEqual(
+        computeDocumentContributionSignal([]),
+      );
       // 빈 batch 식별 자명 — author 0.
       expect(signals.underPerformer.totalAuthorCount).toBe(0);
       expect(signals.notableContribution.totalAuthorCount).toBe(0);
+      // 문서 축도 빈 신호 — totalAuthorCount 0 / byAuthor [] / notableDetected false.
+      expect(signals.documentContribution.totalAuthorCount).toBe(0);
+      expect(signals.documentContribution.byAuthor).toEqual([]);
+      expect(signals.documentContribution.notableDetected).toBe(false);
     });
 
-    it("(b) 정상 활동 다수 + 다수 author → 5 필드 모두 채워진 신호 산출(byAuthor 비-빈)", () => {
+    it("(b) code 단위만 있는 batch → documentContribution.notableDetected false, 기존 5 필드는 종전 기대값 유지", () => {
       // alice 평균 초과(notable 후보), bob 평균 미달(underperformer 후보) 가 갈리는
       // 비대칭 fixture — underperformer/notable 양쪽 detection 의 byAuthor 가 채워짐.
       const deduped: EvaluationInput[] = [
@@ -174,7 +223,7 @@ describe("computeEvaluationAdjustmentSignals", () => {
 
       const signals = computeEvaluationAdjustmentSignals(deduped);
 
-      // 5 필드 모두 채워진 신호(2 author 가 byAuthor 에 등장).
+      // 기존 5 필드 기대값은 배선 전과 종전 그대로(2 author 가 byAuthor 에 등장).
       expect(signals.abuse.byAuthor.length).toBe(2);
       expect(signals.underPerformer.byAuthor.length).toBe(2);
       expect(signals.notableContribution.byAuthor.length).toBe(2);
@@ -186,9 +235,45 @@ describe("computeEvaluationAdjustmentSignals", () => {
       expect(signals.notableContribution).toEqual(
         computeNotableContributionSignal(deduped),
       );
+      // negative ④ — 문서 축 신호 추가가 code 축 notableContribution 을 오염시키지
+      // 않는다(직접 호출과 deep-equal 유지, 위 단언과 동일 기대값).
+      // document 단위 0 → 문서 축은 전원 0, 평균 0 이라 notable 식별 없음.
+      expect(signals.documentContribution.notableDetected).toBe(false);
+      expect(signals.documentContribution.meanDocumentUnitCount).toBe(0);
+      expect(
+        signals.documentContribution.byAuthor.every(
+          (e) => e.documentUnitCount === 0 && e.notable === false,
+        ),
+      ).toBe(true);
     });
 
-    it("(c) 단일 author 단일 unit 경계 → underperformer/notable disjoint(둘 다 false), throw 0", () => {
+    it("(c) document 단위가 평균 × 1.5 를 초과하는 author 가 있는 batch → documentContribution.notableDetected true", () => {
+      // dave 4 document / erin 1 document → 평균 2.5, 2.5 × 1.5 = 3.75 < 4 → notable.
+      const deduped: EvaluationInput[] = [
+        docUnit(1, "dave"),
+        docUnit(2, "dave"),
+        docUnit(3, "dave"),
+        docUnit(4, "dave"),
+        docUnit(1, "erin"),
+      ];
+
+      const signals = computeEvaluationAdjustmentSignals(deduped);
+
+      expect(signals.documentContribution.notableDetected).toBe(true);
+      expect(signals.documentContribution.meanDocumentUnitCount).toBe(2.5);
+      expect(
+        signals.documentContribution.byAuthor.find((e) => e.author === "dave")
+          ?.notable,
+      ).toBe(true);
+      expect(
+        signals.documentContribution.byAuthor.find((e) => e.author === "erin")
+          ?.notable,
+      ).toBe(false);
+      // code 축 notable 은 code 단위 0 batch 라 식별 없음(축 간 오염 0).
+      expect(signals.notableContribution.notableDetected).toBe(false);
+    });
+
+    it("(d) 단일 author 단일 unit 경계 → underperformer/notable disjoint(둘 다 false), throw 0", () => {
       const deduped: EvaluationInput[] = [codeUnit(1, "solo")];
 
       const signals = computeEvaluationAdjustmentSignals(deduped);
@@ -203,11 +288,12 @@ describe("computeEvaluationAdjustmentSignals", () => {
         quality: computeContributionQualitySignal(deduped),
         underPerformer: computeUnderPerformerSignal(deduped),
         notableContribution: computeNotableContributionSignal(deduped),
+        documentContribution: computeDocumentContributionSignal(deduped),
       });
     });
   });
 
-  describe("error path / negative cases 충분 cover (5 위임 경계 분리)", () => {
+  describe("error path / negative cases 충분 cover (6 위임 경계 분리)", () => {
     it("(1) deduped 가 null → 한국어 TypeError(메시지에 deduped 포함)", () => {
       expect(() =>
         computeEvaluationAdjustmentSignals(
@@ -257,7 +343,7 @@ describe("computeEvaluationAdjustmentSignals", () => {
       expect(() => computeEvaluationAdjustmentSignals(malformed)).toThrow();
     });
 
-    it("(5) author 1 종뿐인 경계(평균이 자기 자신) → 5 필드 정상 산출, throw 0(underperformer/notable false)", () => {
+    it("(5) author 1 종뿐인 경계(평균이 자기 자신) → 6 필드 정상 산출, throw 0(underperformer/notable false)", () => {
       // 같은 author 의 다수 code 단위 — 비교 대상(타 author) 없어 평균이 자기 자신.
       const deduped: EvaluationInput[] = [
         codeUnit(1, "solo"),
@@ -269,19 +355,25 @@ describe("computeEvaluationAdjustmentSignals", () => {
 
       expect(signals.underPerformer.underPerformerDetected).toBe(false);
       expect(signals.notableContribution.byAuthor.length).toBe(1);
-      // 5 필드 모두 정상 산출 — throw 0.
+      // 6 필드 모두 정상 산출 — throw 0.
       expect(signals.abuse).toEqual(computeAbuseSignal(deduped));
       expect(signals.quality).toEqual(
         computeContributionQualitySignal(deduped),
+      );
+      expect(signals.documentContribution).toEqual(
+        computeDocumentContributionSignal(deduped),
       );
     });
   });
 
   describe("무변형 · 결정론 · 무공유", () => {
     it("동일 입력 2 회 호출 → deep-equal(byte-identical) 산출", () => {
+      // negative ② — 문서 축 신호 포함 6 필드의 결정성 유지(document 단위 혼합).
       const deduped: EvaluationInput[] = [
         codeUnit(1, "alice"),
         codeUnit(2, "bob"),
+        docUnit(1, "alice"),
+        docUnit(2, "alice"),
         lowVolumeRepeated("carol"),
         lowVolumeRepeated("carol"),
       ];
@@ -290,12 +382,15 @@ describe("computeEvaluationAdjustmentSignals", () => {
       const second = computeEvaluationAdjustmentSignals(deduped);
 
       expect(first).toEqual(second);
+      expect(first.documentContribution).toEqual(second.documentContribution);
     });
 
     it("입력 deduped mutate 0 — 배열·원소 비변형", () => {
+      // negative ③ — 6 번째 위임 추가 후에도 입력 배열·원소가 불변.
       const deduped: EvaluationInput[] = [
         codeUnit(1, "alice"),
         codeUnit(2, "bob"),
+        docUnit(1, "alice"),
       ];
       const snapshot = JSON.parse(JSON.stringify(deduped));
       const lengthBefore = deduped.length;

@@ -22,6 +22,7 @@ import {
   type EvaluationAdjustEntry,
   type EvaluationAdjustmentSignals,
 } from "./evaluation-adjustments-pipeline";
+import type { DocumentContributionSignal } from "./evaluation-document-contribution-signal";
 import {
   NOTABLE_CONTRIBUTION_NARRATIVE_MARKER,
   NOTABLE_CONTRIBUTION_UPLIFT_LEVEL,
@@ -48,8 +49,10 @@ function makeResult(
   };
 }
 
-// 빈 5 signal — 모두 "무대상"(byAuthor 가 빈 배열, detected/suspected flag false)
+// 빈 6 signal — 모두 "무대상"(byAuthor 가 빈 배열, detected/suspected flag false)
 // 인 결정적 패시브 신호 묶음. 5 step 전부 무변경 passthrough 경로의 baseline.
+// documentContribution(T-1924)은 container 필수 필드이지만 현재 어떤 adjuster 도
+// 소비하지 않으므로 빈 신호로만 채운다(adjuster 동작 무변경 확인용).
 function makeEmptySignals(): EvaluationAdjustmentSignals {
   const abuse: AbuseSignal = {
     totalUnitCount: 0,
@@ -80,7 +83,20 @@ function makeEmptySignals(): EvaluationAdjustmentSignals {
     byAuthor: [],
     notableDetected: false,
   };
-  return { abuse, updateCount, quality, underPerformer, notableContribution };
+  const documentContribution: DocumentContributionSignal = {
+    totalAuthorCount: 0,
+    meanDocumentUnitCount: 0,
+    byAuthor: [],
+    notableDetected: false,
+  };
+  return {
+    abuse,
+    updateCount,
+    quality,
+    underPerformer,
+    notableContribution,
+    documentContribution,
+  };
 }
 
 describe("applyEvaluationAdjustments", () => {
@@ -180,6 +196,14 @@ describe("applyEvaluationAdjustments", () => {
             { author: "notable-author", codeUnitCount: 10, notable: true },
           ],
           notableDetected: true,
+        },
+        // 6 번째 필드(T-1924) — 어떤 adjuster 도 소비하지 않으므로 빈 신호.
+        // 기존 it 의 기대값은 그대로 유지된다(adjuster 동작 무변경).
+        documentContribution: {
+          totalAuthorCount: 0,
+          meanDocumentUnitCount: 0,
+          byAuthor: [],
+          notableDetected: false,
         },
       };
 
