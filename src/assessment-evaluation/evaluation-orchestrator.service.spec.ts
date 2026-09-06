@@ -3403,7 +3403,7 @@ describe("EvaluationOrchestratorService", () => {
       expect(entriesArg[0]).toHaveProperty("author");
       expect(entriesArg[0]).toHaveProperty("result");
 
-      // (c) 두 번째 인자 = 5-signal 단일 container(camelCase 5 field 정확히).
+      // (c) 두 번째 인자 = 6-signal 단일 container(camelCase 6 field 정확히).
       //     필드 이름이 composer 가 기대하는 정확한 형태인지 형 검증.
       expect(signalsArg).toEqual(
         expect.objectContaining({
@@ -3412,10 +3412,12 @@ describe("EvaluationOrchestratorService", () => {
           quality: expect.anything(),
           underPerformer: expect.anything(),
           notableContribution: expect.anything(),
+          documentContribution: expect.anything(),
         }),
       );
       expect(Object.keys(signalsArg as object).sort()).toEqual([
         "abuse",
+        "documentContribution",
         "notableContribution",
         "quality",
         "underPerformer",
@@ -3468,7 +3470,7 @@ describe("EvaluationOrchestratorService", () => {
       expect(composerSpy).toHaveBeenCalledTimes(1);
       const [entriesArg, signalsArg] = composerSpy.mock.calls[0];
       expect(entriesArg).toEqual([]);
-      // 5 signal 모두 항상 새 객체로 전달(null/undefined 0 — composer guard
+      // 6 signal 모두 항상 새 객체로 전달(null/undefined 0 — composer guard
       // 도달 0). 빈 deduped 에서도 detection helper 가 빈 신호 객체 반환.
       expect(signalsArg).toBeDefined();
       expect((signalsArg as Record<string, unknown>).abuse).toBeDefined();
@@ -3479,6 +3481,9 @@ describe("EvaluationOrchestratorService", () => {
       ).toBeDefined();
       expect(
         (signalsArg as Record<string, unknown>).notableContribution,
+      ).toBeDefined();
+      expect(
+        (signalsArg as Record<string, unknown>).documentContribution,
       ).toBeDefined();
     });
 
@@ -3648,9 +3653,10 @@ describe("EvaluationOrchestratorService", () => {
       const signalsArg = composerSpy.mock.calls[0][1];
       expect(signalsArg).toBe(detectionSpy.mock.results[0].value);
 
-      // (d) container 가 정확히 5 detection field(camelCase) 형태인지 형 검증.
+      // (d) container 가 정확히 6 detection field(camelCase) 형태인지 형 검증.
       expect(Object.keys(signalsArg as object).sort()).toEqual([
         "abuse",
+        "documentContribution",
         "notableContribution",
         "quality",
         "underPerformer",
@@ -3736,13 +3742,14 @@ describe("EvaluationOrchestratorService", () => {
       expect(detectionSpy).toHaveBeenCalledTimes(1);
       const [dedupedArg] = detectionSpy.mock.calls[0];
       expect(dedupedArg).toEqual([]);
-      // 빈 deduped 에서도 5 detection 산출 container 가 정상 형태로 반환.
+      // 빈 deduped 에서도 6 detection 산출 container 가 정상 형태로 반환.
       const signals = detectionSpy.mock.results[0].value as Record<
         string,
         unknown
       >;
       expect(Object.keys(signals).sort()).toEqual([
         "abuse",
+        "documentContribution",
         "notableContribution",
         "quality",
         "underPerformer",

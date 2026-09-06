@@ -72,6 +72,7 @@ import {
   type AbuseAdjustEntry,
 } from "./evaluation-abuse-adjust";
 import type { AbuseSignal } from "./evaluation-abuse-signal";
+import type { DocumentContributionSignal } from "./evaluation-document-contribution-signal";
 import {
   applyNotableContributionAnnotation,
   applyNotableContributionUplift,
@@ -94,10 +95,14 @@ import type { UpdateCountNeutralization } from "./evaluation-update-count-neutra
 // 입력을 그대로 구성할 수 있다.
 export type EvaluationAdjustEntry = AbuseAdjustEntry;
 
-// EvaluationAdjustmentSignals — 5-step thread 의 5 signal 입력 container. 각
-// 필드는 해당 detection helper 산출 타입을 그대로 재사용한다(재정의 0). 필드명은
+// EvaluationAdjustmentSignals — detection 6 신호 입력 container. 각 필드는 해당
+// detection helper 산출 타입을 그대로 재사용한다(재정의 0). 앞 5 필드명은
 // orchestrator 의 5-step 의도(abuse → updateCount → quality → underPerformer →
 // notableContribution)와 정합 — 호출부 가독성을 위해 camelCase 단일 형식.
+// 6 번째 `documentContribution`(T-1924)은 detection 축에서만 채워지는 신호로,
+// 현재 `applyEvaluationAdjustments` 의 5-step thread 는 이를 소비하지 않는다
+// (상향 adjuster 편입은 후속 slice). container 를 단일 source 로 유지하기 위해
+// 필수 필드로 둔다.
 export interface EvaluationAdjustmentSignals {
   // R-26/R-40 abusing 감점 신호. `computeAbuseSignal` 산출.
   abuse: AbuseSignal;
@@ -110,6 +115,9 @@ export interface EvaluationAdjustmentSignals {
   // R-25 / REQ-011 중요·어려운 기여 annotation 신호.
   // `computeNotableContributionSignal` 산출.
   notableContribution: NotableContributionSignal;
+  // R-39 / REQ-020 문서 축 조직 기여 식별 신호.
+  // `computeDocumentContributionSignal` 산출.
+  documentContribution: DocumentContributionSignal;
 }
 
 /**
