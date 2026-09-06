@@ -3,7 +3,7 @@
 // `EvaluationOrchestratorService` 가 inline 으로 묶고 있던 5-step chain(L258~315 —
 // abuse → update-count → quality → underperformer → notable → flatten)을
 // orchestrator 와 **byte-identical** 한 순서·계약으로 mirror 한다. 추출의 ROI 는
-// service mock(LLM scoring) 없이도 5-step thread 순서·필드 직교성·entries↔result
+// service mock(LLM scoring) 없이도 7-step thread 순서·필드 직교성·entries↔result
 // flatten 계약을 단위로 검증 가능하다는 점이다(scoring service 분리).
 //
 // 책임 경계(본 task = composer 신설만, Out of Scope):

@@ -37,7 +37,7 @@ import { UNDERPERFORMER_NARRATIVE_MARKER } from "./evaluation-underperformer-adj
 import type { UnderPerformerSignal } from "./evaluation-underperformer-signal";
 import type { UpdateCountNeutralization } from "./evaluation-update-count-neutral";
 
-// EvaluationResult stub 빌더. 5 step thread 검증을 위해 4 필드(narrative /
+// EvaluationResult stub 빌더. 7 step thread 검증을 위해 4 필드(narrative /
 // difficulty / contribution / volume) 모두 다룰 수 있게 overrides 받는다.
 function makeResult(
   overrides: Partial<EvaluationResult> = {},
@@ -53,7 +53,7 @@ function makeResult(
 }
 
 // 빈 6 signal — 모두 "무대상"(byAuthor 가 빈 배열, detected/suspected flag false)
-// 인 결정적 패시브 신호 묶음. 5 step 전부 무변경 passthrough 경로의 baseline.
+// 인 결정적 패시브 신호 묶음. 7 step 전부 무변경 passthrough 경로의 baseline.
 // documentContribution(T-1924 detection)은 step (7) document uplift 가 소비하지만
 // (T-1926 배선), 빈 신호이므로 전 단위 무변경 passthrough 가 된다(baseline).
 function makeEmptySignals(): EvaluationAdjustmentSignals {
@@ -263,7 +263,7 @@ describe("applyEvaluationAdjustments", () => {
   });
 
   describe("branch coverage", () => {
-    it("빈 entries → 빈 배열 반환(5 위임 무변경 통과)", () => {
+    it("빈 entries → 빈 배열 반환(7 위임 무변경 통과)", () => {
       const out = applyEvaluationAdjustments([], makeEmptySignals());
       expect(out).toEqual([]);
     });
@@ -286,7 +286,7 @@ describe("applyEvaluationAdjustments", () => {
       const out = applyEvaluationAdjustments(entries, makeEmptySignals());
 
       expect(out).toHaveLength(2);
-      // 필드 무변경 — 5 step 모두 passthrough.
+      // 필드 무변경 — 7 step 모두 passthrough.
       expect(out[0].volume).toBe(7);
       expect(out[0].narrative).toBe("본문1");
       expect(out[0].contribution).toBe("medium");
