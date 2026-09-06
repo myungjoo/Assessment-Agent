@@ -2,7 +2,7 @@
 id: T-1918
 title: 평가 partial-reset route e2e 실 삭제 왕복 · 좌표 격리 (REQ-037 e2e 2/2)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037]
 estimatedDiff: 260
