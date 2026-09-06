@@ -2,7 +2,7 @@
 id: T-1922
 title: REQ-011 재판정 1 회 — 중요기여 "더 높은 점수" 축 안착 반영 + PLAN 104 행 bullet 정정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-011]
 estimatedDiff: 60
