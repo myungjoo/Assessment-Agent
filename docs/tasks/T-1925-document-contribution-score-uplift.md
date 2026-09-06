@@ -2,7 +2,7 @@
 id: T-1925
 title: 문서 축 notable author 의 contribution 등급 결정적 상향
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-020]
 estimatedDiff: 330
