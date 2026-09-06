@@ -2,7 +2,7 @@
 id: T-1929
 title: 문서 축 3 축 배선 실측으로 REQ-020 재판정 (requirements.md 39 행)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-020]
 estimatedDiff: 40
@@ -45,14 +45,14 @@ plannerNote: "P5 REQ-020 arc closeout — T-1923·T-1925/1926·T-1927/1928 머�
 
 ## Acceptance Criteria
 
-- [ ] [requirements.md](../requirements.md) `39 행` REQ-020 의 status 를 **실측 후** 재판정한다. 판정 분기: 문서 축 3 축(식별 · 결정적 점수 상향 · 코멘트 상향) 이 모두 orchestrator 경로까지 배선됐고 REQ 문언("조직 기여 큰 인원 → 높은 점수") 을 충족하면 `DONE`, 잔여 축(예: 집계 층 `metricScore` 가 문서 축을 직접 가중하지 않는 문제) 이 REQ 문언상 실질 미충족으로 남으면 `IN_PROGRESS` 를 유지하되 **잔여 축을 정확히 1 개 이상 구체 좌표(파일 · 행 · 심볼)로** 적는다. 판정을 미리 정하지 말고 파일 실측이 결론을 만들게 한다.
-- [ ] 기존 판정 본문에서 **이미 거짓이 된 서술을 걷어낸다** — 최소한 (a) "식별 축부터 부재" (b) "`src` 전수에서 `R-39` · `REQ-020` 문자열 0 행" (c) "상대 비교 신호 2 종이 모두 code 축 전용이고 문서 기여 단위를 author 간 비교하는 신호는 0" (d) "5-adjuster 중 상향이 0" (e) "notable 소비측이 narrative marker 만 손대고 점수 반영은 별도 task" 다섯 문장이 현재 사실과 어긋나는지 각각 확인하고, 어긋나면 현재 사실로 교체한다.
-- [ ] 판정 본문에 문서 축 3 축의 **근거 좌표**를 심볼 단위로 남긴다 — `computeDocumentContributionSignal` (식별) · `applyDocumentContributionUplift` + `DOCUMENT_CONTRIBUTION_UPLIFT_LEVEL = "high"` (점수 상향) · `applyDocumentContributionAnnotation` + `DOCUMENT_CONTRIBUTION_NARRATIVE_MARKER` (코멘트 상향) · pipeline step (7)(8) 배선 · orchestrator 호출. 행 좌표는 편집 시점 실측값을 쓴다.
-- [ ] 같은 row 의 근거 열에 shipped slice `T-1923` · `T-1925` · `T-1926` · `T-1927` · `T-1928` 을 인접 row 와 같은 표기로 추가한다.
-- [ ] 검증 위치 열(현재 `manual + unit`) 을 실측으로 재확인한다 — 문서 축 3 축의 실 검증체가 colocated spec 3 종인지 확인하고 그 파일명을 판정 본문에 적는다. e2e harness 가 본 REQ 문언을 직접 검증하지 않으면 열 값을 임의로 올리지 않는다.
-- [ ] 집계 층 처리 방침을 한 문장 이상으로 명시한다 — `aggregateMetricScore` 의 입력 타입 `EvaluationResult` 에 `contributionKind` 가 없어 일·주·월 집계가 code/document 를 구분하지 않는 점이 (가) REQ 문언상 잔여인지 (나) 단위 평가 등급 상향으로 이미 간접 반영돼 REQ 밖인지 판정 본문에서 결론을 낸다.
-- [ ] 좌표 표기는 CLAUDE.md §12 (정본 [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) `§ 12.76` R1~R7) 를 따른다 — 구분자 `~` 하나, 단일 행은 `39 행`, `L` prefix 금지.
-- [ ] 코드 변경 0 — `git diff --stat` 결과가 [docs/requirements.md](../requirements.md) 1 파일뿐임을 확인한다 (task status · STATE · journal 은 driver bookkeeping 소관).
+- [x] [requirements.md](../requirements.md) `39 행` REQ-020 의 status 를 **실측 후** 재판정한다. 판정 분기: 문서 축 3 축(식별 · 결정적 점수 상향 · 코멘트 상향) 이 모두 orchestrator 경로까지 배선됐고 REQ 문언("조직 기여 큰 인원 → 높은 점수") 을 충족하면 `DONE`, 잔여 축(예: 집계 층 `metricScore` 가 문서 축을 직접 가중하지 않는 문제) 이 REQ 문언상 실질 미충족으로 남으면 `IN_PROGRESS` 를 유지하되 **잔여 축을 정확히 1 개 이상 구체 좌표(파일 · 행 · 심볼)로** 적는다. 판정을 미리 정하지 말고 파일 실측이 결론을 만들게 한다.
+- [x] 기존 판정 본문에서 **이미 거짓이 된 서술을 걷어낸다** — 최소한 (a) "식별 축부터 부재" (b) "`src` 전수에서 `R-39` · `REQ-020` 문자열 0 행" (c) "상대 비교 신호 2 종이 모두 code 축 전용이고 문서 기여 단위를 author 간 비교하는 신호는 0" (d) "5-adjuster 중 상향이 0" (e) "notable 소비측이 narrative marker 만 손대고 점수 반영은 별도 task" 다섯 문장이 현재 사실과 어긋나는지 각각 확인하고, 어긋나면 현재 사실로 교체한다.
+- [x] 판정 본문에 문서 축 3 축의 **근거 좌표**를 심볼 단위로 남긴다 — `computeDocumentContributionSignal` (식별) · `applyDocumentContributionUplift` + `DOCUMENT_CONTRIBUTION_UPLIFT_LEVEL = "high"` (점수 상향) · `applyDocumentContributionAnnotation` + `DOCUMENT_CONTRIBUTION_NARRATIVE_MARKER` (코멘트 상향) · pipeline step (7)(8) 배선 · orchestrator 호출. 행 좌표는 편집 시점 실측값을 쓴다.
+- [x] 같은 row 의 근거 열에 shipped slice `T-1923` · `T-1925` · `T-1926` · `T-1927` · `T-1928` 을 인접 row 와 같은 표기로 추가한다.
+- [x] 검증 위치 열(현재 `manual + unit`) 을 실측으로 재확인한다 — 문서 축 3 축의 실 검증체가 colocated spec 3 종인지 확인하고 그 파일명을 판정 본문에 적는다. e2e harness 가 본 REQ 문언을 직접 검증하지 않으면 열 값을 임의로 올리지 않는다.
+- [x] 집계 층 처리 방침을 한 문장 이상으로 명시한다 — `aggregateMetricScore` 의 입력 타입 `EvaluationResult` 에 `contributionKind` 가 없어 일·주·월 집계가 code/document 를 구분하지 않는 점이 (가) REQ 문언상 잔여인지 (나) 단위 평가 등급 상향으로 이미 간접 반영돼 REQ 밖인지 판정 본문에서 결론을 낸다.
+- [x] 좌표 표기는 CLAUDE.md §12 (정본 [REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) `§ 12.76` R1~R7) 를 따른다 — 구분자 `~` 하나, 단일 행은 `39 행`, `L` prefix 금지.
+- [x] 코드 변경 0 — `git diff --stat` 결과가 [docs/requirements.md](../requirements.md) 1 파일뿐임을 확인한다 (task status · STATE · journal 은 driver bookkeeping 소관).
 
 ## Out of Scope
 
@@ -69,4 +69,12 @@ plannerNote: "P5 REQ-020 arc closeout — T-1923·T-1925/1926·T-1927/1928 머�
 
 ## Follow-ups
 
-(생성 시점 비어 있음 — sub-agent 가 발견한 인접 작업을 여기에 적는다.)
+(a) **집계 층 `contributionKind` 분리는 본 REQ 밖으로 판정** — `aggregateMetricScore` 입력 타입 `EvaluationResult` (`src/assessment-evaluation/domain/evaluation-result.ts` 54~70 행) 와 `prisma/schema.prisma` `Contribution` 모두 `contributionKind` 컬럼이 없어 일·주·월 집계가 code/document 를 분해 보고하지 못한다. 문서 축 상향은 집계 이전 step (7) 에서 이미 반영되므로 REQ-020 문언은 충족되나, "문서 기여 비중 축별 분해 보고" 가 필요해지면 **새 REQ 채번 + 별도 arc** 로 간다 (본 재판정 이후 REQ-020 재판정 금지 — PLAN `183 행` once-rule).
+
+(b) **T-1928 Follow-up (a) 의 "PLAN bullet 승격" 은 대상 부재로 소멸** — `grep -nE "REQ-020|R-39" docs/PLAN.md` 가 `0 행` 이라 승격할 REQ-020 전용 bullet 이 없다. P5 `104 행` bullet 은 R-25 코드 축 소관이며 이미 `[x]` 다. PLAN 미접촉으로 종결한다.
+
+(c) **문서 축 e2e / smoke 0** — `test/` 전수에서 `문서기여` · `DocumentContribution` · `documentContribution` 참조가 0 이라 검증 위치 열을 `unit` 위로 올릴 근거가 없다. e2e harness 에 문서 축 notable 시나리오를 붙이면 열 상향 가능 (별도 pr-mode slice).
+
+(d) **`DOCUMENT_CONTRIBUTION_RELATIVE_CEILING = 1.5` calibration 미실측** — dogfood 데이터 확보 후 임계 재조정 논의 (본 slice 밖, 상수 주석 `46~53 행` 이 자인).
+
+(e) **[REQ-COVERAGE-AUDIT.md](../use-cases/REQ-COVERAGE-AUDIT.md) `54 행` 동기 미갱신** — 본 slice Out of Scope 로 남긴 REQ-020 status drift. 필요 시 doc-only direct slice 1 개.
