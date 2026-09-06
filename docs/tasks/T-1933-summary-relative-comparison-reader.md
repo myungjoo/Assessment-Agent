@@ -2,7 +2,7 @@
 id: T-1933
 title: 좌표 상대 비교 read-adapter 신설 + module DI 배선 (REQ-036 배선 2/3)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-036]
 estimatedDiff: 330
