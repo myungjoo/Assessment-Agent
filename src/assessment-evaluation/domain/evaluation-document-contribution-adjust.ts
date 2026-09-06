@@ -1,7 +1,9 @@
-// applyDocumentContributionUplift — P5 문서 축 조직 기여 신호 소비측 결정적 순수
-// domain helper (README 39 행 / REQ-020 "문서를 통해 큰 기여 → 더 높은 점수" 축).
+// P5 문서 축 조직 기여 신호 소비측 결정적 순수 domain helper 모음 (README 39 행 /
+// REQ-020 "문서를 통해 큰 기여 → 더 높은 점수와 더 높은 평가 코멘트" 축).
 // T-1923 `computeDocumentContributionSignal` 이 산출한 문서 축 신호를 소비해,
-// 문서 축 notable author 의 평가 단위 `contribution` 등급을 결정적으로 상향한다.
+// 문서 축 notable author 의 평가 단위 `contribution` 등급을 결정적으로 상향하고
+// (`applyDocumentContributionUplift`), 그 단위 `narrative` 에 문서 축 marker 를
+// 접두한다(`applyDocumentContributionAnnotation`).
 //
 // mirror 정본: evaluation-notable-contribution-adjust.ts 의 T-1921
 // `applyNotableContributionUplift`. 규칙 · 방어 · 멱등 · 단조 · 입력 비변형 정책은
@@ -10,10 +12,13 @@
 // `DocumentContributionSignal`(documentUnitCount 기반)을 읽는다. 즉 코드 기여로
 // notable 인 author 가 아니라 **문서 기여로 notable 인 author** 를 상향한다.
 //
+// 두 helper 는 **필드 직교** 다 — uplift 는 `contribution` 만, annotation 은
+// `narrative` 만 손대고 나머지 필드는 서로 전사한다(코드 축이 annotate + uplift 를
+// 한 파일에 둔 배치와 동형).
+//
 // 책임 경계: detection layer(`evaluation-document-contribution-signal.ts`) 재구현 0
-// (신호는 single-source 로 소비만), `narrative` / `difficulty` / `volume` /
-// `unitId` 무변경(필드 직교 — 코멘트 상향은 별도 slice), 의존성 0 의 순수 함수만
-// 둔다(NestJS / Prisma / LLM import 0, 부수효과 0).
+// (신호는 single-source 로 소비만), `difficulty` / `volume` / `unitId` 무변경,
+// 의존성 0 의 순수 함수만 둔다(NestJS / Prisma / LLM import 0, 부수효과 0).
 
 import type {
   DocumentContributionEntry,
@@ -106,4 +111,73 @@ export function applyDocumentContributionUplift(
       },
     };
   });
+}
+
+// DOCUMENT_CONTRIBUTION_NARRATIVE_MARKER — 문서 축 notable author 단위 `narrative`
+// 접두 marker single-source (README 39 행 / REQ-020 "더 높은 평가 코멘트" 축).
+// 코드 축 `NOTABLE_CONTRIBUTION_NARRATIVE_MARKER`(= `"[중요기여] "`) 의 대칭 값 —
+// 서로 접두 관계가 아니라 한 단위에 둘 다 붙어도 충돌하지 않는다. 멱등 검사
+// (`startsWith`)와 접두에 모두 본 상수를 쓴다. v1 = `"[문서기여] "`(marker + 공백).
+export const DOCUMENT_CONTRIBUTION_NARRATIVE_MARKER = "[문서기여] ";
+
+/**
+ * 문서 축 기여 신호(`DocumentContributionSignal`)를 소비해, 문서 축 notable author
+ * 의 **모든** 평가 단위 `result.narrative` 앞에 `DOCUMENT_CONTRIBUTION_NARRATIVE_MARKER`
+ * 를 결정적으로 접두 annotation 한 새 entries 배열을 반환한다(README 39 행 /
+ * REQ-020 "더 높은 평가 코멘트" 축).
+ *
+ * 코드 축 `applyNotableContributionAnnotation` 의 문서 축 mirror — 규칙(미매칭 /
+ * `notable === false` 무변경 passthrough, `notable === true` 전 단위 marker 접두,
+ * 이미 marker 로 시작하면 멱등 유지, 빈 narrative 는 marker 만) · 방어(빈 entries /
+ * 빈 byAuthor 흡수, 입력 비변형, 길이 · 순서 보존) · throw 계약은 그 파일의 서술이
+ * 정본이라 재진술하지 않는다. **역할 차이는 소비 신호 하나뿐**이다. 필드 직교 —
+ * `unitId` / `contribution` / `difficulty` / `volume` 은 전사하고(점수 축은
+ * `applyDocumentContributionUplift` 책임), detection 재구현 0(신호 read-only).
+ *
+ * @param entries 조정 대상 단위 배열(`{ author, result }[]`). 변형하지 않는다.
+ * @param signal computeDocumentContributionSignal 산출 신호. 변형하지 않는다.
+ * @returns 같은 길이 · 같은 순서의 새 entries 배열.
+ */
+export function applyDocumentContributionAnnotation(
+  entries: DocumentContributionAdjustEntry[],
+  signal: DocumentContributionSignal,
+): DocumentContributionAdjustEntry[] {
+  if (entries === null || entries === undefined) {
+    throw new TypeError("entries 는 null 또는 undefined 일 수 없습니다.");
+  }
+  if (signal === null || signal === undefined) {
+    throw new TypeError("signal 은 null 또는 undefined 일 수 없습니다.");
+  }
+
+  // author → DocumentContributionEntry 색인. byAuthor 가 빈 배열이어도 빈 Map 이
+  // 되어 전 단위 미매칭(무변경)으로 흡수된다.
+  const byAuthor = new Map<string, DocumentContributionEntry>(
+    signal.byAuthor.map((entry) => [entry.author, entry]),
+  );
+
+  return entries.map((entry) => {
+    const authorSignal = byAuthor.get(entry.author);
+    const isNotable = authorSignal !== undefined && authorSignal.notable;
+
+    // 입력 비변형 — entry 와 result 를 항상 새 객체로 복제한다(narrative 만 갱신,
+    // 나머지 필드는 전사).
+    return {
+      author: entry.author,
+      result: {
+        ...entry.result,
+        narrative: isNotable
+          ? annotateDocumentNarrative(entry.result.narrative)
+          : entry.result.narrative,
+      },
+    };
+  });
+}
+
+// annotateDocumentNarrative — marker 를 비파괴 · 멱등 접두한다(이미 marker 로
+// 시작하면 원본 유지, 아니면 marker + 본문 합성). 해제하는 역방향은 없다.
+function annotateDocumentNarrative(narrative: string): string {
+  if (narrative.startsWith(DOCUMENT_CONTRIBUTION_NARRATIVE_MARKER)) {
+    return narrative;
+  }
+  return `${DOCUMENT_CONTRIBUTION_NARRATIVE_MARKER}${narrative}`;
 }
