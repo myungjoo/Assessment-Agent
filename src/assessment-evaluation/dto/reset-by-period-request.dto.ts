@@ -3,7 +3,7 @@
 // ADR-0033 §Decision §3 / ADR-0035 98 행이 박제한 "partial reset = key prefix 부분 일치
 // delete" 의 2 축 — personId + period — 를 HTTP boundary 에서 **형식만** 검증한다.
 //
-// `UnevaluatedFillPlanRequestDto`(T-1863) / `PeriodBridgeDto`(T-0317) 패턴 mirror —
+// `UnevaluatedFillPlanRequestDto`(T-0544) / `PeriodBridgeDto`(T-0317) 패턴 mirror —
 // class-validator decorator 로 형식만 검증하고, 허용 literal 값(period 의 day/week/month)
 // 검증은 service 책임이다(@IsIn 미적용, 기존 evaluation DTO 관행 정합). 실제 literal 게이트는
 // `summary-persist.service.ts` 144 행 `resetByPeriod` 가 첫 줄에서 호출하는
