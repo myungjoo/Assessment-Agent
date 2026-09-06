@@ -2,7 +2,7 @@
 id: T-1937
 title: 좌표 종합 코멘트 생성 endpoint 신설 (DTO 소비처 배선 2/2)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-004]
 estimatedDiff: 410
