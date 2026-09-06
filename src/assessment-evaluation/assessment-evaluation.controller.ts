@@ -39,8 +39,10 @@ import {
   Body,
   Controller,
   ForbiddenException,
+  Get,
   HttpCode,
   Post,
+  Query,
   ServiceUnavailableException,
   UseGuards,
   UsePipes,
@@ -65,8 +67,10 @@ import { UserService } from "../user/user.service";
 
 import type { EvaluationResult } from "./domain/evaluation-result";
 import type { EvaluationPersistContext } from "./domain/evaluation-result.persist.mapper";
+import type { RelativeComparisonResult } from "./domain/summary-relative-comparison";
 import { EvaluateActivitiesDto } from "./dto/evaluate-activities.dto";
 import { PeriodBridgeDto } from "./dto/period-bridge.dto";
+import { RelativeComparisonQueryDto } from "./dto/relative-comparison-query.dto";
 import { ResetByPeriodRequestDto } from "./dto/reset-by-period-request.dto";
 import { UnevaluatedFillPlanRequestDto } from "./dto/unevaluated-fill-plan-request.dto";
 import { toIntendedPeriodCoordinatesInput } from "./dto/unevaluated-fill-plan-request.mapper";
@@ -85,6 +89,7 @@ import { EvaluationUnevaluatedFillPlanner } from "./evaluation-unevaluated-fill-
 import { PeriodBridgeAdminPersistService } from "./period-bridge-admin-persist.service";
 import { PeriodBridgeEphemeralService } from "./period-bridge-ephemeral.service";
 import { SummaryPersistService } from "./summary-persist.service";
+import { SummaryRelativeComparisonReader } from "./summary-relative-comparison-reader.service";
 import { UnevaluatedFillRunOrchestratorService } from "./unevaluated-fill-run-orchestrator.service";
 
 // EvaluateResponse — POST /evaluate 반환 shape(ADR-0033 §Follow-ups slice 4 — "persists
@@ -219,6 +224,14 @@ export class AssessmentEvaluationController {
     // 주입돼 재주입 0 이고, 두 service 모두 같은 module 의 기존 provider·export 라 module
     // 배선 변경 0. **기존 10 param 의 위치·순서 불변** — 본 param 만 맨 끝에 추가한다.
     private readonly summaryPersistService: SummaryPersistService,
+    // SummaryRelativeComparisonReader — GET /relative-comparison 의 유일한 위임 대상
+    // (T-1934, REQ-036 배선 3/3). 같은 module(assessment-evaluation.module.ts)이 이미
+    // `153 행` provider 등록 · `208 행` export 를 끝낸 상태라 **본 task 의 module 파일
+    // 변경은 0** 이고 생성자 주입만으로 inject 된다(추가 token 배선 0). **기존 11
+    // param 의 위치 · 순서는 불변** 이고 본 param 만 맨 끝에 추가된다(spec 의 위치 인자
+    // 호출 최소 충격 — T-1842 / T-1916 이 지킨 규약). test 는 jest mock
+    // { readForCoordinate } 를 주입해 실 DB read 0 / 실 네트워크 0 으로 위임 정합만 검증한다.
+    private readonly relativeComparisonReader: SummaryRelativeComparisonReader,
   ) {}
 
   // POST /api/assessment-evaluation/evaluate — 평가 manual trigger + persist.
@@ -757,5 +770,45 @@ export class AssessmentEvaluationController {
       deletedAssessments,
       deletedSummaries,
     };
+  }
+
+  // GET /api/assessment-evaluation/relative-comparison — REQ-036 "개발자 간 상대 비교"
+  // 좌표 조회 진입점(T-1934, 배선 3/3). helper(T-1931) → 좌표 조회 표면(T-1932) →
+  // read-adapter(T-1933) 3 단이 프로세스 안에만 있던 산출 경로를 HTTP 로 노출만 한다
+  // (새 결정 0 / 새 dependency 0 / module 배선 변경 0).
+  //
+  //   - 200 OK + `RelativeComparisonResult`(cohortSize · mean · byPerson). 응답 mapper
+  //     불요 — 이 타입은 number/string 축만 가져 이미 JSON-safe 다(domain/summary-
+  //     relative-comparison.ts 75~83 행). Date 직렬화 축이 없어 unevaluated-fill-plan 의
+  //     response mapper 패턴을 복제하지 않는다.
+  //   - 빈 좌표는 **오류가 아니다** — adapter 가 helper 의 빈 입력 규약대로
+  //     `{ cohortSize: 0, mean: 0, byPerson: [] }` 를 주며 controller 는 404 로 바꾸지
+  //     않고 200 본문으로 그대로 통과시킨다(부재를 오류로 만들지 않음).
+  //   - handler 분기 **0** — 한 문장 thin delegate 다. 재정렬 · 필터 · 가공도 0 이라
+  //     reader 가 준 객체 참조가 그대로 응답이 된다(정렬 계약의 정본은 helper).
+  //   - 입력 검증 중복 0 — 형식은 controller-scope ValidationPipe 와
+  //     `RelativeComparisonQueryDto` 가, 허용 period literal 과 Invalid Date 는
+  //     `SummaryService.findByCoordinate`(summary.service.ts 126~148 행)의
+  //     `BadRequestException` 이 소유한다. adapter/service reject 는 raw 전파(swallow 0,
+  //     자체 status 매핑 0) — 좌표 계약 위반 `TypeError` 도 은폐하지 않는다.
+  //   - `@HttpCode` 미부착 — GET 의 NestJS 기본 200 을 그대로 쓴다(POST route 들이
+  //     `@HttpCode(200)` 을 다는 이유는 기본값이 201 이기 때문이며 GET 에는 무관).
+  //   - RunStatus 전이 0 — 본 route 는 읽기이지 평가 **실행** 이 아니라 ADR-0060
+  //     §Decision 4 카운터 대상이 아니다(resetByPeriod 판단과 동형).
+  //   - RBAC 는 Admin+ — 응답이 한 좌표 **모든 person 의 rank/percentile** 이라 요청자
+  //     자신 밖의 상대 위치를 노출한다. 그래서 조회 route 의 통상 관행인
+  //     `src/user/summary.controller.ts` 98~103 행의 User+ tier 를 따르지 않고, 같은
+  //     controller 의 evaluate / reset 이 쓰는 Admin+ stack 을 mirror 한다(새 auth 결정
+  //     0). 요청자 self-view 만 돌려주는 User+ 변형은 별도 정책 결정 대상이다.
+  @Get("relative-comparison")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
+  async readRelativeComparison(
+    @Query() dto: RelativeComparisonQueryDto,
+  ): Promise<RelativeComparisonResult> {
+    return this.relativeComparisonReader.readForCoordinate(
+      dto.period,
+      new Date(dto.periodStart),
+    );
   }
 }
