@@ -2,7 +2,7 @@
 id: T-1920
 title: 평가 partial-reset 의 Contribution cascade 동반 삭제 e2e 증명
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037]
 estimatedDiff: 190
