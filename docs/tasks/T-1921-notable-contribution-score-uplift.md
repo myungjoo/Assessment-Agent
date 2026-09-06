@@ -2,7 +2,7 @@
 id: T-1921
 title: Apply deterministic contribution uplift for notable contributors
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-011]
 independentStream: evaluation-scoring-domain
