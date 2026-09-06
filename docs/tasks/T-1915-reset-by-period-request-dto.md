@@ -2,7 +2,7 @@
 id: T-1915
 title: 평가 partial-reset 요청 DTO 신설 (REQ-037 명시적 Reset endpoint 배선 1/2)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037]
 estimatedDiff: 250
