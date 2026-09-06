@@ -2,7 +2,7 @@
 id: T-1927
 title: 문서 축 notable author 의 narrative marker annotation helper 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-020]
 estimatedDiff: 230
