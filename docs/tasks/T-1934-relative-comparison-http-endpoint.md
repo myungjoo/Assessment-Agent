@@ -2,7 +2,7 @@
 id: T-1934
 title: 좌표 상대 비교 조회 endpoint + query DTO 신설 (REQ-036 배선 3/3)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-036]
 estimatedDiff: 460
