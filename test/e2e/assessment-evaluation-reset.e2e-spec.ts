@@ -34,7 +34,17 @@
 //     단언 — task AC 의 cap 조항 적용).
 //   - 오삭제 방지 negative: 허용 외 period(500) · User tier(403) 어느 쪽도 seed row 를 한
 //     건도 지우지 않는다 (검증 · 인가 실패가 부분 삭제를 남기지 않음).
-// Out of Scope (2/2 에서도 유지): Contribution cascade 실 조회 — 별도 slice.
+//
+// 3/3 책임 (T-1920 — "Contribution cascade 실 조회 — 별도 slice" 였던 위 Out of Scope 를
+// 본 slice 가 닫는다. REQ-037 DONE 판정의 회귀 방어):
+//   - cascade happy-path: reset 이 지운 Assessment 에 매달렸던 Contribution 이 실 DB 에서
+//     0 건 — service 는 `assessment.deleteMany` 만 호출하므로(persist service 140 행 ~
+//     152 행) schema 342 행 · migration 58 행의 `ON DELETE CASCADE` 가 유일한 방어선이다.
+//   - 응답 계약 경계: cascade 는 DB 레벨이라 Contribution 건수가 응답 4 필드에 노출되지
+//     않는다(`deletedContributions` 없음).
+//   - 격리: 좌표 밖(month) · 다른 Person 의 Contribution 은 보존.
+//   - negative: 허용 외 period(500) · User tier(403) 어느 쪽도 Contribution 을 지우지 않음.
+// Out of Scope (3/3 에서도 유지): 대량 row cascade 성능 · Person hard delete cascade.
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
@@ -167,6 +177,45 @@ describe("E2E: POST /api/assessment-evaluation/reset — Admin partial-reset RBA
       .post(ROUTE)
       .set("Cookie", cookie)
       .send({ personId, period });
+
+  // -- Contribution seed helper (T-1920) --
+  // seedPersonWithRows 는 Person id 만 반환해 하위 Contribution 을 매달 수 없다. 기존
+  // 호출부 시그니처를 건드리지 않기 위해 **별도 helper** 로 Assessment 1 건 + 그에 매달린
+  // Contribution N 건을 만들고 그 Assessment 의 실 id 를 반환한다. Contribution 은
+  // `@@unique([assessmentId, sourceRef])` 이므로 같은 Assessment 안의 ref 만 서로 달라야
+  // 한다(필드 기본값은 contributions.e2e-spec.ts 의 seedContribution 관행 mirror).
+  const seedAssessmentWithContributions = async (
+    personId: string,
+    coordinate: SeedCoordinate,
+    sourceRefs: string[],
+  ): Promise<string> => {
+    const assessment = await prisma.assessment.create({
+      data: {
+        personId,
+        period: coordinate.period,
+        scope: coordinate.scope ?? "commit",
+        periodStart: coordinate.periodStart ?? WEEK_START,
+        difficulty: "medium",
+        contributionScore: "0.75",
+        volume: 10,
+        narrative: `${coordinate.period} 좌표 기여 요약`,
+      },
+    });
+    for (const sourceRef of sourceRefs) {
+      await prisma.contribution.create({
+        data: {
+          assessmentId: assessment.id,
+          sourceType: "commit",
+          sourceUrl: `https://github.com/org/repo/commit/${sourceRef}`,
+          sourceRef,
+          difficulty: "medium",
+          contributionScore: "0.75",
+          volume: 10,
+        },
+      });
+    }
+    return assessment.id;
+  };
 
   // -- 성공 분기: 부팅 왕복 + 4 필드 계약 --
 
@@ -497,5 +546,137 @@ describe("E2E: POST /api/assessment-evaluation/reset — Admin partial-reset RBA
     expect(
       await prisma.summary.count({ where: { personId, period: OTHER_PERIOD } }),
     ).toBe(1);
+  });
+
+  // == T-1920 (e2e 3/3) — Contribution cascade 동반 삭제 ==
+
+  // -- 성공 분기: 지워진 Assessment 의 하위 Contribution 이 DB FK 로 함께 사라진다 --
+
+  it("reset 이 지운 week Assessment 의 하위 Contribution 2 건이 실 DB 에서 함께 사라지고 응답에는 Contribution 건수가 노출되지 않음 (happy-path cascade + 응답 계약 경계)", async () => {
+    const personId = await seedPersonWithRows("cascade-happy", {});
+    const assessmentId = await seedAssessmentWithContributions(
+      personId,
+      { period: VALID_PERIOD, scope: "commit" },
+      ["cascade-a", "cascade-b"],
+    );
+    // 사전: cascade 검증의 전제(하위 2 건 실재).
+    expect(await prisma.contribution.count({ where: { assessmentId } })).toBe(
+      2,
+    );
+
+    const response = await postReset(personId, VALID_PERIOD, adminCookie);
+
+    expect(response.status).toBe(200);
+    expect(response.body.deletedAssessments).toBe(1);
+    // service 는 assessment.deleteMany 만 호출한다 — 아래 0 은 schema 342 행의
+    // `onDelete: Cascade` 가 실제 DDL 제약으로 살아 있다는 증명이다.
+    expect(await prisma.contribution.count({ where: { assessmentId } })).toBe(
+      0,
+    );
+    expect(await prisma.contribution.count()).toBe(0);
+
+    // 응답 계약 경계: cascade 는 DB 레벨이라 4 필드 밖으로 새지 않는다.
+    expect(Object.keys(response.body).sort()).toEqual([
+      "deletedAssessments",
+      "deletedSummaries",
+      "period",
+      "personId",
+    ]);
+    expect(response.body).not.toHaveProperty("deletedContributions");
+  });
+
+  // -- 분기별 cover: period 축 밖 좌표의 Contribution 은 보존 --
+
+  it("week 만 reset 하면 같은 Person 의 month Assessment 에 매달린 Contribution 은 건수 그대로 보존 (분기 — 좌표 격리 cascade)", async () => {
+    const personId = await seedPersonWithRows("cascade-coordinate", {});
+    const weekAssessmentId = await seedAssessmentWithContributions(
+      personId,
+      { period: VALID_PERIOD, scope: "commit" },
+      ["week-ref-1", "week-ref-2"],
+    );
+    const monthAssessmentId = await seedAssessmentWithContributions(
+      personId,
+      { period: OTHER_PERIOD, scope: "commit", periodStart: MONTH_START },
+      ["month-ref-1"],
+    );
+
+    const response = await postReset(personId, VALID_PERIOD, adminCookie);
+
+    expect(response.status).toBe(200);
+    expect(response.body.deletedAssessments).toBe(1);
+    expect(
+      await prisma.contribution.count({
+        where: { assessmentId: weekAssessmentId },
+      }),
+    ).toBe(0);
+    // cascade 는 지워진 Assessment 의 하위에만 전파된다 — month 좌표는 무손실.
+    expect(
+      await prisma.contribution.count({
+        where: { assessmentId: monthAssessmentId },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.assessment.count({
+        where: { personId, period: OTHER_PERIOD },
+      }),
+    ).toBe(1);
+  });
+
+  // -- negative: personId 축 밖 Person 의 Contribution 은 보존 --
+
+  it("대상 Person 만 reset 하면 같은 week 좌표를 가진 다른 Person 의 Contribution 은 보존 (negative — person 격리 cascade)", async () => {
+    const targetId = await seedPersonWithRows("cascade-target", {});
+    const targetAssessmentId = await seedAssessmentWithContributions(
+      targetId,
+      { period: VALID_PERIOD, scope: "commit" },
+      ["target-ref"],
+    );
+    const otherId = await seedPersonWithRows("cascade-other", {});
+    const otherAssessmentId = await seedAssessmentWithContributions(
+      otherId,
+      { period: VALID_PERIOD, scope: "commit" },
+      ["other-ref-1", "other-ref-2"],
+    );
+
+    const response = await postReset(targetId, VALID_PERIOD, adminCookie);
+
+    expect(response.status).toBe(200);
+    expect(
+      await prisma.contribution.count({
+        where: { assessmentId: targetAssessmentId },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.contribution.count({
+        where: { assessmentId: otherAssessmentId },
+      }),
+    ).toBe(2);
+  });
+
+  // -- negative: 실패 경로가 Contribution 을 부분 파괴하지 않는다 --
+
+  it('허용 외 period("quarter") 500 · User tier 403 어느 쪽도 Contribution 을 한 건도 지우지 않음 (negative — 오삭제 방지 회귀)', async () => {
+    const personId = await seedPersonWithRows("cascade-guard", {});
+    const assessmentId = await seedAssessmentWithContributions(
+      personId,
+      { period: VALID_PERIOD, scope: "commit" },
+      ["guard-ref-1", "guard-ref-2"],
+    );
+
+    // (1) 검증 실패 — assertValidPeriod 가 deleteMany 앞에서 던진다.
+    const invalidPeriod = await postReset(personId, "quarter", adminCookie);
+    expect(invalidPeriod.status).toBe(500);
+    expect(await prisma.contribution.count({ where: { assessmentId } })).toBe(
+      2,
+    );
+
+    // (2) 인가 실패 — RolesGuard 가 handler 진입 전에 차단한다.
+    const forbidden = await postReset(personId, VALID_PERIOD, userCookie);
+    expect(forbidden.status).toBe(403);
+    expect(await prisma.contribution.count({ where: { assessmentId } })).toBe(
+      2,
+    );
+    // 부모 Assessment 도 그대로 — cascade 가 오발하지 않았다.
+    expect(await prisma.assessment.count({ where: { personId } })).toBe(1);
   });
 });
