@@ -2,7 +2,7 @@
 id: T-1924
 title: 문서 축 기여 신호 detection pipeline 배선 (6 번째 신호)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-020]
 estimatedDiff: 180
