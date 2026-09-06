@@ -14,6 +14,7 @@ import type {
 
 import * as evaluationAdjustmentsPipeline from "./domain/evaluation-adjustments-pipeline";
 import * as evaluationDetectionSignalsPipeline from "./domain/evaluation-detection-signals-pipeline";
+import { DOCUMENT_CONTRIBUTION_NARRATIVE_MARKER } from "./domain/evaluation-document-contribution-adjust";
 import { mapActivityToEvaluationInput } from "./domain/evaluation-input.mapper";
 import { NOTABLE_CONTRIBUTION_NARRATIVE_MARKER } from "./domain/evaluation-notable-contribution-adjust";
 import type { EvaluationResult } from "./domain/evaluation-result";
@@ -2233,11 +2234,12 @@ describe("EvaluationOrchestratorService", () => {
 
       // 3 + 4 = 7 단위.
       expect(results).toHaveLength(7);
-      // slow author 단위(인덱스 0,1,2)는 모두 marker 접두 일관.
+      // slow author 단위(인덱스 0,1,2)는 모두 marker 접두 일관. slow 는 문서 축
+      // notable 이기도 해 T-1928 step (8) marker 가 앞에 한 겹 더 접두된다.
       for (let i = 0; i < 3; i += 1) {
-        expect(
-          results[i].narrative.startsWith(UNDERPERFORMER_NARRATIVE_MARKER),
-        ).toBe(true);
+        expect(results[i].narrative).toBe(
+          `${DOCUMENT_CONTRIBUTION_NARRATIVE_MARKER}${UNDERPERFORMER_NARRATIVE_MARKER}multi-unit`,
+        );
       }
       // peer 단위(인덱스 3~6)는 보존.
       for (let i = 3; i < 7; i += 1) {
@@ -2430,9 +2432,13 @@ describe("EvaluationOrchestratorService", () => {
         "high",
         "high",
       ]);
-      // narrative marker: writer 의 doc-keep(인덱스 3)만 marker 접두, 나머지 보존.
+      // narrative marker: writer 의 doc-keep(인덱스 3)만 저성과자 marker, 나머지
+      // 보존. writer 는 문서 축 notable 이라 T-1928 marker 가 앞에 더 접두된다.
+      expect(results[3].narrative).toBe(
+        `${DOCUMENT_CONTRIBUTION_NARRATIVE_MARKER}${UNDERPERFORMER_NARRATIVE_MARKER}기본`,
+      );
       const isMarked = results.map((r) =>
-        r.narrative.startsWith(UNDERPERFORMER_NARRATIVE_MARKER),
+        r.narrative.includes(UNDERPERFORMER_NARRATIVE_MARKER),
       );
       expect(isMarked).toEqual([
         false,
@@ -2501,9 +2507,12 @@ describe("EvaluationOrchestratorService", () => {
       const peerResults = results.slice(3);
       expect(writerResults.every((r) => r.volume === 0)).toBe(true);
       expect(writerResults.every((r) => r.contribution === "zero")).toBe(true);
+      // writer 는 문서 축 notable 이라 T-1928 marker 가 앞에 더 접두된다.
       expect(
-        writerResults.every((r) =>
-          r.narrative.startsWith(UNDERPERFORMER_NARRATIVE_MARKER),
+        writerResults.every(
+          (r) =>
+            r.narrative ===
+            `${DOCUMENT_CONTRIBUTION_NARRATIVE_MARKER}${UNDERPERFORMER_NARRATIVE_MARKER}본문`,
         ),
       ).toBe(true);
       // peer 단위 — volume 100, contribution high, narrative 보존.
@@ -2963,13 +2972,12 @@ describe("EvaluationOrchestratorService", () => {
 
       // 6 + 2 + 1 = 9 단위.
       expect(results).toHaveLength(9);
-      // star author 단위(인덱스 0~7)는 모두 marker 접두 일관.
+      // star author 단위(인덱스 0~7)는 모두 marker 접두 일관. star 는 문서 축
+      // notable 이기도 해 T-1928 marker 가 코드 축 marker 앞에 더 접두된다.
       for (let i = 0; i < 8; i += 1) {
-        expect(
-          results[i].narrative.startsWith(
-            NOTABLE_CONTRIBUTION_NARRATIVE_MARKER,
-          ),
-        ).toBe(true);
+        expect(results[i].narrative).toBe(
+          `${DOCUMENT_CONTRIBUTION_NARRATIVE_MARKER}${NOTABLE_CONTRIBUTION_NARRATIVE_MARKER}multi-unit`,
+        );
       }
       // peer 단위(인덱스 8)는 보존.
       expect(
@@ -3152,9 +3160,13 @@ describe("EvaluationOrchestratorService", () => {
         "high",
         "high",
       ]);
-      // underperformer marker: writer 의 doc-keep(인덱스 3) + reporter(인덱스 4) 접두.
+      // underperformer marker: writer 의 doc-keep(인덱스 3) + reporter(인덱스 4).
+      // writer 는 유일한 document 기여자라 인덱스 3 은 T-1928 marker 도 접두된다.
+      expect(results[3].narrative).toBe(
+        `${DOCUMENT_CONTRIBUTION_NARRATIVE_MARKER}${UNDERPERFORMER_NARRATIVE_MARKER}기본`,
+      );
       const isUnder = results.map((r) =>
-        r.narrative.startsWith(UNDERPERFORMER_NARRATIVE_MARKER),
+        r.narrative.includes(UNDERPERFORMER_NARRATIVE_MARKER),
       );
       expect(isUnder).toEqual([
         false,
