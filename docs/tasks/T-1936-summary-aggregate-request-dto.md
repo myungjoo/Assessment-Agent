@@ -2,7 +2,7 @@
 id: T-1936
 title: 좌표 종합 코멘트 생성 요청 DTO 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-004]
 estimatedDiff: 430
