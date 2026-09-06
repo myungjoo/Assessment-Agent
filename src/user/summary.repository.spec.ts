@@ -528,6 +528,97 @@ describe("SummaryRepository", () => {
   });
 
   // ------------------------------------------------------------------
+  // findByCoordinate — happy + negative (빈 결과 / literal 미검증 layer 경계) + error.
+  // 본 메서드는 body 가 findMany 단일 문장이라 실행 분기가 0 개다 → R-112 의 "분기별
+  // 1+" 항목은 happy-path 와 빈 결과 2 케이스로 대체한다 (task 계약 명시).
+  // ------------------------------------------------------------------
+  describe("findByCoordinate()", () => {
+    // Happy path: 좌표에 속한 person 3 명 row 를 그대로 반환 + 호출 인자 형태 단언.
+    it("where: { period, periodStart } + orderBy: { personId: 'asc' } 로 findMany 를 1 회 호출한다", async () => {
+      const { prisma, summaryMock } = buildPrismaMock();
+      const periodStart = new Date("2026-05-25T00:00:00.000Z");
+      const fixture = [
+        buildSummaryFixture({ id: "s-a", personId: "person-a", periodStart }),
+        buildSummaryFixture({ id: "s-b", personId: "person-b", periodStart }),
+        buildSummaryFixture({ id: "s-c", personId: "person-c", periodStart }),
+      ];
+      summaryMock.findMany.mockResolvedValueOnce(fixture);
+
+      const repo = new SummaryRepository(prisma);
+      const result = await repo.findByCoordinate("week", periodStart);
+
+      expect(summaryMock.findMany).toHaveBeenCalledTimes(1);
+      expect(summaryMock.findMany).toHaveBeenCalledWith({
+        where: { period: "week", periodStart },
+        orderBy: { personId: "asc" },
+      });
+      expect(result).toBe(fixture);
+      expect(result).toHaveLength(3);
+    });
+
+    // Negative 1: 매칭 row 0 시 빈 배열 반환 — throw 하지 않고 null 도 아니다.
+    it("매칭 row 0 시 빈 배열을 반환하고 throw 하지 않는다", async () => {
+      const { prisma, summaryMock } = buildPrismaMock();
+      summaryMock.findMany.mockResolvedValueOnce([]);
+
+      const repo = new SummaryRepository(prisma);
+      const result = await repo.findByCoordinate(
+        "month",
+        new Date("2026-05-01T00:00:00.000Z"),
+      );
+
+      expect(result).toEqual([]);
+      expect(result).not.toBeNull();
+    });
+
+    // Negative 2 (layer 경계): repository 는 period literal 검증을 하지 않는다 —
+    // 허용 집합 밖 값도 그대로 where 로 forward 된다 (검증은 service-layer 책임).
+    it("period literal 검증을 하지 않고 허용 집합 밖 값도 그대로 where 로 forward 한다", async () => {
+      const { prisma, summaryMock } = buildPrismaMock();
+      const periodStart = new Date("2026-05-25T00:00:00.000Z");
+      summaryMock.findMany.mockResolvedValueOnce([]);
+
+      const repo = new SummaryRepository(prisma);
+      await repo.findByCoordinate("year", periodStart);
+
+      expect(summaryMock.findMany).toHaveBeenCalledWith({
+        where: { period: "year", periodStart },
+        orderBy: { personId: "asc" },
+      });
+    });
+
+    // Negative 3: 반환 배열의 순서 · 원소를 repository 가 재가공하지 않는다.
+    it("Prisma 반환 배열을 재가공 없이 동일 참조로 전달한다", async () => {
+      const { prisma, summaryMock } = buildPrismaMock();
+      const fixture = [
+        buildSummaryFixture({ id: "s-1", personId: "person-z" }),
+        buildSummaryFixture({ id: "s-2", personId: "person-a" }),
+      ];
+      summaryMock.findMany.mockResolvedValueOnce(fixture);
+
+      const repo = new SummaryRepository(prisma);
+      const result = await repo.findByCoordinate(
+        "day",
+        new Date("2026-05-25T00:00:00.000Z"),
+      );
+
+      expect(result).toBe(fixture);
+      expect(result[0].personId).toBe("person-z");
+    });
+
+    // Error path: PrismaService 가 reject 하면 catch 없이 그대로 propagate.
+    it("PrismaService 가 reject 하면 error 를 그대로 전파한다", async () => {
+      const { prisma, summaryMock } = buildPrismaMock();
+      summaryMock.findMany.mockRejectedValueOnce(new Error("db-down"));
+
+      const repo = new SummaryRepository(prisma);
+      await expect(
+        repo.findByCoordinate("week", new Date("2026-05-25T00:00:00.000Z")),
+      ).rejects.toThrow("db-down");
+    });
+  });
+
+  // ------------------------------------------------------------------
   // delete — happy + error (P2025 row 부재) path (hard delete, REQ-041)
   // ------------------------------------------------------------------
   describe("delete()", () => {

@@ -117,6 +117,33 @@ export class SummaryRepository {
     });
   }
 
+  // findByCoordinate — REQ-036 개발자 간 상대 비교의 입력 집합 조회. findByPerson 이
+  // person 단일 축의 시계열인 것과 달리, 좌표 `(period, periodStart)` 를 고정하고 그
+  // 좌표에 속한 모든 person 의 Summary row 를 모은다. schema 의
+  // `@@unique([personId, period, periodStart])` (schema.prisma `377 행`) 가 좌표당
+  // person 1 행을 보장하므로 반환 배열에 personId 중복이 없다.
+  //
+  // 정렬이 `personId: "asc"` 인 이유 — 하류 상대 비교 산출의 "동점 내부 순서 = 입력
+  // 최초 등장 순서" 규약이 결정적이려면 입력 배열의 순서 자체가 결정적이어야 한다.
+  // periodStart 는 좌표로 고정되므로 시계열 정렬 (findByPerson 의 desc) 은 의미가 없다.
+  //
+  // index 자인 — `@@index([personId, period, periodStart])` (schema.prisma `379 행`)
+  // 의 leftmost prefix 가 `personId` 라서 `where: { period, periodStart }` 는 이 index
+  // 를 타지 못한다. 좌표 축 index 추가는 schema 변경이라 CLAUDE.md `§5` DB schema
+  // 게이트 대상 → 본 slice 에서는 하지 않고 실 데이터 규모의 지연 관측 뒤 판단한다.
+  //
+  // 매칭 row 0 시 Prisma findMany 의 native 동작대로 빈 배열 `[]` 반환 (null 아님).
+  // period literal 검증은 하지 않는다 — service-layer 책임 (findByPerson 과 동일 경계).
+  async findByCoordinate(
+    period: string,
+    periodStart: Date,
+  ): Promise<Summary[]> {
+    return this.prisma.summary.findMany({
+      where: { period, periodStart },
+      orderBy: { personId: "asc" },
+    });
+  }
+
   // delete — hard delete (REQ-041 Admin 개별 manual delete + 재계산 lifecycle,
   // ADR-0006 §3 / §6). row 부재 시 Prisma `P2025` throw → 본 layer catch X, 호출자
   // 책임. Person 전체 hard delete 시 동반 Summary 삭제는 schema 의 `onDelete: Cascade`
