@@ -2,7 +2,7 @@
 id: T-1926
 title: 문서 축 contribution 상향 helper 를 adjustments pipeline step (7) 로 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-020]
 estimatedDiff: 200
