@@ -2,7 +2,7 @@
 id: T-1919
 title: REQ-037 재판정 1 회 — 명시적 Reset endpoint 안착 반영 + PLAN 106 행 checkbox 판정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-037]
 estimatedDiff: 60
@@ -41,16 +41,16 @@ plannerNote: "T-1918 Follow-up (a) — reset chain 전량 머지 후 REQ-037 재
 
 ## Acceptance Criteria
 
-- [ ] **REQ-037 상태 문자열 재작성 (`docs/requirements.md` `56 행`)** — 옛 서술 중 이제 무효인 두 근거를 실측 기반으로 교체한다: (1) "`resetByPeriod` ... controller wiring 이 0" → `@Post("reset")` route 의 실제 행 번호 · RBAC 스택(`@Roles("Admin")`) · 응답 4 필드 · 위임 순서, (2) "spec cover 는 ... unit 3 it 뿐, e2e 0" → 현행 e2e spec 파일 경로 · `it` 개수와 unit spec 좌표. 인용하는 행 번호 · 개수는 **본 task 실행 시점에 파일에서 재확인한 값**이어야 한다.
-- [ ] **상태 enum 판정** — 일괄 평가 축 · Reeval 축 · 명시적 Reset 축 3 축이 모두 충족이면 `DONE (implemented-on-main — ...)` 로 전이한다. 어느 한 축이라도 실측에서 미충족이면 `DONE` 으로 올리지 말고 `IN_PROGRESS (<충족 축> / <미충족 축>)` 를 유지하되 사유를 실측으로 갱신한다(과장 금지 — 검증 수단 열이 `e2e` 이므로 e2e 실측이 판정의 근거여야 한다).
-- [ ] **한계 부기 유지 · 갱신** — 옛 행이 남긴 미확인 항목 중 **여전히 유효한 것**을 `한계 —` 절에 보존한다: (a) reset 의 운영 범위가 `personId` + `period` 단위이고 **광역(전체) 초기화 경로는 없다**, (b) `deleteMany` where 에 `scope` · `periodStart` 가 없어 같은 period 의 모든 scope 좌표가 함께 지워진다, (c) Admin UI(web) 노출 0, (d) 허용 외 period 요청이 400 이 아니라 500 으로 표면화된다(있는 그대로). 이미 해소된 항목(controller wiring 0 · e2e 0)은 남기지 않는다.
-- [ ] **나머지 축 서술 보존** — 일괄 평가 축(`unevaluated-fill-plan` / `-run`)과 Reeval 축(`mode === "reeval"` · `dto.reevaluate` · `persistInTransaction` reset-and-recreate) 문단은 **재서술하지 않는다**. 본 task 는 Reset 축 문단과 그로 인해 무효가 된 문장(상태 prefix 의 `명시적 Reset endpoint 부재` 표현 포함)만 최소 수정한다.
-- [ ] **표 무결성 검증** — 편집 후 `awk 'NR==56' docs/requirements.md | grep -o "|" | wc -l` 이 `8` 로 인접 `55 행` · `57 행` 과 동일하고, 상태 문자열 안에 리터럴 `|` 문자가 없으며(T-1370 · T-1375 사고 재발 방지), `wc -l docs/requirements.md` = `121` 과 `grep -c "^| REQ-" docs/requirements.md` = `84` 가 편집 전후 불변임을 확인한다.
-- [ ] **PLAN `106 행` checkbox 판정** — R-64 의 두 축("재실행" = unevaluated-fill-run 사슬, "부분 reset" = 본 chain)이 모두 닫혔는지 실측 후 판정한다. 닫혔으면 `- [ ]` → `- [x]` 로 바꾸고 bullet 안의 "**checkbox `[ ]` 유지**" 사유 문장을 T-1915~T-1918 chain 머지 근거(각 task ID + commit/PR 좌표)로 교체한다. 미충족 축이 남으면 `[ ]` 를 유지하되 사유 문장을 현행 실측으로 갱신한다(근거 없는 승격 금지).
-- [ ] **stale 상호참조 정정** — `106 행` 의 "overwrite/reset 잔여는 bullet 107(DEFERRED, Q-0032 first-write-wins 유지)이 별도" 문장이 현행 `107 행` · `108 행` 배치와 맞는지 확인하고, 어긋나면 실제 bullet 번호(또는 bullet 제목 인용)로 정정한다. 확인 결과 맞으면 그대로 둔다.
-- [ ] **PLAN 행 수 불변** — 편집 후 `wc -l docs/PLAN.md` 가 `196` 으로 유지된다(행 추가 · 삭제 없이 기존 두 행의 in-place 수정만).
-- [ ] `docs/` 밖 파일 변경 0 — `git status --short` 에 `src/` · `test/` · `web/` 경로가 나타나지 않는다.
-- [ ] 본 task 파일의 frontmatter `status` 를 `DONE` 으로 바꾸고 본문 끝에 완료 시각 · 실측 요약(인용한 행 번호 · `it` 개수 포함)을 1~3 줄로 추가한다.
+- [x] **REQ-037 상태 문자열 재작성 (`docs/requirements.md` `56 행`)** — 옛 서술 중 이제 무효인 두 근거를 실측 기반으로 교체한다: (1) "`resetByPeriod` ... controller wiring 이 0" → `@Post("reset")` route 의 실제 행 번호 · RBAC 스택(`@Roles("Admin")`) · 응답 4 필드 · 위임 순서, (2) "spec cover 는 ... unit 3 it 뿐, e2e 0" → 현행 e2e spec 파일 경로 · `it` 개수와 unit spec 좌표. 인용하는 행 번호 · 개수는 **본 task 실행 시점에 파일에서 재확인한 값**이어야 한다.
+- [x] **상태 enum 판정** — 일괄 평가 축 · Reeval 축 · 명시적 Reset 축 3 축이 모두 충족이면 `DONE (implemented-on-main — ...)` 로 전이한다. 어느 한 축이라도 실측에서 미충족이면 `DONE` 으로 올리지 말고 `IN_PROGRESS (<충족 축> / <미충족 축>)` 를 유지하되 사유를 실측으로 갱신한다(과장 금지 — 검증 수단 열이 `e2e` 이므로 e2e 실측이 판정의 근거여야 한다).
+- [x] **한계 부기 유지 · 갱신** — 옛 행이 남긴 미확인 항목 중 **여전히 유효한 것**을 `한계 —` 절에 보존한다: (a) reset 의 운영 범위가 `personId` + `period` 단위이고 **광역(전체) 초기화 경로는 없다**, (b) `deleteMany` where 에 `scope` · `periodStart` 가 없어 같은 period 의 모든 scope 좌표가 함께 지워진다, (c) Admin UI(web) 노출 0, (d) 허용 외 period 요청이 400 이 아니라 500 으로 표면화된다(있는 그대로). 이미 해소된 항목(controller wiring 0 · e2e 0)은 남기지 않는다.
+- [x] **나머지 축 서술 보존** — 일괄 평가 축(`unevaluated-fill-plan` / `-run`)과 Reeval 축(`mode === "reeval"` · `dto.reevaluate` · `persistInTransaction` reset-and-recreate) 문단은 **재서술하지 않는다**. 본 task 는 Reset 축 문단과 그로 인해 무효가 된 문장(상태 prefix 의 `명시적 Reset endpoint 부재` 표현 포함)만 최소 수정한다.
+- [x] **표 무결성 검증** — 편집 후 `awk 'NR==56' docs/requirements.md | grep -o "|" | wc -l` 이 `8` 로 인접 `55 행` · `57 행` 과 동일하고, 상태 문자열 안에 리터럴 `|` 문자가 없으며(T-1370 · T-1375 사고 재발 방지), `wc -l docs/requirements.md` = `121` 과 `grep -c "^| REQ-" docs/requirements.md` = `84` 가 편집 전후 불변임을 확인한다.
+- [x] **PLAN `106 행` checkbox 판정** — R-64 의 두 축("재실행" = unevaluated-fill-run 사슬, "부분 reset" = 본 chain)이 모두 닫혔는지 실측 후 판정한다. 닫혔으면 `- [ ]` → `- [x]` 로 바꾸고 bullet 안의 "**checkbox `[ ]` 유지**" 사유 문장을 T-1915~T-1918 chain 머지 근거(각 task ID + commit/PR 좌표)로 교체한다. 미충족 축이 남으면 `[ ]` 를 유지하되 사유 문장을 현행 실측으로 갱신한다(근거 없는 승격 금지).
+- [x] **stale 상호참조 정정** — `106 행` 의 "overwrite/reset 잔여는 bullet 107(DEFERRED, Q-0032 first-write-wins 유지)이 별도" 문장이 현행 `107 행` · `108 행` 배치와 맞는지 확인하고, 어긋나면 실제 bullet 번호(또는 bullet 제목 인용)로 정정한다. 확인 결과 맞으면 그대로 둔다.
+- [x] **PLAN 행 수 불변** — 편집 후 `wc -l docs/PLAN.md` 가 `196` 으로 유지된다(행 추가 · 삭제 없이 기존 두 행의 in-place 수정만).
+- [x] `docs/` 밖 파일 변경 0 — `git status --short` 에 `src/` · `test/` · `web/` 경로가 나타나지 않는다.
+- [x] 본 task 파일의 frontmatter `status` 를 `DONE` 으로 바꾸고 본문 끝에 완료 시각 · 실측 요약(인용한 행 번호 · `it` 개수 포함)을 1~3 줄로 추가한다.
 
 ## Out of Scope
 
@@ -67,3 +67,13 @@ plannerNote: "T-1918 Follow-up (a) — reset chain 전량 머지 후 REQ-037 재
 `implementer` (doc-only — architect · tester 불요, R-110 은 direct doc-only commit 면제)
 
 ## Follow-ups
+
+- (a) Contribution cascade e2e — Assessment 삭제 시 `onDelete: Cascade` 로 하위 Contribution 이 함께 지워짐을 실 DB 로 확인 (T-1918 `Follow-ups (b)` 승계, 별도 slice).
+- (b) 허용 외 period 요청의 500 → 400 교정 — service 의 `assertValidPeriod` plain Error 를 controller 경계에서 `BadRequestException` 으로 매핑하거나 DTO 에 `@IsIn` 을 두는 설계 판정이 선행 필요 (허용 literal 정본이 갈라지지 않도록). e2e `226 행` · `437 행` case 가 현행 500 을 박제하므로 같은 slice 에서 함께 갱신.
+- (c) 광역(전체) 초기화 경로 · Admin UI reset 노출 · dry-run · 삭제 감사 로그 — 정책 결정이 필요해 ADR 선행 (본 task 는 결정 무생성).
+
+## 완료 요약
+
+- 2026-09-06 완료. REQ-037 을 `docs/requirements.md` `56 행`에서 `DONE (implemented-on-main — 일괄 평가 축 · Reeval 축 · 명시적 Reset 축 3 축 실재)` 로 전이. 실측 인용 좌표는 controller `739 행` `@Post("reset")`(740~742 행 `@HttpCode(200)` · `@UseGuards` · `@Roles("Admin")`, base `145 행`), `evaluation-result-persist.service.ts` `145 행` → `summary-persist.service.ts` `144 행` 순차 위임.
+- spec 실측: e2e `test/e2e/assessment-evaluation-reset.e2e-spec.ts` `501 행` · **17 it**, unit 은 controller spec `3867 행` 7 it + `3986 행` 3 it · persist service spec `378 행` 3 it · summary spec `367 행` 3 it · DTO spec 8 it. 옛 서술의 "controller wiring 0 · e2e 0 · unit 3 it 뿐" 근거는 모두 무효화해 삭제.
+- `docs/PLAN.md` `106 행` R-64 checkbox 를 `[x]` 로 승격(chain T-1915~T-1918 · PR #1503~#1506)하고 stale 상호참조 "bullet 107(DEFERRED)" 를 현행 `bullet 108`(`[x]` 완결, Q-0051 로 DEFERRED 해제)로 정정. 검증: `56 행` 파이프 8 개(인접 `55`·`57 행` 동일) · `wc -l docs/requirements.md` = 121 · `grep -c "^| REQ-"` = 84 · `wc -l docs/PLAN.md` = 196 불변.
