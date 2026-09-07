@@ -2,7 +2,7 @@
 id: T-1960
 title: GET /api/llm/difficulty-mappings e2e 계약 spec 신설 (조회 · RBAC 축)
 phase: P4
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-050, REQ-049]
 estimatedDiff: 220
