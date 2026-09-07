@@ -14,8 +14,8 @@
 //       GitHub issues/pulls 에서 updated-at 기준이고 Confluence 엔 since 축 자체가
 //       없어 실효 경계가 아니므로, 기간 계약(README 9 행 · 178 행)의 실질 강제는
 //       이 in-memory 단계가 담당한다.
-//   (4) filterActivitiesByAuthor(activities, person.serviceIdentities) → Person 귀속
-//       활동만(순수 함수, ADR-0030 §2 author 귀속).
+//   (4) filterActivitiesByAuthor(windowed, person.serviceIdentities) → Person 귀속
+//       활동만(순수 함수, ADR-0030 §2 author 귀속). 입력은 (3)의 창 필터 산출물이다.
 //   (5) evaluateActivities(filtered, options) → EvaluationResult[](in-memory scoring,
 //       DB write 0). 반환값을 그대로 응답으로 흘려보낸다(persist 0).
 //   순수 함수 필터를 in-memory 로 적용한 뒤 그 Activity[] 를 evaluateActivities 에
