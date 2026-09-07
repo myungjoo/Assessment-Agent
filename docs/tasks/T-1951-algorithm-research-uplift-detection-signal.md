@@ -2,7 +2,7 @@
 id: T-1951
 title: 알고리즘·연구 소개 상향 detection 신호 computeAlgorithmResearchSignal 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-019]
 estimatedDiff: 380
