@@ -2,7 +2,7 @@
 id: T-1944
 title: commit 내용 지문 helper 신설 + github mapper 배선 (ADR-0063 Follow-up (a))
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-032]
 estimatedDiff: 210
