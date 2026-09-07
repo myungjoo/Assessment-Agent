@@ -25,6 +25,7 @@ import {
   type EvaluationAdjustEntry,
   type EvaluationAdjustmentSignals,
 } from "./evaluation-adjustments-pipeline";
+import type { AlgorithmResearchSignal } from "./evaluation-algorithm-research-signal";
 import {
   DOCUMENT_CONTRIBUTION_NARRATIVE_MARKER,
   DOCUMENT_CONTRIBUTION_UPLIFT_LEVEL,
@@ -97,6 +98,14 @@ function makeEmptySignals(): EvaluationAdjustmentSignals {
     byAuthor: [],
     notableDetected: false,
   };
+  // 7 번째 필드(T-1952 배선) — 소비 step 이 아직 없어(ADR-0064 `§ Follow-ups (c)`)
+  // 빈 신호를 넣어도 8-step 산출은 무변경이어야 한다(그 무변경이 회귀 방어).
+  const algorithmResearch: AlgorithmResearchSignal = {
+    totalUnitCount: 0,
+    totalAlgorithmResearchCount: 0,
+    byAuthor: [],
+    algorithmResearchDetected: false,
+  };
   return {
     abuse,
     updateCount,
@@ -104,6 +113,7 @@ function makeEmptySignals(): EvaluationAdjustmentSignals {
     underPerformer,
     notableContribution,
     documentContribution,
+    algorithmResearch,
   };
 }
 
@@ -212,6 +222,14 @@ describe("applyEvaluationAdjustments", () => {
           meanDocumentUnitCount: 0,
           byAuthor: [],
           notableDetected: false,
+        },
+        // 7 번째 필드(T-1952) — 소비 step 0(ADR-0064 `§ Follow-ups (c)` 유예)이라
+        // 빈 신호 전달만 하고 아래 기존 기대값은 1 건도 바뀌지 않는다.
+        algorithmResearch: {
+          totalUnitCount: 0,
+          totalAlgorithmResearchCount: 0,
+          byAuthor: [],
+          algorithmResearchDetected: false,
         },
       };
 
