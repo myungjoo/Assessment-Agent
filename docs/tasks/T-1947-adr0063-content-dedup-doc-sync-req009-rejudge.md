@@ -2,7 +2,7 @@
 id: T-1947
 title: ADR-0063 ACCEPTED 승격 + REQ-009 재판정 + PLAN 99 행 doc-sync
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-009, REQ-032]
 estimatedDiff: 45
