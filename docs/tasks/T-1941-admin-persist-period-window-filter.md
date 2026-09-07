@@ -2,7 +2,7 @@
 id: T-1941
 title: Admin full-persist 경로에 기간 창 필터 배선 — generateAndPersist 가 반열림 [since, until) 을 실효 강제
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-004]
 estimatedDiff: 280
