@@ -462,8 +462,8 @@ export class AssessmentEvaluationController {
   //   - principal sub 부재(비로그인 이론 경로) → KST_TIMEZONE(Asia/Seoul) fallback.
   //     guard 를 통과한 정상 경로에선 sub 이 항상 존재하나, 방어적 fallback 을 둔다.
   // 반환 timezone 은 normalizeKstPeriodRange 로 전달돼 offset 미명시 입력과 경계 쌍
-  // 산출이 그 zone 기준이 된다(기본 KST fallback 보존). User row 의 timezone 이 무효 IANA 식별자면 helper
-  // (Intl.DateTimeFormat)가 RangeError 를 전파한다(R-112 negative — 저장 경로 검증은 본
+  // 산출이 그 zone 기준이 된다(기본 KST fallback 보존). User row 의 timezone 이 무효
+  // IANA 식별자면 helper (Intl.DateTimeFormat)가 RangeError 를 전파한다(R-112 negative — 저장 경로 검증은 본
   // task 밖, 읽기 경로는 helper 의 RangeError 로 방어).
   private async resolveRequestTimeZone(
     principalUserId: string | undefined,
