@@ -23,6 +23,7 @@ import {
   GithubActivity,
   GithubActivityKind,
 } from "./activity";
+import { computeAlgorithmResearchHits } from "./algorithm-research-signal";
 import { computeCommitContentFingerprint } from "./commit-content-fingerprint";
 
 // isRecord — 값이 non-null 의 plain 객체(배열 아님)인지 판정하는 순수 type-guard.
@@ -126,6 +127,14 @@ function resolveTimestamp(raw: Record<string, unknown>): string | undefined {
 // (`contentFingerprint`)을 담는다 — 이 지점이 raw message 가 손 안에 있는 유일한
 // 경계이기 때문(ADR-0063 § Decision 1). commit message 전문 · diff · body 자체는 절대
 // 담지 않는다.
+//
+// `algorithmResearchHits`(ADR-0064 § Decision 1 의 파생 scalar)는 **kind === "issue"
+// 에서만** 산출한다 — § Decision 2 가 대상을 `contributionKind === "document"` 로
+// 한정했고, evaluation-input.mapper.ts `8~14 행` 정규화가 github `commit` · `pr` 을
+// `code` 로, `issue` 만 `document` 로 보내기 때문이다(commit 한정으로 지문을 담는
+// 아래 분기와 동형의 kind 조건부 산출). 판별은 순수 helper 가 하고 본 mapper 는
+// 호출만 하며, 값이 `0` 이면 키 자체를 담지 않는다(하한 미달 시 키를 생략하는
+// `contentFingerprint` 관행과 동형 — 평가 layer 는 키 부재를 미대상으로 읽는다).
 function buildMetadata(
   raw: Record<string, unknown>,
   kind: GithubActivityKind,
@@ -135,6 +144,14 @@ function buildMetadata(
   if (title !== undefined) {
     // raw title 문자열을 싣지 않고 길이만 — 평가 입력 후보 메타(raw quote 0).
     metadata.titleLength = title.length;
+  }
+  // R-38 파생 신호는 issue(→ document)에만 산출한다. helper 가 비-string title 을
+  // `0` 으로 흡수하므로(throw 0) 그때는 키 자체가 담기지 않는다.
+  if (kind === "issue") {
+    const algorithmResearchHits = computeAlgorithmResearchHits(raw.title);
+    if (algorithmResearchHits > 0) {
+      metadata.algorithmResearchHits = algorithmResearchHits;
+    }
   }
   // 내용 지문은 commit 에만 산출한다(ADR-0063 § Decision 6 — PR/issue 번호는 재작성
   // 되지 않아 지문이 풀 문제 자체가 없다). helper 가 비-string message · 하한 미달을
