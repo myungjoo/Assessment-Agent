@@ -2,7 +2,7 @@
 id: T-1953
 title: 알고리즘·연구 소개 기여 등급 상향 helper applyAlgorithmResearchUplift 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-019]
 estimatedDiff: 360
