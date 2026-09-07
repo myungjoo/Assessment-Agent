@@ -2,6 +2,7 @@
 // negative cases 충분 cover + raw-not-stored 단언). collection slice (i), ADR-0029
 // Decision §2. live/credentialed test 0 — fixture 입력만(Q-0025 deferred).
 
+import { computeAlgorithmResearchHits } from "./algorithm-research-signal";
 import { computeCommitContentFingerprint } from "./commit-content-fingerprint";
 import { mapGithubActivity } from "./github-activity.mapper";
 
@@ -162,6 +163,116 @@ describe("mapGithubActivity", () => {
         expect(result?.metadata.titleLength).toBeGreaterThan(0);
       },
     );
+  });
+
+  describe("algorithmResearchHits 배선 (ADR-0064 § Decision 1·2)", () => {
+    // issue raw 조립기 — title 만 바꿔가며 kind=issue 분기를 태운다. `title` 인자를
+    // 생략하면 title 키 자체가 없는 raw 가 된다(키 부재 분기).
+    function issueWith(...title: unknown[]): Record<string, unknown> {
+      const raw: Record<string, unknown> = {
+        number: 21,
+        user: { login: "issuer" },
+        created_at: "2026-06-05T12:00:00Z",
+      };
+      if (title.length > 0) {
+        raw.title = title[0];
+      }
+      return raw;
+    }
+
+    it.each([
+      ["(C)+(A) 형식·알고리즘", "새 정렬 알고리즘 설계안 소개"],
+      ["(C)+(B) 형식·연구 (대소문자 무시)", "arXiv 논문 정리"],
+    ])("%s title 을 가진 issue 는 hits 2 를 담는다", (_l, title) => {
+      const result = mapGithubActivity(issueWith(title), INSTANCE, REPO);
+      expect(result?.kind).toBe("issue");
+      expect(result?.metadata.algorithmResearchHits).toBe(2);
+      // mapper 는 판별을 복제하지 않고 helper 산출값을 그대로 싣는다.
+      expect(result?.metadata.algorithmResearchHits).toBe(
+        computeAlgorithmResearchHits(title),
+      );
+    });
+
+    it.each([
+      ["(C) 단독", "온보딩 문서 정리", 1],
+      ["3 그룹 동시 매칭", "SOTA heuristic tutorial", 3],
+    ])("%s title(%s) 은 hits %i 를 담는다", (_l, title, hits) => {
+      expect(
+        mapGithubActivity(issueWith(title), INSTANCE, REPO)?.metadata
+          .algorithmResearchHits,
+      ).toBe(hits);
+    });
+
+    it.each([
+      ["number", 999],
+      ["null", null],
+      ["객체", { text: "알고리즘 소개" }],
+      ["배열", ["연구 정리"]],
+      ["boolean", true],
+    ])(
+      "title 이 비-string(%s)인 issue 는 throw 0 이고 키를 담지 않는다",
+      (_l, title) => {
+        const call = () => mapGithubActivity(issueWith(title), INSTANCE, REPO);
+        expect(call).not.toThrow();
+        expect(call()?.metadata).not.toHaveProperty("algorithmResearchHits");
+      },
+    );
+
+    it("title 키가 아예 없는 issue 도 throw 0 이고 키를 담지 않는다", () => {
+      const call = () => mapGithubActivity(issueWith(), INSTANCE, REPO);
+      expect(call).not.toThrow();
+      expect(call()?.metadata).toEqual({});
+    });
+
+    it.each([
+      ["marker 무관 title", "이슈 제목"],
+      ["빈 문자열 title", ""],
+      ["공백만 있는 title", "   "],
+    ])("%s 인 issue 는 키를 담지 않는다", (_l, title) => {
+      expect(
+        mapGithubActivity(issueWith(title), INSTANCE, REPO)?.metadata,
+      ).not.toHaveProperty("algorithmResearchHits");
+    });
+
+    it.each([
+      ["pr", { ...(prItem() as object), title: "SOTA algorithm 소개" }],
+      ["commit", { ...(commitItem() as object), title: "SOTA algorithm 소개" }],
+    ])(
+      "kind=%s 는 marker 만점 title 이어도 키를 담지 않는다(대상 kind 한정)",
+      (_l, raw) => {
+        // 같은 title 이 issue 였다면 3 이었음을 대조로 고정한다.
+        expect(computeAlgorithmResearchHits("SOTA algorithm 소개")).toBe(3);
+        const result = mapGithubActivity(raw, INSTANCE, REPO);
+        expect(result?.metadata).not.toHaveProperty("algorithmResearchHits");
+      },
+    );
+
+    it("issue 에서 titleLength 와 공존하고 기존 메타가 회귀하지 않는다", () => {
+      const title = "새 정렬 알고리즘 설계안 소개";
+      const result = mapGithubActivity(issueWith(title), INSTANCE, REPO);
+      expect(result?.metadata).toEqual({
+        titleLength: title.length,
+        algorithmResearchHits: 2,
+      });
+    });
+
+    it("commit metadata 계약은 지문 단독으로 불변이다", () => {
+      const raw = { ...(commitItem() as object), title: "알고리즘 소개" };
+      expect(mapGithubActivity(raw, INSTANCE, REPO)?.metadata).toEqual({
+        titleLength: "알고리즘 소개".length,
+        contentFingerprint: expect.any(String),
+      });
+    });
+
+    it("raw title 문자열 자체는 반환 객체 어디에도 누출되지 않는다(REQ-032)", () => {
+      const title = "새 정렬 알고리즘 설계안 소개";
+      const serialized = JSON.stringify(
+        mapGithubActivity(issueWith(title), INSTANCE, REPO),
+      );
+      expect(serialized).not.toContain(title);
+      expect(serialized).not.toContain("알고리즘");
+      expect(serialized).toContain("algorithmResearchHits");
+    });
   });
 
   describe("error / negative path (R-112-2, R-112-3 branch)", () => {
