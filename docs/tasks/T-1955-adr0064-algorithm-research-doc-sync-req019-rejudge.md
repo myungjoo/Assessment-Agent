@@ -2,7 +2,7 @@
 id: T-1955
 title: ADR-0064 ACCEPTED 승격 + REQ-019 재판정 + PLAN 103 행 doc-sync
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-019, REQ-032]
 estimatedDiff: 45
