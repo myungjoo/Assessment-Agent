@@ -2,7 +2,7 @@
 id: T-1949
 title: 알고리즘·연구 소개 판별 helper 신설 + Confluence mapper 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-019, REQ-032]
 independentStream: adr0064-algorithm-research-uplift
