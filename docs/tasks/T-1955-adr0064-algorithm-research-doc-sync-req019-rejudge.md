@@ -70,4 +70,9 @@ plannerNote: "P5 품질 분류 bullet(PLAN 103 행) — ADR-0064 §Follow-ups (d
 
 ## Follow-ups
 
-- (비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 적는다.)
+- **R-110 / R-112 면제 근거** — 본 task 는 doc-only `direct` commit 이라 tester 호출이 면제되고 (CLAUDE.md `§ 3.2` R-110 마지막 문장), production code 0 LOC 이므로 R-112 의 4 축 (happy-path / error path / 분기별 / negative) 은 본 task 에 적용되지 않는다. **신규 spec 0 이 정당** 하며 그 책임은 이미 머지된 (a)~(c) slice 의 colocated spec 6 종이 진다 (`algorithm-research-signal.spec.ts` · 두 mapper spec 의 `algorithmResearchHits 배선` describe · `evaluation-algorithm-research-signal.spec.ts` · `evaluation-algorithm-research-adjust.spec.ts` · `evaluation-adjustments-pipeline.spec.ts` 997 행 describe). 분기 없음 — 분기별 test 항목 생략.
+- **(신규) 상향 건수 관측 로그 slice** — ADR-0064 `§ Consequences` 오탐 완화 (iv) 와 `§ Follow-ups` (c) 가 예고한 **상향 건수 관측 로그가 미착수** 다 (`evaluation-adjustments-pipeline.ts` · `evaluation-algorithm-research-adjust.ts` 전수에 `Logger` · `console` 참조 0). 과잉 발동을 수치로 인지할 경로가 없으므로 `pr` slice 1 건으로 이월한다 — 선례는 ADR-0063 `§ Follow-ups` (c) (T-1946, PR #1528).
+- **`src/` 주석 REQ 오기 정정** — `evaluation-quality-signal.ts` · `evaluation-quality-adjust.ts` `2~3 행` 의 `REQ-037 / REQ-038` 은 README 행 번호 (`R-37 / R-38`) 를 REQ ID 로 적은 drift 다. ADR-0064 `§ Consequences` 가 범위 밖으로 명시했고 `src/` 변경이라 `pr` mode → 별도 slice.
+- **GitHub 축 kind 한정 재검토** — `github-activity.mapper.ts` `150 행` `if (kind === "issue")` 로 파생 신호가 issue 단위에만 산출된다. PR 본문형 소개 자료는 구조적으로 미탐이며, 대상 확대는 ADR-0064 `§ Decision 2` 개정 (후속 ADR) 선행이 필요하다.
+- **두 임계 상수 drift 여지** — 수집 `ALGORITHM_RESEARCH_MIN_HITS` (`16 행`) 와 평가 `ALGORITHM_RESEARCH_UPLIFT_MIN_HITS` (`36 행`) 는 layer 분리 목적으로 독립 소유돼 한쪽만 바뀌어도 컴파일이 깨지지 않는다. dogfood calibration 시 동시 갱신 규약 · drift-guard spec 을 함께 검토한다.
+- **`docs/architecture/modules.md` · `REQ-COVERAGE-AUDIT.md` 반영** — ADR-0064 `§ Follow-ups` (d) 의 3 지점 밖이라 본 task 범위에서 제외했다. 알고리즘·연구 축 4 파일 신설분의 module 인덱스 등재는 별도 `direct` slice 로.
