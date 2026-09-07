@@ -2,7 +2,7 @@
 id: T-1942
 title: Admin full-persist 경로 controller 에 반열림 상한(until) 전달 배선 — persistForAdmin 이 창 필터 상한을 실효화
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-004]
 estimatedDiff: 260
