@@ -8,7 +8,10 @@
 // REQ-032 raw-not-stored(data-model.md §4, ADR-0029 Decision §2): commit message 전문 /
 // diff / patch 같은 raw 본문은 **추출하지 않는다**. SHA · author login · timestamp ·
 // repo 참조 같은 typed 식별 필드만 뽑고, raw 객체는 매핑 직후 폐기된다(반환 객체에 raw
-// body 미포함).
+// body 미포함). commit 의 내용 지문(`metadata.contentFingerprint`)은 이 원칙의 예외가
+// 아니다 — 실리는 값은 raw message 를 정규화해 얻은 **비가역 sha256 파생값**이라 원문
+// 복원이 불가능하고, raw quote 가 아니라 `titleLength` 계열의 typed 보조값이다
+// (ADR-0063 § Decision 3). 지문의 입력이 된 raw message 는 이 경계에서 폐기된다.
 //
 // 방어성: adapter 가 raw `unknown[]` 을 주므로 모든 필드 접근은 type-guard 를 거친다.
 // 필수 식별 필드(externalId / author / timestamp)가 누락/형식 오류면 매핑 불가로
@@ -20,6 +23,7 @@ import {
   GithubActivity,
   GithubActivityKind,
 } from "./activity";
+import { computeCommitContentFingerprint } from "./commit-content-fingerprint";
 
 // isRecord — 값이 non-null 의 plain 객체(배열 아님)인지 판정하는 순수 type-guard.
 // `typeof null === "object"` 비대칭 + 배열 제외를 한 곳에서 처리해 이후 필드 접근을
@@ -116,16 +120,30 @@ function resolveTimestamp(raw: Record<string, unknown>): string | undefined {
   return undefined;
 }
 
-// buildMetadata — raw 본문이 아닌 typed 보조 메타만 골라 담는다(REQ-032). 현 slice 는
-// PR/issue 의 title 길이(`titleLength`)만 메타로 추출한다 — title **문자열 자체가 아니라
-// 길이(number)** 만 담아 raw quote 를 피한다. title 부재/비-string 이면 메타 미포함.
-// commit message 전문 · diff · body 는 절대 담지 않는다.
-function buildMetadata(raw: Record<string, unknown>): ActivityMetadata {
+// buildMetadata — raw 본문이 아닌 typed 보조 메타만 골라 담는다(REQ-032). PR/issue 의
+// title 길이(`titleLength`)는 title **문자열 자체가 아니라 길이(number)** 만 담아 raw
+// quote 를 피한다(title 부재/비-string 이면 메타 미포함). commit 은 추가로 내용 지문
+// (`contentFingerprint`)을 담는다 — 이 지점이 raw message 가 손 안에 있는 유일한
+// 경계이기 때문(ADR-0063 § Decision 1). commit message 전문 · diff · body 자체는 절대
+// 담지 않는다.
+function buildMetadata(
+  raw: Record<string, unknown>,
+  kind: GithubActivityKind,
+): ActivityMetadata {
   const metadata: ActivityMetadata = {};
   const title = readString(raw.title);
   if (title !== undefined) {
     // raw title 문자열을 싣지 않고 길이만 — 평가 입력 후보 메타(raw quote 0).
     metadata.titleLength = title.length;
+  }
+  // 내용 지문은 commit 에만 산출한다(ADR-0063 § Decision 6 — PR/issue 번호는 재작성
+  // 되지 않아 지문이 풀 문제 자체가 없다). helper 가 비-string message · 하한 미달을
+  // `undefined` 로 흡수하므로 그때는 키 자체를 담지 않는다(§ Decision 4).
+  if (kind === "commit" && isRecord(raw.commit)) {
+    const fingerprint = computeCommitContentFingerprint(raw.commit.message);
+    if (fingerprint !== undefined) {
+      metadata.contentFingerprint = fingerprint;
+    }
   }
   return metadata;
 }
@@ -168,6 +186,6 @@ export function mapGithubActivity(
     timestamp,
     repoRef,
     kind,
-    metadata: buildMetadata(raw),
+    metadata: buildMetadata(raw, kind),
   };
 }

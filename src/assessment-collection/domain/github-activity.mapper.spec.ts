@@ -2,6 +2,7 @@
 // negative cases 충분 cover + raw-not-stored 단언). collection slice (i), ADR-0029
 // Decision §2. live/credentialed test 0 — fixture 입력만(Q-0025 deferred).
 
+import { computeCommitContentFingerprint } from "./commit-content-fingerprint";
 import { mapGithubActivity } from "./github-activity.mapper";
 
 // 공통 호출 context — orchestrator 가 주입하는 instance/repo 식별자(raw item 밖).
@@ -60,7 +61,8 @@ describe("mapGithubActivity", () => {
         timestamp: "2026-06-01T09:00:00Z",
         repoRef: "octo-org/octo-repo",
         kind: "commit",
-        metadata: {},
+        // commit 은 내용 지문 메타를 함께 담는다(ADR-0063 § Decision 1).
+        metadata: { contentFingerprint: expect.any(String) },
       });
     });
 
@@ -109,6 +111,57 @@ describe("mapGithubActivity", () => {
       // 원본 title 문자열 자체는 metadata 에 없다(길이 number 만).
       expect(serialized).not.toContain("PR 제목");
     });
+  });
+
+  describe("content 지문 배선 (ADR-0063 § Decision 1·4·6)", () => {
+    const COMMIT_MESSAGE = (commitItem() as { commit: { message: string } })
+      .commit.message;
+
+    it("commit 은 metadata.contentFingerprint 를 helper 산출값(hex 64 자) 그대로 담는다", () => {
+      const result = mapGithubActivity(commitItem(), INSTANCE, REPO);
+      expect(result?.metadata.contentFingerprint).toBe(
+        computeCommitContentFingerprint(COMMIT_MESSAGE),
+      );
+      expect(result?.metadata.contentFingerprint).toMatch(/^[0-9a-f]{64}$/);
+    });
+
+    it.each([
+      ["raw.commit 부재", { sha: "s1" }],
+      ["commit.message 부재", { sha: "s2", commit: { note: "x" } }],
+      ["commit.message 비-string", { sha: "s3", commit: { message: 123 } }],
+      ["하한 미달 message", { sha: "s4", commit: { message: "fix typo" } }],
+    ])(
+      "%s 면 지문 키 자체가 미포함이고 기존 매핑은 깨지지 않는다",
+      (_l, extra) => {
+        const raw = {
+          ...(extra as object),
+          author: { login: "gildong" },
+          created_at: "2026-06-01T09:00:00Z",
+        };
+        const result = mapGithubActivity(raw, INSTANCE, REPO);
+        expect(result?.kind).toBe("commit");
+        expect(result?.author).toBe("gildong");
+        expect(result?.metadata).not.toHaveProperty("contentFingerprint");
+      },
+    );
+
+    it.each([
+      ["pr", prItem()],
+      ["issue", issueItem()],
+    ])(
+      "kind=%s 는 commit.message 가 있어도 지문을 산출하지 않는다",
+      (_l, item) => {
+        // 긴 commit.message 를 일부러 심어도 § Decision 6 대로 미산출.
+        const raw = {
+          ...(item as object),
+          commit: { message: COMMIT_MESSAGE },
+        };
+        const result = mapGithubActivity(raw, INSTANCE, REPO);
+        expect(result?.metadata).not.toHaveProperty("contentFingerprint");
+        // 기존 titleLength 메타 동작은 회귀 없이 유지된다.
+        expect(result?.metadata.titleLength).toBeGreaterThan(0);
+      },
+    );
   });
 
   describe("error / negative path (R-112-2, R-112-3 branch)", () => {
