@@ -2,7 +2,7 @@
 id: T-1959
 title: REQ-027 "e2e 미보유" 표기 정정 — backfill e2e 좌표 doc-sync (once-rule 1 회)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-027]
 estimatedDiff: 12
@@ -35,15 +35,15 @@ plannerNote: P7 REQ-027 — T-1958 e2e 머지 후 요구표의 유일한 "e2e �
 
 ## Acceptance Criteria
 
-- [ ] `docs/requirements.md` **1 파일만** 수정한다. `src/` · `web/` · `test/` · `prisma/` · `.github/` · `package.json` diff **0**.
-- [ ] `46 행` REQ-027 의 상태 칸에서 문자열 **"e2e 미보유"** 를 제거한다. 완료 후 `grep -c "e2e 미보유" docs/requirements.md` 가 **0** 이어야 한다(다른 행에 같은 문자열을 새로 만들지 않는다).
-- [ ] 제거한 자리에 실 e2e 좌표를 박제한다 — 파일 경로 `test/e2e/schedules-backfill.e2e-spec.ts`, **it 5 개**, 그리고 각 it 이 무엇을 잠그는지(202 + `BackfillRunResult` 4 key + 52/52 + `Assessment` 52 건 week/aggregate · idempotency skip 202 `skipped:true` 건수 불변 · 401 · 403 · 404 raw forward)를 R-112 4 축(happy / error / 분기 / negative)에 대응시켜 1 회 서술한다. 출처로 T-1958 · PR #1537 · main `742bd62d` 를 남긴다.
-- [ ] `unit spec 3종` 이라는 기존 계수를 **실측으로 재검산**해 정정한다 — `ls src/scheduling/ | grep backfill` 기준 colocated spec 은 `backfill.controller.spec.ts` · `backfill-runner.service.spec.ts` · `backfill-plan.spec.ts` · `assessment-backfill-checker.service.spec.ts` **4 종**이다. 실행 시점에 다시 세어 실제 개수를 적는다(본 문서의 4 를 그대로 베끼지 말 것).
-- [ ] 검증 위치 열 `unit + e2e` 는 **그대로 둔다**(열 값 변경 0). 이제 두 축 모두 실 근거를 가지므로 열을 바꿀 이유가 없다.
-- [ ] 남은 **한계**를 최소 2 개 명시한다 — (1) e2e 는 빈 `serviceIdentities` Person 을 쓰는 no-network 계약 검증이라 실 GitHub/Confluence 수집을 거친 backfill 은 미검증, (2) endpoint 가 `weeks` / 기준일 파라미터를 받지 않아 52 주 고정이고 영속 backfill 표식이 없어 idempotency 는 "직전 Assessment 존재" proxy 판정에 의존. 실측으로 확인되는 한계가 더 있으면 추가한다.
-- [ ] 표 구조 무결성 — 해당 행이 여전히 `| REQ-027 | 50 | … |` 형태의 **단일 행 7 칸**이고 개행이 끼어들지 않는다(`grep -c "^| REQ-027 |" docs/requirements.md` → **1**).
-- [ ] 문서 본문은 한국어, 행 범위 표기는 CLAUDE.md §12 규약(`46 행`, `~` 구분자, `L` prefix 금지)을 따른다.
-- [ ] 총 diff **≤ 300 LOC / 1 파일**. doc-only 이므로 test 추가 없음(R-110 direct doc-only 면제 — `pnpm lint && pnpm build && pnpm test` 는 코드 변경 0 이라 회귀 대상 아님).
+- [x] `docs/requirements.md` **1 파일만** 수정한다. `src/` · `web/` · `test/` · `prisma/` · `.github/` · `package.json` diff **0**.
+- [x] `46 행` REQ-027 의 상태 칸에서 문자열 **"e2e 미보유"** 를 제거한다. 완료 후 `grep -c "e2e 미보유" docs/requirements.md` 가 **0** 이어야 한다(다른 행에 같은 문자열을 새로 만들지 않는다).
+- [x] 제거한 자리에 실 e2e 좌표를 박제한다 — 파일 경로 `test/e2e/schedules-backfill.e2e-spec.ts`, **it 5 개**, 그리고 각 it 이 무엇을 잠그는지(202 + `BackfillRunResult` 4 key + 52/52 + `Assessment` 52 건 week/aggregate · idempotency skip 202 `skipped:true` 건수 불변 · 401 · 403 · 404 raw forward)를 R-112 4 축(happy / error / 분기 / negative)에 대응시켜 1 회 서술한다. 출처로 T-1958 · PR #1537 · main `742bd62d` 를 남긴다.
+- [x] `unit spec 3종` 이라는 기존 계수를 **실측으로 재검산**해 정정한다 — `ls src/scheduling/ | grep backfill` 기준 colocated spec 은 `backfill.controller.spec.ts` · `backfill-runner.service.spec.ts` · `backfill-plan.spec.ts` · `assessment-backfill-checker.service.spec.ts` **4 종**이다. 실행 시점에 다시 세어 실제 개수를 적는다(본 문서의 4 를 그대로 베끼지 말 것).
+- [x] 검증 위치 열 `unit + e2e` 는 **그대로 둔다**(열 값 변경 0). 이제 두 축 모두 실 근거를 가지므로 열을 바꿀 이유가 없다.
+- [x] 남은 **한계**를 최소 2 개 명시한다 — (1) e2e 는 빈 `serviceIdentities` Person 을 쓰는 no-network 계약 검증이라 실 GitHub/Confluence 수집을 거친 backfill 은 미검증, (2) endpoint 가 `weeks` / 기준일 파라미터를 받지 않아 52 주 고정이고 영속 backfill 표식이 없어 idempotency 는 "직전 Assessment 존재" proxy 판정에 의존. 실측으로 확인되는 한계가 더 있으면 추가한다.
+- [x] 표 구조 무결성 — 해당 행이 여전히 `| REQ-027 | 50 | … |` 형태의 **단일 행 7 칸**이고 개행이 끼어들지 않는다(`grep -c "^| REQ-027 |" docs/requirements.md` → **1**).
+- [x] 문서 본문은 한국어, 행 범위 표기는 CLAUDE.md §12 규약(`46 행`, `~` 구분자, `L` prefix 금지)을 따른다.
+- [x] 총 diff **≤ 300 LOC / 1 파일**. doc-only 이므로 test 추가 없음(R-110 direct doc-only 면제 — `pnpm lint && pnpm build && pnpm test` 는 코드 변경 0 이라 회귀 대상 아님).
 
 ## Out of Scope
 
@@ -61,4 +61,4 @@ plannerNote: P7 REQ-027 — T-1958 e2e 머지 후 요구표의 유일한 "e2e �
 
 ## Follow-ups
 
-(작성 시점 비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가한다.)
+- (a) `docs/use-cases/REQ-COVERAGE-AUDIT.md` `61 행` REQ-027 row 와 audit 계수는 본 task Out of Scope 로 남겨 두었다 — 요구표와의 좌표 동기화가 필요하면 별도 doc-sync slice 로 큐잉한다.
