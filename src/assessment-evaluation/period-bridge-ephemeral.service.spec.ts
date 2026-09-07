@@ -4,9 +4,10 @@
 // (CollectionSpecService.buildCollectionSpec / CollectionOrchestratorService.
 // collectActivities / EvaluationOrchestratorService.evaluateActivities)를 전부 mock
 // 주입 — 실 LLM / 실 DB / 실 네트워크 0. 본 service 는 thin compose(buildCollectionSpec
-// → collectActivities → filterActivitiesByAuthor[순수 함수, 실호출] → evaluateActivities)
-// 라, 본 spec 은 compose 의 정합(4 단계 호출 순서·인자 pass-through → since 분기 →
-// error 전파 → 빈 수집 흡수 → persist 미주입의 구조적 write-0)을 cover 한다.
+// → collectActivities → filterActivitiesByPeriodWindow[순수 함수, 실호출] →
+// filterActivitiesByAuthor[순수 함수, 실호출] → evaluateActivities)라, 본 spec 은
+// compose 의 정합(5 단계 호출 순서·인자 pass-through → since/until 분기 → error 전파
+// → 빈 수집 흡수 → persist 미주입의 구조적 write-0)을 cover 한다.
 import type { ServiceIdentity } from "@prisma/client";
 
 import { CollectionOrchestratorService } from "../assessment-collection/collection-orchestrator.service";
@@ -182,6 +183,101 @@ describe("PeriodBridgeEphemeralService", () => {
         expect.anything(),
         undefined,
       );
+    });
+  });
+
+  describe("기간 창 필터 — 반열림 [since, until) 배선(T-1939)", () => {
+    it("창 밖 활동은 evaluateActivities 입력에서 제외된다 (happy)", async () => {
+      const mocks = makeMocks();
+      const before = githubActivity({
+        externalId: "before",
+        timestamp: "2026-05-31T23:59:59Z",
+      });
+      const inside = githubActivity({
+        externalId: "inside",
+        timestamp: "2026-06-15T00:00:00Z",
+      });
+      const atUntil = githubActivity({
+        externalId: "at-until",
+        timestamp: "2026-07-01T00:00:00Z",
+      });
+      mocks.orchestrator.collectActivities.mockResolvedValue([
+        before,
+        inside,
+        atUntil,
+      ]);
+      const service = makeService(mocks);
+
+      await service.generateEphemeral(
+        personMatching(),
+        { since: "2026-06-01T00:00:00Z", until: "2026-07-01T00:00:00Z" },
+        OPTIONS,
+      );
+
+      // until 은 exclusive — 상한 시각과 같은 활동(at-until)도 제외된다.
+      const [evalArg] = mocks.evaluation.evaluateActivities.mock.calls[0];
+      expect(evalArg).toEqual([inside]);
+    });
+
+    it("until 미지정(현 controller 호출 형태) 시 하한만 적용된다 (branch)", async () => {
+      const mocks = makeMocks();
+      const old = githubActivity({
+        externalId: "old",
+        timestamp: "2026-01-01T00:00:00Z",
+      });
+      const recent = githubActivity({
+        externalId: "recent",
+        timestamp: "2026-09-01T00:00:00Z",
+      });
+      mocks.orchestrator.collectActivities.mockResolvedValue([old, recent]);
+      const service = makeService(mocks);
+
+      await service.generateEphemeral(
+        personMatching(),
+        { since: "2026-06-01T00:00:00Z" },
+        OPTIONS,
+      );
+
+      // 상한 없음 → since 이후는 아무리 미래여도 전부 통과.
+      const [evalArg] = mocks.evaluation.evaluateActivities.mock.calls[0];
+      expect(evalArg).toEqual([recent]);
+    });
+
+    it("since · until 둘 다 미지정이면 수집 전량이 그대로 전달된다 (회귀 0)", async () => {
+      const mocks = makeMocks();
+      const a = githubActivity({
+        externalId: "a",
+        timestamp: "2020-01-01T00:00:00Z",
+      });
+      const b = githubActivity({
+        externalId: "b",
+        timestamp: "2030-01-01T00:00:00Z",
+      });
+      mocks.orchestrator.collectActivities.mockResolvedValue([a, b]);
+      const service = makeService(mocks);
+
+      await service.generateEphemeral(personMatching(), {}, OPTIONS);
+
+      const [evalArg] = mocks.evaluation.evaluateActivities.mock.calls[0];
+      expect(evalArg).toEqual([a, b]);
+    });
+
+    it("창 필터의 RangeError 는 swallow 없이 전파되고 evaluateActivities 는 미호출 (error path)", async () => {
+      const mocks = makeMocks();
+      mocks.orchestrator.collectActivities.mockResolvedValue([
+        githubActivity(),
+      ]);
+      const service = makeService(mocks);
+
+      await expect(
+        service.generateEphemeral(
+          personMatching(),
+          { since: "not-a-date" },
+          OPTIONS,
+        ),
+      ).rejects.toThrow(RangeError);
+      // fail-fast — 필터 단계에서 throw 되어 평가로 진행하지 않는다.
+      expect(mocks.evaluation.evaluateActivities).not.toHaveBeenCalled();
     });
   });
 
