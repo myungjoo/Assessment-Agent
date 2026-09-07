@@ -2,7 +2,7 @@
 id: T-1961
 title: Add PATCH /api/llm/difficulty-mappings/:difficulty e2e contract spec
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-050, REQ-049]
 estimatedDiff: 195
