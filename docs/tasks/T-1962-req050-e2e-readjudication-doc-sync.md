@@ -2,7 +2,7 @@
 id: T-1962
 title: REQ-050 "test/e2e 참조 0" 자인 정정 — difficulty-mappings e2e 좌표 doc-sync (once-rule 1 회)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-050]
 estimatedDiff: 16
