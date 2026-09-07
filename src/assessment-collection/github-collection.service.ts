@@ -16,6 +16,9 @@
 //       earliest-wins, ADR-0063 Decision §5). SHA 중복이 먼저 접힌 뒤 pass 2 가
 //       "SHA 는 다른데 내용이 같은" rebase/meld 축만 다루므로 두 pass 의 책임이
 //       겹치지 않는다. 반환 타입·순서 결정성은 무변경.
+//   (5) pass 2 가 제거한 건수가 1 건 이상이면 건수만 담은 로그 1 줄을 남긴다
+//       (ADR-0063 Decision §7 관측). 0 건이면 억제하고, 식별자·메시지·지문은
+//       기록하지 않는다(raw 유출 0). 반환값 계약에는 영향이 없다.
 //
 // per-source skip-and-continue(ADR-0029 Decision §3): 각 instance/org/repo/endpoint
 // 호출을 **독립 try/catch** 로 감싼다. 한 source 의 throw(권한 부족 4xx 등
@@ -29,7 +32,7 @@
 // 한다. Confluence 수집은 slice (iii), module 배선은 (iv), orchestrator entry + 영속화는
 // (v). live/credentialed 수집은 Q-0025 대로 deferred — 본 service 는 mock 주입
 // `GithubInstanceClient` 위에서만 unit-test 된다.
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 
 import { GithubInstanceClient } from "../github/github-instance-client.service";
 
@@ -76,6 +79,11 @@ export interface GithubCollectionSpec {
 
 @Injectable()
 export class GithubCollectionService {
+  // logger 는 pass 2(내용 지문 dedup)가 제거한 건수를 남기는 관측 전용 필드다
+  // (ADR-0063 Decision §7). DI 주입이 아니라 필드 선언 — constructor 시그니처는
+  // 무변경이다(persisting-permission-denied-emitter 선례와 동형).
+  private readonly logger = new Logger(GithubCollectionService.name);
+
   constructor(private readonly client: GithubInstanceClient) {}
 
   // collectGithubActivities — spec 의 각 source × endpoint 를 수집해 dedup 된
@@ -121,6 +129,19 @@ export class GithubCollectionService {
 
     // 전 source 누적 후 2-pass dedup 직렬 합성 — pass 1 식별자 earliest-wins
     // (ADR-0029 Decision §4) → pass 2 내용 지문 earliest-wins(ADR-0063 Decision §5).
-    return dedupGithubActivitiesByContent(dedupGithubActivities(collected));
+    const identifierDeduped = dedupGithubActivities(collected);
+    const contentDeduped = dedupGithubActivitiesByContent(identifierDeduped);
+
+    // 관측(ADR-0063 Decision §7) — pass 2 가 제거한 건수만 센다. pass 1 제거분은
+    // 세지 않는다(재검토 트리거 (a)의 비교 대상이 "지문 dedup 제거 건수"라서).
+    const contentRemoved = identifierDeduped.length - contentDeduped.length;
+    // 제거 0 건이면 로그를 억제한다 — 수집 호출마다 0 건 줄이 쌓이는 것을 막는다.
+    if (contentRemoved > 0) {
+      // 건수 + 고정 문구만 남긴다. 활동 식별자(SHA/번호)·author·commit message·
+      // 지문 digest 는 어느 것도 기록하지 않는다(raw 유출 0, ADR-0063 Decision §7).
+      this.logger.log(`content-fingerprint dedup: ${contentRemoved} 건 제거`);
+    }
+
+    return contentDeduped;
   }
 }

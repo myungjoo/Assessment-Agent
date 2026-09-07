@@ -4,6 +4,8 @@
 // dedup 직렬 합성 배선). live/credentialed 수집 0 — `GithubInstanceClient`
 // 는 jest mock 으로 주입(Q-0025 deferred 정합). 실 GitHub 호출 0 / 실 token 0.
 
+import { Logger } from "@nestjs/common";
+
 import { GithubInstanceClient } from "../github/github-instance-client.service";
 
 import {
@@ -80,6 +82,18 @@ function isPullsPath(path: string): boolean {
 }
 
 describe("GithubCollectionService", () => {
+  let logSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    // Logger 출력이 test log 를 오염시키지 않도록 침묵시키되 호출은 관측한다
+    // (run-status.service.spec `41 행` 의 Logger spy 선례와 동형).
+    logSpy = jest.spyOn(Logger.prototype, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   describe("happy path (R-112-1)", () => {
     it("단일 source 의 commits/pulls/issues 를 수집해 GithubActivity[]로 매핑한다", async () => {
       const { service, spy } = makeClientMock((_key, path) => {
@@ -297,6 +311,135 @@ describe("GithubCollectionService", () => {
         sources: [{ instanceKey: "sec", org: "o", repo: "r" }],
       });
       expect(result).toEqual([]);
+    });
+  });
+  // ADR-0063 Decision §7 관측 로그 — pass 2 가 제거한 건수만 1 줄로 남기고, 제거 0
+  // 이면 억제하며, 문자열에 식별자·author·지문 digest 를 싣지 않는다(raw 유출 0).
+  describe("제거 건수 관측 로그 (R-112-1/2/3/4)", () => {
+    const MESSAGE = "수집 파이프라인의 중복 제거 경로를 정리한다";
+
+    // makeRebaseCopies — repo 별로 SHA 만 다른 동일 메시지 commit 을 반환하는 mock.
+    // pass 1 은 SHA 가 달라 접지 못하고, pass 2 만 지문으로 접는다.
+    function makeRebaseCopies(): ReturnType<typeof makeClientMock> {
+      return makeClientMock((_key, path) => {
+        if (!isCommitsPath(path)) return [];
+        if (path.includes("repo-a"))
+          return [
+            rawCommitWithMessage("sha-원본", "2026-02-01T09:00:00Z", MESSAGE),
+          ];
+        if (path.includes("repo-b"))
+          return [
+            rawCommitWithMessage("sha-사본1", "2026-03-01T09:00:00Z", MESSAGE),
+          ];
+        return [
+          rawCommitWithMessage("sha-사본2", "2026-04-01T09:00:00Z", MESSAGE),
+        ];
+      });
+    }
+
+    const THREE_REPOS: GithubCollectionSpec = {
+      sources: [
+        { instanceKey: "sec", org: "octo-org", repo: "repo-a" },
+        { instanceKey: "sec", org: "octo-org", repo: "repo-b" },
+        { instanceKey: "sec", org: "octo-org", repo: "repo-c" },
+      ],
+    };
+
+    it("지문 중복이 제거되면 제거 건수를 담은 로그를 정확히 1 회 남긴다", async () => {
+      const { service } = makeRebaseCopies();
+
+      const result = await service.collectGithubActivities(THREE_REPOS);
+
+      // 3 사본 → 1 건만 남고 pass 2 가 2 건 제거.
+      expect(result).toHaveLength(1);
+      expect(logSpy).toHaveBeenCalledTimes(1);
+      const message = String(logSpy.mock.calls[0][0]);
+      expect(message).toContain("2");
+      expect(message).toMatch(/2 건 제거/);
+    });
+
+    it("지문 중복이 없으면(제거 0) 로그를 억제한다", async () => {
+      // 지문이 서로 다른 두 commit — pass 2 제거 0.
+      const { service } = makeClientMock((_key, path) =>
+        isCommitsPath(path)
+          ? [
+              rawCommitWithMessage("sha-a", "2026-06-01T09:00:00Z", MESSAGE),
+              rawCommitWithMessage(
+                "sha-b",
+                "2026-06-02T09:00:00Z",
+                "전혀 다른 내용의 커밋 메시지를 충분히 길게 적는다",
+              ),
+            ]
+          : [],
+      );
+
+      const result = await service.collectGithubActivities({
+        sources: [{ instanceKey: "sec", org: "octo-org", repo: "repo-a" }],
+      });
+
+      expect(result).toHaveLength(2);
+      expect(logSpy).not.toHaveBeenCalled();
+    });
+
+    it("pass 1 만 제거하고 pass 2 제거가 0 이면 로그를 남기지 않는다", async () => {
+      // 같은 SHA 가 두 source 에서 수집 → pass 1 이 1 건 제거. message 가 없어
+      // 지문 미산출이므로 pass 2 제거는 0 → pass 1 제거분을 세지 않음의 직접 검증.
+      const { service } = makeClientMock((_key, path) =>
+        isCommitsPath(path)
+          ? [rawCommit("dup-sha", "2026-06-01T09:00:00Z")]
+          : [],
+      );
+
+      const result = await service.collectGithubActivities({
+        sources: [
+          { instanceKey: "com", org: "o", repo: "r" },
+          { instanceKey: "sec", org: "o", repo: "r" },
+        ],
+      });
+
+      expect(result).toHaveLength(1);
+      expect(logSpy).not.toHaveBeenCalled();
+    });
+
+    it("모든 source 가 throw 해 수집 결과가 비면 로그 0 회 · throw 0", async () => {
+      const { service } = makeClientMock(() => {
+        throw new Error("all sources unavailable");
+      });
+
+      await expect(
+        service.collectGithubActivities({
+          sources: [{ instanceKey: "com", org: "o", repo: "r" }],
+        }),
+      ).resolves.toEqual([]);
+      expect(logSpy).not.toHaveBeenCalled();
+    });
+
+    it("빈 source 입력이면 로그를 남기지 않는다", async () => {
+      const { service } = makeClientMock(() => []);
+      await service.collectGithubActivities({ sources: [] });
+      expect(logSpy).not.toHaveBeenCalled();
+    });
+
+    it("로그 문자열에 식별자·author·지문 digest 를 싣지 않는다(raw 유출 0)", async () => {
+      const { service } = makeRebaseCopies();
+
+      const result = await service.collectGithubActivities(THREE_REPOS);
+      const message = String(logSpy.mock.calls[0][0]);
+      const fingerprint = String(result[0].metadata?.contentFingerprint ?? "");
+
+      // 지문이 실제로 산출된 입력이어야 본 negative 단언이 유효하다.
+      expect(fingerprint).not.toBe("");
+      expect(message).not.toContain(fingerprint);
+      for (const externalId of ["sha-원본", "sha-사본1", "sha-사본2"]) {
+        expect(message).not.toContain(externalId);
+      }
+      expect(message).not.toContain(result[0].author);
+      expect(message).not.toContain(MESSAGE);
+
+      // 로그 spy 를 걸어도 반환 계약은 기존 spec 의 기대와 동일(회귀 0).
+      expect(result).toHaveLength(1);
+      expect(result[0].externalId).toBe("sha-원본");
+      expect(result[0].timestamp).toBe("2026-02-01T09:00:00Z");
     });
   });
 });
