@@ -2,7 +2,7 @@
 id: T-1952
 title: 알고리즘·연구 소개 detection 신호를 signals container 7 번째 필드로 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-019]
 estimatedDiff: 210
