@@ -351,16 +351,51 @@ export class AssessmentEvaluationController {
   // 호출부(evaluate 경로 등)는 기본값으로 기존 KST 동작 100% 보존(backward-compat).
   // 무효 IANA 식별자는 helper 의 RangeError 가 전파된다(R-112 negative — silent 무효
   // 좌표 금지).
+  //
+  // T-1940: 본 메서드는 더 이상 자체 산술을 갖지 않는다 — 아래 normalizeKstPeriodRange
+  // 의 `.start` 만 꺼내는 얇은 wrapper 다(하한·상한이 같은 range 1 회 호출에서 도출돼
+  // 두 축이 어긋날 여지 0, §Decision5 drift 차단의 연장). signature / 반환 의미 /
+  // 호출부(Admin persistForAdmin · User ephemeralForUser)는 전부 불변이라 기존 경로의
+  // 동작 회귀는 0 이다.
   private normalizeKstPeriodStart(
     period: string,
     periodStart: string,
     timeZone: string = KST_TIMEZONE,
   ): Date {
+    return this.normalizeKstPeriodRange(period, periodStart, timeZone).start;
+  }
+
+  // normalizeKstPeriodRange — `dto.periodStart` 를 요청 `period` granularity 의 canonical
+  // 경계 **쌍** `{ start, end }` 으로 산출한다(T-1940). 본문은 single source
+  // `getKstPeriodRangeByPeriod(period, parseKstPeriodInput(periodStart, timeZone), timeZone)`
+  // **단 1 회 호출** 의 결과를 그대로 반환하는 것이 전부다 — 경계 산술 재구현 0 / 이중
+  // parse 0(ADR-0039 §Decision5 "입력 해석·boundary 계산은 helper 1 점 집중, controller 는
+  // 진입점 배선만").
+  //   (a) `.end` 는 **반열림 exclusive 상한** 이다 — 즉 `[start, end)` 이며 `end` instant
+  //       자체는 기간에 포함되지 않는다. 근거는 ADR-0050(KST period boundary 반열림 확정)
+  //       과 `src/assessment-evaluation/domain/period-evaluable.ts` `40~59 행`
+  //       `computePeriodEnd`(다음 일/주/월 시작 instant 를 종료 경계로 산출). 여기서
+  //       새 산술을 만들지 않고 그 확정 의미론을 그대로 읽어 흘린다.
+  //   (b) single source 재사용 — 하한만 필요한 호출부(normalizeKstPeriodStart)도 본
+  //       메서드를 경유하므로 controller 안에 granularity 매핑·경계 산술이 두 벌 생기지
+  //       않는다(§Decision5 drift 차단).
+  //   (c) 소비 경로 — `.end` 는 ephemeralForUser 가 `until` 로 흘려보내고,
+  //       `PeriodBridgeEphemeralService.generateEphemeral` 이 in-memory 창 필터
+  //       `filterActivitiesByPeriodWindow(activities, { since, until })` 의 **상한** 으로
+  //       사용한다(반열림 `[since, until)` — 창 밖 활동이 평가 입력에서 제외된다).
+  // 알 수 없는 `period` 는 helper 가 RangeError 로, 파싱 불가 `periodStart` / 무효 IANA
+  // timeZone 은 `parseKstPeriodInput` 의 error 로 reject 되며 본 메서드는 swallow 하지
+  // 않고 그대로 전파한다(R-112 negative — silent Invalid 좌표 금지).
+  private normalizeKstPeriodRange(
+    period: string,
+    periodStart: string,
+    timeZone: string = KST_TIMEZONE,
+  ): { start: Date; end: Date } {
     return getKstPeriodRangeByPeriod(
       period,
       parseKstPeriodInput(periodStart, timeZone),
       timeZone,
-    ).start;
+    );
   }
 
   // POST /api/assessment-evaluation/period — period bridge HTTP 진입점.
@@ -513,24 +548,28 @@ export class AssessmentEvaluationController {
     // 기존 차단 우선순위 불변(회귀 0). row 부재 시 findById 가 NotFoundException 전파.
     const timeZone = await this.resolveRequestTimeZone(principalUserId);
 
-    // periodStart 를 요청 period granularity 의 canonical boundary 로 snap 한 뒤
-    // since(ISO string)로 흘려보낸다(ADR-0039 §Decision3 — raw `dto.periodStart` 직접
-    // 전달 금지). offset 미명시 입력은 요청 User timezone(기본 KST)으로 해석된다.
-    // snap 은 self-only/재평가 fail-closed 검사 **이후**에만 도달하므로 기존 차단
-    // 우선순위는 불변(회귀 0). 알 수 없는 period / Invalid Date / 무효 tz 는 helper 가
-    // reject(전파).
-    const sinceBoundary = this.normalizeKstPeriodStart(
-      dto.period,
-      dto.periodStart,
-      timeZone,
-    );
+    // periodStart 를 요청 period granularity 의 canonical 경계 **쌍** 으로 snap 한다
+    // (T-1940 — 기존 `.start` 단독 산출을 `{ start, end }` 로 넓힘). ADR-0039 §Decision3
+    // 대로 raw `dto.periodStart` 직접 전달은 금지고, offset 미명시 입력은 요청 User
+    // timezone(기본 KST)으로 해석된다. snap 은 self-only/재평가 fail-closed 검사
+    // **이후**에만 도달하므로 기존 차단 우선순위는 불변(회귀 0). 알 수 없는 period /
+    // Invalid Date / 무효 tz 는 helper 가 reject(전파).
+    const { start: sinceBoundary, end: untilBoundary } =
+      this.normalizeKstPeriodRange(dto.period, dto.periodStart, timeZone);
 
     // resolved person 의 serviceIdentities 만 조립해 ephemeral bridge 에 위임.
-    // since 는 KST boundary 로 snap 된 좌표(도출은 controller orchestration). modelId 는
+    // 기간은 **반열림 창 `[since, until)` 의 두 bound 를 함께** 전달한다(T-1940 —
+    // 종전 since 단독 전달에서 확장). until 은 exclusive 상한이라 그 instant 자체는
+    // 제외되며, bridge 의 in-memory 창 필터 filterActivitiesByPeriodWindow 가 이 값으로
+    // 상한을 실효 강제한다(README `9 행` "사용자가 지정한 기간" 계약의 마지막 한 칸).
+    // 두 bound 는 같은 range 1 회 산출에서 나온 짝이라 어긋나지 않는다. modelId 는
     // 본 slice 미지정.
     return this.ephemeralBridge.generateEphemeral(
       { serviceIdentities: person.serviceIdentities },
-      { since: sinceBoundary.toISOString() },
+      {
+        since: sinceBoundary.toISOString(),
+        until: untilBoundary.toISOString(),
+      },
       { modelId: undefined as unknown as string },
     );
   }

@@ -26,7 +26,11 @@ import type { JwtPayload } from "../auth/auth.service";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { ROLES_METADATA_KEY } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
-import { formatKstIso } from "../common/period-boundary";
+import {
+  formatKstIso,
+  getKstPeriodRangeByPeriod,
+  parseKstPeriodInput,
+} from "../common/period-boundary";
 import type { LlmProviderConfigResolver } from "../llm/llm-provider-config-resolver.service";
 import type { RunStatusService } from "../run-status/run-status.service";
 import type { PersonWithIdentities } from "../user/person.repository";
@@ -1267,13 +1271,18 @@ describe("AssessmentEvaluationController.period (unit — self-only ephemeral de
     // person 변환은 dto.personId 로 1 회.
     expect(findPersonSpy).toHaveBeenCalledTimes(1);
     expect(findPersonSpy).toHaveBeenCalledWith("person-1");
-    // generateEphemeral 위임 — resolved serviceIdentities + since(periodStart 를 KST
-    // week boundary 로 snap: KST 2026-06-01(월) 00:00 = 2026-05-31T15:00:00.000Z) +
+    // generateEphemeral 위임 — resolved serviceIdentities + 반열림 창 두 bound
+    // (periodStart 를 KST week boundary 로 snap: KST 2026-06-01(월) 00:00 =
+    // 2026-05-31T15:00:00.000Z, exclusive 상한은 +7 일 = 2026-06-07T15:00:00.000Z) +
     // modelId 미지정(undefined). raw "2026-06-01T00:00:00.000Z" 직접 전달 아님(T-0358).
+    // until 은 T-1940 배선분 — 종전 since 단독 전달에서 확장됐다.
     expect(generateSpy).toHaveBeenCalledTimes(1);
     expect(generateSpy).toHaveBeenCalledWith(
       { serviceIdentities: [{ service: "github", externalId: "octocat" }] },
-      { since: "2026-05-31T15:00:00.000Z" },
+      {
+        since: "2026-05-31T15:00:00.000Z",
+        until: "2026-06-07T15:00:00.000Z",
+      },
       { modelId: undefined },
     );
     // User 분기는 Admin full-persist 위임을 호출하지 않는다(role dispatch 분리).
@@ -1391,10 +1400,201 @@ describe("AssessmentEvaluationController.period (unit — self-only ephemeral de
 
     expect(generateSpy).toHaveBeenCalledWith(
       { serviceIdentities: [] },
-      { since: "2026-05-31T15:00:00.000Z" },
+      {
+        since: "2026-05-31T15:00:00.000Z",
+        until: "2026-06-07T15:00:00.000Z",
+      },
       { modelId: undefined },
     );
     expect(result).toBe(expected);
+  });
+});
+
+// =======================================================================
+// POST /api/assessment-evaluation/period — User ephemeral 반열림 창 **상한**
+// (`until`) 배선 (T-1940, ADR-0039 §Decision5 single source + ADR-0050 반열림
+// 경계). T-1939 가 신설한 in-memory 창 필터의 상한이 production 경로에서 실제로
+// 흐르는지 controller 위임 인자 수준에서 박제한다. R-112 4 종(happy /
+// granularity 분기 / 비-KST zone 분기 / error path) + negative 5 종(차단 우선순위
+// 4 + Admin 회귀 0).
+// =======================================================================
+describe("AssessmentEvaluationController.period (unit — 반열림 창 상한 until 배선, T-1940)", () => {
+  // 기본 fixture(period "week" / periodStart "2026-06-01T00:00:00.000Z" / KST)의
+  // 기대 경계 쌍 — KST 2026-06-01(월) 00:00 = 2026-05-31T15:00:00.000Z 부터 +7 일.
+  const WEEK_SINCE = "2026-05-31T15:00:00.000Z";
+  const WEEK_UNTIL = "2026-06-07T15:00:00.000Z";
+
+  // periodArg — generateEphemeral 2번째 인자(기간 창 객체)를 꺼내는 helper.
+  function periodArg(spy: jest.Mock): { since?: string; until?: string } {
+    return spy.mock.calls[0][1] as { since?: string; until?: string };
+  }
+
+  // happy: until 이 controller 자체 산술이 아니라 single source helper 의 `.end`
+  // (반열림 exclusive 상한)와 **정확히 같은 instant** 임을 helper 재계산으로 대조한다
+  // (ADR-0039 §Decision5 — 경계 산술 재구현 0). since < until 반열림 정합도 함께.
+  it("until 이 getKstPeriodRangeByPeriod(...).end 의 ISO 와 정확히 일치하고 since < until 이다 (happy — 상한 single source)", async () => {
+    const { controller, generateSpy } = makePeriodController({});
+
+    const dto = makePeriodDto();
+    await controller.period(dto, userActor("person-1"));
+
+    const expectedEnd = getKstPeriodRangeByPeriod(
+      dto.period,
+      parseKstPeriodInput(dto.periodStart, "Asia/Seoul"),
+      "Asia/Seoul",
+    ).end;
+
+    const window = periodArg(generateSpy);
+    expect(window.until).toBe(expectedEnd.toISOString());
+    expect(window.since).toBe(WEEK_SINCE);
+    expect(window.until).toBe(WEEK_UNTIL);
+    // 반열림 `[since, until)` — 하한이 상한보다 반드시 앞선다(빈 창 0).
+    expect(new Date(window.since as string).getTime()).toBeLessThan(
+      new Date(window.until as string).getTime(),
+    );
+  });
+
+  // 분기: day / week / month 각 granularity 의 상한이 "다음 일/주/월 시작 instant"
+  // 로 산출된다(period-evaluable.ts `40~59 행` computePeriodEnd 와 같은 의미론).
+  // 입력은 동일한 "2026-06-01T00:00:00.000Z"(= KST 6/1 09:00)이며 셋 다 하한은 KST
+  // 6/1 자정으로 수렴하고 상한만 granularity 로 갈린다.
+  it.each([
+    ["day", WEEK_SINCE, "2026-06-01T15:00:00.000Z"],
+    ["week", WEEK_SINCE, WEEK_UNTIL],
+    ["month", WEEK_SINCE, "2026-06-30T15:00:00.000Z"],
+  ])(
+    "period '%s' 의 until 이 해당 granularity 의 반열림 상한으로 산출된다 (branch — granularity 별 상한)",
+    async (period, expectedSince, expectedUntil) => {
+      const { controller, generateSpy } = makePeriodController({});
+
+      await controller.period(makePeriodDto({ period }), userActor("person-1"));
+
+      const window = periodArg(generateSpy);
+      expect(window.since).toBe(expectedSince);
+      expect(window.until).toBe(expectedUntil);
+    },
+  );
+
+  // 분기: 비-KST timezone User(T-0802 경로) — since 뿐 아니라 until 도 그 zone 기준
+  // 경계로 산출된다. New_York day 창은 2026-06-10 00:00 EDT(04:00Z) ~ 2026-06-11
+  // 00:00 EDT(04:00Z). KST 해석 결과와 명백히 다른 instant 임을 함께 박제한다.
+  it("비-KST timezone User 는 since 와 until 둘 다 그 zone 기준 경계로 산출된다 (branch — 비-KST 상한)", async () => {
+    const { controller, generateSpy } = makePeriodController({
+      findUserImpl: async () => ({ timezone: "America/New_York" }),
+    });
+
+    await controller.period(
+      makePeriodDto({ periodStart: "2026-06-10T15:00", period: "day" }),
+      userActor("person-1"),
+    );
+
+    const window = periodArg(generateSpy);
+    expect(window.since).toBe("2026-06-10T04:00:00.000Z");
+    expect(window.until).toBe("2026-06-11T04:00:00.000Z");
+    // KST 해석이었다면 상한은 2026-06-10T15:00:00.000Z 였을 것 — zone 배선 실효 확인.
+    expect(window.until).not.toBe("2026-06-10T15:00:00.000Z");
+  });
+
+  // error path: 알 수 없는 period 는 상한 산출 helper 가 RangeError 로 거부하고
+  // 위임에 도달하지 않는다(silent Invalid 상한 금지).
+  it("알 수 없는 period('year') 는 RangeError 로 reject + generateEphemeral 미호출 (error path — 미지원 granularity)", async () => {
+    const { controller, generateSpy } = makePeriodController({});
+
+    await expect(
+      controller.period(
+        makePeriodDto({ period: "year" }),
+        userActor("person-1"),
+      ),
+    ).rejects.toThrow(RangeError);
+    expect(generateSpy).not.toHaveBeenCalled();
+  });
+
+  // error path: 파싱 불가 periodStart 도 helper error 가 swallow 없이 전파된다
+  // (상한 축 추가가 error 전파 계약을 바꾸지 않음 — 회귀 0).
+  it("파싱 불가 periodStart('not-a-real-date') 의 helper error 가 swallow 없이 전파된다 (error path — 형식 위반)", async () => {
+    const { controller, generateSpy } = makePeriodController({});
+
+    await expect(
+      controller.period(
+        makePeriodDto({ periodStart: "not-a-real-date" }),
+        userActor("person-1"),
+      ),
+    ).rejects.toThrow(RangeError);
+    expect(generateSpy).not.toHaveBeenCalled();
+  });
+
+  // negative (i): reevaluate === true 403 은 경계 산출보다 **선행** 한다. 미지원
+  // period 를 함께 주어도 RangeError 가 아니라 ForbiddenException 이 나오는 것이
+  // "경계 산출 미도달" 의 증거다(차단 우선순위 불변).
+  it("reevaluate === true 는 상한 산출 이전에 403 으로 차단된다 (negative — 재평가 fail-closed 선행)", async () => {
+    const { controller, generateSpy } = makePeriodController({});
+
+    await expect(
+      controller.period(
+        makePeriodDto({ reevaluate: true, period: "year" }),
+        userActor("person-1"),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(generateSpy).not.toHaveBeenCalled();
+  });
+
+  // negative (ii): self != personId 403 도 경계 산출보다 선행(같은 증거 방식).
+  it("self != personId 는 상한 산출 이전에 403 으로 차단된다 (negative — self-only 선행)", async () => {
+    const { controller, generateSpy } = makePeriodController({});
+
+    await expect(
+      controller.period(
+        makePeriodDto({ personId: "person-1", period: "year" }),
+        userActor("attacker"),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(generateSpy).not.toHaveBeenCalled();
+  });
+
+  // negative (iii): principal sub 부재(undefined)도 경계 산출 이전 403.
+  it("principal sub 부재(undefined)는 상한 산출 이전에 403 으로 차단된다 (negative — sub 부재 선행)", async () => {
+    const { controller, generateSpy } = makePeriodController({});
+
+    await expect(
+      controller.period(
+        makePeriodDto({ period: "year" }),
+        userActor(undefined),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(generateSpy).not.toHaveBeenCalled();
+  });
+
+  // negative (iv): person 미존재 404 전파 시 위임 미호출(상한 축 추가와 무관하게
+  // resolve 실패가 그대로 전파된다).
+  it("person 미존재 404 전파 시 generateEphemeral 미호출 (negative — person resolve 실패)", async () => {
+    const { controller, generateSpy } = makePeriodController({
+      findPersonImpl: async () => {
+        throw new NotFoundException("person-1 가 존재하지 않습니다.");
+      },
+    });
+
+    await expect(
+      controller.period(makePeriodDto(), userActor("person-1")),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(generateSpy).not.toHaveBeenCalled();
+  });
+
+  // negative (v): Admin full-persist 분기 회귀 0 — generateAndPersist 의 기간 인자는
+  // 종전 그대로 `{ since }` 단독이며 until 이 추가되지 않는다(본 slice 는 User
+  // ephemeral 경로만 닫는다 — Admin 동형 배선은 별도 slice).
+  it("Admin 분기 위임 인자에는 until 이 추가되지 않는다 (negative — Admin 회귀 0)", async () => {
+    const { controller, adminSpy, generateSpy } = makePeriodController({});
+
+    await controller.period(
+      makePeriodDto({ personId: "target-person" }),
+      adminActor,
+    );
+
+    expect(adminSpy).toHaveBeenCalledTimes(1);
+    // toEqual 은 정확 일치라 until 키가 붙는 순간 실패한다(회귀 감지).
+    expect(adminSpy.mock.calls[0][1]).toEqual({ since: WEEK_SINCE });
+    expect(Object.keys(adminSpy.mock.calls[0][1] as object)).toEqual(["since"]);
+    expect(generateSpy).not.toHaveBeenCalled();
   });
 });
 
