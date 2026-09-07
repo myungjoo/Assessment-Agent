@@ -2,7 +2,7 @@
 id: T-1956
 title: 알고리즘·연구 축 상향 건수 관측 로그 배선 (step (9))
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-019]
 estimatedDiff: 150
