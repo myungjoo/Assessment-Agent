@@ -29,21 +29,21 @@ function makeInput(overrides: Partial<EvaluationInput> = {}): EvaluationInput {
 }
 
 // hits 를 담은 document 단위 1 건 / author 별 entry 조회.
-function docUnit(a: string, unitId: string, hits: ActivityMetadataValue) {
+function docUnit(author: string, unitId: string, hits: ActivityMetadataValue) {
   return makeInput({
     unitId,
-    author: a,
+    author,
     metadata: { algorithmResearchHits: hits },
   });
 }
 
 function entryOf(
-  r: AlgorithmResearchSignal,
-  a: string,
+  result: AlgorithmResearchSignal,
+  author: string,
 ): AlgorithmResearchEntry {
-  const found = r.byAuthor.find((entry) => entry.author === a);
+  const found = result.byAuthor.find((entry) => entry.author === author);
   if (found === undefined) {
-    throw new Error(`entry 없음: ${a}`);
+    throw new Error(`entry 없음: ${author}`);
   }
   return found;
 }
