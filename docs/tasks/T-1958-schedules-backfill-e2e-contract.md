@@ -2,7 +2,7 @@
 id: T-1958
 title: POST /api/schedules/backfill/:personId e2e 계약 spec 신설
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-027]
 estimatedDiff: 285
