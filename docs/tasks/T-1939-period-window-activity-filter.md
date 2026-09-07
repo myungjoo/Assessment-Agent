@@ -2,7 +2,7 @@
 id: T-1939
 title: 기간 창 [since, until) Activity 필터 도메인 helper 신설 + period bridge ephemeral 소비처 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-004]
 estimatedDiff: 265
