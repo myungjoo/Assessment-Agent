@@ -2,7 +2,7 @@
 id: T-1950
 title: Wire algorithmResearchHits derived signal into github-activity mapper buildMetadata
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-019, REQ-032]
 independentStream: adr-0064-algorithm-research-uplift
