@@ -1,4 +1,4 @@
-// computeEvaluationAdjustmentSignals — P5 평가 detection 6-신호 단일 진입 결정적
+// computeEvaluationAdjustmentSignals — P5 평가 detection 7-신호 단일 진입 결정적
 // 순수 domain composer(T-0608). 본 helper 는 `EvaluationOrchestratorService`
 // (evaluateActivities)가 inline 으로 묶고 있던 5-detection chain(L177~205 — abuse →
 // update-count → quality → underperformer → notable)을 orchestrator 와
@@ -12,20 +12,20 @@
 // 산출한 container 를 post-scoring 단일 composer 가 변환 0 으로 그대로 소비한다 —
 // orchestrator 의 `evaluateActivities` 본문이 두 composer thread 로 압축되는 대칭쌍.
 //
-// 결정성·무공유: 본 composer 는 6 위임 helper 가 모두 결정적 순수(LLM 무관, 입력
+// 결정성·무공유: 본 composer 는 7 위임 helper 가 모두 결정적 순수(LLM 무관, 입력
 // 비변형, throw 0 흡수)이므로 그 합성도 결정적 순수다. 동일 입력 2 회 호출 →
 // deep-equal(byte-identical) 산출, 입력 `deduped` mutate 0.
 //
 // 책임 경계(본 task = composer 신설만, Out of Scope):
-//   - 본 composer 는 6 detection helper(`computeAbuseSignal` /
+//   - 본 composer 는 7 detection helper(`computeAbuseSignal` /
 //     `computeUpdateCountNeutralization` / `computeContributionQualitySignal` /
 //     `computeUnderPerformerSignal` / `computeNotableContributionSignal` /
-//     `computeDocumentContributionSignal`)를 v1 고정 순서로 호출한 뒤 그 6 산출을
-//     `EvaluationAdjustmentSignals` container 6 필드에 동명 매핑만 한다. 신호 산출
-//     로직 재구현 0 — 위임만.
+//     `computeDocumentContributionSignal` / `computeAlgorithmResearchSignal`)를 v1
+//     고정 순서로 호출한 뒤 그 7 산출을 `EvaluationAdjustmentSignals` container 7
+//     필드에 동명 매핑만 한다. 신호 산출 로직 재구현 0 — 위임만.
 //   - orchestrator 가 본 composer 를 호출하도록 배선하는 일은 별도 follow-up(파일
 //     disjoint · 동시성 보존). 본 task 는 composer + colocated spec 신설.
-//   - 6 detection helper(`evaluation-*-signal.ts` /
+//   - 7 detection helper(`evaluation-*-signal.ts` /
 //     `evaluation-update-count-neutral.ts`) 변경 0 — 본 composer 는 호출만 한다.
 //   - dedup 자체 수행 0 — 본 composer 는 dedup 후 `EvaluationInput[]` 을 입력으로
 //     받기만 한다(dedup 은 호출 전 단계의 책임, orchestrator 의 §4 layer). T-0606
@@ -44,13 +44,19 @@
 //   6. document — `computeDocumentContributionSignal(deduped)` — notable 의 문서 축
 //      대응(document 단위 수를 동료 평균 × 1.5 초과로 상대 비교), 문서 축 조직 기여
 //      식별 신호(R-39 / REQ-020).
-//   6 detection 은 입력만 공유하고 산출 필드명이 직교(abuse / updateCount / quality /
-//   underPerformer / notableContribution / documentContribution — disjoint)라 순서
-//   무관하지만 v1 순서를 박제해 호출부 가독성·미래 분기 분석을 단순화한다. 6 번째는
-//   기존 5 호출의 순서·인자를 바꾸지 않고 뒤에 덧붙인다(append-only).
+//   7. algorithm-research — `computeAlgorithmResearchSignal(deduped)` — document 단위
+//      의 파생 scalar `metadata.algorithmResearchHits` 가 임계 이상인 상향 후보를
+//      식별하는 알고리즘·연구 소개 신호(R-38 / REQ-019, ADR-0064 `§ Decision 2`).
+//   7 detection 은 입력만 공유하고 산출 필드명이 직교(abuse / updateCount / quality /
+//   underPerformer / notableContribution / documentContribution / algorithmResearch —
+//   disjoint)라 순서 무관하지만 v1 순서를 박제해 호출부 가독성·미래 분기 분석을
+//   단순화한다. 7 번째는 기존 6 호출의 순서·인자를 바꾸지 않고 뒤에 덧붙인다
+//   (append-only). 7 번째 신호의 소비자(등급 상향 adjuster)는 ADR-0064
+//   `§ Follow-ups (c)` 의 책임이라 본 배선은 신호를 흘려보내기만 한다.
 
 import { computeAbuseSignal } from "./evaluation-abuse-signal";
 import type { EvaluationAdjustmentSignals } from "./evaluation-adjustments-pipeline";
+import { computeAlgorithmResearchSignal } from "./evaluation-algorithm-research-signal";
 import { computeDocumentContributionSignal } from "./evaluation-document-contribution-signal";
 import type { EvaluationInput } from "./evaluation-input";
 import { computeNotableContributionSignal } from "./evaluation-notable-contribution-signal";
@@ -59,11 +65,11 @@ import { computeUnderPerformerSignal } from "./evaluation-underperformer-signal"
 import { computeUpdateCountNeutralization } from "./evaluation-update-count-neutral";
 
 /**
- * dedup 후 평가 입력 `deduped: EvaluationInput[]` 하나만 받아 6 detection 신호를 v1
+ * dedup 후 평가 입력 `deduped: EvaluationInput[]` 하나만 받아 7 detection 신호를 v1
  * 고정 순서로 산출한 뒤 post-scoring `applyEvaluationAdjustments` 의 입력 signals
  * container(`EvaluationAdjustmentSignals`)를 반환하는 결정적 순수 composer.
  *
- * 6 detection 의 책임·각 신호의 의미:
+ * 7 detection 의 책임·각 신호의 의미:
  *   - `abuse`(R-26/R-40) : 반복 기반 부풀리기 감점 — suspected author 단위의 volume
  *     을 후속 단계가 감점하도록 하는 신호.
  *   - `updateCount`(R-41) : document update 횟수 중립화 — 같은 문서 반복 update 의
@@ -78,11 +84,14 @@ import { computeUpdateCountNeutralization } from "./evaluation-update-count-neut
  *   - `documentContribution`(R-39 / REQ-020) : 문서 축 조직 기여 식별 — notable 의
  *     문서 축 대응으로, document 단위 수가 동료 평균 대비 현격히 높은 author 를
  *     후속 단계가 식별할 수 있게 하는 신호.
+ *   - `algorithmResearch`(R-38 / REQ-019) : 알고리즘·연구 소개 상향 식별 — 파생
+ *     scalar `metadata.algorithmResearchHits` 가 임계 이상인 document 단위를 상향
+ *     후보로 식별하는 신호. 소비 step 은 아직 없다(ADR-0064 `§ Follow-ups (c)`).
  *
  * 결정성·무공유·입력 비변형:
- *   - 6 위임 helper 모두 결정적 순수(LLM 무관)이므로 본 composer 도 동일 입력 2 회
+ *   - 7 위임 helper 모두 결정적 순수(LLM 무관)이므로 본 composer 도 동일 입력 2 회
  *     호출 시 deep-equal(byte-identical) 산출.
- *   - 입력 `deduped` 와 그 원소를 mutate 하지 않는다(6 helper 모두 입력 비변형).
+ *   - 입력 `deduped` 와 그 원소를 mutate 하지 않는다(7 helper 모두 입력 비변형).
  *   - 산출 container 는 매 호출 새 객체 리터럴이라 입력과 not-same-ref.
  *   - 본 composer 는 dedup 을 수행하지 않는다 — dedup 은 호출 전 단계의 책임
  *     (orchestrator 의 §4 layer). 본 함수는 이미 dedup 된 입력 위에서 detection 만
@@ -91,14 +100,14 @@ import { computeUpdateCountNeutralization } from "./evaluation-update-count-neut
  * throw(명시적 계약 위반만):
  *   - `deduped` 가 null/undefined → 한국어 `TypeError`(메시지에 "deduped" 토큰 포함).
  *   - 위 guard 통과 후 위임 detection helper 가 throw 하면 본 composer 는 자체
- *     try/catch 없이 그대로 **전파**한다(흡수 0). caller 가 6 detection 중 어느
+ *     try/catch 없이 그대로 **전파**한다(흡수 0). caller 가 7 detection 중 어느
  *     helper 가 던졌는지를 그대로 볼 수 있어야 한다(투명성). 본 composer 는 별도
  *     배열 type check 를 두지 않는다 — 배열 아닌 입력은 위임 helper 의 guard 가
  *     검출해 throw 하며 그 error 가 그대로 전파된다(위임 transparent).
  *
- * @param deduped dedup 후 평가 입력 목록(`EvaluationInput[]`). 변형 0. 6 detection
+ * @param deduped dedup 후 평가 입력 목록(`EvaluationInput[]`). 변형 0. 7 detection
  *                이 공유하는 단일 입력.
- * @returns 6 detection 산출을 동명 매핑한 `EvaluationAdjustmentSignals` container —
+ * @returns 7 detection 산출을 동명 매핑한 `EvaluationAdjustmentSignals` container —
  *          post-scoring `applyEvaluationAdjustments` 의 signals 인자 source.
  */
 export function computeEvaluationAdjustmentSignals(
@@ -109,9 +118,9 @@ export function computeEvaluationAdjustmentSignals(
   }
 
   // 앞 5 detection 은 orchestrator L177~205 와 동일 순서로 호출하고, 6 번째 문서 축
-  // 신호를 그 뒤에 덧붙인다. 각 helper 는 결정적 순수(LLM 무관, 입력 비변형, 빈 입력
-  // → 빈 신호)이며, 본 composer 는 산출을 container 6 필드에 동명 매핑할 뿐 어떤
-  // 변환도 하지 않는다(투명한 위임).
+  // 신호와 7 번째 알고리즘·연구 축 신호를 그 뒤에 덧붙인다(append-only). 각 helper 는
+  // 결정적 순수(LLM 무관, 입력 비변형, 빈 입력 → 빈 신호)이며, 본 composer 는 산출을
+  // container 7 필드에 동명 매핑할 뿐 어떤 변환도 하지 않는다(투명한 위임).
   return {
     abuse: computeAbuseSignal(deduped),
     updateCount: computeUpdateCountNeutralization(deduped),
@@ -119,5 +128,6 @@ export function computeEvaluationAdjustmentSignals(
     underPerformer: computeUnderPerformerSignal(deduped),
     notableContribution: computeNotableContributionSignal(deduped),
     documentContribution: computeDocumentContributionSignal(deduped),
+    algorithmResearch: computeAlgorithmResearchSignal(deduped),
   };
 }

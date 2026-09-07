@@ -91,6 +91,7 @@ import {
   type AbuseAdjustEntry,
 } from "./evaluation-abuse-adjust";
 import type { AbuseSignal } from "./evaluation-abuse-signal";
+import type { AlgorithmResearchSignal } from "./evaluation-algorithm-research-signal";
 import {
   applyDocumentContributionAnnotation,
   applyDocumentContributionUplift,
@@ -119,14 +120,17 @@ import type { UpdateCountNeutralization } from "./evaluation-update-count-neutra
 // 입력을 그대로 구성할 수 있다.
 export type EvaluationAdjustEntry = AbuseAdjustEntry;
 
-// EvaluationAdjustmentSignals — detection 6 신호 입력 container. 각 필드는 해당
+// EvaluationAdjustmentSignals — detection 7 신호 입력 container. 각 필드는 해당
 // detection helper 산출 타입을 그대로 재사용한다(재정의 0). 앞 5 필드명은
 // orchestrator 의 5-step 의도(abuse → updateCount → quality → underPerformer →
 // notableContribution)와 정합 — 호출부 가독성을 위해 camelCase 단일 형식.
 // 6 번째 `documentContribution`(T-1924 detection)은 step (7) document uplift 와
 // step (8) document annotation 이 함께 소비한다(T-1926 · T-1928 배선) — 문서 축
 // notable author 단위 `contribution` 상향 + `narrative` marker 접두의 공통 입력
-// 이다. container 를 단일 source 로 유지하기 위해 필수 필드로 둔다.
+// 이다. 7 번째 `algorithmResearch`(T-1951 detection)는 아직 소비 step 이 없고
+// (ADR-0064 `§ Follow-ups (c)` 의 uplift adjuster 가 소비 예정) 본 slice 는
+// 신호를 흘려보내기만 한다 — 따라서 평가 산출 값은 1 건도 바뀌지 않는다.
+// container 를 단일 source 로 유지하기 위해 7 필드 모두 필수 필드로 둔다.
 export interface EvaluationAdjustmentSignals {
   // R-26/R-40 abusing 감점 신호. `computeAbuseSignal` 산출.
   abuse: AbuseSignal;
@@ -142,6 +146,10 @@ export interface EvaluationAdjustmentSignals {
   // R-39 / REQ-020 문서 축 조직 기여 식별 신호.
   // `computeDocumentContributionSignal` 산출.
   documentContribution: DocumentContributionSignal;
+  // R-38 / REQ-019 알고리즘·연구 소개 상향 식별 신호.
+  // `computeAlgorithmResearchSignal` 산출 — 소비는 ADR-0064 `§ Follow-ups (c)`
+  // 의 uplift adjuster 책임이라 본 container 는 전달만 한다(소비 step 0).
+  algorithmResearch: AlgorithmResearchSignal;
 }
 
 /**
@@ -197,7 +205,9 @@ export interface EvaluationAdjustmentSignals {
  * @param entries 8-step thread 의 시작 entries(`{ author, result }[]`). 변형 0.
  *                각 원소는 scoring 후 entries 조립(`deduped[i].author` +
  *                `results[i]`) 결과여야 한다(orchestrator L258~261 동기).
- * @param signals 6 detection helper 산출 신호 container. 변형 0.
+ * @param signals 7 detection helper 산출 신호 container. 변형 0. 8 step 이 실제로
+ *                소비하는 필드는 앞 6 개이고 `algorithmResearch` 는 소비 step 이
+ *                아직 없어 전달만 된다(ADR-0064 `§ Follow-ups (c)`).
  * @returns 8-step thread + flatten 산출 `EvaluationResult[]` — 길이·순서는 입력
  *          entries 와 정합(같은 길이·같은 순서).
  */
