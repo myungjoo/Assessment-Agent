@@ -2,7 +2,7 @@
 id: T-1945
 title: 내용 지문 dedup pass 2 신설 + 수집 flow 직렬 합성 배선 (ADR-0063 Follow-up (b))
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-032]
 estimatedDiff: 195
