@@ -1,5 +1,6 @@
 // difficulty-mappings.e2e-spec.ts — GET /api/llm/difficulty-mappings 의 HTTP contract
-// + RBAC tier enforce + 빈 슬롯 / null FK 분기 e2e (T-1960, REQ-050/REQ-049).
+// + RBAC tier enforce + 빈 슬롯 / null FK 분기 e2e (T-1960, REQ-050/REQ-049) 와
+// PATCH /api/llm/difficulty-mappings/:difficulty 의 슬롯 재지정 계약 (T-1961).
 // schedules-backfill.e2e-spec.ts(T-1958) 패턴 1:1 mirror.
 //
 // 책임: DifficultyMappingController(@Get, Admin+ tier) → DifficultyMappingService
@@ -12,6 +13,13 @@
 //   - llmProviderConfigId 가 null 인 미설정 슬롯도 응답에서 걸러지지 않는다.
 //   - User tier 는 403, SuperAdmin 은 RolesGuard escalation 으로 200(과차단 없음).
 //   - 401 / 403 body 에 슬롯 데이터가 새지 않는다.
+//
+// PATCH 축(T-1961)이 추가로 고정하는 계약:
+//   - 실 config 지정은 200 + 갱신 body + DB 반영이고, 이미 FK 가 있는 슬롯의 재지정도
+//     200 으로 덮어쓴다(409 아님).
+//   - ADR-0011 §3 fail-fast — 미지원 난이도 400 / config 부재 404 / 슬롯 row 부재는
+//     P2025 → 404 이며 upsert 로 새 슬롯을 만들지 않는다.
+//   - 401 / 403 / 400 / 404 어느 실패 경로도 슬롯 FK 를 바꾸지 않는다(write 누출 0).
 //
 // 실 DB 전략(ADR-0004): mock override 0. createAuthenticatedE2EApp 가 AppModule
 // 부트스트랩 + actor seed, PrismaService 가 실 connection. DifficultyMapping 과
@@ -206,5 +214,190 @@ describe("E2E: GET /api/llm/difficulty-mappings (T-1960, REQ-050)", () => {
     expect(Array.isArray(response.body)).toBe(false);
     expect(JSON.stringify(response.body)).not.toContain("difficulty");
     expect(await prisma.difficultyMapping.count()).toBe(3);
+  });
+
+  // ==========================================================================
+  // PATCH 축 (T-1961, REQ-050/REQ-049) — 같은 app 부트스트랩 / actor 쿠키 /
+  // afterEach 정리를 그대로 쓰기 위해 GET describe 안에 중첩한다. beforeAll ·
+  // afterEach · seedThreeSlots() 는 한 줄도 수정하지 않는 add-only 확장이다.
+  // ==========================================================================
+  describe("E2E: PATCH /api/llm/difficulty-mappings/:difficulty (T-1961, REQ-050/REQ-049)", () => {
+    // 실재하지 않는 cuid 형태 id — service 의 config 사전 존재 검증(null) → 404 유도용.
+    const MISSING_CONFIG_ID = "ckzzzzzzzzzzzzzzzzzzzzzzz";
+
+    const patchUrl = (difficulty: string): string =>
+      `${MAPPINGS_URL}/${difficulty}`;
+
+    // 슬롯 FK 를 DB 에서 직접 재조회 — 실패 응답이 write 로 새지 않았음을 확인한다.
+    // 슬롯 row 자체가 없으면 undefined(= FK null 상태와 구분) 를 돌려준다.
+    async function readSlotFk(
+      difficulty: string,
+    ): Promise<string | null | undefined> {
+      const row = await prisma.difficultyMapping.findFirst({
+        where: { difficulty },
+      });
+      return row === null ? undefined : row.llmProviderConfigId;
+    }
+
+    // -- happy 200 (Admin, FK null 인 hard 슬롯에 실 config 지정) --
+
+    it("Admin 쿠키로 FK null 인 hard 슬롯에 실 config id 지정 시 200 + 갱신 body + DB 반영 (authed happy)", async () => {
+      const { configId } = await seedThreeSlots();
+      expect(await readSlotFk("hard")).toBeNull();
+
+      const response = await request(app.getHttpServer())
+        .patch(patchUrl("hard"))
+        .set("Cookie", adminCookie)
+        .send({ llmProviderConfigId: configId });
+
+      expect(response.status).toBe(200);
+      expect(response.headers["content-type"]).toMatch(/application\/json/);
+      expect(response.body.difficulty).toBe("hard");
+      expect(response.body.llmProviderConfigId).toBe(configId);
+      MAPPING_FIELDS.forEach((f) => expect(response.body).toHaveProperty(f));
+      expect(await readSlotFk("hard")).toBe(configId);
+    });
+
+    // -- error path (i): 지정 config 부재 → 404 (ADR-0011 §3 fail-fast) --
+
+    it("존재하지 않는 llmProviderConfigId 지정 시 404 이고 hard 슬롯 FK 는 null 유지 (error — config 사전 존재 검증)", async () => {
+      await seedThreeSlots();
+
+      const response = await request(app.getHttpServer())
+        .patch(patchUrl("hard"))
+        .set("Cookie", adminCookie)
+        .send({ llmProviderConfigId: MISSING_CONFIG_ID });
+
+      expect(response.status).toBe(404);
+      expect(await readSlotFk("hard")).toBeNull();
+    });
+
+    // -- error path (ii): 슬롯 row 부재 → P2025 → 404 (upsert 아님) --
+
+    it("슬롯 row 가 없는 상태에서 실 config 지정 시 P2025 가 404 로 전파되고 슬롯이 새로 생기지 않음 (error — upsert 아님)", async () => {
+      const config = await prisma.llmProviderConfig.create({
+        data: SEED_LLM_CONFIG,
+      });
+      expect(await prisma.difficultyMapping.count()).toBe(0);
+
+      const response = await request(app.getHttpServer())
+        .patch(patchUrl("medium"))
+        .set("Cookie", adminCookie)
+        .send({ llmProviderConfigId: config.id });
+
+      expect(response.status).toBe(404);
+      expect(await prisma.difficultyMapping.count()).toBe(0);
+    });
+
+    // -- 분기 cover (i): 미지원 난이도 path param → 400 --
+
+    it("미지원 난이도 path param(대문자 Easy / trivial) 은 각각 400 이고 easy 슬롯 FK 불변 (branch — isDifficulty 400 변환)", async () => {
+      const { configId } = await seedThreeSlots();
+
+      for (const unsupported of ["Easy", "trivial"]) {
+        const response = await request(app.getHttpServer())
+          .patch(patchUrl(unsupported))
+          .set("Cookie", adminCookie)
+          .send({ llmProviderConfigId: configId });
+
+        expect(response.status).toBe(400);
+      }
+
+      expect(await readSlotFk("easy")).toBe(configId);
+    });
+
+    // -- 분기 cover (ii): DTO 위반 3 종 → 400 (ValidationPipe) --
+
+    it("DTO 위반 3 종(필드 누락 / 빈 문자열 / whitelist 밖 extra 키)은 모두 400 이고 hard 슬롯 FK 는 null 유지 (branch — ValidationPipe)", async () => {
+      const { configId } = await seedThreeSlots();
+
+      const invalidBodies: Record<string, unknown>[] = [
+        {},
+        { llmProviderConfigId: "" },
+        { llmProviderConfigId: configId, provider: "openai" },
+      ];
+
+      for (const body of invalidBodies) {
+        const response = await request(app.getHttpServer())
+          .patch(patchUrl("hard"))
+          .set("Cookie", adminCookie)
+          .send(body);
+
+        expect(response.status).toBe(400);
+      }
+
+      expect(await readSlotFk("hard")).toBeNull();
+    });
+
+    // -- 분기 cover (iii): 이미 FK 가 설정된 슬롯의 재지정도 200 (overwrite) --
+
+    it("이미 FK 가 설정된 easy 슬롯에 다른 config 를 재지정해도 200 이고 같은 값 재전송도 200 (branch — idempotent overwrite)", async () => {
+      const { configId } = await seedThreeSlots();
+      const other = await prisma.llmProviderConfig.create({
+        data: { ...SEED_LLM_CONFIG, modelId: "gpt-test-2" },
+      });
+      expect(await readSlotFk("easy")).toBe(configId);
+
+      const response = await request(app.getHttpServer())
+        .patch(patchUrl("easy"))
+        .set("Cookie", adminCookie)
+        .send({ llmProviderConfigId: other.id });
+
+      expect(response.status).toBe(200);
+      expect(response.body.llmProviderConfigId).toBe(other.id);
+      expect(await readSlotFk("easy")).toBe(other.id);
+
+      const again = await request(app.getHttpServer())
+        .patch(patchUrl("easy"))
+        .set("Cookie", adminCookie)
+        .send({ llmProviderConfigId: other.id });
+
+      expect(again.status).toBe(200);
+      expect(await readSlotFk("easy")).toBe(other.id);
+    });
+
+    // -- negative (i): 인증 부재 401 + write 누출 0 --
+
+    it("cookie 부재 시 401 이고 hard 슬롯 FK 가 null 그대로 (negative — JwtAuthGuard 가 write 앞에서 차단)", async () => {
+      const { configId } = await seedThreeSlots();
+
+      const response = await request(app.getHttpServer())
+        .patch(patchUrl("hard"))
+        .send({ llmProviderConfigId: configId });
+
+      expect(response.status).toBe(401);
+      expect(await readSlotFk("hard")).toBeNull();
+    });
+
+    // -- negative (ii): User tier 미달 403 + write 누출 0 --
+
+    it("User role 쿠키 시 403 이고 body 에 FK 미노출 + hard 슬롯 FK 가 null 그대로 (negative — Admin+ tier 미달)", async () => {
+      const { configId } = await seedThreeSlots();
+
+      const response = await request(app.getHttpServer())
+        .patch(patchUrl("hard"))
+        .set("Cookie", userCookie)
+        .send({ llmProviderConfigId: configId });
+
+      expect(response.status).toBe(403);
+      expect(JSON.stringify(response.body)).not.toContain(
+        "llmProviderConfigId",
+      );
+      expect(await readSlotFk("hard")).toBeNull();
+    });
+
+    // -- negative (iii): SuperAdmin escalation → 200 (과차단 없음) --
+
+    it("SuperAdmin 쿠키 시 200 + DB 반영 (negative — RolesGuard escalation 이 403 으로 과차단되지 않음)", async () => {
+      const { configId } = await seedThreeSlots();
+
+      const response = await request(app.getHttpServer())
+        .patch(patchUrl("hard"))
+        .set("Cookie", superAdminCookie)
+        .send({ llmProviderConfigId: configId });
+
+      expect(response.status).toBe(200);
+      expect(await readSlotFk("hard")).toBe(configId);
+    });
   });
 });
