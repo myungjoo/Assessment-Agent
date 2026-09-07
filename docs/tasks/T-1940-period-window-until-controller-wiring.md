@@ -2,7 +2,7 @@
 id: T-1940
 title: User ephemeral 경로에 기간 상한(until) 산출 배선 — controller 가 반열림 창 종료 경계를 bridge 에 전달
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-004]
 estimatedDiff: 265
