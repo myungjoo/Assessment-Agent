@@ -8,14 +8,23 @@
 // (PeriodBridgeEphemeralService, T-0316)의 **sibling** 이다 — ephemeral 의 구조적
 // write-0 보장을 훼손하지 않는다.
 //
-// 흐름(ADR-0037 §Decision1 Admin 5 단계 compose):
+// 흐름(ADR-0037 §Decision1 Admin compose — 창 필터 합성으로 6 단계):
 //   (1) buildCollectionSpec(person, since) → CollectionSpec(GitHub mode B+A + Confluence).
 //   (2) collectActivities(spec) → Activity[](in-memory, persist-free orchestrator —
 //       부분 가용성 자체 흡수, throw 0; §Decision2 collection-side persist 우회).
-//   (3) filterActivitiesByAuthor(activities, person.serviceIdentities) → Person 귀속만
-//       (순수 함수, ADR-0030 §2 author 귀속).
-//   (4) evaluateActivities(filtered, options) → EvaluationResult[](in-memory scoring).
-//   (5) 영속화 — `reevaluate` flag 분기(ADR-0038 §Decision3):
+//   (3) filterActivitiesByPeriodWindow(activities, { since, until }) → 지정 기간
+//       반열림 창 `[since, until)` 안의 활동만(순수 함수). 경계 의미론과 판정 규칙
+//       (a)~(e)는 ADR-0050(KST period 경계) 과 period-window-filter.ts 1~40 행 head
+//       주석이 이미 확정했고 본 service 는 재구현 0 으로 호출만 한다. 수집 layer 의
+//       `since` 는 GitHub issues/pulls 에서 updated-at 기준이고 Confluence 엔 since
+//       축 자체가 없어 실효 경계가 아니므로, 기간 계약(README 9 행 · 178 행)의 실질
+//       강제 지점은 이 in-memory 단계다. **ephemeral sibling 과의 차이**: Admin 경로는
+//       (6)에서 산출물이 영속화되므로 창 밖 활동 유입이 반환값 오염에 그치지 않고
+//       DB 오염으로 남는다 — 창 필터 부재의 비용이 ephemeral 보다 크다.
+//   (4) filterActivitiesByAuthor(windowed, person.serviceIdentities) → Person 귀속만
+//       (순수 함수, ADR-0030 §2 author 귀속). 입력은 (3)의 창 필터 산출물이다.
+//   (5) evaluateActivities(filtered, options) → EvaluationResult[](in-memory scoring).
+//   (6) 영속화 — `reevaluate` flag 분기(ADR-0038 §Decision3):
 //       - default(false/미지정): **first-write-wins read-through**(create-if-absent-
 //         else-read). persist(context, results, "fill") → 좌표 부재 시 create, 존재 시
 //         no-op. 반환 assessmentId 로 read-back. persist 가 P2002(`@@unique` race
@@ -49,6 +58,7 @@ import type { Assessment } from "@prisma/client";
 import { CollectionOrchestratorService } from "../assessment-collection/collection-orchestrator.service";
 import { CollectionSpecService } from "../assessment-collection/collection-spec.service";
 import { filterActivitiesByAuthor } from "../assessment-collection/domain/author-filter";
+import { filterActivitiesByPeriodWindow } from "../assessment-collection/domain/period-window-filter";
 import { AssessmentRepository } from "../user/assessment.repository";
 
 import type { EvaluationPersistContext } from "./domain/evaluation-result.persist.mapper";
@@ -72,10 +82,11 @@ export interface PeriodBridgeAdminPersistResult {
 
 @Injectable()
 export class PeriodBridgeAdminPersistService {
-  // 5 개 collaborator 주입 — (1~4)는 ephemeral sibling 과 동일한 persist-free compose
-  // 3 종(spec/orchestrator/evaluation), (5)는 Admin 한정 persist 도달 경로를 여는 2 종
+  // 5 개 collaborator 주입 — (1~5)는 ephemeral sibling 과 동일한 persist-free compose
+  // 3 종(spec/orchestrator/evaluation, 창 필터·author 필터는 순수 함수라 주입 0),
+  // (6)은 Admin 한정 persist 도달 경로를 여는 2 종
   // (persistService — 영속화 진입 / assessmentRepository — read-back). ephemeral service
-  // 는 (5)의 두 collaborator 를 주입조차 하지 않는다(구조적 write-0). test 는 이 5 자리에
+  // 는 (6)의 두 collaborator 를 주입조차 하지 않는다(구조적 write-0). test 는 이 5 자리에
   // mock 을 주입해 실 LLM / 실 DB / 실 네트워크 0 으로 compose + read-through 분기를 검증한다.
   constructor(
     private readonly specService: CollectionSpecService,
@@ -91,12 +102,15 @@ export class PeriodBridgeAdminPersistService {
    * (ADR-0037 §Decision1 Admin + amended §Decision3 create-if-absent-else-read +
    * §Decision4 fresh in-memory collect).
    *
-   * 흐름(persist-bearing 5 단계 compose):
+   * 흐름(persist-bearing 6 단계 compose):
    *   (1) buildCollectionSpec(person, period.since) → CollectionSpec.
    *   (2) collectActivities(spec) → Activity[](in-memory, persist-free, throw 0).
-   *   (3) filterActivitiesByAuthor(activities, person.serviceIdentities) → 귀속 활동만.
-   *   (4) evaluateActivities(filtered, options) → EvaluationResult[](in-memory).
-   *   (5) persistAndReadThrough(context, results) → 영속 Assessment(create or read-back).
+   *   (3) filterActivitiesByPeriodWindow(activities, { since, until }) → 반열림 창
+   *       `[since, until)` 안의 활동만(순수 함수, 기간 계약의 실질 강제 지점).
+   *       Admin 경로는 (6)에서 영속화되므로 창 밖 활동 유입은 곧 DB 오염이다.
+   *   (4) filterActivitiesByAuthor(windowed, person.serviceIdentities) → 귀속 활동만.
+   *   (5) evaluateActivities(filtered, options) → EvaluationResult[](in-memory).
+   *   (6) persistAndReadThrough(context, results) → 영속 Assessment(create or read-back).
    *
    * 정책(영속화 — `reevaluate` flag 분기, ADR-0038 §Decision3):
    *   - default(false/미지정) = first-write-wins read-through("fill"):
@@ -110,15 +124,25 @@ export class PeriodBridgeAdminPersistService {
    *     fall-back 미적용 — ConflictException 포함 모든 error 전파(silent 유실 방지,
    *     동시 reevaluate 수렴 실측은 slice 4 e2e). created 는 항상 true.
    *   - period.since 는 도출 없이 (1)로 pass-through(undefined 면 undefined 그대로).
-   *   - 빈 수집 흡수: (2) 빈 Activity[] 또는 (3) 귀속 0 건 → (4) 빈 EvaluationResult[] →
-   *     persist 가 빈 입력을 처리(throw 0) → read-back 으로 수렴.
+   *     `until` 은 수집 spec 으로 넘기지 않는다 — 상한은 (3) in-memory 창 필터에서만
+   *     적용된다(수집 query 축 추가는 별도 판단).
+   *   - 두 bound 모두 미지정이면 (3)은 항등 — 기존 Admin 호출 형태(`{ since }` 만 /
+   *     `{}`)의 동작이 그대로 보존된다(회귀 0).
+   *   - 빈 수집 흡수: (2) 빈 Activity[] 또는 (3) 창 안 0 건 / (4) 귀속 0 건 → (5) 빈
+   *     EvaluationResult[] → persist 가 빈 입력을 처리(throw 0) → read-back 으로 수렴.
    *   - 실패 전파(swallow 0): buildCollectionSpec / evaluateActivities reject 는 그대로
-   *     전파(fail-fast — persist 미도달). collectActivities 는 orchestrator 가 부분 가용성을
+   *     전파(fail-fast — persist 미도달). (3)이 파싱 불가 bound 로 던지는 `RangeError`
+   *     역시 창 필터 fail-fast 로 persist 미도달이다(부분 결과 영속화 0).
+   *     collectActivities 는 orchestrator 가 부분 가용성을
    *     자체 흡수하므로(throw 0) 별도 try 0. P2002 catch 는 fill 경로 한정 — 그 외
    *     persist error(및 reeval 경로의 모든 error)는 전파.
    *
    * @param person resolved Person 입력(serviceIdentities — service + externalId).
-   * @param period 평가 기간 — `since` 미지정 시 전체 기간(collection-side 해석).
+   * @param period 평가 기간 — `since`(inclusive 하한) / `until`(exclusive 상한).
+   *   `since` 미지정 시 하한 없음(collection-side 는 전체 기간으로 해석), `until`
+   *   미지정 시 상한 없음(open-ended). 둘 다 미지정이면 (3) 창 필터가 항등이라
+   *   기존 동작 회귀가 0 이다. 두 값 모두 ISO-8601 문자열이며 파싱 불가 값은
+   *   (3)에서 `RangeError` 로 reject 된다(swallow 0, persist 미도달).
    * @param options scoring 옵션 — evaluateActivities 에 그대로 전달(`ScoringOptions`).
    * @param context 영속 식별 4-tuple(personId/period/scope/periodStart) — Admin 임의
    *   personId 허용(self-only 강제는 slice 4 — 본 service 는 resolved context 를 받는다).
@@ -129,12 +153,13 @@ export class PeriodBridgeAdminPersistService {
    */
   async generateAndPersist(
     person: PeriodBridgePersonInput,
-    period: { since?: string },
+    period: { since?: string; until?: string },
     options: ScoringOptions,
     context: EvaluationPersistContext,
     reevaluate?: boolean,
   ): Promise<PeriodBridgeAdminPersistResult> {
-    // (1) 수집 spec 조립 — since pass-through(도출 0). reject 는 전파(fail-fast).
+    // (1) 수집 spec 조립 — since pass-through(도출 0), until 은 넘기지 않는다(상한은
+    //     (3) in-memory 창 필터 전담). reject 는 전파(fail-fast).
     const spec = await this.specService.buildCollectionSpec(
       person,
       period.since,
@@ -144,16 +169,28 @@ export class PeriodBridgeAdminPersistService {
     //     우회. orchestrator 가 부분 가용성을 자체 흡수하므로 throw 0(별도 try 불요).
     const activities = await this.orchestrator.collectActivities(spec);
 
-    // (3) author 귀속 필터(순수 함수) — Person 기여만 남긴다.
+    // (3) 기간 창 필터(순수 함수) — 반열림 `[since, until)` 밖 활동을 제외한다.
+    //     경계 의미론(since inclusive / until exclusive)과 판정 규칙 (a)~(e)는
+    //     ADR-0050 + period-window-filter.ts head 주석이 정본 — 여기서 재구현 0.
+    //     수집 layer 의 since 는 실효 경계가 아니므로 기간 계약의 강제 지점은 여기다.
+    //     ephemeral sibling 과 달리 Admin 경로는 (6)에서 결과가 영속화되므로, 창 밖
+    //     활동 유입은 반환값 오염이 아니라 DB 오염으로 남는다(누락 비용이 더 크다).
+    //     파싱 불가 bound 의 RangeError 는 swallow 없이 전파(fail-fast, persist 미도달).
+    const windowed = filterActivitiesByPeriodWindow(activities, {
+      since: period.since,
+      until: period.until,
+    });
+
+    // (4) author 귀속 필터(순수 함수) — Person 기여만 남긴다. 입력은 (3)의 산출물.
     const filtered = filterActivitiesByAuthor(
-      activities,
+      windowed,
       person.serviceIdentities,
     );
 
-    // (4) in-memory 평가(scoring) — reject 는 전파(persist 미도달).
+    // (5) in-memory 평가(scoring) — reject 는 전파(persist 미도달).
     const results = await this.evaluation.evaluateActivities(filtered, options);
 
-    // (5) 영속화 — reevaluate flag 분기(default fill read-through / true 시 reeval).
+    // (6) 영속화 — reevaluate flag 분기(default fill read-through / true 시 reeval).
     return this.persistAndReadThrough(context, results, reevaluate);
   }
 
