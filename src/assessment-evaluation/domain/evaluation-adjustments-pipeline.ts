@@ -95,6 +95,8 @@
 //     을 재구현하지 않는다(위임만). 한 helper 의 v1 정책이 바뀌면 본 composer 는
 //     변경 없이 그 변화를 그대로 흘려보낸다.
 
+import { Logger } from "@nestjs/common";
+
 import {
   applyAbuseSignalToVolume,
   type AbuseAdjustEntry,
@@ -119,6 +121,13 @@ import { applyUnderPerformerAnnotation } from "./evaluation-underperformer-adjus
 import type { UnderPerformerSignal } from "./evaluation-underperformer-signal";
 import { applyUpdateCountNeutralizationToVolume } from "./evaluation-update-count-adjust";
 import type { UpdateCountNeutralization } from "./evaluation-update-count-neutral";
+
+// step (9) 알고리즘 · 연구 축 상향 건수 관측용 module-level logger
+// (ADR-0064 § Consequences 오탐 완화 (iv) / T-1956). `@nestjs/common` 내장이라
+// 새 dependency 0 이고, class 신설 · DI 주입 · export 를 하지 않아 본 composer 의
+// 순수 함수 계약(반환값 · 결정성 · 입력 비변형)은 그대로다 — 관측 side-channel 만
+// 추가된다. domain 순수성 완화는 ADR-0064 § Status 가 지목한 본 파일 1 곳 한정.
+const logger = new Logger("EvaluationAdjustmentsPipeline");
 
 // EvaluationAdjustEntry — 9 위임 helper 가 공통으로 받는 입력/출력 단위.
 // `AbuseAdjustEntry` / `UpdateCountAdjustEntry` / `ContributionQualityAdjustEntry`
@@ -356,6 +365,26 @@ export function applyEvaluationAdjustments(
     documentAnnotated,
     signals.algorithmResearch,
   );
+
+  // 관측(ADR-0064 § Consequences 오탐 완화 (iv) / T-1956) — step (9) 가 실제로
+  // 등급을 바꾼 단위 수만 센다. `applyAlgorithmResearchUplift` 는 길이 · 순서를
+  // 보존한 새 배열을 돌려주므로 같은 index 가 같은 단위를 가리킨다(index 대응 성립).
+  // step (6) notable · (7) document 상향분과 step (3) `"zero"` floor 보존분은
+  // step (9) 직전 배열에 이미 접혀 있어 세지 않는다(축 혼입 0).
+  const algorithmResearchUpliftedCount = algorithmResearchUplifted.filter(
+    (entry, index) =>
+      entry.result.contribution !==
+      documentAnnotated[index].result.contribution,
+  ).length;
+  // 상향 0 건이면 로그를 억제한다 — 평가 호출마다 0 건 줄이 쌓이는 것을 막는다
+  // (T-1946 억제 규칙과 동형).
+  if (algorithmResearchUpliftedCount > 0) {
+    // 건수 + 고정 한국어 문구만 남긴다. unitId · author · narrative · marker
+    // 어휘 · 원본 title 은 어느 것도 기록하지 않는다(raw 유출 0, REQ-032 정합).
+    logger.log(
+      `algorithm-research uplift: ${algorithmResearchUpliftedCount} 건 상향`,
+    );
+  }
 
   // (10) flatten — mid-pipe 9 step 의 entries 형태를 `EvaluationResult[]` 로 변환.
   return algorithmResearchUplifted.map((entry) => entry.result);

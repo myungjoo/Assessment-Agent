@@ -19,6 +19,8 @@
 //     수 있는 입력 정합 — 각 위임 경계마다 1+ test.
 //   - 결정성·무공유: 동일 입력 2 회 호출 deep-equal + 입력 mutate 0 + 산출 not-same-ref.
 
+import { Logger } from "@nestjs/common";
+
 import * as abuseAdjust from "./evaluation-abuse-adjust";
 import type { AbuseSignal } from "./evaluation-abuse-signal";
 import {
@@ -1219,5 +1221,221 @@ describe("applyEvaluationAdjustments — algorithm-research uplift 배선(T-1954
     expect(signals).toEqual(signalsSnap);
     expect(out).not.toBe(entries);
     expect(applyEvaluationAdjustments(entries, signals)).toEqual(out);
+  });
+});
+
+// ── T-1956: step (9) 알고리즘 · 연구 축 상향 건수 관측 로그 — 건수 정확성 ·
+// 0 건 억제 · raw 유출 0 · 다른 축 상향 미계수 · 계약 회귀 0 을 한 describe 로
+// 모은다(T-1946 제거 건수 로그 describe 와 동형 구성).
+describe("applyEvaluationAdjustments — algorithm-research 상향 건수 관측 로그(T-1956)", () => {
+  let logSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    // Logger 출력이 test log 를 오염시키지 않도록 침묵시키되 호출은 관측한다
+    // (run-status.service.spec `41 행` Logger spy 선례와 동형).
+    logSpy = jest.spyOn(Logger.prototype, "log").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  // 알고리즘 · 연구 축 신호 빌더 — byAuthor 만 바꿔 쓰는 결정적 fixture.
+  function arSignal(
+    byAuthor: AlgorithmResearchSignal["byAuthor"],
+  ): AlgorithmResearchSignal {
+    return {
+      totalUnitCount: byAuthor.length,
+      totalAlgorithmResearchCount: byAuthor.reduce(
+        (sum, entry) => sum + entry.algorithmResearchUnitCount,
+        0,
+      ),
+      byAuthor,
+      algorithmResearchDetected: byAuthor.some((e) => e.algorithmResearch),
+    };
+  }
+
+  // 상향 대상 1 명 + 비대상 1 명의 표준 신호.
+  function targetedSignals(): EvaluationAdjustmentSignals {
+    const signals = makeEmptySignals();
+    signals.algorithmResearch = arSignal([
+      {
+        author: "ar-author",
+        algorithmResearchUnitCount: 2,
+        algorithmResearchUnitIds: ["unit-42", "unit-43"],
+        algorithmResearch: true,
+      },
+      {
+        author: "normal",
+        algorithmResearchUnitCount: 0,
+        algorithmResearchUnitIds: [],
+        algorithmResearch: false,
+      },
+    ]);
+    return signals;
+  }
+
+  // 단위 1 건 입력 축약 — contribution 만 바꿔 쓴다.
+  function unit(
+    author: string,
+    contribution: EvaluationResult["contribution"],
+  ): EvaluationAdjustEntry {
+    return {
+      author,
+      result: makeResult({ unitId: "unit-42", contribution }),
+    };
+  }
+
+  it("상향 2 건이 발생하면 log 를 1 회 호출하고 인자에 건수 2 가 담긴다", () => {
+    // happy path (R-112-1) + 분기 (i) 상향 > 0.
+    const entries: EvaluationAdjustEntry[] = [
+      unit("ar-author", "low"),
+      { author: "ar-author", result: makeResult({ unitId: "unit-43" }) },
+      { author: "normal", result: makeResult({ unitId: "u3" }) },
+    ];
+
+    const out = applyEvaluationAdjustments(entries, targetedSignals());
+
+    expect(logSpy).toHaveBeenCalledTimes(1);
+    const message = String(logSpy.mock.calls[0][0]);
+    expect(message).toContain("2");
+    expect(message).toContain("상향");
+    // 계산 결과는 로그 도입 전과 동일하다.
+    expect(out[0].contribution).toBe(ALGORITHM_RESEARCH_UPLIFT_LEVEL);
+    expect(out[1].contribution).toBe(ALGORITHM_RESEARCH_UPLIFT_LEVEL);
+    expect(out[2].contribution).toBe("medium");
+  });
+
+  it("signals.algorithmResearch 가 null / undefined 면 throw 하고 log 는 0 회다", () => {
+    // error path (R-112-2) — guard 회귀 0 + 부분 관측 위장 0.
+    const entries = [unit("ar-author", "low")];
+    for (const empty of [null, undefined]) {
+      const signals = targetedSignals();
+      signals.algorithmResearch = empty as unknown as AlgorithmResearchSignal;
+      expect(() => applyEvaluationAdjustments(entries, signals)).toThrow(
+        "signals.algorithmResearch 는 null 또는 undefined 일 수 없습니다.",
+      );
+    }
+    expect(logSpy).not.toHaveBeenCalled();
+  });
+
+  it("대상 0 · 멱등 · 빈 entries 경로에서는 log 를 호출하지 않는다", () => {
+    // 분기 (ii) byAuthor 빈 배열 / (iii) 이미 high 라 변화 0(멱등) /
+    // (v) 빈 entries — 세 경로 모두 상향 건수 0 이라 억제된다.
+    const noTarget = makeEmptySignals();
+    noTarget.algorithmResearch = arSignal([]);
+    applyEvaluationAdjustments([unit("ar-author", "low")], noTarget);
+
+    const targeted = targetedSignals();
+    applyEvaluationAdjustments(
+      [unit("ar-author", ALGORITHM_RESEARCH_UPLIFT_LEVEL)],
+      targeted,
+    );
+
+    expect(applyEvaluationAdjustments([], targeted)).toEqual([]);
+    expect(logSpy).not.toHaveBeenCalled();
+  });
+
+  it("quality floor 로 zero 인 단위만 대상이면 상향 미발생이라 log 를 호출하지 않는다", () => {
+    // 분기 (iv) — step (3) 하한 우선 경로에서 관측도 0.
+    const signals = targetedSignals();
+    signals.quality = {
+      totalUnitCount: 1,
+      totalZeroContributionCount: 1,
+      byAuthor: [
+        {
+          author: "ar-author",
+          zeroContributionCount: 1,
+          zeroContributionUnitIds: ["unit-42"],
+          zeroContribution: true,
+        },
+      ],
+      zeroContributionDetected: true,
+    };
+
+    const out = applyEvaluationAdjustments([unit("ar-author", "low")], signals);
+
+    expect(out[0].contribution).toBe("zero");
+    expect(logSpy).not.toHaveBeenCalled();
+  });
+
+  it("로그 인자에 unitId · author · narrative 값이 하나도 포함되지 않는다", () => {
+    // negative (a) — raw 유출 0(REQ-032 / CLAUDE.md § 9).
+    const entries: EvaluationAdjustEntry[] = [
+      {
+        author: "ar-author",
+        result: makeResult({
+          unitId: "unit-42",
+          narrative: "새 알고리즘 설계 소개",
+          contribution: "low",
+        }),
+      },
+    ];
+
+    applyEvaluationAdjustments(entries, targetedSignals());
+
+    expect(logSpy).toHaveBeenCalledTimes(1);
+    const message = String(logSpy.mock.calls[0][0]);
+    for (const secret of [
+      "unit-42",
+      "ar-author",
+      "새 알고리즘 설계 소개",
+      NOTABLE_CONTRIBUTION_NARRATIVE_MARKER,
+    ]) {
+      expect(message).not.toContain(secret);
+    }
+  });
+
+  it("notable · document 축 상향만 있고 알고리즘·연구 신호가 꺼지면 log 를 호출하지 않는다", () => {
+    // negative (b) — 다른 축의 상향분을 세지 않음(축 혼입 0).
+    const entries = [unit("code-author", "low"), unit("doc-author", "low")];
+    const signals = makeEmptySignals();
+    signals.notableContribution = {
+      ...signals.notableContribution,
+      byAuthor: [{ author: "code-author", codeUnitCount: 10, notable: true }],
+      notableDetected: true,
+    };
+    signals.documentContribution = {
+      ...signals.documentContribution,
+      byAuthor: [{ author: "doc-author", documentUnitCount: 9, notable: true }],
+      notableDetected: true,
+    };
+
+    const out = applyEvaluationAdjustments(entries, signals);
+
+    // 두 축 상향은 실제로 일어났지만 step (9) 관측 대상이 아니다.
+    expect(out[0].contribution).toBe(NOTABLE_CONTRIBUTION_UPLIFT_LEVEL);
+    expect(out[1].contribution).toBe(DOCUMENT_CONTRIBUTION_UPLIFT_LEVEL);
+    expect(logSpy).not.toHaveBeenCalled();
+  });
+
+  it("동결 입력에서도 반환 배열이 로그 도입 전 기대와 동일하고 입력은 비변형이다", () => {
+    // negative (c) 반환 계약 회귀 0 + (d) Object.freeze 입력 통과(비변형).
+    const frozen = Object.freeze([
+      Object.freeze({
+        author: "ar-author",
+        result: Object.freeze(
+          makeResult({ unitId: "unit-42", contribution: "low", volume: 777 }),
+        ),
+      }),
+      Object.freeze({ author: "normal", result: makeResult({ unitId: "u3" }) }),
+    ]) as unknown as EvaluationAdjustEntry[];
+    const signals = Object.freeze(targetedSignals());
+    const snapshot = JSON.parse(JSON.stringify(frozen));
+
+    const out = applyEvaluationAdjustments(frozen, signals);
+
+    expect(out).toEqual([
+      makeResult({
+        unitId: "unit-42",
+        contribution: ALGORITHM_RESEARCH_UPLIFT_LEVEL,
+        volume: 777,
+      }),
+      makeResult({ unitId: "u3" }),
+    ]);
+    expect(frozen).toEqual(snapshot);
+    // 결정성 — 2 회 호출 산출 동일(로그는 호출마다 1 회씩 누적).
+    expect(applyEvaluationAdjustments(frozen, signals)).toEqual(out);
+    expect(logSpy).toHaveBeenCalledTimes(2);
   });
 });
