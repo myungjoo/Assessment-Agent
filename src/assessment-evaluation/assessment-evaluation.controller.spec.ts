@@ -1415,8 +1415,9 @@ describe("AssessmentEvaluationController.period (unit — self-only ephemeral de
 // (`until`) 배선 (T-1940, ADR-0039 §Decision5 single source + ADR-0050 반열림
 // 경계). T-1939 가 신설한 in-memory 창 필터의 상한이 production 경로에서 실제로
 // 흐르는지 controller 위임 인자 수준에서 박제한다. R-112 4 종(happy /
-// granularity 분기 / 비-KST zone 분기 / error path) + negative 5 종(차단 우선순위
-// 4 + Admin 회귀 0).
+// granularity 분기 / 비-KST zone 분기 / error path) + negative 4 종(차단 우선순위)
+// + Admin 분기 대칭 단언 1(T-1942 로 "until 미추가" 회귀 기준점을 반전 — Admin
+// 경로도 두 bound 를 넘기므로 이제 대칭이 계약이다).
 // =======================================================================
 describe("AssessmentEvaluationController.period (unit — 반열림 창 상한 until 배선, T-1940)", () => {
   // 기본 fixture(period "week" / periodStart "2026-06-01T00:00:00.000Z" / KST)의
@@ -1579,10 +1580,11 @@ describe("AssessmentEvaluationController.period (unit — 반열림 창 상한 u
     expect(generateSpy).not.toHaveBeenCalled();
   });
 
-  // negative (v): Admin full-persist 분기 회귀 0 — generateAndPersist 의 기간 인자는
-  // 종전 그대로 `{ since }` 단독이며 until 이 추가되지 않는다(본 slice 는 User
-  // ephemeral 경로만 닫는다 — Admin 동형 배선은 별도 slice).
-  it("Admin 분기 위임 인자에는 until 이 추가되지 않는다 (negative — Admin 회귀 0)", async () => {
+  // Admin 분기 대칭(T-1942 로 반전) — 종전 이 자리는 "Admin 위임 인자에 until 이
+  // 붙지 않는다" 를 못박은 회귀 기준점이었으나, T-1942 가 persistForAdmin 에 상한을
+  // 배선하면서 계약이 뒤집혔다. 이제 두 분기가 **같은 shape** `{ since, until }` 을
+  // 넘기는 것이 정답이며, 키 집합을 함께 못박아 한쪽만 흘리는 회귀를 감지한다.
+  it("Admin 분기 위임 인자도 since 와 until 두 bound 를 넘겨 User 분기와 대칭이다 (branch — Admin 대칭 배선)", async () => {
     const { controller, adminSpy, generateSpy } = makePeriodController({});
 
     await controller.period(
@@ -1591,10 +1593,187 @@ describe("AssessmentEvaluationController.period (unit — 반열림 창 상한 u
     );
 
     expect(adminSpy).toHaveBeenCalledTimes(1);
-    // toEqual 은 정확 일치라 until 키가 붙는 순간 실패한다(회귀 감지).
-    expect(adminSpy.mock.calls[0][1]).toEqual({ since: WEEK_SINCE });
-    expect(Object.keys(adminSpy.mock.calls[0][1] as object)).toEqual(["since"]);
+    // toEqual 은 정확 일치라 어느 한 bound 가 빠지거나 값이 어긋나면 실패한다.
+    expect(adminSpy.mock.calls[0][1]).toEqual({
+      since: WEEK_SINCE,
+      until: WEEK_UNTIL,
+    });
+    expect(Object.keys(adminSpy.mock.calls[0][1] as object)).toEqual([
+      "since",
+      "until",
+    ]);
     expect(generateSpy).not.toHaveBeenCalled();
+  });
+});
+
+// =======================================================================
+// POST /api/assessment-evaluation/period — Admin full-persist 반열림 창 **상한**
+// (`until`) 배선 (T-1942, ADR-0039 §Decision5 single source + ADR-0050 반열림
+// 경계). T-1941 이 PeriodBridgeAdminPersistService 안에 넣은 창 필터의 상한 분기가
+// production 경로에서 실제로 실행되는지 controller 위임 인자 수준에서 박제한다.
+// T-1940 의 User ephemeral describe 를 Admin spy 로 mirror 한 구조이며, Admin 은
+// 결과가 **영속화** 되므로 상한 누락이 곧 DB 오염이라는 점이 검증 동기다.
+// R-112 4 종(happy / granularity 분기 / 비-KST zone 분기 / error path) +
+// negative 3 종(좌표 idempotency 회귀 0 · context shape 오염 0 · 분기 격리).
+// =======================================================================
+describe("AssessmentEvaluationController.persistForAdmin (unit — 반열림 창 상한 until 배선, T-1942)", () => {
+  // 기본 fixture(period "week" / periodStart "2026-06-01T00:00:00.000Z" / KST)의
+  // 기대 경계 쌍 — KST 2026-06-01(월) 00:00 = 2026-05-31T15:00:00.000Z 부터 +7 일.
+  const WEEK_SINCE = "2026-05-31T15:00:00.000Z";
+  const WEEK_UNTIL = "2026-06-07T15:00:00.000Z";
+
+  // adminPeriodArg — generateAndPersist 2번째 인자(기간 창 객체)를 꺼내는 helper.
+  function adminPeriodArg(spy: jest.Mock): { since?: string; until?: string } {
+    return spy.mock.calls[0][1] as { since?: string; until?: string };
+  }
+
+  // adminContextArg — generateAndPersist 4번째 인자(context 4-tuple) helper.
+  function adminContextArg(spy: jest.Mock): Record<string, unknown> {
+    return spy.mock.calls[0][3] as Record<string, unknown>;
+  }
+
+  // happy: Admin 위임의 until 이 controller 자체 산술이 아니라 single source helper
+  // 의 `.end`(반열림 exclusive 상한)와 **정확히 같은 instant** 임을 helper 재계산으로
+  // 대조한다(ADR-0039 §Decision5 — 경계 산술 재구현 0). since < until 반열림 정합도.
+  it("until 이 getKstPeriodRangeByPeriod(...).end 의 ISO 와 정확히 일치하고 since < until 이다 (happy — Admin 상한 single source)", async () => {
+    const { controller, adminSpy } = makePeriodController({});
+
+    const dto = makePeriodDto({ personId: "target-person" });
+    await controller.period(dto, adminActor);
+
+    const expectedEnd = getKstPeriodRangeByPeriod(
+      dto.period,
+      parseKstPeriodInput(dto.periodStart, "Asia/Seoul"),
+      "Asia/Seoul",
+    ).end;
+
+    const window = adminPeriodArg(adminSpy);
+    expect(window.until).toBe(expectedEnd.toISOString());
+    expect(window.since).toBe(WEEK_SINCE);
+    expect(window.until).toBe(WEEK_UNTIL);
+    // 반열림 `[since, until)` — 하한이 상한보다 반드시 앞선다(빈 창 0).
+    expect(new Date(window.since as string).getTime()).toBeLessThan(
+      new Date(window.until as string).getTime(),
+    );
+  });
+
+  // 분기: day / week / month 각 granularity 의 상한이 "다음 일/주/월 시작 instant"
+  // 로 산출된다(period-evaluable.ts `40~59 행` computePeriodEnd 와 같은 의미론).
+  // 입력은 동일한 "2026-06-01T00:00:00.000Z"(= KST 6/1 09:00)이며 셋 다 하한은 KST
+  // 6/1 자정으로 수렴하고 상한만 granularity 로 갈린다(User 분기와 동일한 표).
+  it.each([
+    ["day", WEEK_SINCE, "2026-06-01T15:00:00.000Z"],
+    ["week", WEEK_SINCE, WEEK_UNTIL],
+    ["month", WEEK_SINCE, "2026-06-30T15:00:00.000Z"],
+  ])(
+    "Admin period '%s' 의 until 이 해당 granularity 의 반열림 상한으로 산출된다 (branch — granularity 별 상한)",
+    async (period, expectedSince, expectedUntil) => {
+      const { controller, adminSpy } = makePeriodController({});
+
+      await controller.period(
+        makePeriodDto({ personId: "target-person", period }),
+        adminActor,
+      );
+
+      const window = adminPeriodArg(adminSpy);
+      expect(window.since).toBe(expectedSince);
+      expect(window.until).toBe(expectedUntil);
+    },
+  );
+
+  // 분기: 비-KST timezone — 입력 해석 zone 은 target person 이 아니라 **요청 주체**
+  // (Admin sub="admin-1")의 User.timezone 이라는 기존 계약(T-0802, ADR-0052
+  // §Decision(b))이 상한에도 동일 적용된다. New_York day 창은 2026-06-10 00:00 EDT
+  // (04:00Z) ~ 2026-06-11 00:00 EDT(04:00Z).
+  it("비-KST timezone 요청 주체(Admin)에서 until 도 그 zone 기준 경계로 산출된다 (branch — 비-KST 상한)", async () => {
+    const { controller, adminSpy, findUserSpy } = makePeriodController({
+      findUserImpl: async () => ({ timezone: "America/New_York" }),
+    });
+
+    await controller.period(
+      makePeriodDto({
+        personId: "target-person",
+        periodStart: "2026-06-10T15:00",
+        period: "day",
+      }),
+      adminActor,
+    );
+
+    // zone 조회는 target personId 가 아니라 요청 주체 sub 으로 1 회.
+    expect(findUserSpy).toHaveBeenCalledTimes(1);
+    expect(findUserSpy).toHaveBeenCalledWith("admin-1");
+    const window = adminPeriodArg(adminSpy);
+    expect(window.since).toBe("2026-06-10T04:00:00.000Z");
+    expect(window.until).toBe("2026-06-11T04:00:00.000Z");
+    // KST 해석이었다면 상한은 2026-06-10T15:00:00.000Z 였을 것 — zone 배선 실효 확인.
+    expect(window.until).not.toBe("2026-06-10T15:00:00.000Z");
+  });
+
+  // error path: 알 수 없는 period / 파싱 불가 periodStart 는 경계 쌍 산출 helper 가
+  // reject 하고 generateAndPersist 에 **도달하지 않는다**(fail-fast — persist 미도달,
+  // silent Invalid 상한으로 DB 를 오염시키지 않는다).
+  it.each([
+    ["알 수 없는 period('year')", { period: "year" }],
+    ["파싱 불가 periodStart", { periodStart: "not-a-real-date" }],
+  ])(
+    "%s 는 RangeError 로 reject 되고 generateAndPersist 는 미호출이다 (error path — persist 미도달)",
+    async (_label, overrides) => {
+      const { controller, adminSpy } = makePeriodController({});
+
+      await expect(
+        controller.period(
+          makePeriodDto({ personId: "target-person", ...overrides }),
+          adminActor,
+        ),
+      ).rejects.toThrow(RangeError);
+      expect(adminSpy).not.toHaveBeenCalled();
+    },
+  );
+
+  // negative (i)+(ii): 영속 좌표 회귀 0 — context.periodStart 는 상한 배선 후에도
+  // 종전과 동일한 canonical boundary 이며(idempotency 좌표 불변, ADR-0037 §Decision4
+  // / ADR-0038 first-write-wins), until 은 context 4-tuple 에 **섞이지 않는다**
+  // (좌표 shape 오염 0 — 상한은 기간 인자에만 산다).
+  it("context 4-tuple 은 종전 좌표 그대로이고 until 이 섞이지 않는다 (negative — 좌표 idempotency 회귀 0 · shape 오염 0)", async () => {
+    const { controller, adminSpy } = makePeriodController({});
+
+    await controller.period(
+      makePeriodDto({ personId: "target-person" }),
+      adminActor,
+    );
+
+    const context = adminContextArg(adminSpy);
+    expect(context).toEqual({
+      personId: "target-person",
+      period: "week",
+      scope: "commit",
+      periodStart: new Date(WEEK_SINCE),
+    });
+    expect(Object.keys(context)).toEqual([
+      "personId",
+      "period",
+      "scope",
+      "periodStart",
+    ]);
+    // 좌표와 since 는 같은 1 회 산출의 짝 — 값이 어긋나지 않는다(§Decision5).
+    expect((context.periodStart as Date).toISOString()).toBe(
+      adminPeriodArg(adminSpy).since,
+    );
+  });
+
+  // negative (iii): 분기 격리 — 본 변경은 Admin 경로만 건드리므로 User ephemeral
+  // 위임 인자는 T-1940 기대값 그대로이고 Admin 위임은 호출되지 않는다.
+  it("User ephemeral 분기의 위임 인자는 본 변경에 영향받지 않는다 (negative — 분기 격리)", async () => {
+    const { controller, generateSpy, adminSpy } = makePeriodController({});
+
+    await controller.period(makePeriodDto(), userActor("person-1"));
+
+    expect(generateSpy).toHaveBeenCalledTimes(1);
+    expect(generateSpy.mock.calls[0][1]).toEqual({
+      since: WEEK_SINCE,
+      until: WEEK_UNTIL,
+    });
+    expect(adminSpy).not.toHaveBeenCalled();
   });
 });
 
@@ -1630,15 +1809,19 @@ describe("AssessmentEvaluationController.period (unit — Admin full-persist bra
     // person 변환은 임의 personId(target-person)로 1 회(self-only 동등성 검사 0).
     expect(findPersonSpy).toHaveBeenCalledTimes(1);
     expect(findPersonSpy).toHaveBeenCalledWith("target-person");
-    // generateAndPersist 위임 — resolved serviceIdentities + since(pass-through) +
-    // modelId 미지정 + context 4-tuple(periodStart Date 파싱) + reevaluate 미지정
-    // 은 5번째 인자 undefined 그대로 pass-through(T-0336, ADR-0038 §Decision1).
-    // since + context.periodStart 둘 다 KST week boundary 로 snap(KST 2026-06-01 월
-    // 00:00 = 2026-05-31T15:00:00.000Z). 같은 source 에서 도출(중복 산술 0, §Decision5).
+    // generateAndPersist 위임 — resolved serviceIdentities + 반열림 창 두 bound
+    // (since/until, T-1942) + modelId 미지정 + context 4-tuple(periodStart Date 파싱)
+    // + reevaluate 미지정은 5번째 인자 undefined 그대로 pass-through(T-0336,
+    // ADR-0038 §Decision1). since + context.periodStart 둘 다 KST week boundary 로
+    // snap(KST 2026-06-01 월 00:00 = 2026-05-31T15:00:00.000Z)이고 until 은 그
+    // +7 일 exclusive 상한이다. 셋 다 같은 range 1 회 산출(중복 산술 0, §Decision5).
     expect(adminSpy).toHaveBeenCalledTimes(1);
     expect(adminSpy).toHaveBeenCalledWith(
       { serviceIdentities: [{ service: "github", externalId: "octocat" }] },
-      { since: "2026-05-31T15:00:00.000Z" },
+      {
+        since: "2026-05-31T15:00:00.000Z",
+        until: "2026-06-07T15:00:00.000Z",
+      },
       { modelId: undefined },
       {
         personId: "target-person",
@@ -2272,7 +2455,10 @@ describe("AssessmentEvaluationController.period (unit — reevaluate dispatch, A
     expect(adminSpy).toHaveBeenCalledTimes(1);
     expect(adminSpy).toHaveBeenCalledWith(
       { serviceIdentities: [{ service: "github", externalId: "octocat" }] },
-      { since: "2026-05-31T15:00:00.000Z" },
+      {
+        since: "2026-05-31T15:00:00.000Z",
+        until: "2026-06-07T15:00:00.000Z",
+      },
       { modelId: undefined },
       {
         personId: "target-person",

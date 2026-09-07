@@ -326,45 +326,6 @@ export class AssessmentEvaluationController {
     }
   }
 
-  // normalizeKstPeriodStart — `dto.periodStart`(ISO string)을 `parseKstPeriodInput`
-  // 으로 §Decision3 (d) Asia/Seoul-default 해석한 instant 를 요청 `period` granularity
-  // 의 canonical KST period boundary 로 snap 한 UTC Date 를 산출한다(ADR-0039 §Decision3
-  // (a)~(d) + §Decision5 — 입력 해석·boundary 계산은 helper 1 점 집중, controller 는
-  // 진입점 배선만). 입력 string → Date 변환은 raw `new Date(...)` 가 아니라 helper 경유라
-  // offset 미명시 입력이 Asia/Seoul 로 해석된다(예 `2026-06-10T15:00` → KST 15시).
-  // 두 분기(Admin 좌표 / 양 분기 since)가 본 helper 1 곳을 공유해 중복 산술을 금지한다.
-  // 효과:
-  //   - 같은 KST 일/주/월 안의 서로 다른 입력 instant 가 동일 canonical boundary 로
-  //     수렴 → persist 좌표(personId/period/scope/periodStart)의 idempotency 안정화
-  //     (ADR-0037 §Decision4 / ADR-0038 first-write-wins 좌표가 KST 자정/주초/월초 정렬).
-  //   - granularity 매핑은 helper 의 single source(`getKstPeriodRangeByPeriod`)를 재사용
-  //     해 controller 에 별도 매핑을 박제하지 않는다(§Decision5 drift 차단).
-  // 알 수 없는 `period` 는 helper 가 RangeError 로 reject(snap 전 명시 차단 — silent
-  // Invalid coordinate 금지). DTO `@IsISO8601` 통과했으나 형식 위반/달력 불가능/범위 외
-  // offset 인 edge 는 `parseKstPeriodInput` 의 RangeError, 비문자열/빈 입력은 TypeError
-  // 가 전파된다(R-112 negative 분기 — silent Invalid Date 대신 명시적 error).
-  //
-  // T-0802(ADR-0052 §Decision(b)/(d)): `timeZone` 파라미터(기본 `KST_TIMEZONE`)를
-  // 받아 `parseKstPeriodInput`(offset 미명시 입력 해석 zone)와 `getKstPeriodRangeByPeriod`
-  // (boundary snap 계산 zone) 둘 다에 전달한다. 요청 User 의 zone 으로 입력·경계가
-  // 해석돼 offset 미명시 입력이 그 zone 기준 wall-clock 으로 읽힌다. timeZone 미지정
-  // 호출부(evaluate 경로 등)는 기본값으로 기존 KST 동작 100% 보존(backward-compat).
-  // 무효 IANA 식별자는 helper 의 RangeError 가 전파된다(R-112 negative — silent 무효
-  // 좌표 금지).
-  //
-  // T-1940: 본 메서드는 더 이상 자체 산술을 갖지 않는다 — 아래 normalizeKstPeriodRange
-  // 의 `.start` 만 꺼내는 얇은 wrapper 다(하한·상한이 같은 range 1 회 호출에서 도출돼
-  // 두 축이 어긋날 여지 0, §Decision5 drift 차단의 연장). signature / 반환 의미 /
-  // 호출부(Admin persistForAdmin · User ephemeralForUser)는 전부 불변이라 기존 경로의
-  // 동작 회귀는 0 이다.
-  private normalizeKstPeriodStart(
-    period: string,
-    periodStart: string,
-    timeZone: string = KST_TIMEZONE,
-  ): Date {
-    return this.normalizeKstPeriodRange(period, periodStart, timeZone).start;
-  }
-
   // normalizeKstPeriodRange — `dto.periodStart` 를 요청 `period` granularity 의 canonical
   // 경계 **쌍** `{ start, end }` 으로 산출한다(T-1940). 본문은 single source
   // `getKstPeriodRangeByPeriod(period, parseKstPeriodInput(periodStart, timeZone), timeZone)`
@@ -376,13 +337,24 @@ export class AssessmentEvaluationController {
   //       과 `src/assessment-evaluation/domain/period-evaluable.ts` `40~59 행`
   //       `computePeriodEnd`(다음 일/주/월 시작 instant 를 종료 경계로 산출). 여기서
   //       새 산술을 만들지 않고 그 확정 의미론을 그대로 읽어 흘린다.
-  //   (b) single source 재사용 — 하한만 필요한 호출부(normalizeKstPeriodStart)도 본
-  //       메서드를 경유하므로 controller 안에 granularity 매핑·경계 산술이 두 벌 생기지
-  //       않는다(§Decision5 drift 차단).
-  //   (c) 소비 경로 — `.end` 는 ephemeralForUser 가 `until` 로 흘려보내고,
-  //       `PeriodBridgeEphemeralService.generateEphemeral` 이 in-memory 창 필터
-  //       `filterActivitiesByPeriodWindow(activities, { since, until })` 의 **상한** 으로
-  //       사용한다(반열림 `[since, until)` — 창 밖 활동이 평가 입력에서 제외된다).
+  //   (b) single source 재사용 — Admin `persistForAdmin` · User `ephemeralForUser`
+  //       두 호출부가 본 메서드 1 곳을 공유하므로 controller 안에 granularity 매핑·
+  //       경계 산술이 두 벌 생기지 않는다(§Decision5 drift 차단). T-1942 로 하한 전용
+  //       wrapper `normalizeKstPeriodStart` 는 소비처가 0 이 되어 제거됐고, 하한만
+  //       필요한 좌표(Admin `context.periodStart`)도 본 메서드의 `.start` 를 쓴다.
+  //   (c) 입력 해석 zone — 문자열 → Date 변환이 raw `new Date(...)` 가 아니라
+  //       `parseKstPeriodInput` 경유라 offset 미명시 입력이 `timeZone`(기본
+  //       `KST_TIMEZONE`)의 wall-clock 으로 해석된다(ADR-0039 §Decision3 (d) +
+  //       T-0802/ADR-0052 §Decision(b)/(d) — 해석 zone 은 **요청 주체** User 의
+  //       timezone 이며, timeZone 미지정 호출부는 기존 KST 동작 100% 보존). 같은 일/
+  //       주/월 안의 서로 다른 입력 instant 가 동일 canonical 경계로 수렴해 persist
+  //       좌표(personId/period/scope/periodStart)의 idempotency 가 자정/주초/월초로
+  //       정렬된다(ADR-0037 §Decision4 · ADR-0038 first-write-wins).
+  //   (d) 소비 경로 — `.end` 는 `ephemeralForUser` 와 `persistForAdmin` 이 각각
+  //       `until` 로 흘려보내고(T-1940 · T-1942 로 양 분기 대칭), 두 bridge service 의
+  //       in-memory 창 필터 `filterActivitiesByPeriodWindow(activities, { since, until })`
+  //       가 이를 **상한** 으로 강제한다(반열림 `[since, until)` — 창 밖 활동이 평가
+  //       입력에서 제외된다).
   // 알 수 없는 `period` 는 helper 가 RangeError 로, 파싱 불가 `periodStart` / 무효 IANA
   // timeZone 은 `parseKstPeriodInput` 의 error 로 reject 되며 본 메서드는 swallow 하지
   // 않고 그대로 전파한다(R-112 negative — silent Invalid 좌표 금지).
@@ -489,9 +461,9 @@ export class AssessmentEvaluationController {
   //     row 부재 시 findById 가 NotFoundException 을 전파(swallow 0 — raw 전파).
   //   - principal sub 부재(비로그인 이론 경로) → KST_TIMEZONE(Asia/Seoul) fallback.
   //     guard 를 통과한 정상 경로에선 sub 이 항상 존재하나, 방어적 fallback 을 둔다.
-  // 반환 timezone 은 normalizeKstPeriodStart 로 전달돼 offset 미명시 입력이 그 zone 으로
-  // 해석된다(기본 KST fallback 보존). User row 의 timezone 이 무효 IANA 식별자면 helper
-  // (Intl.DateTimeFormat)가 RangeError 를 전파한다(R-112 negative — 저장 경로 검증은 본
+  // 반환 timezone 은 normalizeKstPeriodRange 로 전달돼 offset 미명시 입력과 경계 쌍
+  // 산출이 그 zone 기준이 된다(기본 KST fallback 보존). User row 의 timezone 이 무효
+  // IANA 식별자면 helper (Intl.DateTimeFormat)가 RangeError 를 전파한다(R-112 negative — 저장 경로 검증은 본
   // task 밖, 읽기 경로는 helper 의 RangeError 로 방어).
   private async resolveRequestTimeZone(
     principalUserId: string | undefined,
@@ -597,16 +569,17 @@ export class AssessmentEvaluationController {
     // 전파(swallow 0), principal sub 부재 이론 경로면 KST fallback.
     const timeZone = await this.resolveRequestTimeZone(principalUserId);
 
-    // periodStart 를 요청 period granularity 의 canonical boundary 로 snap(ADR-0039
-    // §Decision3). offset 미명시 입력은 요청 User timezone(기본 KST)으로 해석된다. 같은
-    // 일/주/월 안의 서로 다른 입력 instant 가 동일 좌표로 수렴해 persist idempotency
-    // (ADR-0037/0038 first-write-wins)가 자정/주초/월초로 정렬된다. 알 수 없는 period /
-    // Invalid Date / 무효 tz 는 helper 가 reject(전파) — silent Invalid 좌표 금지.
-    const periodStartBoundary = this.normalizeKstPeriodStart(
-      dto.period,
-      dto.periodStart,
-      timeZone,
-    );
+    // periodStart 를 요청 period granularity 의 canonical 경계 **쌍** 으로 snap 한다
+    // (T-1942 — 종전 `.start` 단독 산출을 `{ start, end }` 로 넓혀 User 분기와 대칭).
+    // ADR-0039 §Decision3 대로 raw `dto.periodStart` 직접 전달은 금지고, offset 미명시
+    // 입력은 요청 User timezone(기본 KST)으로 해석된다. 같은 일/주/월 안의 서로 다른
+    // 입력 instant 가 동일 좌표로 수렴해 persist idempotency(ADR-0037/0038
+    // first-write-wins)가 자정/주초/월초로 정렬된다. 좌표(context.periodStart)와 `since`
+    // 는 이 **1 회 산출에서 나온 같은 짝** 이라 두 축이 어긋날 여지가 0 이다(§Decision5
+    // 중복 산술 0 — helper 를 두 번 부르지 않는다). 알 수 없는 period / Invalid Date /
+    // 무효 tz 는 helper 가 reject(전파) — silent Invalid 좌표 금지.
+    const { start: periodStartBoundary, end: periodUntilBoundary } =
+      this.normalizeKstPeriodRange(dto.period, dto.periodStart, timeZone);
 
     // context 4-tuple(ADR-0037 §Decision4 좌표) 조립 — personId/period/scope 전사 +
     // periodStart 는 raw 가 아니라 snap 된 canonical KST boundary. 허용 literal 값
@@ -618,14 +591,28 @@ export class AssessmentEvaluationController {
       periodStart: periodStartBoundary,
     };
 
-    // Admin full-persist 위임 — resolved serviceIdentities + since(snap 된 KST boundary
-    // ISO string, 좌표와 동일 source) + modelId 미지정 + context 4-tuple + reevaluate
-    // flag(5번째 인자, ADR-0038 §Decision1 — true/false/undefined 그대로 전달, 가공 0).
+    // Admin full-persist 위임 — resolved serviceIdentities + 반열림 창 `[since, until)`
+    // 의 **두 bound 를 함께**(T-1942 — 종전 since 단독 전달에서 확장) + modelId 미지정 +
+    // context 4-tuple + reevaluate flag(5번째 인자, ADR-0038 §Decision1 — true/false/
+    // undefined 그대로 전달, 가공 0).
+    //   - since 는 좌표와 동일 source 의 snap 된 canonical boundary ISO string 이고,
+    //     until 은 **exclusive 상한** 이라 그 instant 자체는 기간에 포함되지 않는다
+    //     (ADR-0050 반열림 확정 + ADR-0039 §Decision5 — 여기서 새 산술 0, helper 의
+    //     `.end` 를 그대로 흘린다).
+    //   - `PeriodBridgeAdminPersistService.generateAndPersist` 의 in-memory 창 필터
+    //     `filterActivitiesByPeriodWindow` 가 이 상한을 실효 강제한다(T-1941 이 넣은
+    //     상한 분기의 production 소비처가 바로 본 호출이다).
+    //   - Admin 경로는 결과가 **영속화** 되므로 상한을 넘기지 않으면 기간 밖 활동이
+    //     그대로 DB 에 남는다 — 요청 단위로 소멸하는 User ephemeral 분기와 달리 오염이
+    //     지속된다는 점이 본 배선의 이유다.
     // service-layer error(evaluateActivities throw / persist error — reeval 경로의
     // ConflictException 포함, T-0335 전파 계약)는 raw 전파(swallow 0).
     const { assessment, created } = await this.adminBridge.generateAndPersist(
       { serviceIdentities: person.serviceIdentities },
-      { since: periodStartBoundary.toISOString() },
+      {
+        since: periodStartBoundary.toISOString(),
+        until: periodUntilBoundary.toISOString(),
+      },
       { modelId: undefined as unknown as string },
       context,
       dto.reevaluate,
