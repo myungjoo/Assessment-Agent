@@ -1,9 +1,9 @@
 ---
 id: ADR-0063
 title: rebase/meld 로 commit ID 가 갈린 "내용물" 중복 제거 정책 — mapper 경계 content fingerprint (sha256) + (author, 지문) 합성 키
-status: PROPOSED
+status: ACCEPTED
 date: 2026-09-07
-relatedTask: [T-1943]
+relatedTask: [T-1943, T-1944, T-1945, T-1946, T-1947]
 relatedReq: [REQ-009, REQ-032]
 supersedes: null
 augments: [ADR-0029]
@@ -13,7 +13,9 @@ augments: [ADR-0029]
 
 ## Status
 
-**PROPOSED**. 본 ADR 은 **결정만 박제** 하며 코드를 1 LOC 도 만들지 않는다 — 본 slice 의 diff 는 본 문서 1 개뿐이고 `src/` · `web/` · `test/` · `prisma/` · `package.json` · `.github/workflows/` 변경이 **0** 이다. 지문 helper 신설 · mapper 배선 · `commit-dedup.ts` 의 dedup pass 추가 · 관측 배선은 전부 § Follow-ups 로 이월한다 ([ADR-0062](ADR-0062-llm-default-provider-explicit-selection.md) 의 doc-only ADR 선례 동형).
+**ACCEPTED**. `§ Follow-ups` (a)~(c) 의 구현 chain 이 **전량 머지** 돼 본 ADR 의 결정이 main 에 안착했다 — (a) 지문 helper 신설 + mapper 배선 (T-1944, PR #1526 → merge `ae03ac5b`) · (b) dedup pass 2 신설 + 수집 flow 2-pass 직렬 합성 (T-1945, PR #1527 → merge `1b7b9c2f`) · (c) 제거 건수 관측 로그 (T-1946, PR #1528 → merge `85641398`). **남은 구현 항목은 없다** — `§ Follow-ups` 의 "(확장 지점, task 아님)" 은 task 가 아니라 재검토 조건이라 미착수 그대로 남는다. 본 문서의 ACCEPTED 승격 · [requirements.md](../requirements.md) REQ-009 재판정 · [PLAN.md](../PLAN.md) `99 행` 갱신은 T-1947 이 수행했다 ((d)).
+
+작성 시점 (PROPOSED) 의 성격은 기록으로 보존한다 — 본 ADR slice 자체는 **결정만 박제** 했고 코드를 1 LOC 도 만들지 않았다 (그 slice 의 diff 는 본 문서 1 개뿐이고 `src/` · `web/` · `test/` · `prisma/` · `package.json` · `.github/workflows/` 변경이 **0** 이었다). 지문 helper 신설 · mapper 배선 · `commit-dedup.ts` 의 dedup pass 추가 · 관측 배선을 전부 `§ Follow-ups` 로 이월한 것이 그 선택이다 ([ADR-0062](ADR-0062-llm-default-provider-explicit-selection.md) 의 doc-only ADR 선례 동형).
 
 본 ADR 은 [ADR-0029](ADR-0029-assessment-collection-orchestrator.md) 를 **augment** 한다 — 그 `§ Decision (4)` 의 식별자 기반 dedup 전략 (commit = SHA earliest-wins / Confluence page = page-id + version latest-wins) 은 **그대로 유효** 하고, 본 ADR 은 그 뒤에 붙는 **두 번째 pass 1 개** 를 추가할 뿐이다. 기존 결정을 뒤집는 부분은 없다 (supersede 0).
 
@@ -133,10 +135,10 @@ augments: [ADR-0029]
 
 구현 chain 을 slice 단위로 박제한다 (각 slice ≤ 300 LOC / ≤ 5 파일, CLAUDE.md `§ 3` 소비처 동반 의무 판정 포함).
 
-- **(a) 지문 helper + mapper 배선** — 파일: `src/assessment-collection/domain/commit-content-fingerprint.ts` (신설, § Decision 2 정규화 + `createHash("sha256")` + 하한 20 자) · 그 `.spec.ts` · [github-activity.mapper.ts](../../src/assessment-collection/domain/github-activity.mapper.ts) (`buildMetadata` 를 commit 분기에서 helper 호출하도록 확장) · 그 spec. **4 파일 / ~200 LOC**. 소비처 동반 판정: **충족** — helper 신설과 그 유일 소비처 (mapper) 배선이 같은 PR 에 들어간다 (helper 단독 PR 아님). R-112: happy-path (정규화 → 안정적 digest) · error path (비-string message / 필드 부재) · 분기별 (trailer 있음/없음 · CRLF · 하한 미달) · negative (하한 미달 시 `metadata.contentFingerprint` **미포함**, 비-commit 은 미산출).
-- **(b) content dedup pass + 수집 flow 배선** — 파일: [commit-dedup.ts](../../src/assessment-collection/domain/commit-dedup.ts) (pass 2 순수 함수 추가 + § Decision 5 직렬 합성) · 그 spec · [github-collection.service.ts](../../src/assessment-collection/github-collection.service.ts) (`115 행` 반환 경로 무변경 확인 또는 합성 지점 배선) · 그 spec. **4 파일 / ~180 LOC**. 소비처 동반 판정: **충족** — pass 함수와 수집 flow 호출이 같은 PR. R-112: happy-path (SHA 다름 + 지문 같음 → 1 개, earliest 유지) · error path (지문 키 부재 활동 통과) · 분기별 (author 다름 → 미접힘 / 비-commit → 미접힘 / pass 1 과의 순서) · negative (동일 timestamp tie 시 입력 순서 보존, 반환 순서 결정성).
-- **(c) 관측 로그** — 파일: [github-collection.service.ts](../../src/assessment-collection/github-collection.service.ts) (§ Decision 7 의 제거 건수 1 줄 로그) · 그 spec. **2 파일 / ~60 LOC**. 소비처 동반 판정: **충족** (배선 자체가 소비처). R-112: happy-path (제거 > 0 시 로그 1 회) · error path (제거 0 시 로그 억제 여부 명시) · 분기별 · negative (로그 문자열에 식별자·메시지 미포함 = raw 유출 0 검증).
-- **(d) doc-sync (direct)** — 본 ADR status PROPOSED → ACCEPTED, [requirements.md](../requirements.md) REQ-009 재판정 (PLAN `183 행` once-rule 에 따라 (a)~(c) 머지 후 **1 회만**), [PLAN.md](../PLAN.md) `99 행` 중복 제거 bullet 의 implemented-on-main 서술 갱신. **문서 전용 / cap 무관**.
+- **(a) 지문 helper + mapper 배선** — **완료** (T-1944, PR #1526 → merge `ae03ac5b`). 파일: `src/assessment-collection/domain/commit-content-fingerprint.ts` (신설, § Decision 2 정규화 + `createHash("sha256")` + 하한 20 자) · 그 `.spec.ts` · [github-activity.mapper.ts](../../src/assessment-collection/domain/github-activity.mapper.ts) (`buildMetadata` 를 commit 분기에서 helper 호출하도록 확장) · 그 spec. **4 파일 / ~200 LOC**. 소비처 동반 판정: **충족** — helper 신설과 그 유일 소비처 (mapper) 배선이 같은 PR 에 들어간다 (helper 단독 PR 아님). R-112: happy-path (정규화 → 안정적 digest) · error path (비-string message / 필드 부재) · 분기별 (trailer 있음/없음 · CRLF · 하한 미달) · negative (하한 미달 시 `metadata.contentFingerprint` **미포함**, 비-commit 은 미산출).
+- **(b) content dedup pass + 수집 flow 배선** — **완료** (T-1945, PR #1527 → merge `1b7b9c2f`). 파일: [commit-dedup.ts](../../src/assessment-collection/domain/commit-dedup.ts) (pass 2 순수 함수 추가 + § Decision 5 직렬 합성) · 그 spec · [github-collection.service.ts](../../src/assessment-collection/github-collection.service.ts) (`115 행` 반환 경로 무변경 확인 또는 합성 지점 배선) · 그 spec. **4 파일 / ~180 LOC**. 소비처 동반 판정: **충족** — pass 함수와 수집 flow 호출이 같은 PR. R-112: happy-path (SHA 다름 + 지문 같음 → 1 개, earliest 유지) · error path (지문 키 부재 활동 통과) · 분기별 (author 다름 → 미접힘 / 비-commit → 미접힘 / pass 1 과의 순서) · negative (동일 timestamp tie 시 입력 순서 보존, 반환 순서 결정성).
+- **(c) 관측 로그** — **완료** (T-1946, PR #1528 → merge `85641398`). 파일: [github-collection.service.ts](../../src/assessment-collection/github-collection.service.ts) (§ Decision 7 의 제거 건수 1 줄 로그) · 그 spec. **2 파일 / ~60 LOC**. 소비처 동반 판정: **충족** (배선 자체가 소비처). R-112: happy-path (제거 > 0 시 로그 1 회) · error path (제거 0 시 로그 억제 여부 명시) · 분기별 · negative (로그 문자열에 식별자·메시지 미포함 = raw 유출 0 검증).
+- **(d) doc-sync (direct)** — **완료** (T-1947, main 직접 commit). 본 ADR status PROPOSED → ACCEPTED, [requirements.md](../requirements.md) REQ-009 재판정 (PLAN `183 행` once-rule 에 따라 (a)~(c) 머지 후 **1 회만**), [PLAN.md](../PLAN.md) `99 행` 중복 제거 bullet 의 implemented-on-main 서술 갱신. **문서 전용 / cap 무관**.
 - **(확장 지점, task 아님)** 파일 경로 축을 digest 입력에 편입하는 안 — adapter 가 per-commit 파일 목록을 이미 보유하게 되는 시점에만 재검토하며, 그때는 § Decision 2 개정 ADR 이 선행한다.
 
 ## References
@@ -152,4 +154,4 @@ augments: [ADR-0029]
 - [src/assessment-evaluation/domain/evaluation-dedup.ts](../../src/assessment-evaluation/domain/evaluation-dedup.ts) `17~19 행` — 수집-side / 평가-side 책임 경계
 - [ADR-0062](ADR-0062-llm-default-provider-explicit-selection.md) — doc-only ADR slice 형식 선례
 
-Refs: ADR-0063, ADR-0029, REQ-009, REQ-032, T-1943
+Refs: ADR-0063, ADR-0029, REQ-009, REQ-032, T-1943, T-1944, T-1945, T-1946, T-1947
