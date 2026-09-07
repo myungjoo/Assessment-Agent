@@ -33,7 +33,7 @@ augments: [ADR-0032]
 
 평가 layer 가 볼 수 있는 입력이 극히 좁아, 결정 대상이 구현 방식이 아니라 **정책** 이기 때문이다.
 
-1. **판별 입력 자체가 없다.** [evaluation-input.ts](../../src/assessment-evaluation/domain/evaluation-input.ts) `74 행` 의 `metadata: ActivityMetadata` 가 유일한 정량 창구이고, `src` 전수에서 실제로 채워지는 키는 `titleLength` ([github-activity.mapper.ts](../../src/assessment-collection/domain/github-activity.mapper.ts) `137 행` · [confluence-activity.mapper.ts](../../src/assessment-collection/domain/confluence-activity.mapper.ts) `99 행`) · `contentFingerprint` (mapper `145 행`) · Confluence `version` **3 계열뿐** 이다. `EvaluationInput` 에 title 문자열 필드는 **없다**. 파생 신호를 어느 경계에서 만들지가 선결이다.
+1. **판별 입력 자체가 없다.** [evaluation-input.ts](../../src/assessment-evaluation/domain/evaluation-input.ts) `74 행` 의 `metadata: ActivityMetadata` 가 유일한 정량 창구이고, `src` 전수에서 실제로 채워지는 키는 `titleLength` ([github-activity.mapper.ts](../../src/assessment-collection/domain/github-activity.mapper.ts) `137 행` · [confluence-activity.mapper.ts](../../src/assessment-collection/domain/confluence-activity.mapper.ts) `99 행`) 와 `contentFingerprint` (mapper `145 행`) **2 계열뿐** 이다. Confluence `version` ([activity.ts](../../src/assessment-collection/domain/activity.ts) `79 행`) 은 metadata 가 아니라 activity 의 typed 필드라 [evaluation-input.mapper.ts](../../src/assessment-evaluation/domain/evaluation-input.mapper.ts) `74 행` `metadata: activity.metadata` 전사 경계를 **넘지 못한다**. `EvaluationInput` 에 title 문자열 필드도 **없다**. 파생 신호를 어느 경계에서 만들지가 선결이다.
 2. **오탐 비용이 비대칭이다.** 지문 dedup 의 오탐이 기여 **삭제** 였다면 (ADR-0063 `§ Decision 4`), 여기서의 오탐은 **부당한 등급 상향** 이라 다른 기여자의 상대 순위를 깎는다. 임계는 코드보다 먼저 못박아야 한다.
 3. **기존 하향 축과의 우선순위** 도 정책이다 — `"zero"` floor 와 `"high"` uplift 가 같은 `contribution` 필드를 다투므로 순서가 곧 결과다.
 
