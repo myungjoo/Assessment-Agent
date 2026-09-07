@@ -2,7 +2,7 @@
 id: T-1957
 title: ADR-0064 chain 종결 doc-sync + modules.md 알고리즘·연구 축 등재
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-019, REQ-032]
 estimatedDiff: 45
