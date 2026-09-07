@@ -2,7 +2,7 @@
 id: T-1948
 title: ADR-0064 신설 — 새 알고리즘·외부 연구 소개 기여의 결정적 상향 정책 (R-38)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-019]
 independentStream: req019-high-contribution-uplift
