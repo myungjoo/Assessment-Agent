@@ -16,6 +16,7 @@
 // 전체 수집을 깨지 않도록). 호출처가 `null` 항목을 걸러 `ConfluenceActivity[]` 를 만든다.
 
 import { ActivityMetadata, ConfluenceActivity } from "./activity";
+import { computeAlgorithmResearchHits } from "./algorithm-research-signal";
 
 // isRecord — 값이 non-null 의 plain 객체(배열 아님)인지 판정하는 순수 type-guard.
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -89,14 +90,25 @@ function resolveTimestamp(raw: Record<string, unknown>): string | undefined {
   return readString(raw.version.when);
 }
 
-// buildMetadata — raw 본문이 아닌 typed 보조 메타만 담는다(REQ-032). 현 slice 는 page
-// title 길이(`titleLength`)만 추출한다 — title **문자열 자체가 아니라 길이(number)** 만
-// 담아 raw quote 를 피한다. page 본문 HTML(`body.storage.value`)은 절대 담지 않는다.
+// buildMetadata — raw 본문이 아닌 typed 보조 메타만 담는다(REQ-032). page title 에서
+// 길이(`titleLength`)와 R-38 파생 신호(`algorithmResearchHits`)를 뽑는다 — 둘 다 title
+// **문자열 자체가 아니라 수치(number)** 라 raw quote 를 피한다. page 본문 HTML
+// (`body.storage.value`)은 절대 담지 않는다.
+//
+// `algorithmResearchHits` 는 ADR-0064 § Decision 1 의 파생 scalar 로, 판별은 순수
+// helper 가 하고 본 mapper 는 호출만 한다. Confluence page 는 전량
+// `contributionKind === "document"` 로 정규화되므로 § Decision 2 의 대상 kind 한정을
+// 이 경계에서 이미 만족한다. 값이 `0` 이면 **키 자체를 담지 않는다** — 하한 미달 시 키를
+// 생략하는 `contentFingerprint` 관행과 동형이며, 평가 layer 는 키 부재를 미대상으로 읽는다.
 function buildMetadata(raw: Record<string, unknown>): ActivityMetadata {
   const metadata: ActivityMetadata = {};
   const title = readString(raw.title);
   if (title !== undefined) {
     metadata.titleLength = title.length;
+  }
+  const algorithmResearchHits = computeAlgorithmResearchHits(raw.title);
+  if (algorithmResearchHits > 0) {
+    metadata.algorithmResearchHits = algorithmResearchHits;
   }
   return metadata;
 }

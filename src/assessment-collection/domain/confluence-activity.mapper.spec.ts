@@ -244,4 +244,82 @@ describe("mapConfluenceActivity", () => {
       expect(mapConfluenceActivity(raw, INSTANCE, SPACE)?.metadata).toEqual({});
     });
   });
+
+  // ADR-0064 § Decision 1 — R-38 파생 신호(`algorithmResearchHits`) 배선.
+  // Confluence page 는 전량 document kind 라 § Decision 2 의 대상 한정을 이미 만족한다.
+  describe("algorithmResearchHits 배선 (ADR-0064)", () => {
+    // title 만 갈아끼우는 page fixture — 나머지 식별 필드는 고정.
+    function pageWithTitle(title: unknown): unknown {
+      return {
+        id: "777",
+        title,
+        version: {
+          number: 5,
+          when: "2026-06-03T11:00:00Z",
+          by: { accountId: "acct-1" },
+        },
+      };
+    }
+
+    it("(C)+(A) title 이면 metadata.algorithmResearchHits === 2 (happy)", () => {
+      const title = "신규 정렬 알고리즘 설계안 소개";
+      expect(
+        mapConfluenceActivity(pageWithTitle(title), INSTANCE, SPACE)?.metadata,
+      ).toEqual({ titleLength: title.length, algorithmResearchHits: 2 });
+    });
+
+    it("(C)+(B) title 도 2 이며 3 그룹 동시 매칭이면 3 이다(분기별)", () => {
+      const both = "arxiv 논문 정리";
+      expect(
+        mapConfluenceActivity(pageWithTitle(both), INSTANCE, SPACE)?.metadata
+          ?.algorithmResearchHits,
+      ).toBe(2);
+      expect(
+        mapConfluenceActivity(
+          pageWithTitle("알고리즘 연구 소개"),
+          INSTANCE,
+          SPACE,
+        )?.metadata?.algorithmResearchHits,
+      ).toBe(3);
+    });
+
+    it("title 부재 page 도 매핑은 성공하고 키가 없다(error path)", () => {
+      const raw = {
+        id: "1",
+        version: {
+          number: 2,
+          when: "2026-06-01T09:00:00Z",
+          by: { accountId: "a" },
+        },
+      };
+      const result = mapConfluenceActivity(raw, INSTANCE, SPACE);
+      expect(result).not.toBeNull();
+      expect(result?.metadata).not.toHaveProperty("algorithmResearchHits");
+    });
+
+    it("marker 무관 title 이면 키 미포함 + titleLength 는 회귀하지 않는다(negative)", () => {
+      const title = "2026 년 2 분기 배포 일정";
+      const metadata = mapConfluenceActivity(
+        pageWithTitle(title),
+        INSTANCE,
+        SPACE,
+      )?.metadata;
+      expect(metadata).not.toHaveProperty("algorithmResearchHits");
+      expect(metadata).toEqual({ titleLength: title.length });
+    });
+
+    it("raw title 문자열 자체는 metadata 에 담기지 않는다(REQ-032)", () => {
+      const title = "알고리즘 연구 소개";
+      const metadata = mapConfluenceActivity(
+        pageWithTitle(title),
+        INSTANCE,
+        SPACE,
+      )?.metadata;
+      expect(Object.values(metadata ?? {})).not.toContain(title);
+      expect(Object.keys(metadata ?? {}).sort()).toEqual([
+        "algorithmResearchHits",
+        "titleLength",
+      ]);
+    });
+  });
 });
