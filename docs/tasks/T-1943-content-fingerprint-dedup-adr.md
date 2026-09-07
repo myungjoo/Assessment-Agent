@@ -2,7 +2,7 @@
 id: T-1943
 title: ADR-0063 신설 — rebase/meld 내용물 중복 제거 정책 (commit content fingerprint, REQ-009 잔여 축)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009, REQ-032]
 estimatedDiff: 250
