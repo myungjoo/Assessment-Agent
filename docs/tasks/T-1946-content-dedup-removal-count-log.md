@@ -2,7 +2,7 @@
 id: T-1946
 title: 내용 지문 dedup pass 2 제거 건수 관측 로그 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-009]
 estimatedDiff: 150
@@ -47,17 +47,17 @@ plannerNote: P5 · ADR-0063 §Follow-ups (c) — pass 2 제거 건수 1 줄 로�
 
 ## Acceptance Criteria
 
-- [ ] `GithubCollectionService` 에 `private readonly logger = new Logger(GithubCollectionService.name);` 필드를 추가한다 (constructor 시그니처 무변경 — DI 주입 아님, 위 emitter 선례와 동형).
-- [ ] `collectGithubActivities` 의 반환부를 pass 1 결과 · pass 2 결과 두 지역 변수로 풀고, **pass 2 가 제거한 건수** (`pass1.length - pass2.length`) 만 계산한다. pass 1 제거분은 세지 않는다 (ADR-0063 `§ Decision 7` 은 지문 dedup 제거 건수만 요구).
-- [ ] 제거 건수 `> 0` 일 때만 `this.logger.log(...)` 를 **정확히 1 회** 호출한다. 제거 `0` 이면 로그를 **억제** 한다 (수집 호출마다 0 건 로그가 쌓이는 것을 막기 위한 결정 — 이 억제 규칙을 코드 주석 1 줄로 명시).
-- [ ] 로그 문자열에 활동 식별자 (`externalId` · SHA) · `author` · commit message · `contentFingerprint` digest 중 **어느 것도 포함하지 않는다** (raw 유출 0, `§ Decision 7`). 건수 + 고정 문구만.
-- [ ] 반환값 계약 무변경 — `collectGithubActivities` 는 여전히 2-pass 합성 결과 배열을 그대로 반환하고 순서·내용이 바뀌지 않는다.
-- [ ] happy-path test 1+ (R-112-1): 지문이 같은 rebase 사본이 섞인 입력에서 수집 후 `logger.log` 가 1 회 호출되고 인자 문자열에 제거 건수가 담긴다.
-- [ ] error path test 1+ (R-112-2): 모든 source 가 throw 해 수집 결과가 빈 배열인 경우 (또는 빈 `sources` 입력) 로그 0 회 · throw 0.
-- [ ] 분기별 test (R-112-3): (i) 제거 `> 0` → 로그 1 회 (ii) 제거 `0` (지문 중복 없음) → 로그 0 회 (iii) pass 1 만 제거하고 pass 2 제거 0 인 입력 → 로그 0 회 (pass 1 제거분을 세지 않음의 직접 검증).
-- [ ] negative test (R-112-4): 로그 인자 문자열이 입력 활동의 `externalId` · `author` · `contentFingerprint` 값 어느 것도 **포함하지 않음** 을 단언 (raw 유출 0) + 로그 spy 를 걸어도 반환 배열이 기존 spec 의 기대와 동일함 (계약 회귀 0).
-- [ ] `pnpm lint && pnpm build && pnpm test` 통과.
-- [ ] `pnpm test:cov` 통과 (전역 line ≥ 80% / function ≥ 80%) 이며 변경 파일 `github-collection.service.ts` 의 line·branch 100% 유지.
+- [x] `GithubCollectionService` 에 `private readonly logger = new Logger(GithubCollectionService.name);` 필드를 추가한다 (constructor 시그니처 무변경 — DI 주입 아님, 위 emitter 선례와 동형).
+- [x] `collectGithubActivities` 의 반환부를 pass 1 결과 · pass 2 결과 두 지역 변수로 풀고, **pass 2 가 제거한 건수** (`pass1.length - pass2.length`) 만 계산한다. pass 1 제거분은 세지 않는다 (ADR-0063 `§ Decision 7` 은 지문 dedup 제거 건수만 요구).
+- [x] 제거 건수 `> 0` 일 때만 `this.logger.log(...)` 를 **정확히 1 회** 호출한다. 제거 `0` 이면 로그를 **억제** 한다 (수집 호출마다 0 건 로그가 쌓이는 것을 막기 위한 결정 — 이 억제 규칙을 코드 주석 1 줄로 명시).
+- [x] 로그 문자열에 활동 식별자 (`externalId` · SHA) · `author` · commit message · `contentFingerprint` digest 중 **어느 것도 포함하지 않는다** (raw 유출 0, `§ Decision 7`). 건수 + 고정 문구만.
+- [x] 반환값 계약 무변경 — `collectGithubActivities` 는 여전히 2-pass 합성 결과 배열을 그대로 반환하고 순서·내용이 바뀌지 않는다.
+- [x] happy-path test 1+ (R-112-1): 지문이 같은 rebase 사본이 섞인 입력에서 수집 후 `logger.log` 가 1 회 호출되고 인자 문자열에 제거 건수가 담긴다.
+- [x] error path test 1+ (R-112-2): 모든 source 가 throw 해 수집 결과가 빈 배열인 경우 (또는 빈 `sources` 입력) 로그 0 회 · throw 0.
+- [x] 분기별 test (R-112-3): (i) 제거 `> 0` → 로그 1 회 (ii) 제거 `0` (지문 중복 없음) → 로그 0 회 (iii) pass 1 만 제거하고 pass 2 제거 0 인 입력 → 로그 0 회 (pass 1 제거분을 세지 않음의 직접 검증).
+- [x] negative test (R-112-4): 로그 인자 문자열이 입력 활동의 `externalId` · `author` · `contentFingerprint` 값 어느 것도 **포함하지 않음** 을 단언 (raw 유출 0) + 로그 spy 를 걸어도 반환 배열이 기존 spec 의 기대와 동일함 (계약 회귀 0).
+- [x] `pnpm lint && pnpm build && pnpm test` 통과.
+- [x] `pnpm test:cov` 통과 (전역 line ≥ 80% / function ≥ 80%) 이며 변경 파일 `github-collection.service.ts` 의 line·branch 100% 유지.
 
 ## Out of Scope
 
