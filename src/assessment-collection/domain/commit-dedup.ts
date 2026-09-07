@@ -17,6 +17,19 @@
 //     근거: pr/issue 번호는 repo 내 단조 증가 식별자라 동일 (repo, number)는 동일
 //     활동이며 timestamp 가 갈릴 이유가 없다(재수집 시 동일값). 그래도 방어적으로 commit
 //     과 같은 earliest-wins tie-break 를 적용해 비결정성을 제거한다.
+//
+// pass 2(내용 지문 dedup, ADR-0063 Decision §4/§5/§6) — 위 식별자 dedup 이 잡지 못하는
+// "SHA 는 다른데 내용이 같은" rebase/meld 사본 축을 닫는다. 별도 export 함수
+// `dedupGithubActivitiesByContent` 이며 pass 1 출력에 **직렬 합성** 된다(pass 1 의
+// 시그니처·동작은 1 LOC 도 바뀌지 않는다).
+//   - 키: `content:<author>:<digest>` — author 를 넣어 서로 다른 사람의 동일 메시지
+//     기여가 접히는 오탐을 막고, repoRef 는 넣지 않는다(rebase 사본은 fork 된 다른
+//     repo 에서 나타나는 것이 전형 — pass 1 의 `commit:<sha>` 와 동일 근거). 시간창
+//     제한 없음 — 시간 축은 earliest-wins 가 처리한다.
+//   - 대상: `kind === "commit"` 이면서 `metadata.contentFingerprint` 가 string 인 활동만.
+//     pr / issue · 지문 부재 활동은 키를 만들지 않고 원본 그대로 통과한다(서로 병합 0).
+//   - 지문 산출은 본 파일 책임이 아니다 — mapper 가 raw→typed 경계에서 산출해 실어 보낸
+//     값을 **읽기만** 한다(정규화·하한 20 자 판정은 mapper 책임, ADR-0063 Decision §1/§4).
 
 import { GithubActivity } from "./activity";
 
@@ -79,4 +92,64 @@ export function dedupGithubActivities(
   return [...winners.keys()]
     .sort((a, b) => (firstSeenOrder.get(a) ?? 0) - (firstSeenOrder.get(b) ?? 0))
     .map((key) => winners.get(key) as GithubActivity);
+}
+
+// contentDedupKey — pass 2(내용 지문) 의 dedup 키를 만든다. 키 대상은 `kind ===
+// "commit"` 이면서 `metadata.contentFingerprint` 가 **string** 인 활동뿐이며, 그 외
+// (비-commit · 키 부재 · 비-string 값)는 `undefined` 를 돌려 "키 없음 = dedup 대상
+// 아님" 을 표현한다(ADR-0063 § Decision 4/6). 키는 `content:<author>:<digest>` —
+// repoRef 는 넣지 않는다(rebase 사본은 fork 된 다른 repo 에서 나타나는 것이 전형).
+function contentDedupKey(activity: GithubActivity): string | undefined {
+  if (activity.kind !== "commit") {
+    return undefined;
+  }
+  const fingerprint = activity.metadata.contentFingerprint;
+  if (typeof fingerprint !== "string") {
+    return undefined;
+  }
+  return `content:${activity.author}:${fingerprint}`;
+}
+
+// dedupGithubActivitiesByContent — pass 2. SHA 는 다르지만 (author, 내용 지문)이 같은
+// 활동을 earliest `timestamp` 1 건으로 접은 새 배열을 반환한다(입력 배열 비변형).
+// 지문 키가 없는 활동은 서로 병합되지 않고 **원본 그대로 통과** 하며, 통과 활동과 유지
+// 활동 모두 최초 등장 위치 기준으로 정렬돼 반환 순서가 결정적이다(pass 1 과 동형,
+// ADR-0063 § Decision 5). `isEarlier` 는 pass 1 것을 그대로 재사용한다.
+export function dedupGithubActivitiesByContent(
+  activities: GithubActivity[],
+): GithubActivity[] {
+  // 지문 키 → 유지 중인 활동 + 그 키의 최초 등장 순번(반환 순서 안정화용).
+  const winners = new Map<
+    string,
+    { activity: GithubActivity; order: number }
+  >();
+  // 키 없는(=dedup 대상 아님) 활동은 등장 순번과 함께 그대로 모은다.
+  const ordered: { activity: GithubActivity; order: number }[] = [];
+
+  activities.forEach((activity, index) => {
+    const key = contentDedupKey(activity);
+    if (key === undefined) {
+      ordered.push({ activity, order: index });
+      return;
+    }
+
+    const current = winners.get(key);
+    if (current === undefined) {
+      winners.set(key, { activity, order: index });
+      return;
+    }
+
+    // earliest-wins — 엄격히 더 이른 timestamp 만 교체한다. 동일/이후 timestamp 면
+    // 먼저 등장한 항목을 유지한다(tie-break = 입력 순서 보존). 반환 위치는 최초 등장
+    // 순번 그대로 둔다.
+    if (isEarlier(activity.timestamp, current.activity.timestamp)) {
+      winners.set(key, { activity, order: current.order });
+    }
+  });
+
+  winners.forEach((winner) => ordered.push(winner));
+
+  return ordered
+    .sort((a, b) => a.order - b.order)
+    .map((entry) => entry.activity);
 }

@@ -1,6 +1,7 @@
 // GithubCollectionService 의 unit test(CLAUDE.md §3.2 R-112 — happy / error / branch /
 // negative cases 충분 cover). collection slice (ii), ADR-0029 Decision §3(skip-and-
-// continue) + §4(SHA earliest-wins dedup). live/credentialed 수집 0 — `GithubInstanceClient`
+// continue) + §4(SHA earliest-wins dedup) + ADR-0063 Decision §5(pass 2 내용 지문
+// dedup 직렬 합성 배선). live/credentialed 수집 0 — `GithubInstanceClient`
 // 는 jest mock 으로 주입(Q-0025 deferred 정합). 실 GitHub 호출 0 / 실 token 0.
 
 import { GithubInstanceClient } from "../github/github-instance-client.service";
@@ -17,6 +18,21 @@ function rawCommit(sha: string, date: string): unknown {
   return {
     sha,
     commit: { author: { name: "홍길동", date } },
+    author: { login: "gildong" },
+  };
+}
+
+// rawCommitWithMessage — 지문이 산출되도록 `commit.message` 를 실은 commit raw item.
+// mapper 가 정규화 후 20 자 하한(ADR-0063 § Decision 4)을 넘겨야 `metadata.
+// contentFingerprint` 가 실리므로 message 는 충분히 긴 문장을 쓴다.
+function rawCommitWithMessage(
+  sha: string,
+  date: string,
+  message: string,
+): unknown {
+  return {
+    sha,
+    commit: { author: { name: "홍길동", date }, message },
     author: { login: "gildong" },
   };
 }
@@ -151,6 +167,47 @@ describe("GithubCollectionService", () => {
       // earliest-wins → 1건, earlier timestamp 유지.
       expect(result).toHaveLength(1);
       expect(result[0].timestamp).toBe("2026-06-01T09:00:00Z");
+    });
+
+    it("SHA 는 다르지만 내용 지문이 같은 rebase 사본은 1건으로 접힌다", async () => {
+      // pass 2(ADR-0063 Decision §5) 배선 검증 — 2 월 원본과 3 월 rebase 사본이
+      // 서로 다른 repo 에서 수집돼도 earliest 1 건만 남는다.
+      const message = "수집 파이프라인의 중복 제거 경로를 정리한다";
+      const { service } = makeClientMock((_key, path) => {
+        if (!isCommitsPath(path)) return [];
+        return path.includes("repo-a")
+          ? [rawCommitWithMessage("sha-원본", "2026-02-01T09:00:00Z", message)]
+          : [rawCommitWithMessage("sha-사본", "2026-03-01T09:00:00Z", message)];
+      });
+
+      const spec: GithubCollectionSpec = {
+        sources: [
+          { instanceKey: "sec", org: "octo-org", repo: "repo-a" },
+          { instanceKey: "sec", org: "octo-org", repo: "repo-b" },
+        ],
+      };
+      const result = await service.collectGithubActivities(spec);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].externalId).toBe("sha-원본");
+      expect(result[0].timestamp).toBe("2026-02-01T09:00:00Z");
+    });
+
+    it("지문이 없는 commit 끼리는 SHA 가 다르면 접히지 않는다", async () => {
+      // message 없는 raw 는 지문 미산출 → pass 2 통과(하한 미달 오탐 차단).
+      const { service } = makeClientMock((_key, path) =>
+        isCommitsPath(path)
+          ? [
+              rawCommit("sha-a", "2026-06-01T09:00:00Z"),
+              rawCommit("sha-b", "2026-06-02T09:00:00Z"),
+            ]
+          : [],
+      );
+
+      const spec: GithubCollectionSpec = {
+        sources: [{ instanceKey: "sec", org: "octo-org", repo: "octo-repo" }],
+      };
+      expect(await service.collectGithubActivities(spec)).toHaveLength(2);
     });
   });
 

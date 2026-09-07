@@ -10,7 +10,12 @@
 //       로 호출 → raw `unknown[]` 획득.
 //   (3) raw item 마다 `mapGithubActivity(raw, instanceKey, repoRef)` 호출 → null(=
 //       malformed) skip → `GithubActivity[]` 누적.
-//   (4) 전 source 누적 후 `dedupGithubActivities` 로 SHA earliest-wins dedup → 반환.
+//   (4) 전 source 누적 후 2-pass dedup 을 직렬 합성해 반환 — pass 1
+//       `dedupGithubActivities`(SHA/번호 식별자 earliest-wins) → 그 출력에 pass 2
+//       `dedupGithubActivitiesByContent`(내용 지문 `content:<author>:<digest>`
+//       earliest-wins, ADR-0063 Decision §5). SHA 중복이 먼저 접힌 뒤 pass 2 가
+//       "SHA 는 다른데 내용이 같은" rebase/meld 축만 다루므로 두 pass 의 책임이
+//       겹치지 않는다. 반환 타입·순서 결정성은 무변경.
 //
 // per-source skip-and-continue(ADR-0029 Decision §3): 각 instance/org/repo/endpoint
 // 호출을 **독립 try/catch** 로 감싼다. 한 source 의 throw(권한 부족 4xx 등
@@ -29,7 +34,10 @@ import { Injectable } from "@nestjs/common";
 import { GithubInstanceClient } from "../github/github-instance-client.service";
 
 import { GithubActivity } from "./domain/activity";
-import { dedupGithubActivities } from "./domain/commit-dedup";
+import {
+  dedupGithubActivities,
+  dedupGithubActivitiesByContent,
+} from "./domain/commit-dedup";
 import { mapGithubActivity } from "./domain/github-activity.mapper";
 
 // GithubActivityEndpoint — 한 repo 에서 수집하는 활동 endpoint 종류. list endpoint
@@ -111,7 +119,8 @@ export class GithubCollectionService {
       }
     }
 
-    // 전 source 누적 후 SHA earliest-wins dedup(ADR-0029 Decision §4) 적용.
-    return dedupGithubActivities(collected);
+    // 전 source 누적 후 2-pass dedup 직렬 합성 — pass 1 식별자 earliest-wins
+    // (ADR-0029 Decision §4) → pass 2 내용 지문 earliest-wins(ADR-0063 Decision §5).
+    return dedupGithubActivitiesByContent(dedupGithubActivities(collected));
   }
 }
