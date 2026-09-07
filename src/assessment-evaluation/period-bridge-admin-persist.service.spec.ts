@@ -6,11 +6,14 @@
 // CollectionOrchestratorService.collectActivities / EvaluationOrchestratorService.
 // evaluateActivities / EvaluationResultPersistService.persist / AssessmentRepository.
 // {findById,findByCoordinate})를 전부 mock 주입 — 실 LLM / 실 DB / 실 네트워크 0.
-// 본 spec 은 compose 정합(5 단계 순서·인자 pass-through → since 분기 → error 전파 →
+// 본 spec 은 compose 정합(6 단계 순서·인자 pass-through → since 분기 → error 전파 →
 // 빈 수집 흡수 → first-write-wins 3 분기[좌표 부재 create / 좌표 존재 read-through /
 // P2002 race catch→read fall-through] → reevaluate flag 분기[true→"reeval" / false·
 // 미지정→"fill"] → reeval 경로 semantics[좌표 부재 create degrade / ConflictException
 // 전파 / created 항상 true] → ephemeral write-0 sibling 구조 보존)을 cover 한다.
+// T-1941 로 **기간 창 필터 축**(반열림 `[since, until)` 배선 — 창 밖 활동이 평가·영속
+// 입력에서 제외 / `until` 미지정·양쪽 미지정 항등 / 파싱 불가 bound 의 RangeError
+// fail-fast 로 persist 미도달 / 창 필터가 author 필터보다 앞선다는 순서 합성)이 추가됐다.
 import { ConflictException } from "@nestjs/common";
 import type { Assessment, ServiceIdentity } from "@prisma/client";
 
@@ -147,7 +150,7 @@ function makeService(
 
 describe("PeriodBridgeAdminPersistService", () => {
   describe("happy-path — collect→filter→evaluate→persist(fill | reeval opt-out)→read-back (좌표 부재 create)", () => {
-    it("5 단계를 순서대로 호출하고 persist('fill') 1 회 + 영속 Assessment 를 반환한다", async () => {
+    it("6 단계를 순서대로 호출하고 persist('fill') 1 회 + 영속 Assessment 를 반환한다", async () => {
       const mocks = makeMocks();
       const person = personMatching();
       const context = buildContext();
@@ -173,12 +176,12 @@ describe("PeriodBridgeAdminPersistService", () => {
       );
       // (2) collectActivities(spec).
       expect(mocks.orchestrator.collectActivities).toHaveBeenCalledWith(SPEC);
-      // (4) evaluateActivities(귀속 활동, options).
+      // (5) evaluateActivities(창 필터 · 귀속 필터를 거친 활동, options).
       const [evalArg, optArg] =
         mocks.evaluation.evaluateActivities.mock.calls[0];
       expect(evalArg).toEqual(activities);
       expect(optArg).toBe(OPTIONS);
-      // (5) persist(context, results, "fill") — 1 회, mode "fill".
+      // (6) persist(context, results, "fill") — 1 회, mode "fill".
       expect(mocks.persist.persist).toHaveBeenCalledTimes(1);
       expect(mocks.persist.persist).toHaveBeenCalledWith(
         context,
@@ -490,6 +493,195 @@ describe("PeriodBridgeAdminPersistService", () => {
       expect(mocks.persist.persist).toHaveBeenCalledWith(context, [], "reeval");
       expect(result.created).toBe(true);
       expect(result.assessment.id).toBe("asmt-empty-reeval");
+    });
+  });
+
+  describe("기간 창 필터 — 반열림 [since, until) 배선(T-1941)", () => {
+    it("창 밖 활동은 평가·영속 입력에서 제외되고 until 과 같은 instant 도 exclusive 로 빠진다 (happy)", async () => {
+      const mocks = makeMocks();
+      const before = githubActivity({
+        externalId: "before",
+        timestamp: "2026-05-31T23:59:59Z",
+      });
+      const inside = githubActivity({
+        externalId: "inside",
+        timestamp: "2026-06-15T00:00:00Z",
+      });
+      const atUntil = githubActivity({
+        externalId: "at-until",
+        timestamp: "2026-07-01T00:00:00Z",
+      });
+      mocks.orchestrator.collectActivities.mockResolvedValue([
+        before,
+        inside,
+        atUntil,
+      ]);
+      const service = makeService(mocks);
+
+      await service.generateAndPersist(
+        personMatching(),
+        { since: "2026-06-01T00:00:00Z", until: "2026-07-01T00:00:00Z" },
+        OPTIONS,
+        buildContext(),
+      );
+
+      // until 은 exclusive — 상한 시각과 같은 활동(at-until)도 제외된다.
+      const [evalArg] = mocks.evaluation.evaluateActivities.mock.calls[0];
+      expect(evalArg).toEqual([inside]);
+      // 창 안 활동만 영속 경로로 흐른다(persist 도달, DB 오염 0).
+      expect(mocks.persist.persist).toHaveBeenCalledTimes(1);
+    });
+
+    it("until 미지정(현 controller 호출 형태) 시 하한만 적용된다 (branch)", async () => {
+      const mocks = makeMocks();
+      const old = githubActivity({
+        externalId: "old",
+        timestamp: "2026-01-01T00:00:00Z",
+      });
+      const recent = githubActivity({
+        externalId: "recent",
+        timestamp: "2026-09-01T00:00:00Z",
+      });
+      mocks.orchestrator.collectActivities.mockResolvedValue([old, recent]);
+      const service = makeService(mocks);
+
+      await service.generateAndPersist(
+        personMatching(),
+        { since: "2026-06-01T00:00:00Z" },
+        OPTIONS,
+        buildContext(),
+      );
+
+      // 상한 없음 → since 이후는 아무리 미래여도 전부 통과.
+      const [evalArg] = mocks.evaluation.evaluateActivities.mock.calls[0];
+      expect(evalArg).toEqual([recent]);
+    });
+
+    it("since · until 둘 다 미지정이면 수집 전량이 그대로 전달된다 (회귀 0)", async () => {
+      const mocks = makeMocks();
+      const a = githubActivity({
+        externalId: "a",
+        timestamp: "2020-01-01T00:00:00Z",
+      });
+      const b = githubActivity({
+        externalId: "b",
+        timestamp: "2030-01-01T00:00:00Z",
+      });
+      mocks.orchestrator.collectActivities.mockResolvedValue([a, b]);
+      const service = makeService(mocks);
+
+      await service.generateAndPersist(
+        personMatching(),
+        {},
+        OPTIONS,
+        buildContext(),
+      );
+
+      const [evalArg] = mocks.evaluation.evaluateActivities.mock.calls[0];
+      expect(evalArg).toEqual([a, b]);
+    });
+
+    it("파싱 불가 bound 의 RangeError 는 전파되고 evaluateActivities · persist 가 미호출이다 (error path — persist 미도달)", async () => {
+      const mocks = makeMocks();
+      mocks.orchestrator.collectActivities.mockResolvedValue([
+        githubActivity(),
+      ]);
+      const service = makeService(mocks);
+
+      await expect(
+        service.generateAndPersist(
+          personMatching(),
+          { since: "not-a-date" },
+          OPTIONS,
+          buildContext(),
+        ),
+      ).rejects.toThrow(RangeError);
+      // fail-fast — 창 필터 단계에서 throw 되어 평가·영속 어느 쪽에도 도달하지 않는다
+      // (부분 결과가 DB 에 남지 않는 것이 Admin 경로의 핵심 단언).
+      expect(mocks.evaluation.evaluateActivities).not.toHaveBeenCalled();
+      expect(mocks.persist.persist).not.toHaveBeenCalled();
+    });
+
+    it("negative (i)(iii) — 창 밖 전량 제외 · since > until 빈 창 모두 throw 0 으로 빈 입력 persist 에 수렴한다", async () => {
+      // (i) 창 밖 전량 제외 — 수집물이 모두 상한 이상.
+      const outOfWindow = makeMocks();
+      outOfWindow.orchestrator.collectActivities.mockResolvedValue([
+        githubActivity({
+          externalId: "far",
+          timestamp: "2030-01-01T00:00:00Z",
+        }),
+      ]);
+      await makeService(outOfWindow).generateAndPersist(
+        personMatching(),
+        { since: "2026-06-01T00:00:00Z", until: "2026-07-01T00:00:00Z" },
+        OPTIONS,
+        buildContext(),
+      );
+      expect(outOfWindow.evaluation.evaluateActivities).toHaveBeenCalledWith(
+        [],
+        OPTIONS,
+      );
+      // 빈 평가 입력이어도 persist 는 빈 입력으로 호출되고 throw 0 으로 흡수된다.
+      expect(outOfWindow.persist.persist).toHaveBeenCalledWith(
+        expect.anything(),
+        [],
+        "fill",
+      );
+
+      // (iii) since > until(빈 창) — 규칙 (e) 상 throw 0, 빈 평가 입력으로 수렴.
+      const emptyWindow = makeMocks();
+      emptyWindow.orchestrator.collectActivities.mockResolvedValue([
+        githubActivity(),
+      ]);
+      await expect(
+        makeService(emptyWindow).generateAndPersist(
+          personMatching(),
+          { since: "2026-07-01T00:00:00Z", until: "2026-06-01T00:00:00Z" },
+          OPTIONS,
+          buildContext(),
+        ),
+      ).resolves.toEqual(expect.objectContaining({ created: true }));
+      expect(emptyWindow.evaluation.evaluateActivities).toHaveBeenCalledWith(
+        [],
+        OPTIONS,
+      );
+    });
+
+    it("negative (ii) — 창 필터가 author 필터보다 먼저 적용된다(창 안이지만 귀속 0 건은 평가 입력에서 빠진다)", async () => {
+      const mocks = makeMocks();
+      const mineInside = githubActivity({
+        externalId: "mine-inside",
+        timestamp: "2026-06-15T00:00:00Z",
+      });
+      // 창 안이지만 타인 활동 — author 필터가 제거한다.
+      const othersInside = githubActivity({
+        externalId: "others-inside",
+        author: "someone-else",
+        timestamp: "2026-06-16T00:00:00Z",
+      });
+      // 내 활동이지만 창 밖 — 창 필터가 먼저 제거한다.
+      const mineOutside = githubActivity({
+        externalId: "mine-outside",
+        timestamp: "2026-08-01T00:00:00Z",
+      });
+      mocks.orchestrator.collectActivities.mockResolvedValue([
+        mineInside,
+        othersInside,
+        mineOutside,
+      ]);
+      const service = makeService(mocks);
+
+      await service.generateAndPersist(
+        personMatching(),
+        { since: "2026-06-01T00:00:00Z", until: "2026-07-01T00:00:00Z" },
+        OPTIONS,
+        buildContext(),
+      );
+
+      // 두 필터의 합성 결과 — 창 안 ∩ 귀속만 남는다(순서 무관하게 교집합이지만,
+      // 창 필터가 앞이므로 author 필터 입력에는 창 밖 활동이 이미 없다).
+      const [evalArg] = mocks.evaluation.evaluateActivities.mock.calls[0];
+      expect(evalArg).toEqual([mineInside]);
     });
   });
 
