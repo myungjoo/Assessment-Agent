@@ -2,7 +2,7 @@
 id: T-1969
 title: REQ-039 · REQ-040 상태 칸 근거 공백 정정 — cron 스케줄 unit·e2e 좌표 doc-sync (once-rule REQ 당 1 회)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-039, REQ-040]
 estimatedDiff: 24
