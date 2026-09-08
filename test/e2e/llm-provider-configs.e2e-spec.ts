@@ -1375,3 +1375,286 @@ describe("E2E: PUT /api/llm/providers/default (T-1974, REQ-049/REQ-051/REQ-043)"
     expect(response.body).not.toHaveProperty("apiKey");
   });
 });
+
+// -- T-1975: 기본 슬롯이 걸린 row 의 PATCH × isDefault 파생 축 -----------------
+// 위 다섯 describe 와 모든 모듈 상수는 무수정이다. 본 describe 는 route **교차**
+// 축 1 건만 닫는다 — T-1973(PATCH) 은 기본 슬롯을 한 번도 seed 하지 않았고
+// T-1974(PUT /default) 는 PATCH 를 호출하지 않아, "기본으로 지정된 config 를
+// 수정해도 기본이 유지되는가" 가 실 HTTP 왕복에 없었다(전량 unit mock).
+//
+// 책임: service `228~271 행` update 의 마지막 문장
+// `return this.sanitize(row, await this.readDefaultConfigId());` 배선 고정.
+// 인자 유실 · sanitize 상수 false 회귀 = Admin 이 기본 provider 를 수정한 직후
+// 화면에서 기본 표시가 사라지는 회귀인데, 지금 이를 잡는 e2e 가 0 이다.
+//
+// 고정 계약 4 가지: (a) 기본 row A 를 PATCH → 200 + view 7 key + isDefault true
+// 유지이고 직후 GET 단건 · 목록에도 반영(소비처 연결) (b) PATCH 는 슬롯을 쓰지
+// 않는다 — 비기본 B 는 승격 0, 실패 PATCH(404 · 400 · 403 · 401)도 슬롯 count 1 ·
+// 대상 A 불변 (c) apiKey 재암호화 분기(`253~255 행`)도 파생 · 슬롯 불변
+// (d) 슬롯이 비면(ADR-0062 §Decision 2) 같은 A 가 false(`105~117 행` null 분기).
+// seed 는 쓰기 route 경유 0(prisma 직접 create) — PATCH 축 단독 red/green.
+describe("E2E: PATCH /api/llm/providers/:id × 기본 슬롯 파생 (T-1975, REQ-049/REQ-051/REQ-043)", () => {
+  let ctx: AuthenticatedE2EContext;
+  let app: INestApplication;
+  let prisma: PrismaService;
+  let cipher: LlmApiKeyCipher;
+  let userCookie: string;
+  let adminCookie: string;
+  let previousEncKey: string | undefined;
+  // A = 기본 슬롯이 가리키는 config, B = 비기본 대조군.
+  let idA: string;
+  let idB: string;
+  let cipherTextA: string;
+
+  // A 의 초기 필드 — 실패 경로의 "row 불변" 단언 기준값.
+  const SEED_A_FIELDS = {
+    provider: "openai",
+    endpointUrl: "https://default-patch-a.example.test/v1",
+    modelId: "gpt-default-patch-a",
+  } as const;
+
+  beforeAll(async () => {
+    previousEncKey = process.env[ENC_KEY_ENV];
+    process.env[ENC_KEY_ENV] = randomBytes(32).toString("base64");
+
+    ctx = await createAuthenticatedE2EApp([
+      { role: "User", email: "llm-provider-defpatch-user@e2e.test" },
+      { role: "Admin", email: "llm-provider-defpatch-admin@e2e.test" },
+    ]);
+    app = ctx.app;
+    prisma = ctx.prisma;
+    cipher = app.get(LlmApiKeyCipher);
+    userCookie = buildAuthCookie(
+      ctx.tokens["llm-provider-defpatch-user@e2e.test"],
+    );
+    adminCookie = buildAuthCookie(
+      ctx.tokens["llm-provider-defpatch-admin@e2e.test"],
+    );
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await prisma.$disconnect();
+    if (previousEncKey === undefined) {
+      delete process.env[ENC_KEY_ENV];
+    } else {
+      process.env[ENC_KEY_ENV] = previousEncKey;
+    }
+  });
+
+  // config 2 건 + A 를 가리키는 기본 슬롯 1 건 — 전부 prisma 직접 seed.
+  beforeEach(async () => {
+    cipherTextA = cipher.encrypt(SECRET_DEFAULT_A);
+    const rowA = await prisma.llmProviderConfig.create({
+      data: { ...SEED_A_FIELDS, apiKey: cipherTextA },
+    });
+    const rowB = await prisma.llmProviderConfig.create({
+      data: {
+        provider: "anthropic",
+        endpointUrl: "https://default-patch-b.example.test/v1",
+        modelId: "claude-default-patch-b",
+        apiKey: cipher.encrypt(SECRET_DEFAULT_B),
+      },
+    });
+    idA = rowA.id;
+    idB = rowB.id;
+    await prisma.llmDefaultProvider.create({
+      data: { llmProviderConfigId: idA },
+    });
+  });
+
+  afterEach(async () => {
+    await truncateAll(prisma);
+    // 자식(LlmDefaultProvider) → 부모(LlmProviderConfig) 순서 고정.
+    await prisma.llmDefaultProvider.deleteMany();
+    await prisma.llmProviderConfig.deleteMany();
+  });
+
+  function patchAs(cookie: string, id: string, body: Record<string, unknown>) {
+    return request(app.getHttpServer())
+      .patch(`${PROVIDERS_URL}/${id}`)
+      .set("Cookie", cookie)
+      .send(body);
+  }
+
+  // 슬롯 invariant — 언제나 1 개이고 여전히 A 를 가리킨다(PATCH 는 슬롯 미기록).
+  async function expectSlotStillA(): Promise<void> {
+    expect(await prisma.llmDefaultProvider.count()).toBe(1);
+    const slot = await prisma.llmDefaultProvider.findFirst();
+    expect(slot?.llmProviderConfigId).toBe(idA);
+  }
+
+  // 실패 경로 공통 단언 — A 의 4 컬럼이 seed 시점 그대로(부분 반영 0).
+  async function expectRowAUnchanged(): Promise<void> {
+    const row = await prisma.llmProviderConfig.findUnique({
+      where: { id: idA },
+    });
+    expect(row).toMatchObject(SEED_A_FIELDS);
+    expect(row?.apiKey).toBe(cipherTextA);
+  }
+
+  // -- happy: 기본 row 를 PATCH 해도 isDefault true 유지 + 슬롯 불변 --
+
+  it("Admin 쿠키로 기본 row A 의 modelId 를 PATCH 하면 200 + view 7 key 정확히 + isDefault true 유지 · 슬롯 불변 (authed happy)", async () => {
+    const response = await patchAs(adminCookie, idA, {
+      modelId: "gpt-default-patched",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers["content-type"]).toMatch(/application\/json/);
+    expect(Object.keys(response.body).sort()).toEqual([...VIEW_FIELDS].sort());
+    expect(response.body).toMatchObject({
+      id: idA,
+      modelId: "gpt-default-patched",
+      // 파생 인자 유실 · 상수 false 회귀의 단일 감지 지점.
+      isDefault: true,
+    });
+    expect(response.body).not.toHaveProperty("apiKey");
+    expect(response.text).not.toContain(SECRET_DEFAULT_A);
+    await expectSlotStillA();
+  });
+
+  // -- 소비처 연결(§3 소비처 동반): PATCH 직후 단건 GET · 목록 GET 반영 --
+
+  it("PATCH 직후 같은 Admin 쿠키의 단건 GET 이 isDefault true + 갱신값 반영이고 목록에서 true 인 원소가 정확히 1 개(A) (happy — 쓰기→읽기 연결)", async () => {
+    expect(
+      (await patchAs(adminCookie, idA, { modelId: "gpt-default-read" })).status,
+    ).toBe(200);
+
+    const fetched = await request(app.getHttpServer())
+      .get(`${PROVIDERS_URL}/${idA}`)
+      .set("Cookie", adminCookie);
+
+    expect(fetched.status).toBe(200);
+    expect(fetched.body).toMatchObject({
+      id: idA,
+      modelId: "gpt-default-read",
+      isDefault: true,
+    });
+
+    const list = await request(app.getHttpServer())
+      .get(PROVIDERS_URL)
+      .set("Cookie", adminCookie);
+
+    expect(list.status).toBe(200);
+    const defaults = list.body.filter(
+      (c: { isDefault: boolean }) => c.isDefault,
+    );
+    expect(defaults).toHaveLength(1);
+    expect(defaults[0].id).toBe(idA);
+    const byId = new Map<string, boolean>(
+      list.body.map((c: { id: string; isDefault: boolean }) => [
+        c.id,
+        c.isDefault,
+      ]),
+    );
+    expect(byId.get(idB)).toBe(false);
+  });
+
+  // -- 분기 (i): apiKey 재암호화 경로(`253~255 행`) 도 파생 · 슬롯을 안 흔든다 --
+
+  it("기본 row A 에 apiKey 를 명시한 PATCH 는 200 + isDefault true 유지 + ciphertext 만 갱신되고 슬롯 불변 (branch — apiKey 재암호화)", async () => {
+    const response = await patchAs(adminCookie, idA, {
+      apiKey: SECRET_PATCH_NEW,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ id: idA, isDefault: true });
+    expect(response.body).not.toHaveProperty("apiKey");
+    expect(response.text).not.toContain(SECRET_PATCH_NEW);
+
+    const row = await prisma.llmProviderConfig.findUnique({
+      where: { id: idA },
+    });
+
+    expect(row?.apiKey).not.toBe(cipherTextA);
+    expect(row?.apiKey).not.toBe(SECRET_PATCH_NEW);
+    expect(cipher.decrypt(row?.apiKey ?? "")).toBe(SECRET_PATCH_NEW);
+    await expectSlotStillA();
+  });
+
+  // -- 분기 (ii): 반대 방향 — 비기본 row 를 PATCH 해도 승격되지 않음 --
+
+  it("비기본 row B 를 PATCH 하면 200 + isDefault false 이고 슬롯은 여전히 A (branch — PATCH 가 기본을 승격시키지 않음)", async () => {
+    const response = await patchAs(adminCookie, idB, {
+      modelId: "claude-default-patched-b",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      id: idB,
+      modelId: "claude-default-patched-b",
+      isDefault: false,
+    });
+    await expectSlotStillA();
+  });
+
+  // -- 분기 (iii): 슬롯 부재 → 같은 A 가 isDefault false (`105~117 행` null 분기) --
+
+  it("슬롯을 비운 뒤 A 를 PATCH 하면 200 + isDefault false 이고 슬롯이 생기지 않음 (branch — readDefaultConfigId null)", async () => {
+    await prisma.llmDefaultProvider.deleteMany();
+
+    const response = await patchAs(adminCookie, idA, {
+      modelId: "gpt-no-slot",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      id: idA,
+      modelId: "gpt-no-slot",
+      isDefault: false,
+    });
+    expect(await prisma.llmDefaultProvider.count()).toBe(0);
+  });
+
+  // -- error path: 부재 id → 404 + 슬롯 불변 --
+
+  it("부재 id 로 PATCH 하면 404 이고 슬롯 count 1 · 대상 여전히 A (error path — P2025→404 가 슬롯을 흔들지 않음)", async () => {
+    const response = await patchAs(adminCookie, ABSENT_DEFAULT_ID, {
+      modelId: "gpt-absent-default",
+    });
+
+    expect(response.status).toBe(404);
+    await expectRowAUnchanged();
+    await expectSlotStillA();
+  });
+
+  // -- negative: ValidationPipe 3 종 (빈 문자열 / wrong type / allow-list 밖 키) --
+
+  it.each(INVALID_PATCH_BODIES)(
+    "기본 row A 에 $caseLabel 인 본문은 400 이고 row · 슬롯 불변 (negative — controller-scope ValidationPipe, service 미호출)",
+    async ({ body }) => {
+      const response = await patchAs(adminCookie, idA, body);
+
+      expect(response.status).toBe(400);
+      await expectRowAUnchanged();
+      await expectSlotStillA();
+    },
+  );
+
+  // -- negative: 인증 3 조건 (User 403 / 쿠키 부재 401 / 변조 JWT 401) --
+
+  it.each(PATCH_RBAC_CASES)(
+    "$condLabel 의 기본 row A PATCH 는 $expected 이고 row · 슬롯 불변 · seed 평문 미노출 (negative — JwtAuthGuard/RolesGuard)",
+    async ({ kind, expected }) => {
+      const cookie =
+        kind === "user"
+          ? userCookie
+          : kind === "tampered"
+            ? buildAuthCookie("not-a-valid-jwt.tampered.signature")
+            : undefined;
+
+      const pending = request(app.getHttpServer()).patch(
+        `${PROVIDERS_URL}/${idA}`,
+      );
+      const response = await (
+        cookie ? pending.set("Cookie", cookie) : pending
+      ).send({ modelId: "gpt-should-not-apply" });
+
+      expect(response.status).toBe(expected);
+      expect(response.text).not.toContain(SECRET_DEFAULT_A);
+      await expectRowAUnchanged();
+      await expectSlotStillA();
+    },
+  );
+});
