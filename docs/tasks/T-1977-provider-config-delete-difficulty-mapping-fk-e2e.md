@@ -2,7 +2,7 @@
 id: T-1977
 title: 난이도 슬롯이 참조하는 provider config 의 DELETE 409 · 해소 경로 e2e 고정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-050, REQ-051, REQ-043]
 estimatedDiff: 285
