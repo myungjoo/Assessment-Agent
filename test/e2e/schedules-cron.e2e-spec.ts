@@ -27,9 +27,8 @@
 // 뿐 얻는 격리가 없다). 대신 afterEach 가 등록된 cron name 을 전수 삭제해 살아 있는
 // CronJob 이 jest open handle 로 남지 않게 한다.
 //
-// cron 식은 매일 03:00 / 04:00 류로 둬서 테스트 실행 중 실제 발화가 없다 — 발화 대기 ·
-// 타이머 sleep 0. 로컬 DATABASE_URL 부재 시 본 spec 은 CI 의 pnpm test:e2e(R-113)
-// 에서만 실행된다.
+// cron 식은 매일 03:00 / 04:00 이라 실행 중 발화 · 타이머 sleep 0. 로컬 DATABASE_URL
+// 부재 시 본 spec 은 CI 의 pnpm test:e2e(R-113) 에서만 실행된다.
 import type { INestApplication } from "@nestjs/common";
 import request, { type Test } from "supertest";
 
@@ -42,8 +41,7 @@ import {
 const SCHEDULES_URL = "/api/schedules";
 const TRIGGER_URL = `${SCHEDULES_URL}/trigger`;
 
-// 테스트 실행 중 발화하지 않는 cron 식 2 개(매일 03:00 / 04:00) — 교체 분기에서 서로
-// 다른 주기를 쓰기 위해 2 개 둔다.
+// 발화하지 않는 cron 식 2 개(매일 03:00 / 04:00) — 교체 분기용 서로 다른 주기.
 const DAILY_3AM = "0 3 * * *";
 const DAILY_4AM = "0 4 * * *";
 
@@ -88,15 +86,7 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
 
   // send — route 표 1 행을 실 요청으로 변환한다. cookie 미지정 = 인증 부재 분기.
   function send(route: RouteCase, cookie?: string): Test {
-    const server = app.getHttpServer();
-    const req =
-      route.method === "get"
-        ? request(server).get(route.url)
-        : route.method === "put"
-          ? request(server).put(route.url)
-          : route.method === "delete"
-            ? request(server).delete(route.url)
-            : request(server).post(route.url);
+    const req = request(app.getHttpServer())[route.method](route.url);
     if (cookie !== undefined) {
       req.set("Cookie", cookie);
     }
@@ -243,21 +233,28 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
 
   // -- 분기 (iv): ValidationPipe 거부 축 표 압축 --
 
-  const INVALID_BODIES: [string, Record<string, unknown>][] = [
-    ["name 필드 누락", { cronExpression: DAILY_3AM }],
-    ["cronExpression 필드 누락", { name: JOB_NAME }],
-    ["name 빈 문자열", { name: "", cronExpression: DAILY_3AM }],
-    ["cronExpression 빈 문자열", { name: JOB_NAME, cronExpression: "" }],
-    ["name wrong type(number)", { name: 42, cronExpression: DAILY_3AM }],
-    [
-      "정의되지 않은 extra 키",
-      { name: JOB_NAME, cronExpression: DAILY_3AM, callback: "x" },
-    ],
+  // 표는 object 형태 — `$label` 주입이라 route 객체가 test 이름에 덤프되지 않는다.
+  const INVALID_BODIES: { label: string; body: Record<string, unknown> }[] = [
+    { label: "name 필드 누락", body: { cronExpression: DAILY_3AM } },
+    { label: "cronExpression 필드 누락", body: { name: JOB_NAME } },
+    { label: "name 빈 문자열", body: { name: "", cronExpression: DAILY_3AM } },
+    {
+      label: "cronExpression 빈 문자열",
+      body: { name: JOB_NAME, cronExpression: "" },
+    },
+    {
+      label: "name wrong type(number)",
+      body: { name: 42, cronExpression: DAILY_3AM },
+    },
+    {
+      label: "정의되지 않은 extra 키",
+      body: { name: JOB_NAME, cronExpression: DAILY_3AM, callback: "x" },
+    },
   ];
 
   it.each(INVALID_BODIES)(
-    "PUT 본문이 %s 이면 400 이고 registry 불변 (branch — controller-scope ValidationPipe whitelist/forbidNonWhitelisted)",
-    async (_label, body) => {
+    "PUT 본문이 $label 이면 400 이고 registry 불변 (branch — controller-scope ValidationPipe whitelist/forbidNonWhitelisted)",
+    async ({ body }) => {
       const response = await request(app.getHttpServer())
         .put(SCHEDULES_URL)
         .set("Cookie", adminCookie)
@@ -270,16 +267,21 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
 
   // -- negative: RBAC · 인증 실패 4 route × 3 조건 표 압축 --
 
-  const RBAC_CASES: [string, string, RouteCase, AuthKind, number][] =
-    ROUTES.flatMap((route) => [
-      [route.label, "User 쿠키(tier 미달)", route, "user", 403],
-      [route.label, "쿠키 부재", route, "none", 401],
-      [route.label, "변조 JWT 쿠키", route, "tampered", 401],
-    ]);
+  const AUTH_CONDS: { condLabel: string; kind: AuthKind; expected: number }[] =
+    [
+      { condLabel: "User 쿠키(tier 미달)", kind: "user", expected: 403 },
+      { condLabel: "쿠키 부재", kind: "none", expected: 401 },
+      { condLabel: "변조 JWT 쿠키", kind: "tampered", expected: 401 },
+    ];
+
+  // 4 route × 3 조건 = 12 케이스 cross product.
+  const RBAC_CASES = ROUTES.flatMap((route) =>
+    AUTH_CONDS.map((cond) => ({ routeLabel: route.label, route, ...cond })),
+  );
 
   it.each(RBAC_CASES)(
-    "%s 를 %s 로 호출하면 거부되고 registry 가 변하지 않음 (negative — JwtAuthGuard/RolesGuard)",
-    async (_routeLabel, _condLabel, route, kind, expected) => {
+    "$routeLabel 를 $condLabel 로 호출하면 거부되고 registry 가 변하지 않음 (negative — JwtAuthGuard/RolesGuard)",
+    async ({ route, kind, expected }) => {
       const cookie =
         kind === "user"
           ? userCookie
