@@ -74,4 +74,4 @@ issue-still-relevant pre-check(origin/main `b3b12266` 기준, 명령과 실측�
 
 ## Follow-ups
 
-- (비어 있음 — sub-agent 가 발견한 인접 작업을 여기에 적는다)
+- **cap 축소로 뺀 case 2 건** (AC 마지막 항목의 축소 순서 (1) · (3) 적용 — 전량 포함 시 실 diff 325 LOC 로 §3 cap 초과였고, 축소 (2) 는 기존 모듈 상수 `INVALID_PATCH_BODIES` 재사용이라 LOC 절감이 0 이라 건너뛰었다): (a) SuperAdmin 쿠키로 기본 row A 를 PATCH → 200 + `isDefault: true` 과차단 없음 1 건 (b) 기본 row A 에 허용 집합 밖 `provider` literal → 400 + row · 슬롯 불변 1 건. 둘 다 `isDefault` 파생 축이 아니고 T-1973 describe(`1008 행` · `1072 행`)가 비기본 row 기준으로 이미 고정한 분기라, 잔여분은 "기본 슬롯이 걸린 row 에서도 같은가" 확인 1 건씩이다. 후속 slice 로 append 가능(예상 +30 LOC, 1 파일).
