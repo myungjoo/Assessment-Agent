@@ -2,7 +2,7 @@
 id: T-1971
 title: REQ-049 · REQ-051 상태 칸에 LLM provider config 구현 · unit · e2e 좌표 박제
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-049, REQ-051]
 estimatedDiff: 14
@@ -59,4 +59,7 @@ plannerNote: P5 · PLAN 183 행 once-rule — T-1967+T-1970 e2e arc 머지로 RE
 
 ## Follow-ups
 
-(생성 시 비어 있음)
+- REQ-051 의 "custom 3 model 슬롯 자체는 미구현 잔여" 서술과 `prisma/schema.prisma` 416 행 주석("custom provider 1 config 가 3 슬롯 모두 차지 가능 (REQ-051)") 이 서로 긴장 관계다 — 슬롯 측 수용은 이미 schema 에 있고 미구현 잔여의 실제 범위(예: custom 전용 3 슬롯 프리셋 UI · seed)가 무엇인지 재정의가 필요하다. 본 slice 는 doc-only 이자 판정 등급 불변 범위라 서술만 보존했다.
+- REQ-043(`62 행`) 상태 칸의 route 보호 적용률(74 route 중 49 보호) 실측은 그 이후 신설된 route 를 반영하지 못한다 — 전 route 재측정이 필요한 별도 task 다 (본 task Out of Scope).
+- 쓰기 3 route(`POST /api/llm/providers` · `PATCH /:id` · `PUT /default`) e2e spec 신설 — `LLM_APIKEY_ENC_KEY`(ADR-0014 §2) 주입 방식 결정이 선행인 pr task. 이 축이 머지되기 전에는 REQ-049 · REQ-051 재판정 task 를 다시 열지 않는다.
+- 실측 대조 결과 task 본문과의 불일치 없음 — e2e 좌표 `60 행` · `256 행` · `472 행` `it.each(RBAC_CASES)` 는 모두 현행 파일과 일치했고, 재검산 수치(e2e describe 2 · `it(` 14 + `it.each` 6 행 = 20 케이스, unit 8 spec `it(` 170 + `it.each` 13 블록)를 정본으로 박제했다.
