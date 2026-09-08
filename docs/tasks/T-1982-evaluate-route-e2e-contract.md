@@ -2,7 +2,7 @@
 id: T-1982
 title: POST /api/assessment-evaluation/evaluate e2e 계약 spec 신설 (stub gateway 결정적 왕복 · fill/reeval 영속 분기 · 400 매트릭스 · RBAC)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-003, REQ-010, REQ-031, REQ-043, REQ-045]
 estimatedDiff: 295
