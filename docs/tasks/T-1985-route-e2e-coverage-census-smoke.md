@@ -2,7 +2,7 @@
 id: T-1985
 title: 전 route e2e 왕복 커버리지 census drift smoke spec 신설 (미커버 route 집합 정확 일치)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 290
