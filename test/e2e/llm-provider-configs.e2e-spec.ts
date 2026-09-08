@@ -2170,3 +2170,285 @@ describe("E2E: DELETE /api/llm/providers × 난이도 슬롯 FK (T-1977, REQ-049
     },
   );
 });
+
+// -- T-1978: 기본 슬롯 · 난이도 슬롯 **동시 참조** 의 DELETE 409 · 2 단 해소 축 -----
+// 위 여덟 describe 무수정 + T-1977 이 `## Out of Scope` 로 이월한 마지막 잔여 축.
+// `LlmDefaultProvider`(ADR-0062 §Decision 2) 와 `DifficultyMapping`(ADR-0011 §2) 의
+// **서로 다른 두 Restrict FK 가 같은 config 를 동시에** 가리키는 상태를 고정한다.
+// 기존 409 케이스(`427`·`2026`·`2098 행`)는 전부 단일 종류 FK 라, "한 쪽만 재지정한
+// 부분 해소 상태에서도 삭제가 열리지 않는가" 를 원리적으로 잡지 못한다. 이 중간
+// 상태가 열리면 남은 슬롯의 FK 가 조용히 깨진다(평가 라우팅 · 기본 provider 해석의
+// 무음 회귀). service `297~311 행` 의 P2003→409 분기는 FK 종류를 구분하지 않는
+// 단일 분기이므로, 두 원인이 모두 살아 있을 때의 AND 의미는 실 DB 왕복만이 판정한다
+// (service unit spec 의 P2003 은 repository mock 이 던지는 값이라 FK 잔여 수를 모른다).
+//
+// seed 는 전부 prisma 직접 create 라 쓰기 route 경유 0 이고, 해소 시퀀스만 controller
+// 3 개(providers DELETE · difficulty-mappings PATCH · providers PUT /default)를
+// 가로지르는 실 배선이다. apiKey 는 T-1977 과 동일하게 평문 seed — 삭제 · 슬롯 재지정
+// 경로는 decrypt 를 호출하지 않으므로 ENC 키 주입이 불필요하다.
+describe("E2E: DELETE /api/llm/providers × 기본 슬롯 + 난이도 슬롯 동시 참조 (T-1978, REQ-049/REQ-050/REQ-051/REQ-043)", () => {
+  const MAPPINGS_URL = "/api/llm/difficulty-mappings";
+
+  let ctx: AuthenticatedE2EContext;
+  let app: INestApplication;
+  let prisma: PrismaService;
+  let userCookie: string;
+  let adminCookie: string;
+  let superAdminCookie: string;
+  // A = 기본 슬롯과 easy 슬롯이 **동시에** 참조하는 config, B = 무참조 대조군.
+  let idA: string;
+  let idB: string;
+
+  beforeAll(async () => {
+    ctx = await createAuthenticatedE2EApp([
+      { role: "User", email: "llm-provider-dualfk-user@e2e.test" },
+      { role: "Admin", email: "llm-provider-dualfk-admin@e2e.test" },
+      { role: "SuperAdmin", email: "llm-provider-dualfk-super@e2e.test" },
+    ]);
+    app = ctx.app;
+    prisma = ctx.prisma;
+    userCookie = buildAuthCookie(
+      ctx.tokens["llm-provider-dualfk-user@e2e.test"],
+    );
+    adminCookie = buildAuthCookie(
+      ctx.tokens["llm-provider-dualfk-admin@e2e.test"],
+    );
+    superAdminCookie = buildAuthCookie(
+      ctx.tokens["llm-provider-dualfk-super@e2e.test"],
+    );
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await prisma.$disconnect();
+  });
+
+  // config 2 건 + 기본 슬롯 1 건(→ A) + 난이도 슬롯 3 건(easy → A, 나머지 null).
+  beforeEach(async () => {
+    const rowA = await prisma.llmProviderConfig.create({
+      data: {
+        provider: "openai",
+        endpointUrl: "https://dual-fk-a.example.test/v1",
+        modelId: "gpt-dual-fk-a",
+        apiKey: SECRET_A,
+      },
+    });
+    const rowB = await prisma.llmProviderConfig.create({
+      data: {
+        provider: "anthropic",
+        endpointUrl: "https://dual-fk-b.example.test/v1",
+        modelId: "claude-dual-fk-b",
+        apiKey: SECRET_B,
+      },
+    });
+    idA = rowA.id;
+    idB = rowB.id;
+    await prisma.llmDefaultProvider.create({
+      data: { llmProviderConfigId: idA },
+    });
+    await prisma.difficultyMapping.createMany({
+      data: [
+        { difficulty: "easy", llmProviderConfigId: idA },
+        { difficulty: "medium", llmProviderConfigId: null },
+        { difficulty: "hard", llmProviderConfigId: null },
+      ],
+    });
+  });
+
+  afterEach(async () => {
+    await truncateAll(prisma);
+    // 자식(DifficultyMapping · LlmDefaultProvider) → 부모(LlmProviderConfig) 순서
+    // 고정 — 역순은 두 FK 의 onDelete: Restrict 에 걸려 실패한다.
+    await prisma.difficultyMapping.deleteMany();
+    await prisma.llmDefaultProvider.deleteMany();
+    await prisma.llmProviderConfig.deleteMany();
+  });
+
+  // 기본 슬롯 FK 를 DB 에서 직접 재조회 — 슬롯 row 자체가 없으면 undefined.
+  async function readDefaultSlotFk(): Promise<string | undefined> {
+    const slot = await prisma.llmDefaultProvider.findFirst();
+    return slot === null ? undefined : slot.llmProviderConfigId;
+  }
+
+  // easy 난이도 슬롯의 FK — 슬롯 row 가 없으면 undefined.
+  async function readEasyFk(): Promise<string | null | undefined> {
+    const row = await prisma.difficultyMapping.findFirst({
+      where: { difficulty: "easy" },
+    });
+    return row === null ? undefined : row.llmProviderConfigId;
+  }
+
+  // seed 직후 invariant — config 2 건 · 기본 슬롯 1 건이 A · easy FK 가 A.
+  async function expectDualSeedIntact(): Promise<void> {
+    expect(await prisma.llmProviderConfig.count()).toBe(2);
+    expect(await prisma.llmDefaultProvider.count()).toBe(1);
+    expect(await readDefaultSlotFk()).toBe(idA);
+    expect(await prisma.difficultyMapping.count()).toBe(3);
+    expect(await readEasyFk()).toBe(idA);
+  }
+
+  function deleteConfig(id: string, cookie: string) {
+    return request(app.getHttpServer())
+      .delete(`${PROVIDERS_URL}/${id}`)
+      .set("Cookie", cookie);
+  }
+
+  // easy 슬롯 재지정 — PATCH /api/llm/difficulty-mappings/easy (200, Admin+ tier).
+  async function reassignEasyTo(id: string): Promise<void> {
+    const response = await request(app.getHttpServer())
+      .patch(`${MAPPINGS_URL}/easy`)
+      .set("Cookie", adminCookie)
+      .send({ llmProviderConfigId: id });
+
+    expect(response.status).toBe(200);
+    expect(response.body.llmProviderConfigId).toBe(id);
+  }
+
+  // 기본 슬롯 재지정 — PUT /api/llm/providers/default (200, Admin+ tier).
+  async function reassignDefaultTo(id: string): Promise<void> {
+    const response = await request(app.getHttpServer())
+      .put(`${PROVIDERS_URL}/default`)
+      .set("Cookie", adminCookie)
+      .send({ llmProviderConfigId: id });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ id, isDefault: true });
+  }
+
+  // -- happy/branch (i): 두 FK 가 동시에 A 를 가리키면 DELETE 는 409 --
+
+  it("기본 슬롯과 easy 슬롯이 동시에 A 를 가리키는 상태의 Admin DELETE A 는 409 이고 A 잔존 · 두 슬롯 FK 불변 · config 2 건 (branch — 이중 점유의 P2003→409)", async () => {
+    const response = await deleteConfig(idA, adminCookie);
+
+    expect(response.status).toBe(409);
+    expect(
+      await prisma.llmProviderConfig.findUnique({ where: { id: idA } }),
+    ).not.toBeNull();
+    await expectDualSeedIntact();
+  });
+
+  // -- branch (ii): 부분 해소 1 — 난이도 슬롯만 풀어도 기본 슬롯이 남아 409 --
+
+  it("easy 를 B 로 재지정(200) 한 뒤에도 DELETE A 는 여전히 409 이고 A 잔존 · 기본 슬롯 A · easy FK B 유지 (branch — 부분 해소 1 은 삭제를 열지 않음)", async () => {
+    await reassignEasyTo(idB);
+
+    const response = await deleteConfig(idA, adminCookie);
+
+    expect(response.status).toBe(409);
+    expect(
+      await prisma.llmProviderConfig.findUnique({ where: { id: idA } }),
+    ).not.toBeNull();
+    expect(await prisma.llmProviderConfig.count()).toBe(2);
+    expect(await readDefaultSlotFk()).toBe(idA);
+    expect(await readEasyFk()).toBe(idB);
+  });
+
+  // -- branch (iii): 부분 해소 2 — 기본 슬롯만 풀어도 난이도 슬롯이 남아 409 (대칭) --
+
+  it("기본을 B 로 재지정(200) 한 뒤에도 DELETE A 는 여전히 409 이고 A 잔존 · 기본 슬롯 B · easy FK A 유지 (branch — 반대 순서의 부분 해소도 대칭으로 차단)", async () => {
+    await reassignDefaultTo(idB);
+
+    const response = await deleteConfig(idA, adminCookie);
+
+    expect(response.status).toBe(409);
+    expect(
+      await prisma.llmProviderConfig.findUnique({ where: { id: idA } }),
+    ).not.toBeNull();
+    expect(await prisma.llmProviderConfig.count()).toBe(2);
+    expect(await prisma.llmDefaultProvider.count()).toBe(1);
+    expect(await readDefaultSlotFk()).toBe(idB);
+    expect(await readEasyFk()).toBe(idA);
+  });
+
+  // -- branch (iv): 2 단 완전 해소 후에야 삭제가 열린다 --
+
+  it("두 재지정을 모두 마친 뒤의 DELETE A 는 204 + 빈 body 이고 A 부재 · B 잔존 · 기본 슬롯 B · easy FK B · 슬롯 3 건 (branch — 2 단 해소가 실 배선에서 성립)", async () => {
+    await reassignEasyTo(idB);
+    await reassignDefaultTo(idB);
+
+    const response = await deleteConfig(idA, adminCookie);
+
+    expect(response.status).toBe(204);
+    expect(response.text).toBe("");
+    expect(
+      await prisma.llmProviderConfig.findUnique({ where: { id: idA } }),
+    ).toBeNull();
+    expect(
+      await prisma.llmProviderConfig.findUnique({ where: { id: idB } }),
+    ).not.toBeNull();
+    expect(await prisma.llmDefaultProvider.count()).toBe(1);
+    expect(await readDefaultSlotFk()).toBe(idB);
+    expect(await prisma.difficultyMapping.count()).toBe(3);
+    expect(await readEasyFk()).toBe(idB);
+  });
+
+  // -- error path: 실패 경로도 secret 표면 0 (ADR-0014 §3) --
+
+  it("이중 점유 · 부분 해소 두 상태의 409 응답 본문 어디에도 seed apiKey 원문이 등장하지 않는다 (error path — 실패 경로 secret 누출 0)", async () => {
+    const both = await deleteConfig(idA, adminCookie);
+
+    expect(both.status).toBe(409);
+    expect(both.text).not.toContain(SECRET_A);
+    expect(both.text).not.toContain(SECRET_B);
+
+    await reassignEasyTo(idB);
+    const partial = await deleteConfig(idA, adminCookie);
+
+    expect(partial.status).toBe(409);
+    expect(partial.text).not.toContain(SECRET_A);
+    expect(partial.text).not.toContain(SECRET_B);
+  });
+
+  // -- negative (i): 409 가 무참조 row 로 확산하지 않는다 --
+
+  it("어느 FK 도 참조하지 않는 config B 의 Admin DELETE 는 seed 직후 상태에서 204 이고 B 부재 · A 잔존 · 기본 슬롯 A · easy FK A 불변 (negative — 과차단 확산 0)", async () => {
+    const response = await deleteConfig(idB, adminCookie);
+
+    expect(response.status).toBe(204);
+    expect(response.text).toBe("");
+    expect(
+      await prisma.llmProviderConfig.findUnique({ where: { id: idB } }),
+    ).toBeNull();
+    expect(
+      await prisma.llmProviderConfig.findUnique({ where: { id: idA } }),
+    ).not.toBeNull();
+    expect(await prisma.llmDefaultProvider.count()).toBe(1);
+    expect(await readDefaultSlotFk()).toBe(idA);
+    expect(await readEasyFk()).toBe(idA);
+  });
+
+  // -- negative (ii): RolesGuard escalation 이 DB 제약을 우회하지 않는다 --
+
+  it("SuperAdmin 쿠키로 이중 참조 중인 A 를 DELETE 해도 409 이고 A · 두 슬롯 불변 (negative — 과허용 0, escalation 이 DB 제약을 뚫지 않음)", async () => {
+    const response = await deleteConfig(idA, superAdminCookie);
+
+    expect(response.status).toBe(409);
+    expect(response.text).not.toContain(SECRET_A);
+    await expectDualSeedIntact();
+  });
+
+  // -- negative (iii): guard 선행 3 조건 — 409 로 새지 않는다 --
+
+  it.each(DEFAULT_RBAC_CASES)(
+    "$condLabel 의 이중 참조 config A DELETE 는 $expected 이고 409 로 새지 않으며 config 2 건 · 기본 슬롯 A · easy FK A 불변 · seed 평문 미노출 (negative — JwtAuthGuard/RolesGuard 가 DB 제약보다 선행)",
+    async ({ kind, expected }) => {
+      const cookie =
+        kind === "user"
+          ? userCookie
+          : kind === "tampered"
+            ? buildAuthCookie("not-a-valid-jwt.tampered.signature")
+            : undefined;
+
+      const pending = request(app.getHttpServer()).delete(
+        `${PROVIDERS_URL}/${idA}`,
+      );
+      const response = await (cookie ? pending.set("Cookie", cookie) : pending);
+
+      expect(response.status).toBe(expected);
+      expect(response.status).not.toBe(409);
+      expect(response.text).not.toContain(SECRET_A);
+      expect(response.text).not.toContain(SECRET_B);
+      await expectDualSeedIntact();
+    },
+  );
+});
