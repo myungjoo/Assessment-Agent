@@ -2,7 +2,7 @@
 id: T-1973
 title: LLM provider config 부분 갱신(PATCH /:id) e2e 계약 고정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-051, REQ-043]
 estimatedDiff: 290
