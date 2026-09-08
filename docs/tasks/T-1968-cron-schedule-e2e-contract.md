@@ -2,7 +2,7 @@
 id: T-1968
 title: /api/schedules cron 스케줄 REST e2e 계약 spec 신설 (등록·조회·삭제 lifecycle · RBAC 축)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-039, REQ-043]
 estimatedDiff: 280
