@@ -2,8 +2,9 @@
 // contract + apiKey 미노출 invariant + RBAC tier enforce e2e (T-1967, REQ-051/REQ-043).
 // difficulty-mappings.e2e-spec.ts(T-1960) 패턴 1:1 mirror.
 // 파일 하단에 T-1970 이 같은 controller 의 `:id` 단건 조회 · 삭제 축 describe 를,
-// T-1972 가 생성(POST) · T-1973 이 부분 갱신(PATCH) 축 describe 를 잇는다 (top-level
-// describe 4 개, 각자 app 부트스트랩). 쓰기 축만 spec-local 일회용 키를 env 에 주입해
+// T-1972 가 생성(POST) · T-1973 이 부분 갱신(PATCH) · T-1974 가 기본 지정(PUT
+// /default) 축 describe 를 잇는다 (top-level describe 5 개, 각자 app 부트스트랩).
+// 쓰기 축만 spec-local 일회용 키를 env 에 주입해
 // 실 암호화 저장 왕복(ADR-0014 §1)까지 검증한다.
 //
 // 책임: LlmProviderConfigController(@Get(), Admin+ tier) → LlmProviderConfigService
@@ -1077,5 +1078,300 @@ describe("E2E: PATCH /api/llm/providers/:id (T-1973, REQ-049/REQ-051/REQ-043)", 
     expect(response.status).toBe(200);
     expect(response.body).not.toHaveProperty("apiKey");
     expect(response.body.modelId).toBe("gpt-super-patched");
+  });
+});
+
+// -- T-1974: 기본 provider 지정(PUT /default) 축 상수 -------------------------
+// 슬롯 교체 분기 입력 config 2 건(A · B) — 값을 서로 다르게 둬 엉뚱한 row 반환 회귀도 잡는다.
+const SECRET_DEFAULT_A = "e2e-secret-apikey-default-a-3b55";
+const SECRET_DEFAULT_B = "e2e-secret-apikey-default-b-7e19";
+// 부재 id — P2003/P2025→404 분기 입력.
+const ABSENT_DEFAULT_ID = "cle2eabsentdefault00000000";
+
+const INVALID_DEFAULT_BODIES: {
+  caseLabel: string;
+  buildBody: (validId: string) => Record<string, unknown>;
+}[] = [
+  { caseLabel: "llmProviderConfigId 필드 누락", buildBody: () => ({}) },
+  {
+    caseLabel: "llmProviderConfigId 가 빈 문자열",
+    buildBody: () => ({ llmProviderConfigId: "" }),
+  },
+  {
+    caseLabel: "llmProviderConfigId 가 wrong type(number)",
+    buildBody: () => ({ llmProviderConfigId: 123 }),
+  },
+  {
+    caseLabel: "allow-list 밖 키 포함(unexpectedField)",
+    buildBody: (validId) => ({
+      llmProviderConfigId: validId,
+      unexpectedField: "x",
+    }),
+  },
+];
+
+// 인증 3 조건(`546~556 행` 표 mirror).
+const DEFAULT_RBAC_CASES: {
+  condLabel: string;
+  kind: "user" | "none" | "tampered";
+  expected: number;
+}[] = [
+  { condLabel: "User 쿠키(tier 미달)", kind: "user", expected: 403 },
+  { condLabel: "쿠키 부재", kind: "none", expected: 401 },
+  { condLabel: "변조 JWT 쿠키", kind: "tampered", expected: 401 },
+];
+
+// -- T-1974: 기본 provider 지정(PUT /default) 축 -------------------------------
+// 위 네 describe 무수정 + 쓰기 축 **마지막** route 인 PUT /default 의 실 HTTP 왕복
+// (자기 app 부트스트랩 + spec-local 일회용 ENC 키 주입 · 복원, seed 는 쓰기 route 경유
+// 0 이라 단독 red/green). 고정 계약: 200(201 아님) + view 7 key + `isDefault: true`
+// (read-your-write · apiKey 미노출 ADR-0014 §3) · 직후 GET 반영(소비처 연결) · 슬롯
+// 교체 원자성과 멱등(ADR-0062 §Decision 2·3, 슬롯 row 는 언제나 1) · `default` 가 `:id`
+// 로 오매칭되지 않는 라우트 순서 가드(controller `110~114 행`) · 실패 경로는 슬롯 0.
+describe("E2E: PUT /api/llm/providers/default (T-1974, REQ-049/REQ-051/REQ-043)", () => {
+  let ctx: AuthenticatedE2EContext;
+  let app: INestApplication;
+  let prisma: PrismaService;
+  let cipher: LlmApiKeyCipher;
+  let userCookie: string;
+  let adminCookie: string;
+  let superAdminCookie: string;
+  let previousEncKey: string | undefined;
+  let idA: string;
+  let idB: string;
+
+  beforeAll(async () => {
+    previousEncKey = process.env[ENC_KEY_ENV];
+    process.env[ENC_KEY_ENV] = randomBytes(32).toString("base64");
+
+    ctx = await createAuthenticatedE2EApp([
+      { role: "User", email: "llm-provider-default-user@e2e.test" },
+      { role: "Admin", email: "llm-provider-default-admin@e2e.test" },
+      { role: "SuperAdmin", email: "llm-provider-default-super@e2e.test" },
+    ]);
+    app = ctx.app;
+    prisma = ctx.prisma;
+    cipher = app.get(LlmApiKeyCipher);
+    userCookie = buildAuthCookie(
+      ctx.tokens["llm-provider-default-user@e2e.test"],
+    );
+    adminCookie = buildAuthCookie(
+      ctx.tokens["llm-provider-default-admin@e2e.test"],
+    );
+    superAdminCookie = buildAuthCookie(
+      ctx.tokens["llm-provider-default-super@e2e.test"],
+    );
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await prisma.$disconnect();
+    if (previousEncKey === undefined) {
+      delete process.env[ENC_KEY_ENV];
+    } else {
+      process.env[ENC_KEY_ENV] = previousEncKey;
+    }
+  });
+
+  beforeEach(async () => {
+    const rowA = await prisma.llmProviderConfig.create({
+      data: {
+        provider: "openai",
+        endpointUrl: "https://default-a.example.test/v1",
+        modelId: "gpt-default-a",
+        apiKey: cipher.encrypt(SECRET_DEFAULT_A),
+      },
+    });
+    const rowB = await prisma.llmProviderConfig.create({
+      data: {
+        provider: "anthropic",
+        endpointUrl: "https://default-b.example.test/v1",
+        modelId: "claude-default-b",
+        apiKey: cipher.encrypt(SECRET_DEFAULT_B),
+      },
+    });
+    idA = rowA.id;
+    idB = rowB.id;
+  });
+
+  afterEach(async () => {
+    await truncateAll(prisma);
+    // 자식 → 부모 순서 고정.
+    await prisma.llmDefaultProvider.deleteMany();
+    await prisma.llmProviderConfig.deleteMany();
+  });
+
+  function putDefault(cookie: string, body: Record<string, unknown>) {
+    return request(app.getHttpServer())
+      .put(`${PROVIDERS_URL}/default`)
+      .set("Cookie", cookie)
+      .send(body);
+  }
+
+  // -- happy: 200 + view 7 key + isDefault true + apiKey 미노출 --
+
+  it("Admin 쿠키로 config A 를 기본 지정하면 200(201 아님) + view 7 key 정확히 + isDefault true + apiKey 미노출 (authed happy)", async () => {
+    const response = await putDefault(adminCookie, {
+      llmProviderConfigId: idA,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.status).not.toBe(201);
+    expect(response.headers["content-type"]).toMatch(/application\/json/);
+    expect(Object.keys(response.body).sort()).toEqual([...VIEW_FIELDS].sort());
+    expect(response.body).toMatchObject({
+      id: idA,
+      provider: "openai",
+      isDefault: true,
+    });
+    expect(response.body).not.toHaveProperty("apiKey");
+    expect(response.text).not.toContain(SECRET_DEFAULT_A);
+  });
+
+  // -- 소비처 연결(§3 소비처 동반): PUT 직후 단건 GET · 목록 GET 반영 --
+
+  it("PUT 직후 같은 Admin 쿠키의 단건 GET 이 isDefault true 이고 목록에서는 A 만 true · B 는 false (happy — 쓰기→읽기 연결)", async () => {
+    expect(
+      (await putDefault(adminCookie, { llmProviderConfigId: idA })).status,
+    ).toBe(200);
+
+    const fetched = await request(app.getHttpServer())
+      .get(`${PROVIDERS_URL}/${idA}`)
+      .set("Cookie", adminCookie);
+
+    expect(fetched.status).toBe(200);
+    expect(fetched.body).toMatchObject({ id: idA, isDefault: true });
+
+    const list = await request(app.getHttpServer())
+      .get(PROVIDERS_URL)
+      .set("Cookie", adminCookie);
+
+    expect(list.status).toBe(200);
+    const byId = new Map<string, boolean>(
+      list.body.map((c: { id: string; isDefault: boolean }) => [
+        c.id,
+        c.isDefault,
+      ]),
+    );
+    expect(byId.get(idA)).toBe(true);
+    expect(byId.get(idB)).toBe(false);
+  });
+
+  // -- 분기 (i): 슬롯 교체 — 기본이 정확히 1 개로 수렴 (ADR-0062 §Decision 2) --
+
+  it("A 지정 후 B 를 지정하면 200 + B 가 isDefault true 이고 목록에서 true 인 원소가 정확히 1 개 · 슬롯 row 는 1 (branch — 슬롯 교체)", async () => {
+    expect(
+      (await putDefault(adminCookie, { llmProviderConfigId: idA })).status,
+    ).toBe(200);
+
+    const replaced = await putDefault(adminCookie, {
+      llmProviderConfigId: idB,
+    });
+
+    expect(replaced.status).toBe(200);
+    expect(replaced.body).toMatchObject({ id: idB, isDefault: true });
+
+    const list = await request(app.getHttpServer())
+      .get(PROVIDERS_URL)
+      .set("Cookie", adminCookie);
+
+    const defaults = list.body.filter(
+      (c: { isDefault: boolean }) => c.isDefault,
+    );
+    expect(defaults).toHaveLength(1);
+    expect(defaults[0].id).toBe(idB);
+    expect(await prisma.llmDefaultProvider.count()).toBe(1);
+  });
+
+  // -- 분기 (ii): 멱등 — 이미 기본인 config 재지정 (ADR-0062 §Decision 3) --
+
+  it("이미 기본인 A 를 같은 body 로 재지정해도 200 + isDefault true 이고 슬롯 count 가 1 (branch — 멱등, 409/500 회귀 감지)", async () => {
+    expect(
+      (await putDefault(adminCookie, { llmProviderConfigId: idA })).status,
+    ).toBe(200);
+
+    const again = await putDefault(adminCookie, { llmProviderConfigId: idA });
+
+    expect(again.status).toBe(200);
+    expect(again.body).toMatchObject({ id: idA, isDefault: true });
+    expect(await prisma.llmDefaultProvider.count()).toBe(1);
+  });
+
+  // -- 분기 (iii): 라우트 순서 회귀 가드 (controller `110~114 행`) --
+
+  it('PUT /providers/default 가 :id="default" 로 오매칭되지 않음 — 응답 id 가 body 의 A 이고 GET /providers/default 는 404 (branch — 라우트 순서)', async () => {
+    const response = await putDefault(adminCookie, {
+      llmProviderConfigId: idA,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.id).toBe(idA);
+    expect(response.body.id).not.toBe("default");
+
+    const asId = await request(app.getHttpServer())
+      .get(`${PROVIDERS_URL}/default`)
+      .set("Cookie", adminCookie);
+
+    expect(asId.status).toBe(404);
+  });
+
+  // -- error path: 부재 id → 404 + 슬롯 미생성 (P2003/P2025 수렴) --
+
+  it("부재 id 를 기본으로 지정하면 404 이고 슬롯 row 가 생기지 않음 (error path — P2003/P2025→404)", async () => {
+    const response = await putDefault(adminCookie, {
+      llmProviderConfigId: ABSENT_DEFAULT_ID,
+    });
+
+    expect(response.status).toBe(404);
+    expect(await prisma.llmDefaultProvider.count()).toBe(0);
+  });
+
+  // -- negative: ValidationPipe 4 종 (누락 / 빈 문자열 / wrong type / extra 키) --
+
+  it.each(INVALID_DEFAULT_BODIES)(
+    "$caseLabel 인 본문은 400 이고 슬롯 row 가 생기지 않음 (negative — controller-scope ValidationPipe, service 미호출)",
+    async ({ buildBody }) => {
+      const response = await putDefault(adminCookie, buildBody(idA));
+
+      expect(response.status).toBe(400);
+      expect(await prisma.llmDefaultProvider.count()).toBe(0);
+    },
+  );
+
+  // -- negative: 인증 3 조건 (User 403 / 쿠키 부재 401 / 변조 JWT 401) --
+
+  it.each(DEFAULT_RBAC_CASES)(
+    "$condLabel 의 PUT 은 $expected 이고 슬롯 row 가 생기지 않음 · seed 평문 미노출 (negative — JwtAuthGuard/RolesGuard)",
+    async ({ kind, expected }) => {
+      const cookie =
+        kind === "user"
+          ? userCookie
+          : kind === "tampered"
+            ? buildAuthCookie("not-a-valid-jwt.tampered.signature")
+            : undefined;
+
+      const pending = request(app.getHttpServer()).put(
+        `${PROVIDERS_URL}/default`,
+      );
+      const response = await (
+        cookie ? pending.set("Cookie", cookie) : pending
+      ).send({ llmProviderConfigId: idA });
+
+      expect(response.status).toBe(expected);
+      expect(response.text).not.toContain(SECRET_DEFAULT_A);
+      expect(await prisma.llmDefaultProvider.count()).toBe(0);
+    },
+  );
+
+  // -- negative: 과차단 없음 — SuperAdmin escalation 200 --
+
+  it("SuperAdmin 쿠키의 PUT 은 200 + isDefault true (negative — RolesGuard escalation 이 403 으로 과차단되지 않음)", async () => {
+    const response = await putDefault(superAdminCookie, {
+      llmProviderConfigId: idB,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ id: idB, isDefault: true });
+    expect(response.body).not.toHaveProperty("apiKey");
   });
 });
