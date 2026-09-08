@@ -1,8 +1,10 @@
 // llm-provider-configs.e2e-spec.ts — GET /api/llm/providers 목록 조회의 HTTP
 // contract + apiKey 미노출 invariant + RBAC tier enforce e2e (T-1967, REQ-051/REQ-043).
 // difficulty-mappings.e2e-spec.ts(T-1960) 패턴 1:1 mirror.
-// 파일 하단에 T-1970 이 같은 controller 의 `:id` 단건 조회 · 삭제 축 describe 를
-// 잇는다 (top-level describe 2 개, 각자 app 부트스트랩).
+// 파일 하단에 T-1970 이 같은 controller 의 `:id` 단건 조회 · 삭제 축 describe 를,
+// T-1972 가 생성(POST) 축 describe 를 잇는다 (top-level describe 3 개, 각자 app
+// 부트스트랩). POST 축만 spec-local 일회용 LLM_APIKEY_ENC_KEY 를 env 에 주입해
+// 실 암호화 저장 왕복(ADR-0014 §1)까지 검증한다.
 //
 // 책임: LlmProviderConfigController(@Get(), Admin+ tier) → LlmProviderConfigService
 // .findAll(sanitize 명시 pick + isDefault 파생) → repository.findMany 의 실 배선을
@@ -28,9 +30,12 @@
 // apiKey seed 는 평문 문자열이다 — 본 spec 은 prisma 직접 create 로 row 를 넣으므로
 // service 의 암호화 경로(ADR-0014 §1)를 거치지 않는다. 읽기 경로는 never-decrypt 라
 // 저장 형식과 무관하게 "원문이 응답에 없음" 만 검증하면 invariant 가 성립한다.
+import { randomBytes } from "node:crypto";
+
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
+import { LlmApiKeyCipher } from "../../src/llm/llm-apikey-cipher.service";
 import { PrismaService } from "../../src/persistence/prisma.service";
 import {
   buildAuthCookie,
@@ -492,4 +497,289 @@ describe("E2E: GET/DELETE /api/llm/providers/:id (T-1970, REQ-051/REQ-043)", () 
       expect(await prisma.llmProviderConfig.count()).toBe(1);
     },
   );
+});
+
+// -- T-1972: 생성(POST) 축 상수 (기존 describe 의 상수는 무수정) --------------
+// 암호화 키 env var 이름 — 실 secret 값 0 (ADR-0014 §2 / CLAUDE.md §9).
+const ENC_KEY_ENV = "LLM_APIKEY_ENC_KEY";
+
+// POST 로 보내는 apiKey 원문 — 응답 · 목록 · DB 컬럼 어디서 보여도 누출 또는 평문
+// 저장이다. 위 seed 토큰(SECRET_A/B)과 겹치지 않는 고유 값.
+const SECRET_CREATE = "e2e-secret-apikey-create-9d13";
+
+// 4 필드 allow-list 를 채운 유효 payload — negative 케이스들의 baseline.
+const VALID_CREATE_PAYLOAD = {
+  provider: "openai",
+  endpointUrl: "https://create.example.test/v1",
+  apiKey: SECRET_CREATE,
+  modelId: "gpt-create",
+} as const;
+
+// ValidationPipe(whitelist + forbidNonWhitelisted) 가 400 으로 막아야 하는 4 종 —
+// 라벨만 test 이름에 쓰고 본문 객체는 덤프하지 않는다.
+const INVALID_CREATE_BODIES: {
+  caseLabel: string;
+  body: Record<string, unknown>;
+}[] = [
+  {
+    caseLabel: "provider 필드 누락",
+    body: {
+      endpointUrl: VALID_CREATE_PAYLOAD.endpointUrl,
+      apiKey: SECRET_CREATE,
+      modelId: VALID_CREATE_PAYLOAD.modelId,
+    },
+  },
+  {
+    caseLabel: "apiKey 가 빈 문자열",
+    body: { ...VALID_CREATE_PAYLOAD, apiKey: "" },
+  },
+  {
+    caseLabel: "modelId 가 wrong type(number)",
+    body: { ...VALID_CREATE_PAYLOAD, modelId: 123 },
+  },
+  {
+    caseLabel: "allow-list 밖 키 포함(unexpectedField)",
+    body: { ...VALID_CREATE_PAYLOAD, unexpectedField: "x" },
+  },
+];
+
+// 인증 3 조건 — 기대 status 를 표로 박제한다.
+const CREATE_RBAC_CASES: {
+  condLabel: string;
+  kind: "user" | "none" | "tampered";
+  expected: number;
+}[] = [
+  { condLabel: "User 쿠키(tier 미달)", kind: "user", expected: 403 },
+  { condLabel: "쿠키 부재", kind: "none", expected: 401 },
+  { condLabel: "변조 JWT 쿠키", kind: "tampered", expected: 401 },
+];
+
+// -- T-1972: 생성(POST) 축 ----------------------------------------------------
+// 위 두 describe(T-1967 목록 · T-1970 `:id`) 는 무수정으로 두고 쓰기 축의 첫 route
+// 인 POST 의 실 HTTP 왕복을 잇는다(자기 app 부트스트랩).
+//
+// 키 주입 전략(ADR-0014 §2): resolveKey 는 **호출 시점마다** process.env 를 읽으므로
+// (부트스트랩 캡처 아님) beforeAll 이 randomBytes(32) 일회용 키를 env 에 넣고
+// afterAll 이 원값(부재였으면 부재)으로 복원한다. confluence-token-decrypt.spec.ts
+// 의 withEnvKey 패턴 mirror — 리터럴 키 0, CI env · 워크플로 · .env 변경 0.
+//
+// 고정하는 계약 4 가지:
+//   - Admin POST 는 201 + view 7 key + isDefault false (자동 기본 승격 0, ADR-0062).
+//   - **ADR-0014 §3 never-read-back** — 201 응답과 직후 목록 GET 어디에도 `apiKey`
+//     키 · 요청 원문이 없다.
+//   - **ADR-0014 §1 암호화 저장** — 영속 row 의 apiKey 가 평문과 다르고 decrypt
+//     왕복이 평문과 일치한다. 평문 저장으로 회귀하면 red.
+//   - 미지원 provider · ValidationPipe 위반 4 종 · 키 부재(500) · User 403 · 쿠키
+//     부재/변조 401 은 모두 row 생성 0 이고, SuperAdmin 은 escalation 201.
+describe("E2E: POST /api/llm/providers (T-1972, REQ-049/REQ-051/REQ-043)", () => {
+  let ctx: AuthenticatedE2EContext;
+  let app: INestApplication;
+  let prisma: PrismaService;
+  let cipher: LlmApiKeyCipher;
+  let userCookie: string;
+  let adminCookie: string;
+  let superAdminCookie: string;
+  // beforeAll 시점 env 원값 — afterAll 이 복원한다(부재였으면 삭제).
+  let previousEncKey: string | undefined;
+
+  beforeAll(async () => {
+    previousEncKey = process.env[ENC_KEY_ENV];
+    // 일회용 32-byte AES-256 키(base64) — 리포지토리에 남는 secret 0.
+    process.env[ENC_KEY_ENV] = randomBytes(32).toString("base64");
+
+    ctx = await createAuthenticatedE2EApp([
+      { role: "User", email: "llm-provider-post-user@e2e.test" },
+      { role: "Admin", email: "llm-provider-post-admin@e2e.test" },
+      { role: "SuperAdmin", email: "llm-provider-post-super@e2e.test" },
+    ]);
+    app = ctx.app;
+    prisma = ctx.prisma;
+    cipher = app.get(LlmApiKeyCipher); // 배선과 같은 env 키로 왕복 검증.
+    userCookie = buildAuthCookie(ctx.tokens["llm-provider-post-user@e2e.test"]);
+    adminCookie = buildAuthCookie(
+      ctx.tokens["llm-provider-post-admin@e2e.test"],
+    );
+    superAdminCookie = buildAuthCookie(
+      ctx.tokens["llm-provider-post-super@e2e.test"],
+    );
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await prisma.$disconnect();
+    if (previousEncKey === undefined) {
+      delete process.env[ENC_KEY_ENV];
+    } else {
+      process.env[ENC_KEY_ENV] = previousEncKey;
+    }
+  });
+
+  afterEach(async () => {
+    await truncateAll(prisma);
+    // 자식(LlmDefaultProvider) → 부모(LlmProviderConfig) 순서 고정.
+    await prisma.llmDefaultProvider.deleteMany();
+    await prisma.llmProviderConfig.deleteMany();
+  });
+
+  // -- happy (i): 201 + view 7 key + isDefault false --
+
+  it("Admin 쿠키로 POST 시 201 + view 7 key 정확히 + isDefault:false (authed happy)", async () => {
+    const response = await request(app.getHttpServer())
+      .post(PROVIDERS_URL)
+      .set("Cookie", adminCookie)
+      .send(VALID_CREATE_PAYLOAD);
+
+    expect(response.status).toBe(201);
+    expect(response.headers["content-type"]).toMatch(/application\/json/);
+    expect(Object.keys(response.body).sort()).toEqual([...VIEW_FIELDS].sort());
+    expect(response.body).toMatchObject({
+      provider: "openai",
+      endpointUrl: VALID_CREATE_PAYLOAD.endpointUrl,
+      modelId: VALID_CREATE_PAYLOAD.modelId,
+      isDefault: false,
+    });
+    expect(await prisma.llmProviderConfig.count()).toBe(1);
+  });
+
+  // -- 보안 invariant (i): never-read-back (ADR-0014 §3) --
+
+  it("201 응답에 apiKey 키가 없고 본문 문자열에도 요청한 apiKey 원문이 없음 (security — never-read-back)", async () => {
+    const response = await request(app.getHttpServer())
+      .post(PROVIDERS_URL)
+      .set("Cookie", adminCookie)
+      .send(VALID_CREATE_PAYLOAD);
+
+    expect(response.status).toBe(201);
+    expect(response.body).not.toHaveProperty("apiKey");
+    expect(JSON.stringify(response.body)).not.toContain("apiKey");
+    // ciphertext 조차 흘리지 않는다 — 직렬화 본문 전수 검사.
+    expect(response.text).not.toContain(SECRET_CREATE);
+  });
+
+  // -- 보안 invariant (ii): 암호화 저장 왕복 (ADR-0014 §1) --
+  it("영속된 row 의 apiKey 가 평문과 다르고 cipher.decrypt 왕복이 평문과 일치 (security — 평문 저장 회귀 감지)", async () => {
+    const response = await request(app.getHttpServer())
+      .post(PROVIDERS_URL)
+      .set("Cookie", adminCookie)
+      .send(VALID_CREATE_PAYLOAD);
+
+    expect(response.status).toBe(201);
+
+    const row = await prisma.llmProviderConfig.findUnique({
+      where: { id: response.body.id as string },
+    });
+
+    expect(row).not.toBeNull();
+    // 평문 그대로 저장되면 여기서 red — encrypt 배선 우회 회귀 감지 지점.
+    expect(row?.apiKey).not.toBe(SECRET_CREATE);
+    expect(cipher.decrypt(row?.apiKey ?? "")).toBe(SECRET_CREATE);
+  });
+
+  // -- happy (ii): 소비처 연결 — 생성 직후 목록 조회 --
+  it("생성 직후 같은 Admin 쿠키의 목록 GET 이 200 + 정확히 1 건이고 본문에 apiKey 원문 없음 (happy — 쓰기→읽기 연결)", async () => {
+    const created = await request(app.getHttpServer())
+      .post(PROVIDERS_URL)
+      .set("Cookie", adminCookie)
+      .send(VALID_CREATE_PAYLOAD);
+
+    expect(created.status).toBe(201);
+
+    const list = await request(app.getHttpServer())
+      .get(PROVIDERS_URL)
+      .set("Cookie", adminCookie);
+
+    expect(list.status).toBe(200);
+    expect(list.body).toHaveLength(1);
+    expect(list.body[0].id).toBe(created.body.id);
+    expect(list.body[0]).not.toHaveProperty("apiKey");
+    expect(list.text).not.toContain(SECRET_CREATE);
+  });
+
+  // -- error path (i): 미지원 provider → 400 (service isLlmProvider) --
+  it("허용 집합 밖 provider literal 은 400 이고 row 가 생성되지 않음 (error path — service isLlmProvider)", async () => {
+    const response = await request(app.getHttpServer())
+      .post(PROVIDERS_URL)
+      .set("Cookie", adminCookie)
+      .send({ ...VALID_CREATE_PAYLOAD, provider: "not_a_provider" });
+
+    expect(response.status).toBe(400);
+    expect(response.text).not.toContain(SECRET_CREATE);
+    expect(await prisma.llmProviderConfig.count()).toBe(0);
+  });
+
+  // -- 분기: ValidationPipe negative 4 종 (whitelist + forbidNonWhitelisted) --
+  it.each(INVALID_CREATE_BODIES)(
+    "$caseLabel 인 본문은 400 이고 row 가 생성되지 않음 (branch — controller-scope ValidationPipe)",
+    async ({ body }) => {
+      const response = await request(app.getHttpServer())
+        .post(PROVIDERS_URL)
+        .set("Cookie", adminCookie)
+        .send(body);
+
+      expect(response.status).toBe(400);
+      expect(response.text).not.toContain(SECRET_CREATE);
+      expect(await prisma.llmProviderConfig.count()).toBe(0);
+    },
+  );
+
+  // -- error path (ii): 암호화 키 부재 fail-fast (ADR-0014 §2) --
+
+  it("LLM_APIKEY_ENC_KEY 부재 상태의 POST 는 500 이고 평문 fallback 저장이 0 (error path — cipher fail-fast)", async () => {
+    const held = process.env[ENC_KEY_ENV];
+    delete process.env[ENC_KEY_ENV];
+    try {
+      const response = await request(app.getHttpServer())
+        .post(PROVIDERS_URL)
+        .set("Cookie", adminCookie)
+        .send(VALID_CREATE_PAYLOAD);
+
+      expect(response.status).toBe(500);
+      expect(response.text).not.toContain(SECRET_CREATE);
+      // encrypt throw 가 swallow 되어 평문이 영속되면 여기서 red.
+      expect(await prisma.llmProviderConfig.count()).toBe(0);
+    } finally {
+      // 키를 즉시 복원 — 단언이 실패해도 후속 케이스로 새지 않는다.
+      if (held === undefined) {
+        delete process.env[ENC_KEY_ENV];
+      } else {
+        process.env[ENC_KEY_ENV] = held;
+      }
+    }
+  });
+
+  // -- negative: 인증 3 조건 (User 403 / 쿠키 부재 401 / 변조 JWT 401) --
+
+  it.each(CREATE_RBAC_CASES)(
+    "$condLabel 의 POST 는 $expected 이고 row 생성 0 · apiKey 원문 미노출 (negative — JwtAuthGuard/RolesGuard)",
+    async ({ kind, expected }) => {
+      const cookie =
+        kind === "user"
+          ? userCookie
+          : kind === "tampered"
+            ? buildAuthCookie("not-a-valid-jwt.tampered.signature")
+            : undefined;
+
+      const pending = request(app.getHttpServer()).post(PROVIDERS_URL);
+      const response = await (
+        cookie ? pending.set("Cookie", cookie) : pending
+      ).send(VALID_CREATE_PAYLOAD);
+
+      expect(response.status).toBe(expected);
+      expect(response.text).not.toContain(SECRET_CREATE);
+      expect(await prisma.llmProviderConfig.count()).toBe(0);
+    },
+  );
+
+  // -- negative: 과차단 없음 — SuperAdmin escalation 201 --
+
+  it("SuperAdmin 쿠키의 POST 는 201 (negative — RolesGuard escalation 이 403 으로 과차단되지 않음)", async () => {
+    const response = await request(app.getHttpServer())
+      .post(PROVIDERS_URL)
+      .set("Cookie", superAdminCookie)
+      .send(VALID_CREATE_PAYLOAD);
+
+    expect(response.status).toBe(201);
+    expect(response.body).not.toHaveProperty("apiKey");
+    expect(await prisma.llmProviderConfig.count()).toBe(1);
+  });
 });
