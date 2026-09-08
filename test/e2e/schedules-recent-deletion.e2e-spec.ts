@@ -39,6 +39,7 @@ const RECOLLECT_SCOPE = "aggregate";
 
 // window 밖 instant — 기본 days=1(오늘 KST 하루) 기준으로 확실히 벗어난 30 일 전.
 const OUT_OF_WINDOW_DAYS = 30;
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 // days 상한 축(T-1966) — recent-deletion-window.ts 의 MAX_DAYS 와 짝. 상한 정확히(366)
 // 는 통과, 초과(400)는 assertValidDays 가 RangeError → controller filter 가 400 매핑.
@@ -49,7 +50,6 @@ const OVER_MAX_DAYS = 400;
 const INPUT_GUIDE_PREFIX = "최근 N일 삭제 요청 입력이 올바르지 않습니다";
 // 응답 body 에 절대 새면 안 되는 내부 노출 흔적(§9) — stack frame · 소스 경로.
 const LEAK_MARKERS = ["at Object.", "node_modules", "src/scheduling", ".ts:"];
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 const recentDeletionUrl = (personId: string): string =>
   `/api/schedules/recent-deletion/${personId}`;
