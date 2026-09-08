@@ -2,7 +2,7 @@
 id: T-1966
 title: recent-deletion days 상한 초과 400 e2e 계약 고정 + 거부 종수 주석 drift 정정
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 80
