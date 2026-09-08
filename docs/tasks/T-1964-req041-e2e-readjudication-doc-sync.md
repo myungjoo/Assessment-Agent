@@ -2,7 +2,7 @@
 id: T-1964
 title: REQ-041 상태 칸 근거 공백 정정 — recent-deletion unit·e2e 좌표 doc-sync (once-rule 1 회)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-041]
 estimatedDiff: 16
