@@ -2,7 +2,7 @@
 id: T-1972
 title: LLM provider config 생성(POST) e2e 계약 고정 — 암호화 저장 · never-read-back · RBAC
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-051, REQ-043]
 estimatedDiff: 285
