@@ -2,7 +2,7 @@
 id: T-1967
 title: GET /api/llm/providers 목록 조회 e2e 계약 spec 신설 (apiKey 미노출 · RBAC 축)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-051, REQ-043]
 estimatedDiff: 230
