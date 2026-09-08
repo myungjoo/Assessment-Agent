@@ -2,7 +2,7 @@
 id: T-1970
 title: LLM provider config 단건 조회 · 삭제 e2e 계약 고정 (GET/DELETE :id)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-051, REQ-043]
 estimatedDiff: 290
