@@ -2,7 +2,7 @@
 id: T-1978
 title: 기본 슬롯 · 난이도 슬롯이 동시에 참조하는 config 의 DELETE 409 · 2 단 해소 e2e 고정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-050, REQ-051, REQ-043]
 estimatedDiff: 270
