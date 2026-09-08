@@ -1,6 +1,8 @@
 // llm-provider-configs.e2e-spec.ts — GET /api/llm/providers 목록 조회의 HTTP
 // contract + apiKey 미노출 invariant + RBAC tier enforce e2e (T-1967, REQ-051/REQ-043).
 // difficulty-mappings.e2e-spec.ts(T-1960) 패턴 1:1 mirror.
+// 파일 하단에 T-1970 이 같은 controller 의 `:id` 단건 조회 · 삭제 축 describe 를
+// 잇는다 (top-level describe 2 개, 각자 app 부트스트랩).
 //
 // 책임: LlmProviderConfigController(@Get(), Admin+ tier) → LlmProviderConfigService
 // .findAll(sanitize 명시 pick + isDefault 파생) → repository.findMany 의 실 배선을
