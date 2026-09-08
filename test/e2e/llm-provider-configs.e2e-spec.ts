@@ -235,3 +235,259 @@ describe("E2E: GET /api/llm/providers (T-1967, REQ-051/REQ-043)", () => {
     expect(response.text).not.toContain(SECRET_A);
   });
 });
+
+// -- T-1970: 단건 조회 · 삭제 (:id) 축 ---------------------------------------
+// 위 목록 describe(T-1967) 는 무수정으로 두고 같은 파일에 `:id` 2 route 의 실 HTTP
+// 왕복을 잇는다. users.e2e-spec.ts 선례대로 top-level describe 마다 자기 app 을
+// 부트스트랩한다(앞 describe 의 afterAll 이 app 을 닫은 뒤 실행되므로 안전).
+//
+// 고정하는 계약 5 가지:
+//   - GET :id 200 은 view 7 key 를 정확히 노출하고 값이 seed 값과 일치한다.
+//   - DELETE :id 는 204 + body 0 이며 실제로 row 가 사라진다(직후 GET 404 + count 0).
+//   - **ADR-0014 §3 never-read-back** — 단건 200 에 `apiKey` 키가 없고 응답 본문에
+//     seed apiKey 원문이 없으며, 204 삭제 응답 본문에도 config 필드가 0 개다.
+//   - 부재 id 는 GET(null→404) · DELETE(P2025→404) 모두 404 이며 다른 config 를
+//     흘리지 않고, DELETE 404 뒤에도 기존 row 는 잔존한다.
+//   - **기본 슬롯이 가리키는 config 의 DELETE 는 409**(P2003→ConflictException) 이며
+//     config 와 슬롯이 둘 다 잔존한다 — schema 의 `onDelete: Restrict`(ADR-0062
+//     §Decision 2)가 Cascade / SetNull 로 회귀하면 여기서 red 가 된다.
+describe("E2E: GET/DELETE /api/llm/providers/:id (T-1970, REQ-051/REQ-043)", () => {
+  let ctx: AuthenticatedE2EContext;
+  let app: INestApplication;
+  let prisma: PrismaService;
+  let userCookie: string;
+  let adminCookie: string;
+  let superAdminCookie: string;
+
+  beforeAll(async () => {
+    ctx = await createAuthenticatedE2EApp([
+      { role: "User", email: "llm-provider-byid-user@e2e.test" },
+      { role: "Admin", email: "llm-provider-byid-admin@e2e.test" },
+      { role: "SuperAdmin", email: "llm-provider-byid-super@e2e.test" },
+    ]);
+    app = ctx.app;
+    prisma = ctx.prisma;
+    userCookie = buildAuthCookie(ctx.tokens["llm-provider-byid-user@e2e.test"]);
+    adminCookie = buildAuthCookie(
+      ctx.tokens["llm-provider-byid-admin@e2e.test"],
+    );
+    superAdminCookie = buildAuthCookie(
+      ctx.tokens["llm-provider-byid-super@e2e.test"],
+    );
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await prisma.$disconnect();
+  });
+
+  afterEach(async () => {
+    await truncateAll(prisma);
+    // 자식(LlmDefaultProvider) → 부모(LlmProviderConfig) 순서 고정.
+    await prisma.llmDefaultProvider.deleteMany();
+    await prisma.llmProviderConfig.deleteMany();
+  });
+
+  // 단건 축은 대상 row 1 개면 충분하다 — id 를 돌려받아 경로에 끼운다.
+  async function seedConfig(): Promise<string> {
+    const row = await prisma.llmProviderConfig.create({
+      data: {
+        provider: "openai",
+        endpointUrl: "https://alpha.example.test/v1",
+        apiKey: SECRET_A,
+        modelId: "gpt-alpha",
+      },
+    });
+    return row.id;
+  }
+
+  // 어떤 seed row 와도 겹치지 않는 부재 id — 404 분기 입력.
+  const ABSENT_ID = "cle2eabsent000000000000000";
+
+  // -- happy (i): 단건 조회 200 --
+
+  it("Admin 쿠키 + seed 한 id 로 GET 시 200 + view 7 key 정확히 + 값이 seed 와 일치 (authed happy)", async () => {
+    const id = await seedConfig();
+
+    const response = await request(app.getHttpServer())
+      .get(`${PROVIDERS_URL}/${id}`)
+      .set("Cookie", adminCookie);
+
+    expect(response.status).toBe(200);
+    expect(response.headers["content-type"]).toMatch(/application\/json/);
+    expect(Object.keys(response.body).sort()).toEqual([...VIEW_FIELDS].sort());
+    expect(response.body).toMatchObject({
+      id,
+      provider: "openai",
+      endpointUrl: "https://alpha.example.test/v1",
+      modelId: "gpt-alpha",
+    });
+  });
+
+  // -- happy (ii): 삭제 204 + 실 삭제 확인 --
+
+  it("Admin 쿠키로 DELETE 시 204 + 빈 body 이고 직후 GET 이 404 · count 0 (authed happy — 실 삭제 확인)", async () => {
+    const id = await seedConfig();
+
+    const deleted = await request(app.getHttpServer())
+      .delete(`${PROVIDERS_URL}/${id}`)
+      .set("Cookie", adminCookie);
+
+    expect(deleted.status).toBe(204);
+    expect(deleted.text).toBe("");
+
+    const after = await request(app.getHttpServer())
+      .get(`${PROVIDERS_URL}/${id}`)
+      .set("Cookie", adminCookie);
+
+    expect(after.status).toBe(404);
+    expect(await prisma.llmProviderConfig.count()).toBe(0);
+  });
+
+  // -- 보안 invariant: never-read-back (ADR-0014 §3) --
+
+  it("200 단건 응답에 apiKey 키·원문이 없고 204 삭제 응답 본문에도 config 필드가 0 개 (security — never-read-back)", async () => {
+    const id = await seedConfig();
+
+    const view = await request(app.getHttpServer())
+      .get(`${PROVIDERS_URL}/${id}`)
+      .set("Cookie", adminCookie);
+
+    expect(view.status).toBe(200);
+    expect(view.body).not.toHaveProperty("apiKey");
+    expect(view.text).not.toContain(SECRET_A);
+    expect(JSON.stringify(view.body)).not.toContain("apiKey");
+
+    const deleted = await request(app.getHttpServer())
+      .delete(`${PROVIDERS_URL}/${id}`)
+      .set("Cookie", adminCookie);
+
+    expect(deleted.status).toBe(204);
+    expect(deleted.text).not.toContain(SECRET_A);
+    expect(Object.keys(deleted.body)).toHaveLength(0);
+  });
+
+  // -- 분기 (i): 파생 isDefault 2 종 (ADR-0062 §Decision 2) --
+
+  it("기본 슬롯 미지정 GET :id 는 isDefault:false, 같은 config 를 가리키는 슬롯 seed 후엔 true (branch — 파생 2 종)", async () => {
+    const id = await seedConfig();
+
+    const before = await request(app.getHttpServer())
+      .get(`${PROVIDERS_URL}/${id}`)
+      .set("Cookie", adminCookie);
+
+    expect(before.status).toBe(200);
+    expect(before.body.isDefault).toBe(false);
+
+    await prisma.llmDefaultProvider.create({
+      data: { llmProviderConfigId: id },
+    });
+
+    const after = await request(app.getHttpServer())
+      .get(`${PROVIDERS_URL}/${id}`)
+      .set("Cookie", adminCookie);
+
+    expect(after.status).toBe(200);
+    expect(after.body.isDefault).toBe(true);
+  });
+
+  // -- error path: 404 2 종 (GET null→404 / DELETE P2025→404) --
+
+  it("부재 id 의 GET·DELETE 는 모두 404 이고 다른 config 를 흘리지 않으며 기존 row 는 잔존 (error path)", async () => {
+    await seedConfig();
+
+    const getMissing = await request(app.getHttpServer())
+      .get(`${PROVIDERS_URL}/${ABSENT_ID}`)
+      .set("Cookie", adminCookie);
+
+    expect(getMissing.status).toBe(404);
+    expect(getMissing.text).not.toContain(SECRET_A);
+    expect(getMissing.text).not.toContain("alpha.example.test");
+
+    const deleteMissing = await request(app.getHttpServer())
+      .delete(`${PROVIDERS_URL}/${ABSENT_ID}`)
+      .set("Cookie", adminCookie);
+
+    expect(deleteMissing.status).toBe(404);
+    expect(deleteMissing.text).not.toContain(SECRET_A);
+    // 실패한 삭제가 다른 row 를 지우지 않는다.
+    expect(await prisma.llmProviderConfig.count()).toBe(1);
+  });
+
+  // -- 분기 (ii, 핵심): 기본 슬롯 점유 config 삭제 → 409 (P2003, Restrict 회귀 감지) --
+
+  it("기본 슬롯이 가리키는 config 를 DELETE 하면 409 이고 config·슬롯이 둘 다 잔존 (branch — P2003→409, onDelete: Restrict)", async () => {
+    const id = await seedConfig();
+    await prisma.llmDefaultProvider.create({
+      data: { llmProviderConfigId: id },
+    });
+
+    const response = await request(app.getHttpServer())
+      .delete(`${PROVIDERS_URL}/${id}`)
+      .set("Cookie", adminCookie);
+
+    expect(response.status).toBe(409);
+    expect(response.text).not.toContain(SECRET_A);
+    expect(await prisma.llmProviderConfig.count()).toBe(1);
+    expect(await prisma.llmDefaultProvider.count()).toBe(1);
+  });
+
+  // -- 분기 (iii): SuperAdmin escalation (과차단 0) --
+
+  it("SuperAdmin 쿠키의 GET :id 는 200 (branch — RolesGuard escalation 이 403 으로 과차단되지 않음)", async () => {
+    const id = await seedConfig();
+
+    const response = await request(app.getHttpServer())
+      .get(`${PROVIDERS_URL}/${id}`)
+      .set("Cookie", superAdminCookie);
+
+    expect(response.status).toBe(200);
+    expect(response.body.id).toBe(id);
+    expect(response.text).not.toContain(SECRET_A);
+  });
+
+  // -- negative: 2 route × 3 인증 조건 = 6 케이스 (객체 표 + $routeLabel) --
+
+  const ID_ROUTES: { routeLabel: string; method: "get" | "delete" }[] = [
+    { routeLabel: "GET :id", method: "get" },
+    { routeLabel: "DELETE :id", method: "delete" },
+  ];
+
+  const AUTH_CONDS: {
+    condLabel: string;
+    kind: "user" | "none" | "tampered";
+    expected: number;
+  }[] = [
+    { condLabel: "User 쿠키(tier 미달)", kind: "user", expected: 403 },
+    { condLabel: "쿠키 부재", kind: "none", expected: 401 },
+    { condLabel: "변조 JWT 쿠키", kind: "tampered", expected: 401 },
+  ];
+
+  const RBAC_CASES = ID_ROUTES.flatMap((route) =>
+    AUTH_CONDS.map((cond) => ({ ...route, ...cond })),
+  );
+
+  it.each(RBAC_CASES)(
+    "$routeLabel 를 $condLabel 로 호출하면 $expected 이고 config 데이터 미노출 · row 잔존 (negative — JwtAuthGuard/RolesGuard)",
+    async ({ method, kind, expected }) => {
+      const id = await seedConfig();
+      const cookie =
+        kind === "user"
+          ? userCookie
+          : kind === "tampered"
+            ? buildAuthCookie("not-a-valid-jwt.tampered.signature")
+            : undefined;
+
+      const pending = request(app.getHttpServer())[method](
+        `${PROVIDERS_URL}/${id}`,
+      );
+      const response = await (cookie ? pending.set("Cookie", cookie) : pending);
+
+      expect(response.status).toBe(expected);
+      expect(response.text).not.toContain(SECRET_A);
+      expect(response.text).not.toContain("endpointUrl");
+      // 실패 경로는 데이터를 건드리지 않는다 — DELETE 실패 뒤에도 row 잔존.
+      expect(await prisma.llmProviderConfig.count()).toBe(1);
+    },
+  );
+});
