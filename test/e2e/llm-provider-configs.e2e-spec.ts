@@ -2,8 +2,8 @@
 // contract + apiKey 미노출 invariant + RBAC tier enforce e2e (T-1967, REQ-051/REQ-043).
 // difficulty-mappings.e2e-spec.ts(T-1960) 패턴 1:1 mirror.
 // 파일 하단에 T-1970 이 같은 controller 의 `:id` 단건 조회 · 삭제 축 describe 를,
-// T-1972 가 생성(POST) 축 describe 를 잇는다 (top-level describe 3 개, 각자 app
-// 부트스트랩). POST 축만 spec-local 일회용 LLM_APIKEY_ENC_KEY 를 env 에 주입해
+// T-1972 가 생성(POST) · T-1973 이 부분 갱신(PATCH) 축 describe 를 잇는다 (top-level
+// describe 4 개, 각자 app 부트스트랩). 쓰기 축만 spec-local 일회용 키를 env 에 주입해
 // 실 암호화 저장 왕복(ADR-0014 §1)까지 검증한다.
 //
 // 책임: LlmProviderConfigController(@Get(), Admin+ tier) → LlmProviderConfigService
@@ -781,5 +781,301 @@ describe("E2E: POST /api/llm/providers (T-1972, REQ-049/REQ-051/REQ-043)", () =>
     expect(response.status).toBe(201);
     expect(response.body).not.toHaveProperty("apiKey");
     expect(await prisma.llmProviderConfig.count()).toBe(1);
+  });
+});
+
+// -- T-1973: 부분 갱신(PATCH) 축 상수 (위 세 describe 의 상수는 무수정) ---------
+// seed row 에 심는 apiKey 원문과 PATCH 로 새로 보내는 원문 — 둘 다 다른 값 · 다른
+// 토큰이라 "재암호화됐다 / 기존 것이 유지됐다" 를 오탐 0 으로 갈라 볼 수 있다.
+const SECRET_PATCH_SEED = "e2e-secret-apikey-patchseed-2a55";
+const SECRET_PATCH_NEW = "e2e-secret-apikey-patchnew-7b90";
+
+// seed row 의 초기 필드 — 미명시 필드 불변 단언의 기준값.
+const PATCH_SEED_FIELDS = {
+  provider: "openai",
+  endpointUrl: "https://patch-seed.example.test/v1",
+  modelId: "gpt-patch-seed",
+} as const;
+
+// ValidationPipe(whitelist + forbidNonWhitelisted + DTO decorator) 가 400 으로
+// 막아야 하는 3 종 — 명시 필드 빈 문자열 / wrong type / allow-list 밖 키.
+const INVALID_PATCH_BODIES: {
+  caseLabel: string;
+  body: Record<string, unknown>;
+}[] = [
+  { caseLabel: "명시한 modelId 가 빈 문자열", body: { modelId: "" } },
+  { caseLabel: "endpointUrl 이 wrong type(number)", body: { endpointUrl: 42 } },
+  {
+    caseLabel: "allow-list 밖 키 포함(unexpectedField)",
+    body: { modelId: "gpt-patched", unexpectedField: "x" },
+  },
+];
+
+// 인증 3 조건 — 기대 status 를 표로 박제한다(POST 축 표 mirror).
+const PATCH_RBAC_CASES: {
+  condLabel: string;
+  kind: "user" | "none" | "tampered";
+  expected: number;
+}[] = [
+  { condLabel: "User 쿠키(tier 미달)", kind: "user", expected: 403 },
+  { condLabel: "쿠키 부재", kind: "none", expected: 401 },
+  { condLabel: "변조 JWT 쿠키", kind: "tampered", expected: 401 },
+];
+
+// 어떤 seed row 와도 겹치지 않는 부재 id — P2025→404 분기 입력.
+const ABSENT_PATCH_ID = "cle2eabsentpatch0000000000";
+
+// -- T-1973: 부분 갱신(PATCH) 축 ----------------------------------------------
+// 위 세 describe(T-1967 목록 · T-1970 `:id` 조회·삭제 · T-1972 생성) 는 무수정으로
+// 두고 쓰기 축의 두 번째 route 인 PATCH /:id 의 실 HTTP 왕복을 잇는다(자기 app
+// 부트스트랩 + POST 축과 같은 spec-local 일회용 LLM_APIKEY_ENC_KEY 주입/복원).
+//
+// seed 는 POST route 를 거치지 않고 prisma.create + cipher.encrypt 로 직접 넣는다 —
+// POST 가 깨져도 PATCH 축이 단독으로 red/green 을 판정하게 유지하기 위함.
+//
+// 고정하는 계약 5 가지:
+//   - Admin PATCH 는 200 + view 7 key + 명시 필드만 교체, 미명시 필드 불변.
+//   - **ADR-0014 §1 재암호화** — apiKey 를 명시하면 저장 ciphertext 가 새 평문과
+//     다르고 decrypt 왕복이 새 평문과 일치한다(평문 저장 회귀 감지).
+//   - **ADR-0014 §3 never-read-back** — apiKey 를 미명시하면 저장 ciphertext 가
+//     바이트 동일하게 유지되고, 응답 어디에도 apiKey 키·원문이 없다.
+//   - 미지원 provider 400 · 부재 id 404 · ValidationPipe 위반 3 종 400 은 모두 row
+//     필드 불변이다.
+//   - User 403 · 쿠키 부재/변조 401 도 row 불변이고, SuperAdmin 은 escalation 200.
+describe("E2E: PATCH /api/llm/providers/:id (T-1973, REQ-049/REQ-051/REQ-043)", () => {
+  let ctx: AuthenticatedE2EContext;
+  let app: INestApplication;
+  let prisma: PrismaService;
+  let cipher: LlmApiKeyCipher;
+  let userCookie: string;
+  let adminCookie: string;
+  let superAdminCookie: string;
+  let previousEncKey: string | undefined;
+  // beforeEach 가 새로 심는 대상 row 의 id 와 그 시점 ciphertext 원본.
+  let seedId: string;
+  let seedCipherText: string;
+
+  beforeAll(async () => {
+    previousEncKey = process.env[ENC_KEY_ENV];
+    process.env[ENC_KEY_ENV] = randomBytes(32).toString("base64");
+
+    ctx = await createAuthenticatedE2EApp([
+      { role: "User", email: "llm-provider-patch-user@e2e.test" },
+      { role: "Admin", email: "llm-provider-patch-admin@e2e.test" },
+      { role: "SuperAdmin", email: "llm-provider-patch-super@e2e.test" },
+    ]);
+    app = ctx.app;
+    prisma = ctx.prisma;
+    cipher = app.get(LlmApiKeyCipher);
+    userCookie = buildAuthCookie(
+      ctx.tokens["llm-provider-patch-user@e2e.test"],
+    );
+    adminCookie = buildAuthCookie(
+      ctx.tokens["llm-provider-patch-admin@e2e.test"],
+    );
+    superAdminCookie = buildAuthCookie(
+      ctx.tokens["llm-provider-patch-super@e2e.test"],
+    );
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await prisma.$disconnect();
+    if (previousEncKey === undefined) {
+      delete process.env[ENC_KEY_ENV];
+    } else {
+      process.env[ENC_KEY_ENV] = previousEncKey;
+    }
+  });
+
+  // 갱신 대상 row 1 건 — POST route 경유 0, 실 배선과 같은 cipher 로 암호화한다.
+  beforeEach(async () => {
+    seedCipherText = cipher.encrypt(SECRET_PATCH_SEED);
+    const row = await prisma.llmProviderConfig.create({
+      data: { ...PATCH_SEED_FIELDS, apiKey: seedCipherText },
+    });
+    seedId = row.id;
+  });
+
+  afterEach(async () => {
+    await truncateAll(prisma);
+    // 자식(LlmDefaultProvider) → 부모(LlmProviderConfig) 순서 고정.
+    await prisma.llmDefaultProvider.deleteMany();
+    await prisma.llmProviderConfig.deleteMany();
+  });
+
+  // 실패 경로 공통 단언 — 4 컬럼이 seed 시점 그대로여야 한다(부분 반영 0).
+  async function expectSeedRowUnchanged(): Promise<void> {
+    const row = await prisma.llmProviderConfig.findUnique({
+      where: { id: seedId },
+    });
+    expect(row).toMatchObject(PATCH_SEED_FIELDS);
+    expect(row?.apiKey).toBe(seedCipherText);
+  }
+
+  // -- happy (i): 200 + view 7 key + 명시 필드 교체 + 미명시 필드 불변 --
+
+  it("Admin 쿠키로 modelId·endpointUrl 만 PATCH 하면 200 + view 7 key 정확히 + 미명시 provider 불변 (authed happy)", async () => {
+    const response = await request(app.getHttpServer())
+      .patch(`${PROVIDERS_URL}/${seedId}`)
+      .set("Cookie", adminCookie)
+      .send({
+        modelId: "gpt-patched",
+        endpointUrl: "https://patched.example.test/v1",
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.headers["content-type"]).toMatch(/application\/json/);
+    expect(Object.keys(response.body).sort()).toEqual([...VIEW_FIELDS].sort());
+    expect(response.body).toMatchObject({
+      id: seedId,
+      modelId: "gpt-patched",
+      endpointUrl: "https://patched.example.test/v1",
+      // 요청에 없던 필드는 그대로 — partial data 구성이 전체 덮어쓰기로 회귀하면 red.
+      provider: PATCH_SEED_FIELDS.provider,
+    });
+    expect(response.body).not.toHaveProperty("apiKey");
+  });
+
+  // -- happy (ii): 소비처 연결 — PATCH 직후 단건 GET 이 갱신값 반영 --
+
+  it("PATCH 직후 같은 Admin 쿠키의 단건 GET 이 200 + 갱신값 반영이고 본문에 apiKey 원문 없음 (happy — 쓰기→읽기 연결)", async () => {
+    const patched = await request(app.getHttpServer())
+      .patch(`${PROVIDERS_URL}/${seedId}`)
+      .set("Cookie", adminCookie)
+      .send({ modelId: "gpt-patched-read" });
+
+    expect(patched.status).toBe(200);
+
+    const fetched = await request(app.getHttpServer())
+      .get(`${PROVIDERS_URL}/${seedId}`)
+      .set("Cookie", adminCookie);
+
+    expect(fetched.status).toBe(200);
+    expect(fetched.body).toMatchObject({
+      id: seedId,
+      modelId: "gpt-patched-read",
+    });
+    expect(fetched.body).not.toHaveProperty("apiKey");
+    expect(fetched.text).not.toContain(SECRET_PATCH_SEED);
+  });
+
+  // -- 분기 (i): apiKey 명시 → 재암호화 (ADR-0014 §1) --
+
+  it("apiKey 를 명시한 PATCH 는 저장 ciphertext 를 새 평문으로 재암호화하고 응답에 평문이 없음 (branch — apiKey 명시)", async () => {
+    const response = await request(app.getHttpServer())
+      .patch(`${PROVIDERS_URL}/${seedId}`)
+      .set("Cookie", adminCookie)
+      .send({ apiKey: SECRET_PATCH_NEW });
+
+    expect(response.status).toBe(200);
+    expect(response.body).not.toHaveProperty("apiKey");
+    expect(response.text).not.toContain(SECRET_PATCH_NEW);
+
+    const row = await prisma.llmProviderConfig.findUnique({
+      where: { id: seedId },
+    });
+
+    // 평문 그대로 저장되면 여기서 red — encrypt 배선 우회 회귀 감지 지점.
+    expect(row?.apiKey).not.toBe(SECRET_PATCH_NEW);
+    expect(row?.apiKey).not.toBe(seedCipherText);
+    expect(cipher.decrypt(row?.apiKey ?? "")).toBe(SECRET_PATCH_NEW);
+  });
+
+  // -- 분기 (ii): apiKey 미명시 → 기존 ciphertext 유지 (ADR-0014 §3) --
+
+  it("apiKey 미명시 PATCH 는 저장 ciphertext 를 바이트 동일하게 유지하고 다른 필드만 갱신 (branch — apiKey 부재)", async () => {
+    const response = await request(app.getHttpServer())
+      .patch(`${PROVIDERS_URL}/${seedId}`)
+      .set("Cookie", adminCookie)
+      .send({ modelId: "gpt-keep-key" });
+
+    expect(response.status).toBe(200);
+
+    const row = await prisma.llmProviderConfig.findUnique({
+      where: { id: seedId },
+    });
+
+    // 재암호화도 평문 덮어쓰기도 없어야 한다 — 문자열 바이트 동일.
+    expect(row?.apiKey).toBe(seedCipherText);
+    expect(cipher.decrypt(row?.apiKey ?? "")).toBe(SECRET_PATCH_SEED);
+    expect(row?.modelId).toBe("gpt-keep-key");
+  });
+
+  // -- error path (i): 미지원 provider → 400 (service isLlmProvider) --
+
+  it("허용 집합 밖 provider literal 은 400 이고 row 필드가 불변 (error path — service isLlmProvider)", async () => {
+    const response = await request(app.getHttpServer())
+      .patch(`${PROVIDERS_URL}/${seedId}`)
+      .set("Cookie", adminCookie)
+      .send({ provider: "not_a_provider", modelId: "gpt-should-not-apply" });
+
+    expect(response.status).toBe(400);
+    await expectSeedRowUnchanged();
+  });
+
+  // -- error path (ii): 부재 id → 404 (P2025 변환) --
+
+  it("부재 id 로 PATCH 하면 404 이고 기존 row 가 불변 (error path — P2025→404)", async () => {
+    const response = await request(app.getHttpServer())
+      .patch(`${PROVIDERS_URL}/${ABSENT_PATCH_ID}`)
+      .set("Cookie", adminCookie)
+      .send({ modelId: "gpt-absent" });
+
+    expect(response.status).toBe(404);
+    await expectSeedRowUnchanged();
+  });
+
+  // -- negative: ValidationPipe 3 종 (whitelist + forbidNonWhitelisted + DTO) --
+
+  it.each(INVALID_PATCH_BODIES)(
+    "$caseLabel 인 본문은 400 이고 row 필드가 불변 (negative — controller-scope ValidationPipe)",
+    async ({ body }) => {
+      const response = await request(app.getHttpServer())
+        .patch(`${PROVIDERS_URL}/${seedId}`)
+        .set("Cookie", adminCookie)
+        .send(body);
+
+      expect(response.status).toBe(400);
+      await expectSeedRowUnchanged();
+    },
+  );
+
+  // -- negative: 인증 3 조건 (User 403 / 쿠키 부재 401 / 변조 JWT 401) --
+
+  it.each(PATCH_RBAC_CASES)(
+    "$condLabel 의 PATCH 는 $expected 이고 row 필드 불변 · apiKey 원문 미노출 (negative — JwtAuthGuard/RolesGuard)",
+    async ({ kind, expected }) => {
+      const cookie =
+        kind === "user"
+          ? userCookie
+          : kind === "tampered"
+            ? buildAuthCookie("not-a-valid-jwt.tampered.signature")
+            : undefined;
+
+      const pending = request(app.getHttpServer()).patch(
+        `${PROVIDERS_URL}/${seedId}`,
+      );
+      const response = await (
+        cookie ? pending.set("Cookie", cookie) : pending
+      ).send({ modelId: "gpt-should-not-apply" });
+
+      expect(response.status).toBe(expected);
+      expect(response.text).not.toContain(SECRET_PATCH_SEED);
+      await expectSeedRowUnchanged();
+    },
+  );
+
+  // -- negative: 과차단 없음 — SuperAdmin escalation 200 --
+
+  it("SuperAdmin 쿠키의 PATCH 는 200 (negative — RolesGuard escalation 이 403 으로 과차단되지 않음)", async () => {
+    const response = await request(app.getHttpServer())
+      .patch(`${PROVIDERS_URL}/${seedId}`)
+      .set("Cookie", superAdminCookie)
+      .send({ modelId: "gpt-super-patched" });
+
+    expect(response.status).toBe(200);
+    expect(response.body).not.toHaveProperty("apiKey");
+    expect(response.body.modelId).toBe("gpt-super-patched");
   });
 });
