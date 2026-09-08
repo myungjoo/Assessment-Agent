@@ -8,8 +8,18 @@
 // `known-gap-REQ-043` 20 건은 blessing 이 아니라 카운트 가능한 부채이며, guard 실 배선(§5 오너
 // 승인 대상) slice 가 이 목록을 함께 줄여야 한다.
 //      🔥 Nest 부팅 0 · DB 0 · 네트워크 0 · src 변경 0 — 파일 read + 합성 문자열 주입만.
-import { readFileSync, existsSync, readdirSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import * as path from "path";
+
+// 정적 추출 primitive 는 T-1986 이 단일 출처로 뽑아 둔 helper 를 쓴다 — 같은 토크나이저를
+// e2e 커버리지 census(T-1985) 와 공유해 두 census 의 route 모수가 갈리지 않게 한다.
+import {
+  ROUTE_RE,
+  SLASH_RE,
+  extractControllerPrefix,
+  findFiles,
+  stripComments,
+} from "../helpers/route-census";
 
 // repo-root — 실행 cwd 무관하게 `__dirname`(= test/smoke) 기준 두 단계 위로 고정.
 const REPO_ROOT = path.resolve(__dirname, "../..");
@@ -58,48 +68,6 @@ const UNPROTECTED_ALLOWLIST: readonly string[] = [
 ];
 
 type RouteEntry = { method: string; fullPath: string; guarded: boolean };
-
-// 문자열 리터럴을 먼저 잡아 보존하고, 주석만 공백으로 지운다(개행은 유지).
-const TOKEN_RE =
-  /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g;
-const CONTROLLER_RE =
-  /@Controller\(\s*(?:"([^"]*)"|'([^']*)'|`([^`]*)`)?\s*[,)]/;
-const SLASH_RE = /^\/+|\/+$/g; // 앞뒤 `/` 정규화
-const ROUTE_RE =
-  /^@(Get|Post|Put|Patch|Delete)\(\s*(?:"([^"]*)"|'([^']*)'|`([^`]*)`)?/;
-
-// 주석(line · block) 제거 — 주석 속 `@UseGuards` 설명이 census 를 오염시키는 것을 막는 전처리.
-// 문자열 리터럴 안의 `//` 는 보존. non-string 이면 TypeError(0-byte fallback false-PASS 방지).
-function stripComments(source: string): string {
-  if (typeof source !== "string") {
-    throw new TypeError("stripComments: source 는 string 이어야 함");
-  }
-  return source.replace(TOKEN_RE, (tok) =>
-    tok.startsWith("/") ? tok.replace(/[^\n]/g, " ") : tok,
-  );
-}
-
-// `dir` 이하 재귀 순회로 `suffix` 파일 경로를 정렬 반환. 하드코딩 목록이 아니라 **발견**이라
-// 신규 controller 가 자동 편입된다.
-function findFiles(dir: string, suffix: string): string[] {
-  const found: string[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const child = path.join(dir, entry.name).replace(/\\/g, "/");
-    if (entry.isDirectory()) found.push(...findFiles(child, suffix));
-    else if (entry.isFile() && entry.name.endsWith(suffix)) found.push(child);
-  }
-  return found.sort();
-}
-
-// `@Controller("prefix")` 의 prefix 추출. 인자 없는 `@Controller()` 는 빈 prefix, decorator
-// 자체가 없으면 Error throw — 빈 문자열 silent fallback 금지.
-function extractControllerPrefix(source: string): string {
-  const match = CONTROLLER_RE.exec(stripComments(source));
-  if (match === null) {
-    throw new Error("extractControllerPrefix: @Controller decorator 부재");
-  }
-  return (match[1] ?? match[2] ?? match[3] ?? "").replace(SLASH_RE, "");
-}
 
 // 한 controller 소스의 route census. 클래스 레벨 `@UseGuards` 면 전 route 보호, 아니면 해당
 // route 의 decorator 블록에 `@UseGuards` 가 있어야 보호. `@Roles` 등 타 decorator 는 무시.

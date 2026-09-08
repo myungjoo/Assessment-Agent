@@ -9,8 +9,18 @@
 // `realdb-perf-spec-covered` 태그가 붙은 이월분이다 — T-1981 이 realdb perf-spec 중복을 근거로
 // 명시 이월했고 본 spec 은 새 커버를 만들지 않고 세기만 한다.
 //      🔥 Nest 부팅 0 · DB 0 · 네트워크 0 · src 변경 0 — 파일 read + 합성 문자열 주입만.
-import { readFileSync, readdirSync } from "fs";
+import { readFileSync } from "fs";
 import * as path from "path";
+
+// 정적 추출 primitive 는 T-1986 이 단일 출처로 뽑아 둔 helper 를 쓴다 — guard 적용률
+// census(T-1983) 와 같은 토크나이저를 공유해 두 census 의 route 모수가 갈리지 않게 한다.
+import {
+  ROUTE_RE,
+  SLASH_RE,
+  extractControllerPrefix,
+  findFiles,
+  stripComments,
+} from "../helpers/route-census";
 
 // repo-root — 실행 cwd 무관하게 `__dirname`(= test/smoke) 기준 두 단계 위로 고정.
 const REPO_ROOT = path.resolve(__dirname, "../..");
@@ -30,13 +40,6 @@ const ALLOWED = E2E_UNCOVERED_ALLOWLIST.map((e) => e.route).sort();
 
 type RouteRef = { prefix: string; suffix: string; label: string };
 
-const TOKEN_RE =
-  /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g;
-const CONTROLLER_RE =
-  /@Controller\(\s*(?:"([^"]*)"|'([^']*)'|`([^`]*)`)?\s*[,)]/;
-const ROUTE_RE =
-  /^@(Get|Post|Put|Patch|Delete)\(\s*(?:"([^"]*)"|'([^']*)'|`([^`]*)`)?/;
-const SLASH_RE = /^\/+|\/+$/g; // 앞뒤 `/` 정규화
 // segment 경계 — `/running` 이 `/running-xyz` 를 커버로 오판하지 않게 하는 접두 충돌 방지.
 const BOUNDARY = "(?![A-Za-z0-9_-])";
 const esc = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -47,17 +50,9 @@ const esc = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  * `@Controller` 가 없으면 route 0 으로 조용히 흡수하지 않고 throw (0-byte false-PASS 방지).
  */
 function censusRoutes(source: string): RouteRef[] {
-  if (typeof source !== "string") {
-    throw new TypeError("censusRoutes: source 는 string 이어야 함");
-  }
-  const stripped = source.replace(TOKEN_RE, (tok) =>
-    tok.startsWith("/") ? tok.replace(/[^\n]/g, " ") : tok,
-  );
-  const head = CONTROLLER_RE.exec(stripped);
-  if (head === null) {
-    throw new Error("censusRoutes: @Controller decorator 부재");
-  }
-  const prefix = (head[1] ?? head[2] ?? head[3] ?? "").replace(SLASH_RE, "");
+  // non-string → TypeError, `@Controller` 부재 → Error 두 계약은 helper 가 그대로 승계한다.
+  const stripped = stripComments(source);
+  const prefix = extractControllerPrefix(stripped);
   const routes: RouteRef[] = [];
   let buffer: string[] = [];
   let pending = "";
@@ -140,16 +135,8 @@ function uncoveredLabels(
     .sort();
 }
 
-// --- IO (순수 함수 아님) — 파일 발견 · read 만. 없는 디렉터리는 readdirSync 가 throw 한다.
-function findFiles(dir: string, suffix: string): string[] {
-  const found: string[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const child = path.join(dir, entry.name).replace(/\\/g, "/");
-    if (entry.isDirectory()) found.push(...findFiles(child, suffix));
-    else if (entry.isFile() && entry.name.endsWith(suffix)) found.push(child);
-  }
-  return found.sort();
-}
+// --- IO (순수 함수 아님) — 파일 발견 · read 만. 파일 발견은 helper 의 `findFiles` 를 쓰며
+// 없는 디렉터리는 그 안의 readdirSync 가 throw 한다.
 const readAll = (files: readonly string[]): string[] =>
   files.map((f) => readFileSync(f, "utf8"));
 
