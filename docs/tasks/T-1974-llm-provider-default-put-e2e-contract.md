@@ -2,8 +2,9 @@
 id: T-1974
 title: LLM 기본 provider 지정(PUT /providers/default) e2e 계약 고정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1548
 coversReq: [REQ-049, REQ-051, REQ-043]
 estimatedDiff: 285
 estimatedFiles: 1
