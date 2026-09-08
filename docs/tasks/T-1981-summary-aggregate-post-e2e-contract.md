@@ -2,7 +2,7 @@
 id: T-1981
 title: POST /api/assessment-evaluation/summary 의 LLM-무의존 계약면 e2e 신설 (시점 게이트 skip · 400 매트릭스 · RunStatus 짝)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-004, REQ-043, REQ-045]
 estimatedDiff: 290
