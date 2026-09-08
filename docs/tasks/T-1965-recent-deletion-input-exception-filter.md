@@ -2,7 +2,7 @@
 id: T-1965
 title: recent-deletion endpoint 입력 결함 500 → 400 매핑 filter 신설
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 270
