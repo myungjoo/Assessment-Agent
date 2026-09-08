@@ -2,7 +2,7 @@
 id: T-1975
 title: 기본 지정 row 의 PATCH × isDefault 파생 유지 e2e 계약 고정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-051, REQ-043]
 estimatedDiff: 265
