@@ -24,10 +24,13 @@
 //   - forbidNonWhitelisted: 정의되지 않은 필드 포함 시 400 BadRequest.
 //   - transform: plain JSON 을 RecentDeletionDto instance 로 변환.
 //
-// service-layer 예외 raw forward (controller 추가 변환 0):
-//   - runRecentDeletion 이 throw/reject(buildRecentDeletionPlan 의 TypeError/RangeError →
-//     400, deleteInstants / triggerCollection reject → Person 404 / 500 등)하면 그 에러를
-//     삼키지 않고 그대로 propagate. controller 는 위임만 하고 변환/포장하지 않는다.
+// service-layer 예외 raw forward + 입력 결함 400 매핑 (controller 자체 변환 0):
+//   - runRecentDeletion 이 throw/reject 하면 controller 는 삼키지 않고 그대로 propagate.
+//   - 그 중 **호출자 입력 결함** (buildRecentDeletionPlan 의 RangeError = days 범위 /
+//     TypeError = instants 형식) 의 400 매핑은 handler 경계의
+//     `@UseFilters(RecentDeletionInputExceptionFilter)` 담당 (T-1965 — 필터 미배선 시
+//     default filter 가 500 으로 내보내 "입력 오류" 가 "서버 장애" 로 집계됐다).
+//   - Person 404 등 HttpException 은 필터가 passthrough 해 status·body 가 유지된다.
 //
 // RBAC (BackfillController 의 Admin+ tier 1:1 mirror — 신규 auth 결정 0):
 //   - 최근 N일 결과 manual delete 발화는 administrative concern — Admin+ tier.
@@ -47,6 +50,7 @@ import {
   HttpCode,
   Param,
   Post,
+  UseFilters,
   UseGuards,
   UsePipes,
   ValidationPipe,
@@ -57,6 +61,7 @@ import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 
 import { RecentDeletionDto } from "./dto/recent-deletion.dto";
+import { RecentDeletionInputExceptionFilter } from "./recent-deletion-input-exception.filter";
 import {
   RecentDeletionRunnerService,
   type RecentDeletionRunResult,
@@ -91,11 +96,15 @@ export class RecentDeletionController {
   // triggerCollection)가 부재/비정상 personId 를 거부한다. raw forward 로 그대로 전달하고,
   // runRecentDeletion 이 throw/reject 하면 삼키지 않고 그대로 propagate.
   //
+  // 입력 결함 400 매핑 — @UseFilters(RecentDeletionInputExceptionFilter) 가 runner 의
+  // RangeError(days 범위) · TypeError(instants 형식) 를 400 으로 매핑한다 (T-1965).
+  //
   // RBAC — Admin+ tier. @Roles("Admin") → Admin / SuperAdmin 통과, User actor 403,
   // 인증 부재 401.
   @Post("recent-deletion/:personId")
   @HttpCode(202)
   @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseFilters(RecentDeletionInputExceptionFilter)
   @Roles("Admin")
   async recentDeletion(
     @Param("personId") personId: string,
