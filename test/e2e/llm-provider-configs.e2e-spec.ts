@@ -1400,6 +1400,7 @@ describe("E2E: PATCH /api/llm/providers/:id × 기본 슬롯 파생 (T-1975, REQ
   let cipher: LlmApiKeyCipher;
   let userCookie: string;
   let adminCookie: string;
+  let superAdminCookie: string;
   let previousEncKey: string | undefined;
   // A = 기본 슬롯이 가리키는 config, B = 비기본 대조군.
   let idA: string;
@@ -1420,6 +1421,7 @@ describe("E2E: PATCH /api/llm/providers/:id × 기본 슬롯 파생 (T-1975, REQ
     ctx = await createAuthenticatedE2EApp([
       { role: "User", email: "llm-provider-defpatch-user@e2e.test" },
       { role: "Admin", email: "llm-provider-defpatch-admin@e2e.test" },
+      { role: "SuperAdmin", email: "llm-provider-defpatch-super@e2e.test" },
     ]);
     app = ctx.app;
     prisma = ctx.prisma;
@@ -1429,6 +1431,9 @@ describe("E2E: PATCH /api/llm/providers/:id × 기본 슬롯 파생 (T-1975, REQ
     );
     adminCookie = buildAuthCookie(
       ctx.tokens["llm-provider-defpatch-admin@e2e.test"],
+    );
+    superAdminCookie = buildAuthCookie(
+      ctx.tokens["llm-provider-defpatch-super@e2e.test"],
     );
   });
 
@@ -1654,6 +1659,257 @@ describe("E2E: PATCH /api/llm/providers/:id × 기본 슬롯 파생 (T-1975, REQ
       expect(response.status).toBe(expected);
       expect(response.text).not.toContain(SECRET_DEFAULT_A);
       await expectRowAUnchanged();
+      await expectSlotStillA();
+    },
+  );
+
+  // -- happy: 과차단 없음 — SuperAdmin 이 기본 row A 를 PATCH 해도 200 + 파생 유지 --
+
+  it("SuperAdmin 쿠키로 기본 row A 를 PATCH 하면 200 + isDefault true 유지 · 슬롯 불변 (happy — RolesGuard escalation 이 403 으로 과차단되지 않음)", async () => {
+    const response = await patchAs(superAdminCookie, idA, {
+      modelId: "gpt-super-default-patched",
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      id: idA,
+      modelId: "gpt-super-default-patched",
+      isDefault: true,
+    });
+    expect(response.body).not.toHaveProperty("apiKey");
+    await expectSlotStillA();
+  });
+
+  // -- negative: 허용 집합 밖 provider literal → 400 + row · 슬롯 불변 --
+
+  it("기본 row A 에 허용 집합 밖 provider literal 을 보내면 400 이고 row · 슬롯 불변 (error path — service isLlmProvider, 실패한 PATCH 가 슬롯을 흔들지 않음)", async () => {
+    const response = await patchAs(adminCookie, idA, {
+      provider: "not_a_provider",
+      modelId: "gpt-should-not-apply",
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.text).not.toContain(SECRET_DEFAULT_A);
+    await expectRowAUnchanged();
+    await expectSlotStillA();
+  });
+});
+
+// -- T-1976: 기본 슬롯 존재 상태의 POST · DELETE 교차 축 ----------------------
+// 위 여섯 describe 와 모든 모듈 상수는 무수정이고 신규 모듈 상수도 0 이다 — 생성
+// payload 는 `512 행` VALID_CREATE_PAYLOAD, 인증 3 조건 표는 `1114 행`
+// DEFAULT_RBAC_CASES, seed 평문은 `1086~1087 행` SECRET_DEFAULT_A · B 를 재사용한다.
+//
+// T-1975 가 "기본 슬롯이 걸린 row 의 PATCH" 를 닫았으므로 남은 공백은 같은 **슬롯
+// 존재** 상태를 나머지 두 쓰기 route 가 흔들지 않는가다. T-1972 POST describe 와
+// T-1970 의 DELETE 케이스는 슬롯 seed 가 0 이라 아래 두 회귀를 잡지 못한다.
+//   - service `203 행` 의 `this.sanitize(row, await this.readDefaultConfigId())`
+//     인자가 유실되면 신규 row 가 isDefault:true 로 표시되거나 목록의 기본 표시가
+//     두 곳으로 번진다 (자동 기본 승격 0 = ADR-0062 제약 1 위반).
+//   - service `295~310 행` delete 의 P2003→409 분기가 과차단 쪽으로 회귀하면 기본이
+//     아닌 row 의 삭제까지 409 가 되고, 반대로 삭제가 슬롯을 흔들어도 잡히지 않는다.
+//
+// 기본 row A 자신의 DELETE 409 는 `434 행` 이 이미 고정하므로 여기서 재작성하지
+// 않는다 (중복 케이스 차단). seed 는 전부 prisma 직접 create 라 쓰기 route 경유가
+// 0 이며, 본 describe 는 단독으로 red/green 이 된다.
+describe("E2E: POST · DELETE /api/llm/providers × 기본 슬롯 존재 (T-1976, REQ-049/REQ-051/REQ-043)", () => {
+  let ctx: AuthenticatedE2EContext;
+  let app: INestApplication;
+  let prisma: PrismaService;
+  let cipher: LlmApiKeyCipher;
+  let userCookie: string;
+  let adminCookie: string;
+  let previousEncKey: string | undefined;
+  // A = 기본 슬롯이 가리키는 config, B = 삭제 대상 비기본 대조군.
+  let idA: string;
+  let idB: string;
+
+  beforeAll(async () => {
+    previousEncKey = process.env[ENC_KEY_ENV];
+    // 일회용 32-byte AES-256 키(base64) — 리포지토리에 남는 secret 0.
+    process.env[ENC_KEY_ENV] = randomBytes(32).toString("base64");
+
+    ctx = await createAuthenticatedE2EApp([
+      { role: "User", email: "llm-provider-slotcross-user@e2e.test" },
+      { role: "Admin", email: "llm-provider-slotcross-admin@e2e.test" },
+    ]);
+    app = ctx.app;
+    prisma = ctx.prisma;
+    cipher = app.get(LlmApiKeyCipher);
+    userCookie = buildAuthCookie(
+      ctx.tokens["llm-provider-slotcross-user@e2e.test"],
+    );
+    adminCookie = buildAuthCookie(
+      ctx.tokens["llm-provider-slotcross-admin@e2e.test"],
+    );
+  });
+
+  afterAll(async () => {
+    await app.close();
+    await prisma.$disconnect();
+    if (previousEncKey === undefined) {
+      delete process.env[ENC_KEY_ENV];
+    } else {
+      process.env[ENC_KEY_ENV] = previousEncKey;
+    }
+  });
+
+  // config 2 건 + A 를 가리키는 기본 슬롯 1 건 — 전부 prisma 직접 seed.
+  beforeEach(async () => {
+    const rowA = await prisma.llmProviderConfig.create({
+      data: {
+        provider: "openai",
+        endpointUrl: "https://slot-cross-a.example.test/v1",
+        modelId: "gpt-slot-cross-a",
+        apiKey: cipher.encrypt(SECRET_DEFAULT_A),
+      },
+    });
+    const rowB = await prisma.llmProviderConfig.create({
+      data: {
+        provider: "anthropic",
+        endpointUrl: "https://slot-cross-b.example.test/v1",
+        modelId: "claude-slot-cross-b",
+        apiKey: cipher.encrypt(SECRET_DEFAULT_B),
+      },
+    });
+    idA = rowA.id;
+    idB = rowB.id;
+    await prisma.llmDefaultProvider.create({
+      data: { llmProviderConfigId: idA },
+    });
+  });
+
+  afterEach(async () => {
+    await truncateAll(prisma);
+    // 자식(LlmDefaultProvider) → 부모(LlmProviderConfig) 순서 고정.
+    await prisma.llmDefaultProvider.deleteMany();
+    await prisma.llmProviderConfig.deleteMany();
+  });
+
+  // 슬롯 invariant — 언제나 1 개이고 여전히 A 를 가리킨다.
+  async function expectSlotStillA(): Promise<void> {
+    expect(await prisma.llmDefaultProvider.count()).toBe(1);
+    const slot = await prisma.llmDefaultProvider.findFirst();
+    expect(slot?.llmProviderConfigId).toBe(idA);
+  }
+
+  // -- happy (i): 슬롯 존재 상태의 POST → 201 + 신규 row 는 비기본 --
+
+  it("슬롯이 A 를 가리키는 상태의 Admin POST 는 201 + view 7 key 정확히 + 신규 row isDefault:false · 슬롯 불변 (authed happy — 자동 기본 승격 0)", async () => {
+    const response = await request(app.getHttpServer())
+      .post(PROVIDERS_URL)
+      .set("Cookie", adminCookie)
+      .send(VALID_CREATE_PAYLOAD);
+
+    expect(response.status).toBe(201);
+    expect(Object.keys(response.body).sort()).toEqual([...VIEW_FIELDS].sort());
+    expect(response.body).toMatchObject({
+      provider: VALID_CREATE_PAYLOAD.provider,
+      modelId: VALID_CREATE_PAYLOAD.modelId,
+      isDefault: false,
+    });
+    expect(response.body.id).not.toBe(idA);
+    expect(response.text).not.toContain(SECRET_CREATE);
+    expect(await prisma.llmProviderConfig.count()).toBe(3);
+    await expectSlotStillA();
+  });
+
+  // -- happy (ii): 소비처 연결 — 생성 직후 목록의 기본 표시가 A 하나뿐 --
+
+  it("생성 직후 목록 GET 이 3 건이고 isDefault:true 는 정확히 1 개(=A) (happy — findAll 파생이 신규 row 로 옮겨가지 않음)", async () => {
+    const created = await request(app.getHttpServer())
+      .post(PROVIDERS_URL)
+      .set("Cookie", adminCookie)
+      .send(VALID_CREATE_PAYLOAD);
+
+    expect(created.status).toBe(201);
+
+    const list = await request(app.getHttpServer())
+      .get(PROVIDERS_URL)
+      .set("Cookie", adminCookie);
+
+    expect(list.status).toBe(200);
+    expect(list.body).toHaveLength(3);
+    const defaults = (list.body as { id: string; isDefault: boolean }[]).filter(
+      (row) => row.isDefault,
+    );
+    expect(defaults).toHaveLength(1);
+    expect(defaults[0].id).toBe(idA);
+    expect(list.text).not.toContain(SECRET_CREATE);
+  });
+
+  // -- error path (POST): 허용 집합 밖 provider literal → 400 + 슬롯 불변 --
+
+  it("허용 집합 밖 provider literal 의 POST 는 400 이고 config 2 건 유지 · 슬롯 불변 (error path — service isLlmProvider)", async () => {
+    const response = await request(app.getHttpServer())
+      .post(PROVIDERS_URL)
+      .set("Cookie", adminCookie)
+      .send({ ...VALID_CREATE_PAYLOAD, provider: "not_a_provider" });
+
+    expect(response.status).toBe(400);
+    expect(response.text).not.toContain(SECRET_CREATE);
+    expect(await prisma.llmProviderConfig.count()).toBe(2);
+    await expectSlotStillA();
+  });
+
+  // -- happy/branch (DELETE): 비기본 row B 삭제는 204 (409 과차단 확산 0) --
+
+  it("비기본 row B 의 Admin DELETE 는 204 + 빈 body 이고 B 부재 · A 잔존 · 슬롯 불변 (branch — P2003→409 가 비기본 row 로 확산하지 않음)", async () => {
+    const response = await request(app.getHttpServer())
+      .delete(`${PROVIDERS_URL}/${idB}`)
+      .set("Cookie", adminCookie);
+
+    expect(response.status).toBe(204);
+    expect(response.text).toBe("");
+    expect(
+      await prisma.llmProviderConfig.findUnique({ where: { id: idB } }),
+    ).toBeNull();
+    expect(
+      await prisma.llmProviderConfig.findUnique({ where: { id: idA } }),
+    ).not.toBeNull();
+    await expectSlotStillA();
+  });
+
+  // -- happy (iii): 소비처 연결 — 삭제 직후 목록은 A 1 건 + 기본 표시 유지 --
+
+  it("삭제 직후 목록 GET 이 1 건이고 그 row 의 isDefault:true (happy — 삭제→읽기 연결, 슬롯 파생 유지)", async () => {
+    const removed = await request(app.getHttpServer())
+      .delete(`${PROVIDERS_URL}/${idB}`)
+      .set("Cookie", adminCookie);
+
+    expect(removed.status).toBe(204);
+
+    const list = await request(app.getHttpServer())
+      .get(PROVIDERS_URL)
+      .set("Cookie", adminCookie);
+
+    expect(list.status).toBe(200);
+    expect(list.body).toHaveLength(1);
+    expect(list.body[0]).toMatchObject({ id: idA, isDefault: true });
+    expect(list.text).not.toContain(SECRET_DEFAULT_A);
+  });
+
+  // -- negative: 인증 3 조건 (User 403 / 쿠키 부재 401 / 변조 JWT 401) --
+
+  it.each(DEFAULT_RBAC_CASES)(
+    "$condLabel 의 비기본 row B DELETE 는 $expected 이고 config 2 건 유지 · 슬롯 불변 · seed 평문 미노출 (negative — JwtAuthGuard/RolesGuard)",
+    async ({ kind, expected }) => {
+      const cookie =
+        kind === "user"
+          ? userCookie
+          : kind === "tampered"
+            ? buildAuthCookie("not-a-valid-jwt.tampered.signature")
+            : undefined;
+
+      const pending = request(app.getHttpServer()).delete(
+        `${PROVIDERS_URL}/${idB}`,
+      );
+      const response = await (cookie ? pending.set("Cookie", cookie) : pending);
+
+      expect(response.status).toBe(expected);
+      expect(response.text).not.toContain(SECRET_DEFAULT_A);
+      expect(response.text).not.toContain(SECRET_DEFAULT_B);
+      expect(await prisma.llmProviderConfig.count()).toBe(2);
       await expectSlotStillA();
     },
   );
