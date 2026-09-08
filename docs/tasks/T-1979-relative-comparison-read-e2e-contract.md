@@ -2,7 +2,7 @@
 id: T-1979
 title: GET /api/assessment-evaluation/relative-comparison 조회 e2e 계약 spec 신설 (순위·백분위 산출 · RBAC 축)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-036, REQ-043]
 estimatedDiff: 290
