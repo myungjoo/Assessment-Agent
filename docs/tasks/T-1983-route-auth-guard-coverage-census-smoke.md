@@ -2,7 +2,7 @@
 id: T-1983
 title: 전 route 인증 guard 적용률 census drift smoke spec 신설 (미보호 route 집합 정확 일치 · APP_GUARD 부재 고정)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043]
 estimatedDiff: 290
