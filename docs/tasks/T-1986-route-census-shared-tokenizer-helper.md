@@ -2,7 +2,7 @@
 id: T-1986
 title: route census 정적 추출 공통 helper 추출 + 두 census smoke spec 동시 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 280
