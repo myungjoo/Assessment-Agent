@@ -2,7 +2,7 @@
 id: T-1976
 title: 기본 슬롯 존재 상태의 POST · DELETE 교차 계약 + T-1975 잔여 2 건 e2e 고정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-049, REQ-051, REQ-043]
 estimatedDiff: 250
