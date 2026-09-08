@@ -2,7 +2,7 @@
 id: T-1984
 title: REQ-043 상태 칸 적용률 축 drift 정정 — stale census 수치 4 개 갱신 + T-1983 census smoke 좌표 1 회 박제
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-043]
 estimatedDiff: 20
