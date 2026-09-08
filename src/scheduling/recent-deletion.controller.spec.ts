@@ -34,6 +34,7 @@ import request from "supertest";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { RolesGuard } from "../auth/roles.guard";
 
+import { RecentDeletionInputExceptionFilter } from "./recent-deletion-input-exception.filter";
 import {
   RecentDeletionRunnerService,
   type RecentDeletionRunResult,
@@ -513,4 +514,33 @@ describe("RecentDeletionController (real RolesGuard escalation 분기)", () => {
       expect(runnerMock.runRecentDeletion).toHaveBeenCalledTimes(1);
     },
   );
+});
+
+// -----------------------------------------------------------------------
+// T-1965 — recent-deletion endpoint 입력 결함 400 매핑 필터 배선 (T-1963 Follow-up ① 회수).
+// recentDeletion 핸들러에 @UseFilters(RecentDeletionInputExceptionFilter) 가 부착됐음을
+// metadata 수준에서 단언하고, negative 로 클래스 레벨 미부착(전역·controller-scope 확산 0
+// — task §Out of Scope)을 확인한다. 실 매핑 분기(passthrough/400/500)는 colocated
+// recent-deletion-input-exception.filter.spec.ts 가 cover 한다.
+// -----------------------------------------------------------------------
+describe("RecentDeletionController (T-1965 입력 결함 400 매핑 필터 배선)", () => {
+  it("recentDeletion 핸들러에 @UseFilters(RecentDeletionInputExceptionFilter) 부착 (입력 결함 400 매핑 gate)", () => {
+    const filters = Reflect.getMetadata(
+      "__exceptionFilters__",
+      RecentDeletionController.prototype.recentDeletion,
+    ) as unknown[];
+
+    expect(filters).toContain(RecentDeletionInputExceptionFilter);
+  });
+
+  it("negative — controller 클래스 레벨에는 필터 미부착 (전역·controller-scope 확산 0)", () => {
+    const classFilters = Reflect.getMetadata(
+      "__exceptionFilters__",
+      RecentDeletionController,
+    ) as unknown[] | undefined;
+
+    expect(classFilters ?? []).not.toContain(
+      RecentDeletionInputExceptionFilter,
+    );
+  });
 });
