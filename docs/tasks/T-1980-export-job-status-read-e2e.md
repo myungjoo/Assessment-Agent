@@ -2,7 +2,7 @@
 id: T-1980
 title: export job 진행 조회 3 route (running · :id/status-view · :id) e2e 계약 spec 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-043, REQ-045]
 estimatedDiff: 290
