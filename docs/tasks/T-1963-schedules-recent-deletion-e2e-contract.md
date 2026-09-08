@@ -2,7 +2,7 @@
 id: T-1963
 title: POST /api/schedules/recent-deletion/:personId e2e 계약 spec 신설
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 215
