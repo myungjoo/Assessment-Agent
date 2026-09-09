@@ -2,7 +2,7 @@
 id: T-2005
 title: 사전 난이도 routing opt-in 의 fail-fast 전파 cross-layer 회귀 spec (ADR-0065 §Follow-ups (b))
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-050, REQ-049]
 estimatedDiff: 250
