@@ -32,6 +32,13 @@ const LOADING_TEXT = '불러오는 중…';
 const EMPTY_PROVIDERS_TEXT = '등록된 LLM provider 가 없습니다';
 // 미할당(null) 슬롯의 placeholder 옵션 라벨 — value 는 빈 문자열.
 const UNASSIGNED_LABEL = '선택 안 함';
+// 미지정 슬롯 안내 문구의 앞머리 — ADR-0011 §3 은 미설정 슬롯을 임의 기본 provider 로
+// 대체하지 않고 평가를 거부(fail-fast)하므로, placeholder("선택 안 함") 가 "선택하지 않아도
+// 된다" 로 오독되지 않도록 그 사실을 패널 표면에 올린다.
+const UNASSIGNED_NOTICE_TEXT =
+  '모델이 지정되지 않은 난이도는 평가가 거부됩니다. 미지정 슬롯:';
+// 안내 문구에서 슬롯 라벨을 나열할 때 쓰는 구분자.
+const UNASSIGNED_NOTICE_SEPARATOR = ', ';
 
 interface DifficultyModelSelectorProps {
   // 선택 가능한 provider 목록 — controlled component 라 상위가 보유한다(빈 배열이면 빈 상태).
@@ -77,6 +84,16 @@ function DifficultyModelSelector({
     }
   };
 
+  // 미지정(null) 슬롯 목록 — DIFFICULTY_SLOTS 렌더 순서를 그대로 승계한다. 미지의 id 는
+  // null 이 아니므로(placeholder 로 fallback 될 뿐) 미지정으로 세지 않는다.
+  const unassignedSlots = DIFFICULTY_SLOTS.filter(
+    (slot) => mapping[slot.key] === null,
+  );
+  // 안내 문구는 텍스트 노드 1 개로 합쳐 둔다 — 슬롯 라벨 나열 순서가 곧 렌더 순서다.
+  const unassignedNotice = `${UNASSIGNED_NOTICE_TEXT} ${unassignedSlots
+    .map((slot) => slot.label)
+    .join(UNASSIGNED_NOTICE_SEPARATOR)}`;
+
   return (
     <div>
       {/* 에러가 있을 때만 alert 영역을 렌더 — 빈 에러가 자리를 차지하지 않게 한다. */}
@@ -101,6 +118,15 @@ function DifficultyModelSelector({
           </select>
         </label>
       ))}
+
+      {/* 미지정 슬롯이 1 개 이상일 때만 안내 영역을 렌더한다(전 슬롯 할당이면 미렌더).
+          role 은 note — 기존 spec 이 정상 렌더에서 role="status" 부재·role="alert" 부재를
+          단언하므로 두 role 재사용은 회귀를 만든다. 배치는 슬롯 폼 바로 아래인데, 위로
+          올리면 안내에 나열된 라벨이 슬롯 라벨보다 먼저 등장해 기존 spec 의 슬롯 라벨
+          순서 단언(쉬움→보통→어려움)을 깨기 때문이다(회귀 0 우선). */}
+      {unassignedSlots.length > 0 ? (
+        <div role="note">{unassignedNotice}</div>
+      ) : null}
     </div>
   );
 }
