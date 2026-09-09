@@ -68,4 +68,5 @@ plannerNote: P5 · T-1985 reviewer MINOR 1·2 (인접성 미검사·동적 segme
 
 ## Follow-ups
 
-(비어 있음 — sub-agent 가 발견한 관련 작업을 여기에 적는다.)
+- **잔여 느슨함 — 동적 segment 로 시작하는 chain 은 앵커 미적용** (본 slice 실측). 정적 시작 chain 은 "route prefix 바로 뒤 또는 새 경로 조각 시작" 앵커를 요구하지만, 동적 시작 chain 에 같은 앵커를 걸면 `POST /api/persons/:personId/identities/:identityId/primary` 가 **거짓 미커버**가 된다 — [service-identities.e2e-spec.ts](../../test/e2e/service-identities.e2e-spec.ts) `122~124 행` 이 `` `${identityEndpointFor(a, b)}/primary` `` 로 조립해 `/:identityId` 앞의 `/` 가 builder 안에 숨기 때문이다(앵커 전면 적용 시 미커버 2 → 3). 그래서 그 축만 남겨 뒀고, 그 결과 동적 시작 chain 은 여전히 남의 경로 꼬리를 빌릴 여지가 있다.
+- 위 route 의 현행 커버 근거는 같은 파일 `118 행` 한국어 주석의 `PATCH/DELETE/primary` **우연 매치** 하나뿐이다(본 slice 실측). 주석 표현만 바뀌어도 census 가 red 가 되므로, §Out of Scope 의 "e2e 소스 `const BASE` · builder 인라인 후 매칭" 안을 별도 slice 로 검토한 뒤 앵커를 전 chain 으로 확대한다.
