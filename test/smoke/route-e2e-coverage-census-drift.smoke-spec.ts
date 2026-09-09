@@ -12,14 +12,13 @@
 import { readFileSync } from "fs";
 import * as path from "path";
 
-// 정적 추출 primitive 는 T-1986 이 단일 출처로 뽑아 둔 helper 를 쓴다 — guard 적용률
-// census(T-1983) 와 같은 토크나이저를 공유해 두 census 의 route 모수가 갈리지 않게 한다.
+// 정적 추출 primitive 와 스캐너 본체 `censusRoutes` 는 T-1986 · T-1987 이 단일 출처로 뽑아 둔
+// helper 를 쓴다 — guard 적용률 census(T-1983) 와 같은 스캐너를 공유해 두 census 의 route
+// 모수가 갈리지 않게 한다.
 import {
-  ROUTE_RE,
-  SLASH_RE,
-  extractControllerPrefix,
+  type RouteRecord,
+  censusRoutes,
   findFiles,
-  stripComments,
 } from "../helpers/route-census";
 
 // repo-root — 실행 cwd 무관하게 `__dirname`(= test/smoke) 기준 두 단계 위로 고정.
@@ -38,71 +37,13 @@ const E2E_UNCOVERED_ALLOWLIST: readonly { route: string; reason: string }[] = [
 ];
 const ALLOWED = E2E_UNCOVERED_ALLOWLIST.map((e) => e.route).sort();
 
-type RouteRef = { prefix: string; suffix: string; label: string };
-
 // segment 경계 — `/running` 이 `/running-xyz` 를 커버로 오판하지 않게 하는 접두 충돌 방지.
 const BOUNDARY = "(?![A-Za-z0-9_-])";
 const esc = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/**
- * 순수 함수 1/3 — controller 소스 1 개의 route census.
- * 주석은 공백으로 지우고(문자열 리터럴은 보존) `@Controller` prefix 와 route decorator 를 뽑는다.
- * `@Controller` 가 없으면 route 0 으로 조용히 흡수하지 않고 throw (0-byte false-PASS 방지).
- */
-function censusRoutes(source: string): RouteRef[] {
-  // non-string → TypeError, `@Controller` 부재 → Error 두 계약은 helper 가 그대로 승계한다.
-  const stripped = stripComments(source);
-  const prefix = extractControllerPrefix(stripped);
-  const routes: RouteRef[] = [];
-  let buffer: string[] = [];
-  let pending = "";
-  let depth = 0;
-  let seenClass = false;
-  for (const raw of stripped.split("\n")) {
-    const line = raw.trim();
-    if (line === "") continue;
-    const delta =
-      (line.match(/\(/g) ?? []).length - (line.match(/\)/g) ?? []).length;
-    if (depth > 0) {
-      // 여러 행에 걸친 decorator(`@UsePipes(\n ... \n)`) 를 괄호 균형으로 이어붙인다.
-      pending += " " + line;
-      depth += delta;
-      if (depth <= 0) {
-        buffer.push(pending);
-        pending = "";
-        depth = 0;
-      }
-      continue;
-    }
-    if (line.startsWith("@")) {
-      if (delta > 0) {
-        pending = line;
-        depth = delta;
-      } else buffer.push(line);
-      continue;
-    }
-    if (/^(export\s+)?(abstract\s+)?class\s+\w+/.test(line)) {
-      seenClass = true;
-      buffer = [];
-      continue;
-    }
-    if (seenClass) {
-      for (const decorator of buffer) {
-        const match = ROUTE_RE.exec(decorator);
-        if (match === null) continue;
-        const suffix = (match[2] ?? match[3] ?? match[4] ?? "").replace(
-          SLASH_RE,
-          "",
-        );
-        const full = [prefix, suffix].filter((x) => x !== "").join("/");
-        const label = `${match[1].toUpperCase()} /${full}`;
-        routes.push({ prefix, suffix, label });
-      }
-    }
-    buffer = [];
-  }
-  return routes;
-}
+// 순수 함수 1/3 — controller 소스 1 개의 route census 는 helper `censusRoutes` 가 단일 출처다
+// (T-1987). 본 spec 은 그 레코드의 `prefix`/`suffix`/`label` 축만 소비하며, non-string →
+// TypeError · `@Controller` 부재 → Error 두 계약도 helper 가 그대로 승계한다.
 
 /**
  * 순수 함수 2/3 — route 1 개가 e2e 소스 1 개에 왕복으로 등장하는지. e2e 는 URL 을
@@ -110,7 +51,7 @@ function censusRoutes(source: string): RouteRef[] {
  * 낸다. 그래서 prefix 존재 + suffix segment 별 존재로 나눠 보고, 동적 segment(`:id`)는 템플릿
  * 치환(`${...}`) 과 실 문자열 양쪽에 매칭한다.
  */
-function isCoveredBy(route: RouteRef, e2eSource: string): boolean {
+function isCoveredBy(route: RouteRecord, e2eSource: string): boolean {
   const hasPath = (p: string): boolean =>
     new RegExp("/" + esc(p) + BOUNDARY).test(e2eSource);
   if (!hasPath(route.prefix)) return false;
@@ -126,7 +67,7 @@ function isCoveredBy(route: RouteRef, e2eSource: string): boolean {
 
 /** 순수 함수 3/3 — 어느 e2e 소스에도 걸리지 않는 route label 집합(정렬). */
 function uncoveredLabels(
-  routes: readonly RouteRef[],
+  routes: readonly RouteRecord[],
   e2eSources: readonly string[],
 ): string[] {
   return routes
@@ -142,7 +83,7 @@ const readAll = (files: readonly string[]): string[] =>
 
 const controllerFiles = (): string[] => findFiles(SRC_ROOT, ".controller.ts");
 const e2eFiles = (): string[] => findFiles(E2E_ROOT, ".e2e-spec.ts");
-const repoRoutes = (): RouteRef[] =>
+const repoRoutes = (): RouteRecord[] =>
   readAll(controllerFiles()).flatMap((src) => censusRoutes(src));
 
 describe("전 route e2e 왕복 커버리지 census drift (PLAN 166 행 · T-1985)", () => {
@@ -186,11 +127,19 @@ describe("전 route e2e 왕복 커버리지 census drift (PLAN 166 행 · T-1985
   });
 
   describe("Flow — 매칭기 분기 cover (합성 입력)", () => {
-    const ROUTE = (prefix: string, suffix: string): RouteRef => ({
-      prefix,
-      suffix,
-      label: `GET /${[prefix, suffix].filter((x) => x !== "").join("/")}`,
-    });
+    // 합성 route 레코드 — 매칭기가 쓰는 축(`prefix`/`suffix`/`label`)만 의미가 있고,
+    // guard 축(`method`/`guarded`)은 helper 레코드 형태를 맞추기 위한 고정값이다.
+    const ROUTE = (prefix: string, suffix: string): RouteRecord => {
+      const fullPath = `/${[prefix, suffix].filter((x) => x !== "").join("/")}`;
+      return {
+        method: "GET",
+        prefix,
+        suffix,
+        fullPath,
+        label: `GET ${fullPath}`,
+        guarded: false,
+      };
+    };
     it("(a) 동적 segment `:id` 는 템플릿 치환과 실 문자열 양쪽에 매칭", () => {
       const route = ROUTE("api/z", ":id/status");
       const tmpl = 'const BASE = "/api/z";\nget(`${BASE}/${id}/status`)';

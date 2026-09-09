@@ -11,11 +11,12 @@
 import { readFileSync, existsSync } from "fs";
 import * as path from "path";
 
-// 정적 추출 primitive 는 T-1986 이 단일 출처로 뽑아 둔 helper 를 쓴다 — 같은 토크나이저를
-// e2e 커버리지 census(T-1985) 와 공유해 두 census 의 route 모수가 갈리지 않게 한다.
+// 정적 추출 primitive 와 스캐너 본체 `censusRoutes` 는 T-1986 · T-1987 이 단일 출처로 뽑아 둔
+// helper 를 쓴다 — e2e 커버리지 census(T-1985) 와 같은 스캐너를 공유해 두 census 의 route
+// 모수가 갈리지 않게 한다.
 import {
-  ROUTE_RE,
-  SLASH_RE,
+  type RouteRecord,
+  censusRoutes,
   extractControllerPrefix,
   findFiles,
   stripComments,
@@ -67,78 +68,18 @@ const UNPROTECTED_ALLOWLIST: readonly string[] = [
   ...KNOWN_GAP_REQ_043,
 ];
 
-type RouteEntry = { method: string; fullPath: string; guarded: boolean };
-
-// 한 controller 소스의 route census. 클래스 레벨 `@UseGuards` 면 전 route 보호, 아니면 해당
-// route 의 decorator 블록에 `@UseGuards` 가 있어야 보호. `@Roles` 등 타 decorator 는 무시.
-function censusRoutes(source: string): RouteEntry[] {
-  const prefix = extractControllerPrefix(source);
-  const routes: RouteEntry[] = [];
-  let buffer: string[] = [];
-  let pending = "";
-  let depth = 0;
-  let classGuarded = false;
-  let seenClass = false;
-  for (const raw of stripComments(source).split("\n")) {
-    const line = raw.trim();
-    if (line === "") continue;
-    const delta =
-      (line.match(/\(/g) ?? []).length - (line.match(/\)/g) ?? []).length;
-    if (depth > 0) {
-      // 여러 행에 걸친 decorator(`@UsePipes(\n ... \n)`) 를 괄호 균형으로 이어붙인다.
-      pending += " " + line;
-      depth += delta;
-      if (depth <= 0) {
-        buffer.push(pending);
-        pending = "";
-        depth = 0;
-      }
-      continue;
-    }
-    if (line.startsWith("@")) {
-      if (delta > 0) {
-        pending = line;
-        depth = delta;
-      } else buffer.push(line);
-      continue;
-    }
-    if (/^(export\s+)?(abstract\s+)?class\s+\w+/.test(line)) {
-      classGuarded = buffer.some((d) => d.startsWith("@UseGuards"));
-      seenClass = true;
-      buffer = [];
-      continue;
-    }
-    if (seenClass) {
-      const guarded =
-        classGuarded || buffer.some((d) => d.startsWith("@UseGuards"));
-      for (const decorator of buffer) {
-        const match = ROUTE_RE.exec(decorator);
-        if (match === null) continue;
-        const seg = (match[2] ?? match[3] ?? match[4] ?? "").replace(
-          SLASH_RE,
-          "",
-        );
-        const joined = [prefix, seg].filter((x) => x !== "").join("/");
-        routes.push({
-          method: match[1].toUpperCase(),
-          fullPath: `/${joined}`,
-          guarded,
-        });
-      }
-    }
-    buffer = [];
-  }
-  return routes;
-}
+// 스캐너 본체(`censusRoutes`)는 helper 단일 출처 — 클래스 레벨 `@UseGuards` 면 전 route
+// 보호, 아니면 해당 route 의 decorator 블록에 `@UseGuards` 가 있어야 보호다. 본 spec 은 그
+// 결과 레코드의 `method`/`fullPath`/`guarded` 축만 소비한다.
 
 // 실 `src/` 전수 census — 파일 발견 → 소스 read → route 추출을 한 번에 묶는다.
-function repoRoutes(): RouteEntry[] {
+function repoRoutes(): RouteRecord[] {
   return findFiles(SRC_ROOT, ".controller.ts").flatMap((f) =>
     censusRoutes(readFileSync(f, "utf8")),
   );
 }
 
-const label = (r: RouteEntry): string => `${r.method} ${r.fullPath}`;
+const label = (r: RouteRecord): string => `${r.method} ${r.fullPath}`;
 
 describe("전 route 인증 guard 적용률 census drift (REQ-043 · T-1983)", () => {
   describe("Happy path — 실 src 기준", () => {
@@ -215,14 +156,30 @@ describe("전 route 인증 guard 적용률 census drift (REQ-043 · T-1983)", ()
     it("(c) 인자 없는 @Get() → full-path 가 prefix 자신", () => {
       expect(
         censusRoutes('@Controller("api")\nexport class Z {\n@Get()\nr() {}\n}'),
-      ).toEqual([{ method: "GET", fullPath: "/api", guarded: false }]);
+      ).toEqual([
+        {
+          method: "GET",
+          prefix: "api",
+          suffix: "",
+          fullPath: "/api",
+          label: "GET /api",
+          guarded: false,
+        },
+      ]);
     });
     it("(d) @Roles/@HttpCode/여러 행 @UsePipes 가 섞여도 오판 없음", () => {
       const routes = censusRoutes(
         '@Controller("api/w")\n@UsePipes(\n  new ValidationPipe({ whitelist: true }),\n)\nexport class W {\n@UseGuards(JwtAuthGuard, RolesGuard)\n@Roles("Admin")\n@HttpCode(204)\n@Patch(":id")\nu() {}\n}',
       );
       expect(routes).toEqual([
-        { method: "PATCH", fullPath: "/api/w/:id", guarded: true },
+        {
+          method: "PATCH",
+          prefix: "api/w",
+          suffix: ":id",
+          fullPath: "/api/w/:id",
+          label: "PATCH /api/w/:id",
+          guarded: true,
+        },
       ]);
     });
     it("주석 안의 @UseGuards/@Controller 예시는 census 를 오염시키지 않는다", () => {
@@ -230,7 +187,14 @@ describe("전 route 인증 guard 적용률 census drift (REQ-043 · T-1983)", ()
         '// @UseGuards(JwtAuthGuard) 는 후속 task 책임\n@Controller("api/c")\nexport class C {\n/* @UseGuards 예시 */\n@Get()\na() {}\n}',
       );
       expect(routes).toEqual([
-        { method: "GET", fullPath: "/api/c", guarded: false },
+        {
+          method: "GET",
+          prefix: "api/c",
+          suffix: "",
+          fullPath: "/api/c",
+          label: "GET /api/c",
+          guarded: false,
+        },
       ]);
     });
   });
