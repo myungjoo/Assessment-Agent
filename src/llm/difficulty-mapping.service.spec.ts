@@ -58,6 +58,7 @@ function buildConfigFixture(
 function buildService(): {
   service: DifficultyMappingService;
   mappingRepo: {
+    create: jest.Mock;
     findByDifficulty: jest.Mock;
     findMany: jest.Mock;
     updateProviderConfig: jest.Mock;
@@ -67,6 +68,7 @@ function buildService(): {
   };
 } {
   const mappingRepo = {
+    create: jest.fn(),
     findByDifficulty: jest.fn(),
     findMany: jest.fn(),
     updateProviderConfig: jest.fn(),
@@ -371,6 +373,147 @@ describe("DifficultyMappingService", () => {
       await expect(
         service.assignProviderConfig("easy", "cfg-1"),
       ).rejects.toThrow("db-down");
+    });
+  });
+
+  // seedDifficultySlots — T-1998. happy + 4 분기 (0 건 / 일부 / 전량 존재 / P2002
+  // 흡수) + error (findMany · create reject) + negative (미지원 row / 순서).
+  describe("seedDifficultySlots()", () => {
+    // Happy / 분기 (a): 슬롯 0 건 → 3 개 전량 생성. create 인자의
+    // llmProviderConfigId null 까지 검증 (ADR-0011 62 행 fail-fast 유지).
+    it("슬롯이 0 건이면 3 슬롯을 모두 생성하고 created 에 담는다 (happy-path — 인자 llmProviderConfigId null)", async () => {
+      const { service, mappingRepo } = buildService();
+      mappingRepo.findMany.mockResolvedValueOnce([]);
+      mappingRepo.create.mockImplementation(
+        async (input: { difficulty: string }) =>
+          buildMappingFixture({ difficulty: input.difficulty }),
+      );
+
+      const result = await service.seedDifficultySlots();
+
+      expect(mappingRepo.findMany).toHaveBeenCalledTimes(1);
+      expect(mappingRepo.create.mock.calls.map((call) => call[0])).toEqual([
+        { difficulty: "easy", llmProviderConfigId: null },
+        { difficulty: "medium", llmProviderConfigId: null },
+        { difficulty: "hard", llmProviderConfigId: null },
+      ]);
+      expect(result).toEqual({
+        created: ["easy", "medium", "hard"],
+        existing: [],
+      });
+    });
+
+    // 분기 (b): 일부 존재 (easy 만) → 없는 슬롯만 생성.
+    it("일부 슬롯만 존재하면 없는 슬롯만 생성한다 (branch — easy 존재 시 medium/hard 만 create)", async () => {
+      const { service, mappingRepo } = buildService();
+      mappingRepo.findMany.mockResolvedValueOnce([
+        buildMappingFixture({ id: "dm-easy", difficulty: "easy" }),
+      ]);
+      mappingRepo.create.mockResolvedValue(buildMappingFixture());
+
+      const result = await service.seedDifficultySlots();
+
+      expect(mappingRepo.create.mock.calls.map((call) => call[0])).toEqual([
+        { difficulty: "medium", llmProviderConfigId: null },
+        { difficulty: "hard", llmProviderConfigId: null },
+      ]);
+      expect(result).toEqual({
+        created: ["medium", "hard"],
+        existing: ["easy"],
+      });
+    });
+
+    it("3 슬롯이 모두 존재하면 create 를 호출하지 않는다 (branch — 멱등 재실행)", async () => {
+      const { service, mappingRepo } = buildService();
+      mappingRepo.findMany.mockResolvedValueOnce([
+        buildMappingFixture({ id: "dm-hard", difficulty: "hard" }),
+        buildMappingFixture({ id: "dm-easy", difficulty: "easy" }),
+        buildMappingFixture({ id: "dm-medium", difficulty: "medium" }),
+      ]);
+
+      const result = await service.seedDifficultySlots();
+
+      expect(mappingRepo.create).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        created: [],
+        existing: ["easy", "medium", "hard"],
+      });
+    });
+
+    it("create 가 P2002 를 던지면 existing 으로 흡수하고 나머지 슬롯 생성을 계속한다 (branch — 동시 seed race 멱등)", async () => {
+      const { service, mappingRepo } = buildService();
+      mappingRepo.findMany.mockResolvedValueOnce([]);
+      mappingRepo.create
+        .mockRejectedValueOnce(buildPrismaError("P2002", "unique violation"))
+        .mockResolvedValueOnce(buildMappingFixture({ difficulty: "medium" }))
+        .mockResolvedValueOnce(buildMappingFixture({ difficulty: "hard" }));
+
+      const result = await service.seedDifficultySlots();
+
+      expect(mappingRepo.create).toHaveBeenCalledTimes(3);
+      expect(result).toEqual({
+        created: ["medium", "hard"],
+        existing: ["easy"],
+      });
+    });
+
+    // Error path: findMany reject → 전파 (create 시도 0).
+    it("findMany 가 reject 하면 error 를 그대로 전파한다 (error path — create 미시도)", async () => {
+      const { service, mappingRepo } = buildService();
+      mappingRepo.findMany.mockRejectedValueOnce(new Error("db-down"));
+
+      await expect(service.seedDifficultySlots()).rejects.toThrow("db-down");
+      expect(mappingRepo.create).not.toHaveBeenCalled();
+    });
+
+    // Error / negative: P2002 아닌 error (P2003 / code 없는 generic) 는 흡수 대상이
+    // 아니므로 첫 슬롯에서 즉시 전파 (create 재시도 0).
+    it.each<[unknown, string]>([
+      [buildPrismaError("P2003", "fk violation"), "fk violation"],
+      [new Error("boom"), "boom"],
+    ])(
+      "create 가 P2002 가 아닌 error 를 던지면 삼키지 않고 전파한다 (negative — #%#)",
+      async (rejection, message) => {
+        const { service, mappingRepo } = buildService();
+        mappingRepo.findMany.mockResolvedValueOnce([]);
+        mappingRepo.create.mockRejectedValueOnce(rejection);
+
+        await expect(service.seedDifficultySlots()).rejects.toThrow(message);
+        expect(mappingRepo.create).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    // Negative: 미지원 난이도 row 는 created / existing 어디에도 새지 않는다.
+    it("미지원 난이도 row 가 섞여 있어도 DIFFICULTIES 밖 값은 반환에 포함되지 않는다 (negative — trivial 무시)", async () => {
+      const { service, mappingRepo } = buildService();
+      mappingRepo.findMany.mockResolvedValueOnce([
+        buildMappingFixture({ id: "dm-trivial", difficulty: "trivial" }),
+        buildMappingFixture({ id: "dm-easy", difficulty: "easy" }),
+      ]);
+      mappingRepo.create.mockResolvedValue(buildMappingFixture());
+
+      const result = await service.seedDifficultySlots();
+
+      expect([...result.created, ...result.existing]).not.toContain("trivial");
+      expect(result).toEqual({
+        created: ["medium", "hard"],
+        existing: ["easy"],
+      });
+    });
+
+    // Negative: 반환 순서는 findMany 입력 순서와 무관하게 DIFFICULTIES 순서.
+    it("반환 배열은 findMany 순서와 무관하게 DIFFICULTIES 순서를 따른다 (negative — 입력 역순)", async () => {
+      const { service, mappingRepo } = buildService();
+      mappingRepo.findMany.mockResolvedValueOnce([
+        buildMappingFixture({ id: "dm-hard", difficulty: "hard" }),
+        buildMappingFixture({ id: "dm-medium", difficulty: "medium" }),
+      ]);
+      mappingRepo.create.mockResolvedValue(buildMappingFixture());
+
+      const result = await service.seedDifficultySlots();
+
+      expect(result.existing).toEqual(["medium", "hard"]);
+      expect(result.created).toEqual(["easy"]);
     });
   });
 });

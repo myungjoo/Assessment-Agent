@@ -80,11 +80,13 @@ function buildServiceMock(): {
   serviceMock: {
     findAllMappings: jest.Mock;
     assignProviderConfig: jest.Mock;
+    seedDifficultySlots: jest.Mock;
   };
 } {
   const serviceMock = {
     findAllMappings: jest.fn(),
     assignProviderConfig: jest.fn(),
+    seedDifficultySlots: jest.fn(),
   };
   return {
     service: serviceMock as unknown as DifficultyMappingService,
@@ -202,6 +204,35 @@ describe("DifficultyMappingController (unit)", () => {
       controller.assign("easy", { llmProviderConfigId: "config-1" }),
     ).rejects.toBe(rawError);
   });
+
+  // seed (POST /seed) — happy (인자 없이 위임 + payload raw forward) + branch
+  // (첫 seed / 멱등 재실행 두 payload 모두 변환 0) + error (propagate). T-1998.
+  it.each([
+    { created: ["easy", "medium", "hard"], existing: [] },
+    { created: [], existing: ["easy", "medium", "hard"] },
+  ])(
+    "POST /seed — seedDifficultySlots 에 인자 없이 위임하고 payload 를 그대로 반환 (happy + 멱등 재실행 분기 #%#)",
+    async (payload) => {
+      const { service, serviceMock } = buildServiceMock();
+      serviceMock.seedDifficultySlots.mockResolvedValueOnce(payload);
+
+      const controller = new DifficultyMappingController(service);
+      const result = await controller.seed();
+
+      expect(serviceMock.seedDifficultySlots).toHaveBeenCalledWith();
+      expect(result).toBe(payload);
+    },
+  );
+
+  it("POST /seed — service rejection 을 삼키지 않고 그대로 propagate (error path)", async () => {
+    const { service, serviceMock } = buildServiceMock();
+    const rawError = new Error("unexpected DB outage");
+    serviceMock.seedDifficultySlots.mockRejectedValueOnce(rawError);
+
+    const controller = new DifficultyMappingController(service);
+
+    await expect(controller.seed()).rejects.toBe(rawError);
+  });
 });
 
 // -----------------------------------------------------------------------
@@ -215,6 +246,7 @@ describe("DifficultyMappingController (ValidationPipe integration)", () => {
   let serviceMock: {
     findAllMappings: jest.Mock;
     assignProviderConfig: jest.Mock;
+    seedDifficultySlots: jest.Mock;
   };
 
   const validAssignBody = { llmProviderConfigId: "config-1" };
@@ -223,6 +255,7 @@ describe("DifficultyMappingController (ValidationPipe integration)", () => {
     serviceMock = {
       findAllMappings: jest.fn(),
       assignProviderConfig: jest.fn(),
+      seedDifficultySlots: jest.fn(),
     };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -357,6 +390,7 @@ describe("DifficultyMappingController (RBAC guard integration)", () => {
   let serviceMock: {
     findAllMappings: jest.Mock;
     assignProviderConfig: jest.Mock;
+    seedDifficultySlots: jest.Mock;
   };
 
   const validAssignBody = { llmProviderConfigId: "config-1" };
@@ -384,6 +418,7 @@ describe("DifficultyMappingController (RBAC guard integration)", () => {
     serviceMock = {
       findAllMappings: jest.fn(),
       assignProviderConfig: jest.fn(),
+      seedDifficultySlots: jest.fn(),
     };
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [DifficultyMappingController],
@@ -504,6 +539,24 @@ describe("DifficultyMappingController (RBAC guard integration)", () => {
 
     expect(serviceMock.assignProviderConfig).not.toHaveBeenCalled();
   });
+
+  // -- seed (POST /seed) — 인증 부재 401. 200 / 403 은 실 RolesGuard describe. ---
+  it("POST /seed — JwtAuthGuard reject 시 401 + service 미호출 (negative — 인증 부재)", async () => {
+    app = await buildApp({
+      jwt: {
+        canActivate: () => {
+          throw new UnauthorizedException("Unauthorized");
+        },
+      },
+      roles: ALLOW_ALL_ROLES,
+    });
+
+    await request(app.getHttpServer())
+      .post("/api/llm/difficulty-mappings/seed")
+      .expect(401);
+
+    expect(serviceMock.seedDifficultySlots).not.toHaveBeenCalled();
+  });
 });
 
 // -----------------------------------------------------------------------
@@ -517,6 +570,7 @@ describe("DifficultyMappingController (real RolesGuard escalation 분기)", () =
   let serviceMock: {
     findAllMappings: jest.Mock;
     assignProviderConfig: jest.Mock;
+    seedDifficultySlots: jest.Mock;
   };
 
   const validAssignBody = { llmProviderConfigId: "config-1" };
@@ -542,6 +596,7 @@ describe("DifficultyMappingController (real RolesGuard escalation 분기)", () =
     serviceMock = {
       findAllMappings: jest.fn(),
       assignProviderConfig: jest.fn(),
+      seedDifficultySlots: jest.fn(),
     };
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [DifficultyMappingController],
@@ -618,6 +673,34 @@ describe("DifficultyMappingController (real RolesGuard escalation 분기)", () =
         .expect(200);
 
       expect(serviceMock.assignProviderConfig).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  // Admin+ tier (POST /seed) — User actor 403 (실 RolesGuard escalation).
+  it("POST /seed — User actor 는 Admin+ tier 미달 → 403 (실 RolesGuard)", async () => {
+    app = await buildAppWithRealRolesGuard("User");
+
+    await request(app.getHttpServer())
+      .post("/api/llm/difficulty-mappings/seed")
+      .expect(403);
+
+    expect(serviceMock.seedDifficultySlots).not.toHaveBeenCalled();
+  });
+
+  // Admin+ tier (POST /seed) — Admin / SuperAdmin actor 통과.
+  it.each(["Admin", "SuperAdmin"])(
+    "POST /seed — %s actor 는 Admin+ tier 통과 (200, escalation hierarchy descent)",
+    async (role) => {
+      app = await buildAppWithRealRolesGuard(role);
+      const payload = { created: [], existing: ["easy", "medium", "hard"] };
+      serviceMock.seedDifficultySlots.mockResolvedValueOnce(payload);
+
+      const res = await request(app.getHttpServer())
+        .post("/api/llm/difficulty-mappings/seed")
+        .expect(200);
+
+      expect(serviceMock.seedDifficultySlots).toHaveBeenCalledTimes(1);
+      expect(res.body).toEqual(payload);
     },
   );
 });
