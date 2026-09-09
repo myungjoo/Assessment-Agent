@@ -2,7 +2,7 @@
 id: T-2000
 title: Surface unassigned difficulty slots in DifficultyModelSelector (ADR-0011 §3 fail-fast notice)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-050, REQ-049]
 estimatedDiff: 150
