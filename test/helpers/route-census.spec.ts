@@ -2,7 +2,13 @@
 // 두 census smoke(T-1983 guard 적용률 · T-1985 e2e 왕복 커버리지)가 같은 primitive 를 쓰게
 // 된 이상, 그 primitive 자체의 계약을 여기서 고정한다. 합성 fixture 디렉터리 + 합성 소스
 // 문자열만 쓰므로 Nest 부팅 0 · DB 0 · 네트워크 0.
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "fs";
 import { tmpdir } from "os";
 import * as path from "path";
 
@@ -11,6 +17,7 @@ import {
   ROUTE_RE,
   SLASH_RE,
   TOKEN_RE,
+  censusRoutes,
   extractControllerPrefix,
   findFiles,
   stripComments,
@@ -165,6 +172,102 @@ describe("route census 공통 정적 추출 helper (T-1986)", () => {
       expect(TOKEN_RE.flags).toContain("g");
       expect(CONTROLLER_RE.global).toBe(false);
       expect(ROUTE_RE.global).toBe(false);
+    });
+  });
+
+  describe("censusRoutes — 스캐너 본체 (T-1987 통합분)", () => {
+    it("Happy path: 실 controller 소스에서 route 를 뽑고 label 이 `METHOD /api…` 형태", () => {
+      const src = readFileSync(
+        path.join(SRC_ROOT, "user/group.controller.ts"),
+        "utf8",
+      );
+      const routes = censusRoutes(src);
+      expect(routes.length).toBeGreaterThan(0);
+      expect(routes.every((r) => /^[A-Z]+ \/api\//.test(r.label))).toBe(true);
+      expect(routes.every((r) => r.label === `${r.method} ${r.fullPath}`)).toBe(
+        true,
+      );
+      expect(routes.every((r) => r.prefix === "api/groups")).toBe(true);
+      expect(routes.map((r) => r.label)).toContain("GET /api/groups");
+    });
+    it("(a) 클래스 레벨 @UseGuards → 전 route 가 guarded", () => {
+      const routes = censusRoutes(
+        '@Controller("api/x")\n@UseGuards(JwtAuthGuard)\nexport class X {\n@Get()\na() {}\n@Post(":id")\nb() {}\n}',
+      );
+      expect(routes.map((r) => r.label)).toEqual([
+        "GET /api/x",
+        "POST /api/x/:id",
+      ]);
+      expect(routes.every((r) => r.guarded)).toBe(true);
+    });
+    it("(b) 메서드 레벨 @UseGuards → 그 route 만 guarded, 형제 route 는 false", () => {
+      const routes = censusRoutes(
+        '@Controller("api/y")\nexport class Y {\n@UseGuards(JwtAuthGuard)\n@Get("a")\na() {}\n@Delete("b")\nb() {}\n}',
+      );
+      expect(routes.find((r) => r.suffix === "a")?.guarded).toBe(true);
+      expect(routes.find((r) => r.suffix === "b")?.guarded).toBe(false);
+    });
+    it("(c) 인자 없는 @Get() → fullPath 는 prefix 자신 · suffix 는 빈 문자열", () => {
+      expect(
+        censusRoutes('@Controller("api")\nexport class Z {\n@Get()\nr() {}\n}'),
+      ).toEqual([
+        {
+          method: "GET",
+          prefix: "api",
+          suffix: "",
+          fullPath: "/api",
+          label: "GET /api",
+          guarded: false,
+        },
+      ]);
+    });
+    it("(d) 여러 행에 걸친 @UsePipes 가 섞여도 route 누락 · 오판 0", () => {
+      const routes = censusRoutes(
+        '@Controller("api/w")\n@UsePipes(\n  new ValidationPipe({ whitelist: true }),\n)\nexport class W {\n@UseGuards(JwtAuthGuard, RolesGuard)\n@Roles("Admin")\n@HttpCode(204)\n@Patch(":id")\nu() {}\n}',
+      );
+      expect(routes).toEqual([
+        {
+          method: "PATCH",
+          prefix: "api/w",
+          suffix: ":id",
+          fullPath: "/api/w/:id",
+          label: "PATCH /api/w/:id",
+          guarded: true,
+        },
+      ]);
+    });
+    it("Negative: 주석 안의 @Get / @UseGuards 예시는 route · 보호로 오집계되지 않는다", () => {
+      const routes = censusRoutes(
+        '@Controller("api/c")\nexport class C {\n// @Get("ghost") 는 후속 task 책임\n/* @UseGuards(JwtAuthGuard) 예시 */\n@Get()\na() {}\n}',
+      );
+      expect(routes.map((r) => r.label)).toEqual(["GET /api/c"]);
+      expect(routes[0].guarded).toBe(false);
+    });
+    it("Negative: 클래스 선언 앞 decorator 는 첫 route 로도 그 보호로도 새지 않는다", () => {
+      const routes = censusRoutes(
+        '@Get("ghost")\n@Controller("api/n")\nexport class N {\n@Get("real")\na() {}\n}',
+      );
+      expect(routes.map((r) => r.label)).toEqual(["GET /api/n/real"]);
+      expect(routes[0].guarded).toBe(false);
+    });
+    it("Negative: guard 없는 route 를 하나 더하면 그 route 만 guarded false", () => {
+      const base =
+        '@Controller("api/reg")\nexport class Reg {\n@UseGuards(JwtAuthGuard)\n@Get()\na() {}\n';
+      expect(censusRoutes(`${base}}`).filter((r) => !r.guarded)).toEqual([]);
+      const regressed = censusRoutes(`${base}@Post("new")\nb() {}\n}`);
+      expect(regressed).toHaveLength(2);
+      expect(regressed.filter((r) => !r.guarded).map((r) => r.label)).toEqual([
+        "POST /api/reg/new",
+      ]);
+    });
+    it("Error path: @Controller 부재는 route 0 개로 흡수되지 않고 throw · non-string 은 TypeError", () => {
+      expect(() => censusRoutes("export class Bare {}")).toThrow(Error);
+      expect(() => censusRoutes("export class Bare {}")).toThrow(
+        /@Controller decorator 부재/,
+      );
+      expect(() => censusRoutes(undefined as unknown as string)).toThrow(
+        TypeError,
+      );
     });
   });
 });
