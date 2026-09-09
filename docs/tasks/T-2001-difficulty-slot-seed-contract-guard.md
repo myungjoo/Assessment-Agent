@@ -2,7 +2,7 @@
 id: T-2001
 title: Add web↔backend contract drift guard spec for POST /api/llm/difficulty-mappings/seed
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-050, REQ-049]
 estimatedDiff: 285
