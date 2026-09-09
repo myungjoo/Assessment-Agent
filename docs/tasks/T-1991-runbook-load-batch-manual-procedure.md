@@ -2,7 +2,7 @@
 id: T-1991
 title: 운영 런북에 부하 배치 수동 실행 절차 신설 (REQ-047 manual 축)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-047]
 estimatedDiff: 72
