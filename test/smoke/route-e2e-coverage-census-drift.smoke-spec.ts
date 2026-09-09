@@ -11,7 +11,10 @@
 // 계약은 "미커버 0 건" 이고, 어떤 route 든 e2e 없이 들어오면 그 자체로 red 다.
 // 매칭기 정밀도 (T-1988, PR #1558 reviewer MINOR 1·2 출처) — suffix segment 를 파일 전역에서
 // 따로따로 찾던 판정을 **인접 chain 1 개**로 좁히고 동적 segment 를 그 chain 안 위치에 고정했다.
-// 반면 prefix+suffix 를 통째로 인접 매칭하는 더 강한 안은 기각한다 — e2e 가 URL 을
+// T-1992 가 그 잔여 느슨함을 소진했다 — 종전에는 chain 첫 segment 가 동적(`:id`)이면 앵커를
+// 면제해 route 89 개 중 37 개가 남의 경로 꼬리에 붙어도 커버로 세졌다. 이제 **모든 chain** 이
+// prefix 바로 뒤이거나 `FRESH` 자리에서 시작해야 한다.
+// 반면 prefix+suffix 를 통째로 인접 매칭하는 더 강한 안은 여전히 기각한다 — e2e 가 URL 을
 // `const BASE` + 템플릿(+ 중첩 builder)으로 조립하므로 거짓 미커버가 늘어난다
 // (T-1988 실측 +3, planner 실측 +5~12).
 //      🔥 Nest 부팅 0 · DB 0 · 네트워크 0 · src 변경 0 — 파일 read + 합성 문자열 주입만.
@@ -44,7 +47,7 @@ const E2E_UNCOVERED_ALLOWLIST: readonly { route: string; reason: string }[] =
 const ALLOWED = E2E_UNCOVERED_ALLOWLIST.map((e) => e.route).sort();
 
 /** T-1989 가 소진한 2 route — 소진 전에는 perf-spec 만이 유일한 근거였다. */
-const CLOSED_BY_T1989 = [
+const CLOSED_BY_T1989: readonly string[] = [
   "GET /api/admin/import/running",
   "GET /api/admin/import/modes",
 ];
@@ -70,11 +73,12 @@ const esc = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  * (2) suffix 는 segment 를 따로 찾지 않고 `/seg1/seg2/…` **인접 chain 1 개**로 조립해 한 번에
  * 매칭한다. 동적 segment(`:id`)는 그 chain 안 제 위치에서만 `${...}` · 실 문자열 토큰에 매칭하며
  * 파일 전역의 임의 `/토큰` 은 더 이상 근거가 아니다 (T-1988).
- * chain 앵커는 첫 segment 종류로 갈린다 — 첫 segment 가 **정적**이면 그 이름이 남의 경로 꼬리
- * (`/api/other/detail`) 에도 그대로 있을 수 있으므로 route 자신의 prefix 바로 뒤이거나 `FRESH`
- * 자리에서 시작해야 한다. 첫 segment 가 **동적**이면 앵커를 요구하지 않는다 — 그 앞 `/` 가
- * 중첩 builder 안에 숨는 표기(`` `${identityEndpointFor(a, b)}/primary` ``) 가 실제로 흔해
- * 앵커를 걸면 거짓 미커버가 된다(§Follow-ups 에 잔여 느슨함으로 기록).
+ * chain 앵커는 **첫 segment 종류와 무관하게 항상** 요구된다 (T-1992) — chain 은 route 자신의
+ * prefix 바로 뒤이거나 `FRESH` 자리(문자열 시작 · 템플릿 치환 끝)에서 시작해야 한다. 그래야
+ * 정적 시작(`/detail`) 이든 동적 시작(`/${id}/primary`) 이든 남의 경로 꼬리를 빌려오는 거짓
+ * 커버가 막힌다. 앵커를 걸면 `` `${builder(a, b)}/primary` `` 처럼 앞 `/` 가 중첩 builder 안에
+ * 숨는 e2e 표기가 거짓 미커버가 되지만, 그건 e2e 쪽에서 실 경로를 드러내 해소한다 — 매칭기를
+ * 느슨하게 두는 대가보다 싸다(T-1992 가 유일 사례 1 건을 인라인으로 닫았다).
  */
 function isCoveredBy(route: RouteRecord, e2eSource: string): boolean {
   const hasPath = (p: string): boolean =>
@@ -85,9 +89,7 @@ function isCoveredBy(route: RouteRecord, e2eSource: string): boolean {
   const chain = segments
     .map((seg) => "/" + (seg.startsWith(":") ? DYNAMIC : esc(seg)))
     .join("");
-  const anchor = segments[0].startsWith(":")
-    ? ""
-    : "(?:" + esc(route.prefix) + "|" + FRESH + ")";
+  const anchor = "(?:" + esc(route.prefix) + "|" + FRESH + ")";
   return new RegExp(anchor + chain + BOUNDARY).test(e2eSource);
 }
 
@@ -212,6 +214,34 @@ describe("전 route e2e 왕복 커버리지 census drift (PLAN 166 행 · T-1985
       expect(isCoveredBy(route, 'get("/api/z/running-xyz")')).toBe(false);
       expect(isCoveredBy(route, 'get("/api/z/running")')).toBe(true);
     });
+    it("(e) 동적 시작 chain 도 제 자리(prefix 바로 뒤 · 새 경로 조각 시작)면 여전히 커버 (T-1992)", () => {
+      // 실제 사례와 같은 형태 — prefix 자체가 동적 segment 를 품고 suffix 가 `:id` 로 시작.
+      const route = ROUTE(
+        "api/persons/:personId/identities",
+        ":identityId/primary",
+      );
+      const base = 'const P = "/api/persons/:personId/identities";\n';
+      // (1) prefix 리터럴 바로 뒤에 chain 이 붙는 표기.
+      expect(
+        isCoveredBy(
+          route,
+          `${base}post("/api/persons/:personId/identities/i-1/primary")`,
+        ),
+      ).toBe(true);
+      // (2) 템플릿 치환 끝(`}`) = 새 경로 조각 시작 자리에서 chain 이 시작하는 표기 —
+      //     T-1992 가 service-identities.e2e-spec.ts 에 인라인해 둔 실제 표기와 같다.
+      expect(
+        isCoveredBy(
+          route,
+          `${base}post(\`\${endpointFor(personId)}/\${identityId}/primary\`)`,
+        ),
+      ).toBe(true);
+      // (3) 문자열 리터럴 시작 자리(`"`)도 FRESH 자리다.
+      const simple = ROUTE("api/z", ":id/status");
+      expect(isCoveredBy(simple, 'get("/api/z")\nget("/abc-123/status")')).toBe(
+        true,
+      );
+    });
   });
 
   describe("Negative — 정밀화가 새로 잡는 거짓 커버 (T-1988)", () => {
@@ -290,6 +320,56 @@ describe("전 route e2e 왕복 커버리지 census drift (PLAN 166 행 · T-1985
       expect(before).toEqual(ALLOWED);
       expect(after).toEqual([...ALLOWED, "POST /api/brand-new/save"].sort());
       expect(after).not.toEqual(ALLOWED);
+    });
+  });
+
+  describe("Negative — 앵커를 전 chain 으로 확대해 새로 잡는 거짓 커버 (T-1992)", () => {
+    /**
+     * 종전(T-1988) 매칭기 복제 — 첫 segment 가 동적이면 앵커를 면제하던 분기 그대로다.
+     * 아래 입력들이 종전에는 true 였음을 같은 it 안에서 함께 단언해, 본 describe 가
+     * "원래부터 false 였던 입력" 을 검사하는 공허한 테스트가 아님을 스스로 증명한다.
+     */
+    const legacyIsCoveredBy = (route: RouteRecord, src: string): boolean => {
+      if (!new RegExp("/" + esc(route.prefix) + BOUNDARY).test(src))
+        return false;
+      const segments = route.suffix.split("/").filter((seg) => seg !== "");
+      if (segments.length === 0) return true;
+      const chain = segments
+        .map((seg) => "/" + (seg.startsWith(":") ? DYNAMIC : esc(seg)))
+        .join("");
+      const anchor = segments[0].startsWith(":")
+        ? ""
+        : "(?:" + esc(route.prefix) + "|" + FRESH + ")";
+      return new RegExp(anchor + chain + BOUNDARY).test(src);
+    };
+
+    it("동적 시작 chain 이 남의 경로 꼬리에만 있으면 더 이상 커버가 아니다", () => {
+      const route = ROUTE("api/z", ":id/primary");
+      // prefix 는 파일에 있지만 `/…/primary` 조합은 무관한 `/api/other/xyz` 꼬리에만 등장.
+      const source = 'get("/api/z")\npost("/api/other/xyz/primary")';
+      expect(legacyIsCoveredBy(route, source)).toBe(true);
+      expect(isCoveredBy(route, source)).toBe(false);
+    });
+    it("주석 안 우연 매치(`PATCH/DELETE/primary` 슬래시 나열)는 단독 근거가 되지 않는다", () => {
+      const route = ROUTE(
+        "api/persons/:personId/identities",
+        ":identityId/primary",
+      );
+      // T-1992 이전 이 route 의 유일 근거였던 실제 표기 — 한국어 주석 1 줄 + 중첩 builder.
+      const source = [
+        'const B = "/api/persons/:personId/identities";',
+        "// 단일 identity path builder — PATCH/DELETE/primary 축이 쓰는 `:identityId` 까지 치환.",
+        "const primaryEndpointFor = (p, i) => `${identityEndpointFor(p, i)}/primary`;",
+      ].join("\n");
+      expect(legacyIsCoveredBy(route, source)).toBe(true);
+      expect(isCoveredBy(route, source)).toBe(false);
+      // 주석 표현만 바꿔도 판정이 뒤집히던 취약함이 사라졌음을 함께 고정 — 주석을 지워도
+      // 판정은 false 로 동일하다(= 주석에 의존하지 않는다).
+      const withoutComment = source
+        .split("\n")
+        .filter((l) => !l.startsWith("//"))
+        .join("\n");
+      expect(isCoveredBy(route, withoutComment)).toBe(false);
     });
   });
 
