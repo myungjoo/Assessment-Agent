@@ -2,7 +2,7 @@
 id: T-1996
 title: 표시 파이프라인 렌더 latency 측정 — payload 매핑 → 필터 → 정렬 → 표 렌더 (REQ-047 규모)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048, REQ-047]
 estimatedDiff: 265
