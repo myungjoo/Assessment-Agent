@@ -2,7 +2,7 @@
 id: T-1989
 title: import job 조회 2 route e2e 계약 신설 + e2e census allowlist 소진
 phase: P8
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-030, REQ-043, REQ-045]
 estimatedDiff: 280
