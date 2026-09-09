@@ -2,7 +2,7 @@
 id: T-1995
 title: 시각화 컴포넌트 렌더 latency 측정 — REQ-047 규모 표본 3 종 (분포 · 시계열 · 결과 표)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048, REQ-047]
 estimatedDiff: 210
