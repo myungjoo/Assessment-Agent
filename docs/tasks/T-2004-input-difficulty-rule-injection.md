@@ -2,8 +2,9 @@
 id: T-2004
 title: 사전 난이도 규칙 helper 신설 + 평가 scoring 주입 배선 (ADR-0065 §Follow-ups (a), opt-in 기본 OFF)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
+prNumber: 1572
 coversReq: [REQ-050, REQ-049]
 estimatedDiff: 285
 estimatedFiles: 4
