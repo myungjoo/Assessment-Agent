@@ -11,7 +11,8 @@
 // 매칭기 정밀도 (T-1988, PR #1558 reviewer MINOR 1·2 출처) — suffix segment 를 파일 전역에서
 // 따로따로 찾던 판정을 **인접 chain 1 개**로 좁히고 동적 segment 를 그 chain 안 위치에 고정했다.
 // 반면 prefix+suffix 를 통째로 인접 매칭하는 더 강한 안은 기각한다 — e2e 가 URL 을
-// `const BASE` + 템플릿(+ 중첩 builder)으로 조립해 거짓 미커버 3~12 건을 만든다(실측).
+// `const BASE` + 템플릿(+ 중첩 builder)으로 조립하므로 거짓 미커버가 늘어난다
+// (T-1988 실측 +3, planner 실측 +5~12).
 //      🔥 Nest 부팅 0 · DB 0 · 네트워크 0 · src 변경 0 — 파일 read + 합성 문자열 주입만.
 import { readFileSync } from "fs";
 import * as path from "path";
@@ -191,6 +192,10 @@ describe("전 route e2e 왕복 커버리지 census drift (PLAN 166 행 · T-1985
       expect(
         isCoveredBy(route, 'get("/api/z/detail")\nget("/api/z/view")'),
       ).toBe(false);
+      // prefix 만 있고 suffix 조각이 아예 없는 e2e 도 미커버로 남는다.
+      expect(isCoveredBy(ROUTE("api/z", "detail"), 'get("/api/z")')).toBe(
+        false,
+      );
       expect(isCoveredBy(route, "")).toBe(false);
     });
     it("(d) 접두 충돌 방지 — `/running` 이 `/running-xyz` 를 커버로 오판하지 않음", () => {
