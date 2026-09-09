@@ -2,7 +2,7 @@
 id: T-1990
 title: PLAN 166 행 E2E 커버리지 축 drift 정정 — stale spec 수 19 → 39 갱신 + census 강제 장치 좌표 1 회 박제
 phase: P8
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-061]
 estimatedDiff: 30
