@@ -34,6 +34,7 @@ import {
   runAssign,
   runCreateProvider,
   runDeleteProvider,
+  runSeedSlots,
   runSetDefaultProvider,
   runUpdateProvider,
 } from './adminLlmProviderMutationRunners';
@@ -361,8 +362,37 @@ export function useAdminLlmProviders() {
     [assigning],
   );
 
+  // 난이도 슬롯 seed mutation in-flight 플래그(T-1999) — POST 진행 중 true. 버튼 disabled 와
+  // 동시 재호출 가드(이전 mutation 미완 중 재호출 차단)에 함께 쓴다(assigning 동형).
+  const [seeding, setSeeding] = useState<boolean>(false);
+
+  // 슬롯 seed mutation 실패 문구(T-1999) — POST 실패 시 사람-친화 문구(toErrorMessage 파생)를
+  // 보관해 버튼 옆 alert 로 안전 표시한다(throw 없음). 성공/재시도 시작 시 비운다.
+  const [seedError, setSeedError] = useState<string | undefined>(undefined);
+
+  // 슬롯 seed 실 mutation 핸들러(T-1999) — 3 난이도 슬롯 멱등 확보 POST(/api/llm/difficulty-
+  // mappings/seed, api.md 139 행)를 발사한다. PATCH 가 upsert 가 아니라 슬롯 row 부재 시 영원히
+  // 404 이므로(운영 DB 의 실제 빈칸) 그 선행 row 를 UI 에서 만들어 주는 진입점이다. 가드(이전
+  // 발사 미완) · 전이(성공 시 매핑 재조회 트리거 / 실패 시 문구 표면화, throw 없음)는
+  // runSeedSlots 가 캡슐화한다 — hook 은 자체 판단을 하지 않는다. 재조회 nonce 는 assign 축과
+  // 같은 refreshNonce 를 재사용한다(seed 가 바꾸는 자원이 같은 난이도 매핑 목록이라 신규 nonce
+  // 를 만들 이유가 없다). seeding 을 deps 의존성에 포함해 stale 없이 최신 가드로 발사한다.
+  const handleSeedSlots = useCallback(
+    () =>
+      runSeedSlots({
+        post: request,
+        describeError: toErrorMessage,
+        seeding,
+        setSeeding,
+        setSeedError,
+        bumpRefresh: () => setRefreshNonce((n) => n + 1),
+      }),
+    [seeding],
+  );
+
   // 반환 표면 — JSX LLM 패널 구역(provider 목록 · 생성 폼 · 인라인 편집 폼 · 난이도 슬롯 선택기)이
-  // 실제로 소비하는 39 심볼만 공개한다(T-1899 에서 기본 provider 재지정 3 심볼을 더해 36 → 39).
+  // 실제로 소비하는 42 심볼만 공개한다(T-1899 의 기본 provider 재지정 3 에 이어 T-1999 의 슬롯
+  // seed 3(seeding · seedError · handleSeedSlots)을 더해 39 → 42).
   // 내부 전용(원본 응답 2 · 재조회 nonce 2 · 경로 2 · 낙관 override · mapping 조회 loading/error ·
   // assign in-flight/실패 문구 · 편집 폼 리셋 helper · 나머지 setter)은 의도적으로 빼 축 밖에서 이
   // 축의 내부 상태를 건드릴 경로를 만들지 않는다.
@@ -406,5 +436,8 @@ export function useAdminLlmProviders() {
     llmLoading,
     llmError,
     handleAssign,
+    seeding,
+    seedError,
+    handleSeedSlots,
   };
 }

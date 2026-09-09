@@ -26,6 +26,7 @@ const {
   runDeleteMock,
   runSetDefaultMock,
   runAssignMock,
+  runSeedSlotsMock,
   useApiResourceMock,
   toErrorMessageStub,
   requestStub,
@@ -35,6 +36,7 @@ const {
   runDeleteMock: vi.fn(),
   runSetDefaultMock: vi.fn(),
   runAssignMock: vi.fn(),
+  runSeedSlotsMock: vi.fn(),
   useApiResourceMock: vi.fn(),
   // 이동 전 러너 deps 에 실리던 `describeError: toErrorMessage` · `create/update/remove/patch:
   // request` 를 identity 로 잠그기 위해 식별 가능한 stub 을 주입한다.
@@ -59,6 +61,7 @@ vi.mock('./adminLlmProviderMutationRunners', async (importOriginal) => ({
   runDeleteProvider: (...args: unknown[]) => runDeleteMock(...args),
   runSetDefaultProvider: (...args: unknown[]) => runSetDefaultMock(...args),
   runAssign: (...args: unknown[]) => runAssignMock(...args),
+  runSeedSlots: (...args: unknown[]) => runSeedSlotsMock(...args),
 }));
 
 import {
@@ -144,6 +147,7 @@ beforeEach(() => {
   runDeleteMock.mockReturnValue(Promise.resolve());
   runSetDefaultMock.mockReturnValue(Promise.resolve());
   runAssignMock.mockReturnValue(Promise.resolve());
+  runSeedSlotsMock.mockReturnValue(Promise.resolve());
 });
 
 describe('useAdminLlmProviders — happy path(초기 반환 계약)', () => {
@@ -334,6 +338,23 @@ describe('useAdminLlmProviders — happy path(러너 주입 계약)', () => {
     expect(typeof deps.setOptimistic).toBe('function');
     expect(typeof deps.bumpRefresh).toBe('function');
   });
+
+  it('handleSeedSlots 가 seed deps 하나만으로 runSeedSlots 를 1 회 호출한다 (T-1999)', () => {
+    renderProbe((hook, index) => {
+      if (index === 1) hook.handleSeedSlots();
+    });
+
+    expect(runSeedSlotsMock).toHaveBeenCalledTimes(1);
+    // 러너 정본 runSeedSlots(deps) — 대상 식별자도 body 도 없어 인자는 deps 하나뿐이다.
+    expect(runSeedSlotsMock.mock.calls[0]).toHaveLength(1);
+    const [deps] = runSeedSlotsMock.mock.calls[0] as [Deps];
+    expect(deps.post).toBe(requestStub);
+    expect(deps.describeError).toBe(toErrorMessageStub);
+    expect(deps.seeding).toBe(false);
+    expect(typeof deps.setSeeding).toBe('function');
+    expect(typeof deps.setSeedError).toBe('function');
+    expect(typeof deps.bumpRefresh).toBe('function');
+  });
 });
 
 describe('useAdminLlmProviders — error path', () => {
@@ -449,6 +470,58 @@ describe('useAdminLlmProviders — 분기 cover', () => {
 
     setApiState({ data: [] }, { data: [] });
     expect(lastOf(renderProbe()).llmError).toBeUndefined();
+  });
+
+  it('seed 성공 시 주입된 bumpRefresh 가 매핑 조회만 재발사한다 (T-1999 — 재조회 트리거)', () => {
+    setApiState({ data: [] }, { data: [] });
+
+    renderProbe((hook, index) => {
+      if (index === 1) {
+        hook.handleSeedSlots();
+        const deps = runSeedSlotsMock.mock.calls[0][0] as Deps;
+        (deps.bumpRefresh as () => void)();
+      }
+    });
+
+    // nonce +1 로 매핑 path 만 바뀌어 useApiResource 가 재조회한다. provider 조회 path 는
+    // 그대로다(seed 는 provider 목록을 바꾸지 않으므로 재조회를 유발하면 안 된다).
+    const paths = useApiResourceMock.mock.calls.map(([path]) => path);
+    expect(paths).toContain(buildMappingsPath(1));
+    expect(paths).not.toContain(buildProvidersPath(1));
+  });
+
+  it('seeding · seedError 는 러너가 넘겨받은 setter 로만 바뀐다 (T-1999)', () => {
+    // 초기값 — 진행 중 아님 · 실패 문구 없음.
+    expect(lastOf(renderProbe()).seeding).toBe(false);
+    expect(lastOf(renderProbe()).seedError).toBeUndefined();
+
+    const sink = renderProbe((hook, index) => {
+      if (index === 1) {
+        hook.handleSeedSlots();
+        const deps = runSeedSlotsMock.mock.calls[0][0] as Deps;
+        (deps.setSeeding as (next: boolean) => void)(true);
+        (deps.setSeedError as (next: string) => void)('슬롯 초기화 실패');
+      }
+    });
+
+    expect(lastOf(sink).seeding).toBe(true);
+    expect(lastOf(sink).seedError).toBe('슬롯 초기화 실패');
+  });
+
+  it('negative — seed in-flight 중 재호출은 최신 seeding=true 를 러너에 넘긴다 (T-1999)', () => {
+    renderProbe((hook, index) => {
+      if (index === 1) {
+        hook.handleSeedSlots();
+        const deps = runSeedSlotsMock.mock.calls[0][0] as Deps;
+        (deps.setSeeding as (next: boolean) => void)(true);
+      }
+      if (index === 2) hook.handleSeedSlots();
+    });
+
+    // 두 번째 호출의 deps.seeding 이 true 여야 러너의 이중 POST 가드가 실제로 발동한다
+    // (useCallback 의존성에 seeding 이 빠지면 stale false 가 흘러 가드가 무력화된다).
+    expect(runSeedSlotsMock).toHaveBeenCalledTimes(2);
+    expect((runSeedSlotsMock.mock.calls[1][0] as Deps).seeding).toBe(true);
   });
 
   it('difficultyMapping 은 낙관 override 가 비면 서버 매핑 그대로, 있으면 해당 슬롯만 덮는다', () => {
@@ -707,6 +780,8 @@ describe('useAdminLlmProviders — negative cases', () => {
       'setAssigning',
       'assignError',
       'setAssignError',
+      'setSeeding',
+      'setSeedError',
       'resetEditProviderForm',
       'setEditingProviderId',
       'setDeletingProvider',
@@ -717,8 +792,8 @@ describe('useAdminLlmProviders — negative cases', () => {
     ]) {
       expect(keys).not.toContain(hidden);
     }
-    // 공개 표면은 JSX 소비처가 실제로 쓰는 심볼 39 개로 고정된다(T-1899 에서 기본 provider 재지정
-    // 3 심볼을 더해 36 → 39).
-    expect(keys).toHaveLength(39);
+    // 공개 표면은 JSX 소비처가 실제로 쓰는 심볼 42 개로 고정된다(T-1899 의 기본 provider 재지정
+    // 3 에 이어 T-1999 의 슬롯 seed 3(seeding · seedError · handleSeedSlots)을 더해 39 → 42).
+    expect(keys).toHaveLength(42);
   });
 });

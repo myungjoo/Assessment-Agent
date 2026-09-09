@@ -429,3 +429,58 @@ export async function runAssign(
     deps.setAssigning(false);
   }
 }
+
+// 난이도 슬롯 seed POST 에 주입하는 deps(T-1999 — AssignDeps 1:1 mirror). assign 축과 달리
+// 대상 식별자(difficulty · providerId)도 body 도 없어 러너 인자는 deps 하나뿐이고, 낙관 반영
+// override 도 없다(seed 가 만드는 슬롯의 llmProviderConfigId 는 항상 null 이라 화면에 즉시
+// 반영할 값 자체가 없다 — difficulty-mapping.service.ts seedDifficultySlots 계약).
+export interface SeedSlotsDeps {
+  // POST 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
+  post: (path: string, options: RequestOptions) => Promise<unknown>;
+  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  describeError: (e: unknown) => string;
+  // 현재 seed in-flight 여부 — true 면 미발사(이중 POST·경합 가드).
+  seeding: boolean;
+  setSeeding: (next: boolean) => void;
+  setSeedError: (next: string | undefined) => void;
+  // 권위 난이도 매핑 재조회 트리거 — refreshNonce 를 +1 한다(path 변경 유발).
+  bumpRefresh: () => void;
+}
+
+// 난이도 슬롯 3 개를 멱등 확보하는 POST /api/llm/difficulty-mappings/seed + state-전이 로직을
+// 캡슐화한 순수 async 러너(T-1999 — runAssign 캡슐화 패턴 mirror). backend route(T-1998,
+// difficulty-mapping.controller.ts `@Post("seed")` + `@HttpCode(200)`, api.md 139 행)는
+// **body 를 받지 않고**(DTO 0) 200 + `{ created, existing }` 을 돌려주며 재실행해도 상태가
+// 그대로인 멱등 연산이다. 그래서 여기서도 body 를 싣지 않는다 — 실으면 계약 drift 다.
+//
+// 동작:
+//  - seeding(이전 발사 미완) → 미발사(이중 POST·state 경합 차단 — assigning 가드 동형).
+//  - 발사 시 진행 on + 직전 error 비움 → POST → 성공(권위 재조회 트리거) / 실패(사람-친화
+//    문구 표면화 — throw 없이) → 진행 off(공통, finally).
+//
+// 응답 body(`{ created, existing }`)는 소비하지 않는다 — seed 슬롯은 전부 미지정(null)이라
+// 화면 상태는 아래 bumpRefresh 의 권위 재조회 결과로만 갱신된다(낙관 반영 없음).
+export async function runSeedSlots(deps: SeedSlotsDeps): Promise<void> {
+  // 동시 재호출 가드 — 이전 seed 미완 중이면 미발사(이중 POST·state 경합 차단).
+  if (deps.seeding) {
+    return;
+  }
+  deps.setSeeding(true);
+  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리).
+  deps.setSeedError(undefined);
+  try {
+    // POST /api/llm/difficulty-mappings/seed — body 없음(Content-Type 헤더도 없다. 보낼
+    // payload 가 없는데 헤더만 붙이면 계약과 어긋난다). path 는 정적 문자열이라 인코딩할
+    // param 이 없고, 접미는 정확히 `/seed` 여야 한다(`/:difficulty` PATCH 와 혼동 금지).
+    await deps.post(`${LLM_MAPPINGS_PATH}/seed`, { method: 'POST' });
+    // 성공 — 권위 매핑 재조회 트리거(seed 로 생긴 슬롯 row 를 서버 응답으로 확인).
+    deps.bumpRefresh();
+  } catch (e) {
+    // 실패 — 사람-친화 문구를 error state 로 안전 표시(throw 없이). 403 Admin+ 미만 /
+    // 401 미인증 / 5xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로 표면화.
+    // 재조회 nonce 는 bump 하지 않는다(실패 시 화면 그대로 유지).
+    deps.setSeedError(deps.describeError(e));
+  } finally {
+    deps.setSeeding(false);
+  }
+}

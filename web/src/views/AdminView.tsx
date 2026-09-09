@@ -306,6 +306,7 @@ import {
   runCreateProvider,
   runUpdateProvider,
   runAssign,
+  runSeedSlots,
 } from './adminLlmProviderMutationRunners';
 import type {
   DeleteProviderDeps,
@@ -314,6 +315,7 @@ import type {
   UpdateProviderFields,
   UpdateProviderDeps,
   AssignDeps,
+  SeedSlotsDeps,
 } from './adminLlmProviderMutationRunners';
 // 자원 목록 조회 path 빌더 축(T-1879 순수 추출 — PLAN 183 행 god component 부채의 열다섯째
 // 실분할). 여덟 빌더는 본문 한 줄도 바뀌지 않은 채 통째로 옮겨졌고, AdminView 는 단방향 import 로
@@ -852,6 +854,9 @@ function AdminView({
     llmLoading,
     llmError,
     handleAssign,
+    seeding,
+    seedError,
+    handleSeedSlots,
   } = useAdminLlmProviders();
 
   // import/export 축 hook(T-1884) — export/import 상태 9 + 핸들러 5 + 패널 props 파생 1 을
@@ -1080,6 +1085,20 @@ function AdminView({
             loading={llmLoading}
             error={llmError}
           />
+          {/* 난이도 슬롯 seed 버튼(T-1999) — POST /api/llm/difficulty-mappings/seed(api.md 139 행)
+              의 유일한 UI 소비처다. 슬롯 row 가 없으면 위 선택기의 재지정 PATCH 가 upsert 가 아니라
+              영원히 404 이므로(운영 DB 의 실제 빈칸) 그 선행 row 를 여기서 멱등 확보한다. 멱등이라
+              중복 클릭이 상태를 깨지 않지만 in-flight 중에는 disabled 로 이중 POST 를 막는다. 실패는
+              throw 없이 alert 문구로만 표면화한다(패널 계약 무변경 — ADR-0041 Decision 1). */}
+          <button
+            type="button"
+            onClick={handleSeedSlots}
+            disabled={seeding}
+            aria-label="난이도 슬롯 초기화"
+          >
+            {seeding ? '슬롯 초기화 중…' : '난이도 슬롯 초기화'}
+          </button>
+          {seedError ? <p role="alert">{seedError}</p> : null}
           {/* 등록된 LLM provider 설정 목록(T-1134 마운트 + T-1135 삭제 배선, R-96). 기존 providerData 를
               재사용해 sanitized view(providerConfigs)로 파생하고, 삭제 콜백(handleDeleteProvider)을
               onDelete 로 내려 각 행에 삭제 버튼을 배선한다. loading 은 조회+삭제 in-flight 를 합성
@@ -1840,6 +1859,7 @@ export {
   runAdminExportJob,
   mergeMapping,
   runAssign,
+  runSeedSlots,
   runImport,
   formatImportJobDetail,
   runImportPreview,
@@ -1914,6 +1934,7 @@ export type {
   DifficultyMappingRow,
   MeRow,
   AssignDeps,
+  SeedSlotsDeps,
   DownloadDeps,
   RunAdminExportJobDeps,
   ImportDeps,

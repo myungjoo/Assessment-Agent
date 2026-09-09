@@ -20,12 +20,14 @@ import {
   runUpdateProvider,
   runSetDefaultProvider,
   runAssign,
+  runSeedSlots,
 } from './adminLlmProviderMutationRunners';
 import {
   runCreateProvider as reexportedRunCreateProvider,
   runDeleteProvider as reexportedRunDeleteProvider,
   runUpdateProvider as reexportedRunUpdateProvider,
   runAssign as reexportedRunAssign,
+  runSeedSlots as reexportedRunSeedSlots,
 } from './AdminView';
 
 const PROVIDER_ID = 'provider-1';
@@ -112,6 +114,21 @@ function appliedOptimistic(
   return setOptimistic.mock.calls.map(([updater]) =>
     (updater as (prev: Record<string, unknown>) => Record<string, unknown>)({}),
   );
+}
+
+// 난이도 슬롯 seed 러너(T-1999)의 deps — 진행 플래그 seeding 은 호출부에서 덮는다. assign 축과
+// 달리 낙관 override 가 없어(seed 슬롯은 항상 llmProviderConfigId: null) setOptimistic 이 없다.
+function makeSeedDeps() {
+  return {
+    post: vi.fn(
+      async (): Promise<unknown> => ({ created: ['easy'], existing: [] }),
+    ),
+    describeError,
+    seeding: false,
+    setSeeding: vi.fn(),
+    setSeedError: vi.fn(),
+    bumpRefresh: vi.fn(),
+  };
 }
 
 describe('adminLlmProviderMutationRunners 모듈 경계(T-1857 순수 추출)', () => {
@@ -536,11 +553,101 @@ describe('adminLlmProviderMutationRunners 모듈 경계(T-1857 순수 추출)', 
     });
   });
 
+  describe('runSeedSlots — 난이도 슬롯 멱등 seed(T-1999)', () => {
+    it('happy-path: POST 1 회 + 재조회 트리거 · 진행 플래그 해제', async () => {
+      const deps = makeSeedDeps();
+      await runSeedSlots(deps);
+      expect(deps.post).toHaveBeenCalledTimes(1);
+      // negative ④ — 접미 drift 방지: base 도 `/:difficulty` 도 아닌 `/seed` 정확 일치.
+      expect(deps.post).toHaveBeenCalledWith(`${LLM_MAPPINGS_PATH}/seed`, {
+        method: 'POST',
+      });
+      expect(deps.bumpRefresh).toHaveBeenCalledTimes(1);
+      // negative ⑤ — 성공 경로에서도 finally 로 진행 플래그가 반드시 false 로 복귀한다.
+      expect(deps.setSeeding.mock.calls).toEqual([[true], [false]]);
+      expect(deps.setSeedError.mock.calls).toEqual([[undefined]]);
+    });
+
+    it('negative ③ — 발사 path 가 base·난이도 slot path 와 다르고 body 를 싣지 않는다', () => {
+      const deps = makeSeedDeps();
+      return runSeedSlots(deps).then(() => {
+        const [path, options] = deps.post.mock.calls[0] as unknown as [
+          string,
+          { method: string; body?: unknown; headers?: unknown },
+        ];
+        expect(path).toBe('/api/llm/difficulty-mappings/seed');
+        expect(path).not.toBe(LLM_MAPPINGS_PATH);
+        expect(path).not.toBe(`${LLM_MAPPINGS_PATH}/easy`);
+        // body 없는 계약(api.md 139 행 · @Post("seed") 인자 0) — 실으면 drift 다.
+        expect(options.body).toBeUndefined();
+        expect(options.headers).toBeUndefined();
+        expect(options.method).toBe('POST');
+      });
+    });
+
+    it('error path / negative ② — reject 시 throw 없이 문구 표면화 + 재조회 미발사', async () => {
+      const deps = makeSeedDeps();
+      deps.post = vi.fn(async () => {
+        throw BOOM;
+      });
+      await expect(runSeedSlots(deps)).resolves.toBeUndefined();
+      expect(deps.setSeedError).toHaveBeenLastCalledWith(describeError(BOOM));
+      // 실패 — 권위 재조회는 돌지 않는다(화면 그대로 유지).
+      expect(deps.bumpRefresh).not.toHaveBeenCalled();
+      // negative ⑤ — 실패해도 finally 로 진행 플래그가 false 로 복귀한다.
+      expect(deps.setSeeding.mock.calls).toEqual([[true], [false]]);
+    });
+
+    it('error path: ApiError 아닌 원시 값 throw 도 문구 파생이 안전하다', async () => {
+      const deps = makeSeedDeps();
+      deps.post = vi.fn(async () => {
+        throw 'plain-string-throw';
+      });
+      await expect(runSeedSlots(deps)).resolves.toBeUndefined();
+      expect(deps.setSeedError).toHaveBeenLastCalledWith(
+        describeError('plain-string-throw'),
+      );
+      expect(deps.bumpRefresh).not.toHaveBeenCalled();
+      expect(deps.setSeeding).toHaveBeenLastCalledWith(false);
+    });
+
+    it('분기 ① / negative ① — seeding in-flight 중 재호출은 이중 POST 를 내지 않는다', async () => {
+      const deps = { ...makeSeedDeps(), seeding: true };
+      await runSeedSlots(deps);
+      expect(deps.post).not.toHaveBeenCalled();
+      // 미발사 경로에서는 진행 플래그·error state 조차 건드리지 않는다(state 잡음 0).
+      expect(deps.setSeeding).not.toHaveBeenCalled();
+      expect(deps.setSeedError).not.toHaveBeenCalled();
+      expect(deps.bumpRefresh).not.toHaveBeenCalled();
+    });
+
+    it('분기 — 멱등 재발사(created 0 · existing 3 응답)도 성공 경로 그대로다', async () => {
+      const deps = makeSeedDeps();
+      // 두 번째 seed 는 backend 가 created: [] 를 돌려준다(멱등). 러너는 응답 body 를
+      // 소비하지 않으므로 전이는 첫 발사와 완전히 같아야 한다.
+      deps.post = vi.fn(
+        async (): Promise<unknown> => ({
+          created: [],
+          existing: ['easy', 'medium', 'hard'],
+        }),
+      );
+      await runSeedSlots(deps);
+      expect(deps.bumpRefresh).toHaveBeenCalledTimes(1);
+      expect(deps.setSeedError.mock.calls).toEqual([[undefined]]);
+      expect(deps.setSeeding.mock.calls).toEqual([[true], [false]]);
+    });
+  });
+
   describe('negative ⑦ — AdminView 재수출 identity 보존', () => {
     it('값 심볼 3 개가 새 모듈의 함수와 동일 참조다', () => {
       expect(reexportedRunCreateProvider).toBe(runCreateProvider);
       expect(reexportedRunDeleteProvider).toBe(runDeleteProvider);
       expect(reexportedRunUpdateProvider).toBe(runUpdateProvider);
+    });
+
+    it('T-1999 합류분 runSeedSlots 도 새 모듈의 함수와 동일 참조다', () => {
+      // AdminView 배럴 재수출이 직접 import 와 같은 함수임을 잠근다(공개 표면 convention 유지).
+      expect(reexportedRunSeedSlots).toBe(runSeedSlots);
     });
 
     it('T-1877 합류분 runAssign 도 새 모듈의 함수와 동일 참조다', () => {
