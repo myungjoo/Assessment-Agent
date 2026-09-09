@@ -93,6 +93,8 @@ function measurePipeline(payload: unknown, opts: PipelineOptions = {}) {
   const summary = measureRenderLatency(() => {
     last = runPipeline(payload, opts);
   }, ITERATIONS);
+  // 콜백 안에서만 대입돼 TS 는 last 를 null 로 좁힌다 — 측정이 1 회 이상 돌았음이 helper 계약
+  // (iterations >= 1)으로 보장되므로 마지막 회차 결과로 되돌린다.
   return { summary, result: last as unknown as PipelineResult };
 }
 
