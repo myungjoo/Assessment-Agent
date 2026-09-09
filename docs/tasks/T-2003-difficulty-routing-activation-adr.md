@@ -2,7 +2,7 @@
 id: T-2003
 title: ADR-0065 신설 — 평가 경로 난이도 모델 routing 발화 설계 (항목→난이도 사전 결정 규칙 · 주입 지점 · 미설정 회귀 가드)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-050, REQ-049]
 estimatedDiff: 160
