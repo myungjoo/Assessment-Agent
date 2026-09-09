@@ -2,7 +2,7 @@
 id: T-1993
 title: web 렌더 latency 측정 축 도입 — REQ-048 시각화 축 첫 측정 (helper + 소비처 동반)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-048]
 estimatedDiff: 225
