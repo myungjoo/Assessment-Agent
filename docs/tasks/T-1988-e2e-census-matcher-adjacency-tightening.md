@@ -2,7 +2,7 @@
 id: T-1988
 title: e2e 커버리지 census 매칭기 정밀화 — suffix segment 인접성 + 동적 segment 위치 고정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 150
