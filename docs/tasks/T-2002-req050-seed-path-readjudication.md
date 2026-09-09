@@ -2,7 +2,7 @@
 id: T-2002
 title: REQ-050 "3 row seed 경로 부재" 자인 정정 — 난이도 슬롯 seed 경로 좌표 재판정 (once-rule 1 회)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-050]
 estimatedDiff: 32
@@ -65,4 +65,5 @@ plannerNote: "P7 REQ-050 — T-1998~T-2001 seed chain 머지 후 요구표의 \"
 
 ## Follow-ups
 
-(생성 시 비어 있음)
+- AC 5 ("seed route 의 e2e 부재를 자인") 의 전제가 실측에서 거짓이었다 — `grep -c "difficulty-mappings/seed" test/e2e/difficulty-mappings.e2e-spec.ts` 가 `0` 이 아니라 `1` 이고 T-1998 이 407 행에 `POST /seed` describe (it 4) 를 이미 열어둔 상태다. AC 자체의 "없는 근거를 만들지 않는다" 지침을 따라 부재 자인 대신 실측치 (478 행 · describe 3 · it 19, seed 4) 를 박제했다. 따라서 Out of Scope 의 "seed e2e spec 신설 별도 pr task" 는 불요 — 생성하지 않는다.
+- 잔여 미충족 2 축 (항목→난이도 결정 규칙 · `options.difficulty` 주입) 은 ADR 급 결정이 선행해야 하므로 그대로 남긴다.
