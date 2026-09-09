@@ -17,6 +17,16 @@ const LOADING_TOKEN = '불러오는 중';
 const EMPTY_PROVIDERS_TEXT = '등록된 LLM provider 가 없습니다';
 // 미할당 placeholder 옵션 라벨 (구현의 UNASSIGNED_LABEL 과 정합).
 const UNASSIGNED_LABEL = '선택 안 함';
+// 미지정 슬롯 안내 문구 식별 토큰 (구현의 UNASSIGNED_NOTICE_TEXT 와 정합 — ADR-0011 §3).
+const NOTICE_TOKEN = '평가가 거부됩니다';
+// 안내 영역의 role — 기존 role="status"/role="alert" 부재 단언과 충돌하지 않는 별도 role.
+const NOTICE_ROLE = 'role="note"';
+
+// 안내 영역(div role="note")의 텍스트만 뽑아낸다 — 나열된 라벨 검증에 쓴다(없으면 null).
+const extractNotice = (html: string): string | null => {
+  const matched = html.match(/<div role="note">([\s\S]*?)<\/div>/);
+  return matched === null ? null : matched[1];
+};
 
 // 테스트용 provider 2개 — option 렌더/순서/selected 반영 검증에 쓴다.
 const sampleProviders: ProviderOption[] = [
@@ -291,5 +301,148 @@ describe('DifficultyModelSelector', () => {
     expect(html).not.toContain('<option');
     expect(html).not.toContain('value="p1"');
     expect(html).not.toContain('value="p2"');
+  });
+});
+
+// R-112 — T-2000: 미지정(null) 슬롯 안내(ADR-0011 §3 fail-fast 표면화) 검증.
+// seed 직후 슬롯은 llmProviderConfigId=null 로 남고 그 난이도의 평가는 4xx 로 거부되므로,
+// 패널이 그 사실을 role="note" 안내로 노출하는지 happy/error/분기/negative 를 각각 cover 한다.
+// 안내는 기존 mapping props 에서만 파생되며 <select>/option 구조를 바꾸지 않아야 한다.
+describe('DifficultyModelSelector — 미지정 슬롯 안내 (T-2000)', () => {
+  // happy-path — 일부 슬롯만 null → role="note" 안내에 null 슬롯 라벨만 렌더 순서대로 나열.
+  it('일부 슬롯만 null 이면 role="note" 안내에 미지정 슬롯 라벨만 나열한다 (happy-path)', () => {
+    const html = renderToStaticMarkup(
+      <DifficultyModelSelector
+        providers={sampleProviders}
+        mapping={{ easy: 'p1', medium: null, hard: null }}
+        onAssign={() => {}}
+      />,
+    );
+    expect(html).toContain(NOTICE_ROLE);
+    expect(html).toContain(NOTICE_TOKEN);
+    const notice = extractNotice(html);
+    expect(notice).not.toBeNull();
+    // 미지정 슬롯(보통·어려움)만 나열되고 할당된 슬롯(쉬움)은 안내 문장에 없다.
+    expect(notice).toContain('보통');
+    expect(notice).toContain('어려움');
+    expect(notice).not.toContain('쉬움');
+    // 나열 순서는 DIFFICULTY_SLOTS 렌더 순서를 승계한다(보통 → 어려움).
+    expect((notice as string).indexOf('보통')).toBeLessThan(
+      (notice as string).indexOf('어려움'),
+    );
+  });
+
+  // error path — error 와 미지정 슬롯이 동시에 있으면 alert 와 note 가 서로를 지우지 않는다.
+  it('error 와 미지정 슬롯이 동시에 있으면 role="alert" 와 role="note" 가 둘 다 렌더된다 (error path)', () => {
+    const html = renderToStaticMarkup(
+      <DifficultyModelSelector
+        providers={sampleProviders}
+        mapping={{ easy: 'p1', medium: null, hard: null }}
+        onAssign={() => {}}
+        error="저장 실패"
+      />,
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('저장 실패');
+    expect(html).toContain(NOTICE_ROLE);
+    expect(html).toContain(NOTICE_TOKEN);
+    // 슬롯 폼도 그대로 렌더된다(안내·alert 는 추가될 뿐).
+    expect(html).toContain('<select');
+  });
+
+  // 분기 (a) — 전 슬롯 할당 → 안내 미렌더.
+  it('전 슬롯이 할당되면 안내를 렌더하지 않는다 (branch (a) — 미지정 0)', () => {
+    const html = renderToStaticMarkup(
+      <DifficultyModelSelector
+        providers={sampleProviders}
+        mapping={{ easy: 'p1', medium: 'p2', hard: 'p1' }}
+        onAssign={() => {}}
+      />,
+    );
+    // negative ① — 안내 role/문구 모두 부재.
+    expect(html).not.toContain(NOTICE_ROLE);
+    expect(html).not.toContain(NOTICE_TOKEN);
+    expect(extractNotice(html)).toBeNull();
+    // 슬롯 폼은 정상 렌더.
+    expect(html).toContain('<select');
+  });
+
+  // 분기 (c) — 전 슬롯 미지정 → 3 라벨을 렌더 순서대로 모두 나열.
+  it('전 슬롯이 미지정이면 3 라벨을 렌더 순서대로 모두 나열한다 (branch (c) — 미지정 3)', () => {
+    const html = renderToStaticMarkup(
+      <DifficultyModelSelector
+        providers={sampleProviders}
+        mapping={emptyMapping}
+        onAssign={() => {}}
+      />,
+    );
+    const notice = extractNotice(html);
+    expect(notice).not.toBeNull();
+    const text = notice as string;
+    expect(text).toContain('쉬움');
+    expect(text).toContain('보통');
+    expect(text).toContain('어려움');
+    expect(text.indexOf('쉬움')).toBeLessThan(text.indexOf('보통'));
+    expect(text.indexOf('보통')).toBeLessThan(text.indexOf('어려움'));
+  });
+
+  // 분기 (d) + negative ② — loading=true 는 조기 반환이 우선이라 안내가 나오지 않는다.
+  it('loading=true 면 조기 반환이 우선이라 안내를 렌더하지 않는다 (branch (d) / negative ②)', () => {
+    const html = renderToStaticMarkup(
+      <DifficultyModelSelector
+        providers={sampleProviders}
+        mapping={emptyMapping}
+        onAssign={() => {}}
+        loading={true}
+      />,
+    );
+    expect(html).toContain('role="status"');
+    expect(html).not.toContain(NOTICE_ROLE);
+    expect(html).not.toContain(NOTICE_TOKEN);
+  });
+
+  // 분기 (e) + negative ③ — providers 빈 배열은 빈 상태 조기 반환이 우선이다.
+  it('providers 빈 배열이면 빈 상태 조기 반환이 우선이라 안내를 렌더하지 않는다 (branch (e) / negative ③)', () => {
+    const html = renderToStaticMarkup(
+      <DifficultyModelSelector providers={[]} mapping={emptyMapping} onAssign={() => {}} />,
+    );
+    expect(html).toContain(EMPTY_PROVIDERS_TEXT);
+    expect(html).not.toContain(NOTICE_ROLE);
+    expect(html).not.toContain(NOTICE_TOKEN);
+  });
+
+  // negative ④ — 미지의 id 는 null 이 아니므로 미지정으로 세지 않는다(placeholder fallback 과 무관).
+  it('미지의 provider id 슬롯은 미지정으로 세지 않는다 (negative ④ — 미지의 id)', () => {
+    const html = renderToStaticMarkup(
+      <DifficultyModelSelector
+        providers={sampleProviders}
+        mapping={{ easy: 'ghost', medium: 'p1', hard: null }}
+        onAssign={() => {}}
+      />,
+    );
+    const notice = extractNotice(html);
+    expect(notice).not.toBeNull();
+    // hard(null) 만 나열 — 'ghost' 인 easy 도, 할당된 medium 도 안내에 없다.
+    expect(notice).toContain('어려움');
+    expect(notice).not.toContain('쉬움');
+    expect(notice).not.toContain('보통');
+  });
+
+  // negative ⑤ — 안내 추가가 <select> 3개·슬롯당 option 수(providers.length + 1) 구조를 바꾸지 않는다.
+  it('안내가 렌더돼도 <select> 3개·슬롯당 option 수 구조는 그대로다 (negative ⑤ — 구조 회귀 0)', () => {
+    const html = renderToStaticMarkup(
+      <DifficultyModelSelector
+        providers={sampleProviders}
+        mapping={emptyMapping}
+        onAssign={() => {}}
+      />,
+    );
+    expect(html).toContain(NOTICE_ROLE);
+    const selectCount = (html.match(/<select /g) ?? []).length;
+    const optionCount = (html.match(/<option /g) ?? []).length;
+    expect(selectCount).toBe(3);
+    expect(optionCount).toBe(sampleProviders.length * 3 + 3);
+    // placeholder 라벨도 그대로 유지된다.
+    expect(html).toContain(UNASSIGNED_LABEL);
   });
 });
