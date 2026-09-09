@@ -1,4 +1,4 @@
-// DifficultyMappingController — `/api/llm/difficulty-mappings` 2 REST endpoint.
+// DifficultyMappingController — `/api/llm/difficulty-mappings` 3 REST endpoint.
 // T-0139 acceptance 박제. SummaryController (T-0123) / AssessmentController (T-0121) 가
 // 박제한 controller RBAC stack 의 1:1 mirror — DifficultyMappingService (T-0138) 위에
 // HTTP-facing layer 를 신설해 Admin 이 난이도 슬롯 (easy/medium/hard) 에
@@ -8,6 +8,7 @@
 // endpoint 만 — resolveModel 은 내부 routing 용이라 미노출):
 //   - GET   /api/llm/difficulty-mappings              → findAllMappings    (200, 빈 배열도 정상)
 //   - PATCH /api/llm/difficulty-mappings/:difficulty  → assignProviderConfig (200, 미지원 난이도 400 / config 부재 404 / 슬롯 부재 P2025 404)
+//   - POST  /api/llm/difficulty-mappings/seed         → seedDifficultySlots (200, body 없음, 멱등)
 //
 // ValidationPipe wire 결정 (SummaryController mirror):
 //   - Controller-scope `@UsePipes(new ValidationPipe({...}))` — 본 controller 2 endpoint 한정.
@@ -42,6 +43,7 @@ import {
   HttpCode,
   Param,
   Patch,
+  Post,
   UseGuards,
   UsePipes,
   ValidationPipe,
@@ -52,7 +54,10 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 
-import { DifficultyMappingService } from "./difficulty-mapping.service";
+import {
+  DifficultyMappingService,
+  type SeededDifficultySlots,
+} from "./difficulty-mapping.service";
 import { AssignDifficultyMappingDto } from "./dto/assign-difficulty-mapping.dto";
 
 @Controller("api/llm/difficulty-mappings")
@@ -101,5 +106,18 @@ export class DifficultyMappingController {
       difficulty,
       dto.llmProviderConfigId,
     );
+  }
+
+  // POST /api/llm/difficulty-mappings/seed — 3 난이도 슬롯 row 멱등 확보 (T-1998).
+  // PATCH 가 update(upsert 아님) 기반이라 슬롯 row 부재 시 Admin 이 model 을 영원히
+  // 지정할 수 없는 빈칸을 메우는 운영 진입점. body 없음, 200 + `{ created, existing }`.
+  // 재실행해도 created 만 비고 상태는 그대로라 201 대신 @HttpCode(200). service 반환값
+  // raw forward (분기 0). RBAC — findAll / assign 동일 Admin+ (User 403 / 미인증 401).
+  @Post("seed")
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
+  async seed(): Promise<SeededDifficultySlots> {
+    return this.service.seedDifficultySlots();
   }
 }

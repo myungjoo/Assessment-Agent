@@ -28,7 +28,7 @@ import {
 } from "@nestjs/common";
 import type { LlmProviderConfig } from "@prisma/client";
 
-import { isDifficulty } from "./difficulty";
+import { DIFFICULTIES, isDifficulty, type Difficulty } from "./difficulty";
 import { DifficultyMappingRepository } from "./difficulty-mapping.repository";
 import { LlmProviderConfigRepository } from "./llm-provider-config.repository";
 
@@ -62,6 +62,12 @@ export interface ResolvedModel {
   provider: string;
   // resolve 된 model 식별자 — 실제 호출 대상 (LlmGenerateOptions.modelId 소비).
   modelId: string;
+}
+
+// seedDifficultySlots 의 반환 payload — created / existing 둘 다 DIFFICULTIES 순서.
+export interface SeededDifficultySlots {
+  created: Difficulty[];
+  existing: Difficulty[];
 }
 
 @Injectable()
@@ -184,5 +190,45 @@ export class DifficultyMappingService {
       }
       throw error;
     }
+  }
+
+  // seedDifficultySlots — ADR-0011 §1 의 3 난이도 슬롯 row 를 멱등 확보 (64 행 seed
+  // 운영 전제의 실제 경로). updateProviderConfig 가 upsert 아닌 update 라 row 부재 시
+  // Admin 의 PATCH 가 영원히 404 이므로 그 선행 row 생성을 담당한다. 생성 슬롯의
+  // llmProviderConfigId 는 항상 null — 62 행 fail-fast 계약 유지 (미지정 슬롯은 여전히
+  // 4xx, 임의 기본 provider 를 안 채움). 분기 (R-112): (a) 0 건 전량 create (b) 일부
+  // 존재 시 없는 것만 (c) 전부 존재 시 create 0 회 (d) 동시 seed race 의 P2002 는
+  // existing 흡수 후 계속. 그 외 error 와 findMany 실패는 raw propagate. 순회 축이
+  // DIFFICULTIES 라 미지원 난이도 row 는 반환에 새지 않고 순서도 그 순서를 따른다.
+  async seedDifficultySlots(): Promise<SeededDifficultySlots> {
+    const rows = await this.difficultyMappingRepository.findMany();
+    const presentDifficulties = new Set(rows.map((row) => row.difficulty));
+
+    const created: Difficulty[] = [];
+    const existing: Difficulty[] = [];
+
+    for (const difficulty of DIFFICULTIES) {
+      if (presentDifficulties.has(difficulty)) {
+        existing.push(difficulty);
+        continue;
+      }
+
+      try {
+        await this.difficultyMappingRepository.create({
+          difficulty,
+          llmProviderConfigId: null,
+        });
+        created.push(difficulty);
+      } catch (error) {
+        // 동시 seed 경합에서 다른 호출이 먼저 만든 경우 — 멱등 흡수.
+        if (getPrismaErrorCode(error) === "P2002") {
+          existing.push(difficulty);
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    return { created, existing };
   }
 }
