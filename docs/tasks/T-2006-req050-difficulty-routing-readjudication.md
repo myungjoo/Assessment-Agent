@@ -2,7 +2,7 @@
 id: T-2006
 title: REQ-050 재판정 — 난이도 routing 발화 arc(ADR-0065 · helper · 배선 · 회귀 spec) 실측 반영
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-050]
 estimatedDiff: 40
