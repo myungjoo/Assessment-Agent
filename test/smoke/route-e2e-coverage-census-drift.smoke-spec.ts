@@ -5,9 +5,10 @@
 // 되지 않는다(부재 축 미검출). 본 spec 은 `src/` 재귀 순회로 route 를 정적 추출해
 // `test/e2e/*.e2e-spec.ts` 본문과 prefix + suffix 단위로 대조한다.
 // 판정 비대칭(T-1983 승계) — 4 축 총량은 하한만(증가는 정상), **미커버 집합만 정확 일치**라 신규
-// 유입(초과)도 stale 잔존(미달)도 red. allowlist 2 건은 blessing 이 아니라
-// `realdb-perf-spec-covered` 태그가 붙은 이월분이다 — T-1981 이 realdb perf-spec 중복을 근거로
-// 명시 이월했고 본 spec 은 새 커버를 만들지 않고 세기만 한다.
+// 유입(초과)도 stale 잔존(미달)도 red. allowlist 는 **빈 배열** 이다 — T-1985 가 이월했던
+// `realdb-perf-spec-covered` 2 건(`GET /api/admin/import/running` · `GET /api/admin/import/modes`)
+// 을 T-1989 가 실 왕복 e2e(test/e2e/import-job-read.e2e-spec.ts) 로 닫아 소진했다. 즉 현재
+// 계약은 "미커버 0 건" 이고, 어떤 route 든 e2e 없이 들어오면 그 자체로 red 다.
 // 매칭기 정밀도 (T-1988, PR #1558 reviewer MINOR 1·2 출처) — suffix segment 를 파일 전역에서
 // 따로따로 찾던 판정을 **인접 chain 1 개**로 좁히고 동적 segment 를 그 chain 안 위치에 고정했다.
 // 반면 prefix+suffix 를 통째로 인접 매칭하는 더 강한 안은 기각한다 — e2e 가 URL 을
@@ -32,15 +33,21 @@ const SRC_ROOT = path.join(REPO_ROOT, "src").replace(/\\/g, "/");
 const E2E_ROOT = path.join(REPO_ROOT, "test/e2e").replace(/\\/g, "/");
 
 /** 본 fire 실측 하한 — 증가는 정상, 감소는 red. */
-const MIN = { controllers: 23, routes: 89, e2eSpecs: 38, covered: 87 };
+const MIN = { controllers: 23, routes: 89, e2eSpecs: 39, covered: 89 };
 
-/** e2e 왕복 미커버 허용 목록. 항목마다 reason 태그를 남긴다. 실측과 **정확히** 같아야 한다. */
-const REASON = "realdb-perf-spec-covered";
-const E2E_UNCOVERED_ALLOWLIST: readonly { route: string; reason: string }[] = [
-  { route: "GET /api/admin/import/running", reason: REASON },
-  { route: "GET /api/admin/import/modes", reason: REASON },
-];
+/**
+ * e2e 왕복 미커버 허용 목록. **T-1989 이후 빈 배열** — 마지막 이월분 2 건이 실 e2e 로 닫혔다.
+ * 실측과 **정확히** 같아야 하므로, 항목을 다시 넣으려면 reason 태그와 함께 그 근거를 남긴다.
+ */
+const E2E_UNCOVERED_ALLOWLIST: readonly { route: string; reason: string }[] =
+  [];
 const ALLOWED = E2E_UNCOVERED_ALLOWLIST.map((e) => e.route).sort();
+
+/** T-1989 가 소진한 2 route — 소진 전에는 perf-spec 만이 유일한 근거였다. */
+const CLOSED_BY_T1989 = [
+  "GET /api/admin/import/running",
+  "GET /api/admin/import/modes",
+];
 
 // segment 경계 — `/running` 이 `/running-xyz` 를 커버로 오판하지 않게 하는 접두 충돌 방지.
 const BOUNDARY = "(?![A-Za-z0-9_-])";
@@ -118,12 +125,12 @@ describe("전 route e2e 왕복 커버리지 census drift (PLAN 166 행 · T-1985
       expect(routes.length).toBeGreaterThanOrEqual(MIN.routes);
       expect(routes.every((r) => r.label.includes(" /api"))).toBe(true);
     });
-    it("e2e spec 파일: 38 개 이상, 전부 test/e2e 하위 .e2e-spec.ts", () => {
+    it("e2e spec 파일: 39 개 이상, 전부 test/e2e 하위 .e2e-spec.ts", () => {
       const files = e2eFiles();
       expect(files.length).toBeGreaterThanOrEqual(MIN.e2eSpecs);
       expect(files.every((f) => f.startsWith(`${E2E_ROOT}/`))).toBe(true);
     });
-    it("e2e 커버 route: 87 개 이상 (증가는 정상, 감소는 red)", () => {
+    it("e2e 커버 route: 89 개 이상 (증가는 정상, 감소는 red)", () => {
       const routes = repoRoutes();
       const covered =
         routes.length - uncoveredLabels(routes, readAll(e2eFiles())).length;
@@ -132,16 +139,18 @@ describe("전 route e2e 왕복 커버리지 census drift (PLAN 166 행 · T-1985
   });
 
   describe("Negative — 미커버 집합 정확 일치", () => {
-    it("실측 미커버 집합 == allowlist 2 건 (양방향 비교 · reason 태그 고정)", () => {
+    it("실측 미커버 0 건 == 빈 allowlist (양방향 비교 · T-1989 소진 후)", () => {
       const actual = uncoveredLabels(repoRoutes(), readAll(e2eFiles()));
-      // 초과 = e2e 없는 route 신규 유입, 미달 = stale allowlist 항목.
+      // 초과 = e2e 없는 route 신규 유입, 미달 = stale allowlist 항목(빈 목록이라 원천 0).
       expect(actual.filter((r) => !ALLOWED.includes(r))).toEqual([]);
       expect(ALLOWED.filter((r) => !actual.includes(r))).toEqual([]);
       expect(actual).toEqual(ALLOWED);
-      expect(E2E_UNCOVERED_ALLOWLIST.length).toBe(2);
-      expect([
-        ...new Set(E2E_UNCOVERED_ALLOWLIST.map((e) => e.reason)),
-      ]).toEqual(["realdb-perf-spec-covered"]);
+      expect(E2E_UNCOVERED_ALLOWLIST).toEqual([]);
+      // 빈 집합끼리의 비교만으로는 "2 route 가 커버된 것" 과 "2 route 가 사라진 것" 이
+      // 구분되지 않는다 — 두 label 이 여전히 route 모수에 있고 미커버가 아님을 함께 고정.
+      const labels = repoRoutes().map((r) => r.label);
+      expect(CLOSED_BY_T1989.every((l) => labels.includes(l))).toBe(true);
+      expect(actual.some((l) => CLOSED_BY_T1989.includes(l))).toBe(false);
     });
   });
 
@@ -251,13 +260,17 @@ describe("전 route e2e 왕복 커버리지 census drift (PLAN 166 행 · T-1985
       const files = e2eFiles();
       expect(files.every((f) => f.endsWith(".e2e-spec.ts"))).toBe(true);
       expect(files.some((f) => f.includes(".perf-spec.ts"))).toBe(false);
-      // allowlist 2 건이 perf-spec 으로만 덮인다는 reason 태그의 근거 — 그 소스를 커버 근거에
-      // 넣으면 미커버가 0 이 되지만, e2e census 는 그것을 세지 않는다.
+      // allowlist 비의존 형태 — 두 route label 을 직접 지정한다. perf-spec 소스는 매칭기
+      // 기준으로 이 둘을 "커버" 하지만 근거 파일 집합(e2eFiles) 에는 애초에 들어오지 않는다.
+      // T-1989 로 실 e2e 가 생긴 뒤에도 이 경계 계약 자체는 그대로 유지된다.
       const rel = "test/perf/import-detail-read-realdb.perf-spec.ts";
       const perf = readFileSync(path.join(REPO_ROOT, rel), "utf8");
-      const routes = repoRoutes().filter((r) => ALLOWED.includes(r.label));
+      const routes = repoRoutes().filter((r) =>
+        CLOSED_BY_T1989.includes(r.label),
+      );
       expect(routes.length).toBe(2);
       expect(routes.every((r) => isCoveredBy(r, perf))).toBe(true);
+      expect(files.some((f) => f.endsWith(rel))).toBe(false);
     });
     it("allowlist 에 실재하지 않는 route 를 넣으면 정확 일치가 깨진다(자기검증)", () => {
       const actual = uncoveredLabels(repoRoutes(), readAll(e2eFiles()));
