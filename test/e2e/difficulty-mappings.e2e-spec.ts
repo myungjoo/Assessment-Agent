@@ -400,4 +400,79 @@ describe("E2E: GET /api/llm/difficulty-mappings (T-1960, REQ-050)", () => {
       expect(await readSlotFk("hard")).toBe(configId);
     });
   });
+
+  // POST seed 축 (T-1998) — PATCH 축과 같은 이유로 GET describe 안에 중첩(beforeAll ·
+  // afterEach · seedThreeSlots() 무수정 add-only). 신규 route 는 census drift guard
+  // (allowlist 정확히 [])가 e2e 왕복을 요구하므로 본 describe 가 그 커버 근거다.
+  describe("E2E: POST /api/llm/difficulty-mappings/seed (T-1998, REQ-050/REQ-049)", () => {
+    const SEED_URL = `${MAPPINGS_URL}/seed`;
+
+    // 슬롯 row 를 difficulty 정렬로 재조회 — 응답과 DB 실반영을 함께 본다.
+    async function readSlotDifficulties(): Promise<string[]> {
+      const rows = await prisma.difficultyMapping.findMany();
+      return rows.map((row) => row.difficulty).sort();
+    }
+
+    // -- happy 200 (Admin, 빈 DB → 3 슬롯 전량 생성 + FK null 유지) --
+
+    it("빈 DB 에서 Admin 호출 시 200 + created 3 슬롯(DIFFICULTIES 순서) · existing 0 이고 생성 row FK 는 전부 null (authed happy)", async () => {
+      expect(await readSlotDifficulties()).toEqual([]);
+
+      const response = await request(app.getHttpServer())
+        .post(SEED_URL)
+        .set("Cookie", adminCookie);
+
+      expect(response.status).toBe(200);
+      expect(response.headers["content-type"]).toMatch(/application\/json/);
+      expect(response.body).toEqual({
+        created: [...DIFFICULTIES],
+        existing: [],
+      });
+      expect(await readSlotDifficulties()).toEqual([...DIFFICULTIES].sort());
+      // ADR-0011 62 행 fail-fast 유지 — 생성 슬롯에 임의 provider 를 채우지 않는다.
+      const rows = await prisma.difficultyMapping.findMany();
+      expect(rows.every((r) => r.llmProviderConfigId === null)).toBe(true);
+    });
+
+    // -- branch: 곧바로 재호출 → 멱등(created 0 · existing 3, row 증가 0) --
+
+    it("연속 2 회 호출 시 두 번째는 200 + created 0 · existing 3 이고 슬롯 row 는 3 건 그대로 (branch — 멱등)", async () => {
+      await request(app.getHttpServer())
+        .post(SEED_URL)
+        .set("Cookie", adminCookie)
+        .expect(200);
+
+      const again = await request(app.getHttpServer())
+        .post(SEED_URL)
+        .set("Cookie", adminCookie);
+
+      expect(again.status).toBe(200);
+      expect(again.body).toEqual({
+        created: [],
+        existing: [...DIFFICULTIES],
+      });
+      expect(await readSlotDifficulties()).toHaveLength(3);
+    });
+
+    // -- negative (i): 인증 부재 401 + write 누출 0 --
+
+    it("cookie 부재 시 401 이고 슬롯 row 가 1 건도 생기지 않음 (negative — JwtAuthGuard 가 write 앞에서 차단)", async () => {
+      const response = await request(app.getHttpServer()).post(SEED_URL);
+
+      expect(response.status).toBe(401);
+      expect(await readSlotDifficulties()).toEqual([]);
+    });
+
+    // -- negative (ii): User tier 미달 403 + write 누출 0 --
+
+    it("User role 쿠키 시 403 이고 body 에 슬롯 데이터 미노출 + 슬롯 row 생성 0 (negative — Admin+ tier 미달)", async () => {
+      const response = await request(app.getHttpServer())
+        .post(SEED_URL)
+        .set("Cookie", userCookie);
+
+      expect(response.status).toBe(403);
+      expect(JSON.stringify(response.body)).not.toContain("created");
+      expect(await readSlotDifficulties()).toEqual([]);
+    });
+  });
 });
