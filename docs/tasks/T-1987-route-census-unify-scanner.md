@@ -2,7 +2,7 @@
 id: T-1987
 title: route census 스캐너 본체(censusRoutes) 공통 helper 로 통합 + 두 census smoke spec 동시 배선
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 300
