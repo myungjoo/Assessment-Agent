@@ -161,3 +161,73 @@ FAIL step 은 JSON 요약의 `failedStep` 과 `logPath` 로 특정한다.
 
 > secret 실값 검증: 본 문서는 LLM/GitHub/Azure 계열 실 API-key·토큰 값 패턴을 하나도 포함하지
 > 않는다. env 키 *이름*과 *주입 방식*만 서술한다(§9).
+
+---
+
+## 5. 부하 배치 수동 실행 (REQ-047 manual 축)
+
+REQ-047 의 검증 위치 enum `manual + perf test` 중 **manual 축**의 실행 절차다. 시나리오 정의·임계
+근거·회차 기록은 [load-resilience-test-plan.md](load-resilience-test-plan.md) 가 source of truth
+이고, 본 절은 **이미 존재하는 실행면을 사람이 그대로 따라갈 순서**만 적는다(harness·워크플로·임계
+변경 0).
+
+### 5.1 CI 경로 (권장)
+
+GitHub Actions 의 `Load (k6)` workflow([.github/workflows/load-k6.yml](../../.github/workflows/load-k6.yml))
+를 **수동 실행**한다 — `10 행` 이 `workflow_dispatch` 만 트리거로 두므로 PR·push 로는 돌지 않는다.
+
+1. Actions → `Load (k6)` → **Run workflow**(브랜치는 보통 `main`).
+2. `s1_persons` input(`15 행`)에 S1 표본 인원을 넣는다. 미지정 시 기본 `10`(`19 행`), 실 scale
+   조건 반복은 `133`(외삽 계수 1)을 넣는다.
+3. run 은 `concurrency` group `load-k6`(`26 행`)로 직렬화되고 `cancel-in-progress: false`(`27 행`)
+   라 **진행 중 run 이 취소되지 않는다** — 겹쳐 dispatch 하면 앞 run 이 끝난 뒤 순차 실행된다.
+4. job 진행 순서는 대상 컨테이너 기동(`78 행`) → devset 133 로그인 적재(`114 행`) → k6 설치
+   (`124 행`) → smoke(`129 행`) → S1(`138 행`) → 실측 요약 기록(`153 행`) → S2(`195 행`) →
+   S3(`211 행`) → 정리(`218 행`) 다. 중간에 사람이 개입할 지점은 없다.
+
+### 5.2 로컬 경로
+
+선행 조건 3 종을 먼저 확보한다.
+
+- 앱(기본 `http://localhost:3000`)과 PostgreSQL 이 기동 중일 것(위 §1 또는
+  [deploy/README.md](../../deploy/README.md)).
+- `pnpm seed:devset-logins` 로 devset 133 로그인을 적재할 것 — 빈 DB 부하는 측정 의미가 없다.
+- **k6 바이너리는 npm 패키지가 아니다.** lockfile 로 깔리지 않으므로 별도 설치가 선행되어야 한다
+  (CI 는 `124 행` 의 setup-k6 action 이 대신한다).
+
+그 뒤 [package.json](../../package.json) `23~27 행` script 를 아래 순서로 실행한다. smoke → S1 →
+S2 → S3 순서는 CI 와 같아야 한다(S1 setup 의 첫 계정이 SuperAdmin 이어야 하는 전제).
+
+```bash
+pnpm seed:devset-logins   # 선행 1 회 — devset 적재
+pnpm test:load            # smoke — 배선 확인
+pnpm test:load:s1         # S1 평가 배치 부하
+pnpm test:load:s2         # S2 조회 부하
+pnpm test:load:s3         # S3 동시 요청 내성
+```
+
+### 5.3 env 3 종
+
+| env | 기본값 | 의미 |
+| --- | --- | --- |
+| `K6_BASE_URL` | `http://localhost:3000` | 부하 대상 base URL([test/load/s1-batch.js](../../test/load/s1-batch.js) `25 행`). CI 도 같은 값을 주입한다(`131 행`). |
+| `K6_S1_PERSONS` | `10` | S1 표본 인원(`28~31 행`). CI 는 `s1_persons` input 을 주입한다(`143 행`). 비수치·빈 값·0 이하는 기본값으로 정규화된다. |
+| `LOAD_TEST_STUB` | 미설정 = OFF | **정확히 `1`** 일 때만 stub LLM 이 바인딩된다([ADR-0057](../decisions/ADR-0057-s1-batch-load-io-isolation.md) D1). `true`·`0`·빈 값은 fail-safe default OFF 라 실 LLM gateway 가 붙는다. CI 는 대상 컨테이너에 `1` 을 준다(`93 행`). |
+
+### 5.4 결과 판독
+
+- **판정 임계**: S1 은 `BATCH_P95_MS = 3600000 × (표본 인원 / 133)` 외삽식(`33~38 행`)으로 1h
+  예산을 표본 크기에 환산한다. 실패는 k6 threshold 위반 = **exit code ≠ 0**.
+- **실측 회수**: CI run 페이지의 **Job Summary**(`S1 실측 요약 기록` step, `153 행`)에 환경 메타
+  표와 S1 summary JSON 전문이 적힌다. 로컬은 `--summary-export` 를 직접 붙여야 같은 JSON 을 얻는다.
+- **`요약 파일 없음 — ...` 문구**(`190 행`)는 수치가 임계 미달이라는 뜻이 아니라 **k6 가 요약을
+  남기기 전에 종료했다**는 뜻이다(k6 설치 실패·대상 부팅 실패). 임계 판정 이전 문제부터 잡는다.
+- **회차 기록**: 새 실측은 [load-resilience-test-plan.md](load-resilience-test-plan.md) 의 `### 3.1
+  baseline 실측 기록` 에 적재한다(본 런북에는 수치를 남기지 않는다).
+
+### 5.5 한계 (이 절차가 증명하지 못하는 것)
+
+- 이 경로는 `LOAD_TEST_STUB=1` stub LLM + GitHub·Confluence 자격증명 0 이라 실 수집·실 LLM 왕복은
+  발화하지 않는다(REQ-047 잔여 (i) — [docs/requirements.md](../requirements.md) `66 행`).
+- S1 은 133명 full run 이 아니라 축소 표본 + 선형 외삽 판정이라 1h full run 실측이 아니다(잔여
+  (ii)). `s1_persons=133` 회차도 1 회 호출 측정이다.
