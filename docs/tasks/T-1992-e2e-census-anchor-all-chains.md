@@ -2,7 +2,7 @@
 id: T-1992
 title: e2e 커버리지 census 매칭기 — 동적 시작 chain 까지 앵커 확대 (잔여 느슨함 소진)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-061]
 estimatedDiff: 150
