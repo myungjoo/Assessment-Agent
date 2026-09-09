@@ -2,7 +2,7 @@
 id: T-1997
 title: PLAN 154 행 ④ 시각화 렌더 측정 축 서술 drift 정정 (T-1995 · T-1996 반영)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048, REQ-047]
 estimatedDiff: 30
