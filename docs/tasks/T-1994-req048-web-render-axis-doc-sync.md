@@ -2,7 +2,7 @@
 id: T-1994
 title: REQ-048 · PLAN 154 행 ④ 의 web 렌더 측정 축 판정 doc-sync (T-1993 머지 반영)
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-048]
 estimatedDiff: 12
