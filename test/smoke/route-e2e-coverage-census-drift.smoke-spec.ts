@@ -8,6 +8,11 @@
 // 유입(초과)도 stale 잔존(미달)도 red. allowlist 2 건은 blessing 이 아니라
 // `realdb-perf-spec-covered` 태그가 붙은 이월분이다 — T-1981 이 realdb perf-spec 중복을 근거로
 // 명시 이월했고 본 spec 은 새 커버를 만들지 않고 세기만 한다.
+// 매칭기 정밀도 (T-1988, PR #1558 reviewer MINOR 1·2 출처) — suffix segment 를 파일 전역에서
+// 따로따로 찾던 판정을 **인접 chain 1 개**로 좁히고 동적 segment 를 그 chain 안 위치에 고정했다.
+// 반면 prefix+suffix 를 통째로 인접 매칭하는 더 강한 안은 기각한다 — e2e 가 URL 을
+// `const BASE` + 템플릿(+ 중첩 builder)으로 조립하므로 거짓 미커버가 늘어난다
+// (T-1988 실측 +3, planner 실측 +5~12).
 //      🔥 Nest 부팅 0 · DB 0 · 네트워크 0 · src 변경 0 — 파일 read + 합성 문자열 주입만.
 import { readFileSync } from "fs";
 import * as path from "path";
@@ -39,6 +44,12 @@ const ALLOWED = E2E_UNCOVERED_ALLOWLIST.map((e) => e.route).sort();
 
 // segment 경계 — `/running` 이 `/running-xyz` 를 커버로 오판하지 않게 하는 접두 충돌 방지.
 const BOUNDARY = "(?![A-Za-z0-9_-])";
+// chain 시작 자리 — 앞이 path 토큰 문자가 아니어야 한다. 즉 문자열 시작(`"` · `` ` ``) 이나
+// 템플릿 치환 끝(`}`) 처럼 **새 경로 조각이 시작되는 자리** 만 허용해 남의 경로 꼬리
+// (`/api/other/detail`) 를 빌려오는 거짓 커버를 막는다 (T-1988).
+const FRESH = "(?<![A-Za-z0-9_.-])";
+// 동적 segment(`:id`) 한 칸 — 템플릿 치환(`${...}`) 과 실 문자열 토큰(`abc-123`) 양쪽.
+const DYNAMIC = "(?:\\$\\{[^}]*\\}|[A-Za-z0-9_.-]+)";
 const esc = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // 순수 함수 1/3 — controller 소스 1 개의 route census 는 helper `censusRoutes` 가 단일 출처다
@@ -48,21 +59,29 @@ const esc = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 /**
  * 순수 함수 2/3 — route 1 개가 e2e 소스 1 개에 왕복으로 등장하는지. e2e 는 URL 을
  * `const BASE = "/api/x"` + 템플릿 리터럴로 조립하므로 전체 경로 리터럴 매칭은 거짓 미커버를
- * 낸다. 그래서 prefix 존재 + suffix segment 별 존재로 나눠 보고, 동적 segment(`:id`)는 템플릿
- * 치환(`${...}`) 과 실 문자열 양쪽에 매칭한다.
+ * 낸다. 그래서 판정을 두 축으로 나눈다 — (1) prefix 는 파일 어딘가에 존재하면 되고,
+ * (2) suffix 는 segment 를 따로 찾지 않고 `/seg1/seg2/…` **인접 chain 1 개**로 조립해 한 번에
+ * 매칭한다. 동적 segment(`:id`)는 그 chain 안 제 위치에서만 `${...}` · 실 문자열 토큰에 매칭하며
+ * 파일 전역의 임의 `/토큰` 은 더 이상 근거가 아니다 (T-1988).
+ * chain 앵커는 첫 segment 종류로 갈린다 — 첫 segment 가 **정적**이면 그 이름이 남의 경로 꼬리
+ * (`/api/other/detail`) 에도 그대로 있을 수 있으므로 route 자신의 prefix 바로 뒤이거나 `FRESH`
+ * 자리에서 시작해야 한다. 첫 segment 가 **동적**이면 앵커를 요구하지 않는다 — 그 앞 `/` 가
+ * 중첩 builder 안에 숨는 표기(`` `${identityEndpointFor(a, b)}/primary` ``) 가 실제로 흔해
+ * 앵커를 걸면 거짓 미커버가 된다(§Follow-ups 에 잔여 느슨함으로 기록).
  */
 function isCoveredBy(route: RouteRecord, e2eSource: string): boolean {
   const hasPath = (p: string): boolean =>
     new RegExp("/" + esc(p) + BOUNDARY).test(e2eSource);
   if (!hasPath(route.prefix)) return false;
-  return route.suffix
-    .split("/")
-    .filter((seg) => seg !== "")
-    .every((seg) =>
-      seg.startsWith(":")
-        ? /\/(?:\$\{[^}]*\}|[A-Za-z0-9_.-]+)/.test(e2eSource)
-        : hasPath(seg),
-    );
+  const segments = route.suffix.split("/").filter((seg) => seg !== "");
+  if (segments.length === 0) return true;
+  const chain = segments
+    .map((seg) => "/" + (seg.startsWith(":") ? DYNAMIC : esc(seg)))
+    .join("");
+  const anchor = segments[0].startsWith(":")
+    ? ""
+    : "(?:" + esc(route.prefix) + "|" + FRESH + ")";
+  return new RegExp(anchor + chain + BOUNDARY).test(e2eSource);
 }
 
 /** 순수 함수 3/3 — 어느 e2e 소스에도 걸리지 않는 route label 집합(정렬). */
@@ -126,25 +145,38 @@ describe("전 route e2e 왕복 커버리지 census drift (PLAN 166 행 · T-1985
     });
   });
 
-  describe("Flow — 매칭기 분기 cover (합성 입력)", () => {
-    // 합성 route 레코드 — 매칭기가 쓰는 축(`prefix`/`suffix`/`label`)만 의미가 있고,
-    // guard 축(`method`/`guarded`)은 helper 레코드 형태를 맞추기 위한 고정값이다.
-    const ROUTE = (prefix: string, suffix: string): RouteRecord => {
-      const fullPath = `/${[prefix, suffix].filter((x) => x !== "").join("/")}`;
-      return {
-        method: "GET",
-        prefix,
-        suffix,
-        fullPath,
-        label: `GET ${fullPath}`,
-        guarded: false,
-      };
+  // 합성 route 레코드 — 매칭기가 쓰는 축(`prefix`/`suffix`/`label`)만 의미가 있고,
+  // guard 축(`method`/`guarded`)은 helper 레코드 형태를 맞추기 위한 고정값이다.
+  const ROUTE = (prefix: string, suffix: string): RouteRecord => {
+    const fullPath = `/${[prefix, suffix].filter((x) => x !== "").join("/")}`;
+    return {
+      method: "GET",
+      prefix,
+      suffix,
+      fullPath,
+      label: `GET ${fullPath}`,
+      guarded: false,
     };
-    it("(a) 동적 segment `:id` 는 템플릿 치환과 실 문자열 양쪽에 매칭", () => {
+  };
+
+  describe("Flow — 매칭기 분기 cover (합성 입력)", () => {
+    it("(a) 동적 segment 는 chain 안 제 위치에서 템플릿 치환 · 실 문자열 · 2 개 이상 모두 매칭", () => {
       const route = ROUTE("api/z", ":id/status");
       const tmpl = 'const BASE = "/api/z";\nget(`${BASE}/${id}/status`)';
       expect(isCoveredBy(route, tmpl)).toBe(true);
       expect(isCoveredBy(route, 'get("/api/z/abc-123/status")')).toBe(true);
+      // 동적 segment 2 개 — `:personId` · `:identityId` 가 각자 자리에 치환된 실제 표기.
+      const multi = ROUTE("api/persons", ":personId/identities/:identityId");
+      const base = 'const B = "/api/persons";\n';
+      expect(
+        isCoveredBy(
+          multi,
+          `${base}del(\`\${B}/\${personId}/identities/\${id}\`)`,
+        ),
+      ).toBe(true);
+      expect(
+        isCoveredBy(multi, `${base}del("/api/persons/p-1/identities/i-2")`),
+      ).toBe(true);
     });
     it("(b) suffix 가 빈 문자열(`@Get()`) 이면 prefix 만으로 커버 판정", () => {
       const [route] = censusRoutes(
@@ -153,15 +185,57 @@ describe("전 route e2e 왕복 커버리지 census drift (PLAN 166 행 · T-1985
       expect(route.label).toBe("GET /api/z");
       expect(isCoveredBy(route, 'request(server).get("/api/z")')).toBe(true);
     });
-    it("(c) prefix 는 있으나 suffix 가 없는 e2e 는 미커버로 남는다", () => {
-      const route = ROUTE("api/z", "detail");
-      expect(isCoveredBy(route, 'get("/api/z")')).toBe(false);
-      expect(isCoveredBy(route, 'get("/api/other/detail")')).toBe(false);
+    it("(c) 정적 다중 segment 는 인접할 때만 커버 — 빈 소스는 throw 없이 false", () => {
+      const route = ROUTE("api/z", "detail/view");
+      expect(isCoveredBy(route, 'get("/api/z/detail/view")')).toBe(true);
+      // 두 segment 가 흩어져 있으면 인접 chain 이 성립하지 않는다.
+      expect(
+        isCoveredBy(route, 'get("/api/z/detail")\nget("/api/z/view")'),
+      ).toBe(false);
+      // prefix 만 있고 suffix 조각이 아예 없는 e2e 도 미커버로 남는다.
+      expect(isCoveredBy(ROUTE("api/z", "detail"), 'get("/api/z")')).toBe(
+        false,
+      );
+      expect(isCoveredBy(route, "")).toBe(false);
     });
     it("(d) 접두 충돌 방지 — `/running` 이 `/running-xyz` 를 커버로 오판하지 않음", () => {
       const route = ROUTE("api/z", "running");
       expect(isCoveredBy(route, 'get("/api/z/running-xyz")')).toBe(false);
       expect(isCoveredBy(route, 'get("/api/z/running")')).toBe(true);
+    });
+  });
+
+  describe("Negative — 정밀화가 새로 잡는 거짓 커버 (T-1988)", () => {
+    // 넷 다 정밀화 **전** 로직에서는 커버로 세지던 입력이다 — 인접성 · 위치 고정이
+    // 없으면 prefix 존재 + 파일 어딘가의 조각만으로 true 가 됐다.
+    const FALSE_COVER: readonly {
+      case: string;
+      route: RouteRecord;
+      source: string;
+    }[] = [
+      {
+        case: "(1) prefix 와 suffix 가 같은 파일 다른 지점에 흩어진 경우",
+        route: ROUTE("api/z", "detail"),
+        source: 'get("/api/z")\nget("/api/other/detail")',
+      },
+      {
+        case: "(2) 무관한 `/${otherId}` 만 있고 `/…/status` 인접 조합이 없는 경우",
+        route: ROUTE("api/z", ":id/status"),
+        source: 'get("/api/z")\nget(`/api/other/${otherId}`)',
+      },
+      {
+        case: "(3) segment 순서가 뒤집힌 표기(`/status/${id}`)",
+        route: ROUTE("api/z", ":id/status"),
+        source: 'const BASE = "/api/z";\nget(`${BASE}/status/${id}`)',
+      },
+      {
+        case: "(4) chain 이 도중에 끊긴 부분 일치(`/${id}` 만 있고 `/status` 없음)",
+        route: ROUTE("api/z", ":id/status"),
+        source: 'const BASE = "/api/z";\nget(`${BASE}/${id}`)',
+      },
+    ];
+    it.each(FALSE_COVER)("$case 는 커버로 세지 않는다", ({ route, source }) => {
+      expect(isCoveredBy(route, source)).toBe(false);
     });
   });
 
