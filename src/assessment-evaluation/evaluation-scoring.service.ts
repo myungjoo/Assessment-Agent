@@ -27,6 +27,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { LLM_GATEWAY, LlmGateway } from "../llm/llm-gateway.interface";
 
 import type { EvaluationInput } from "./domain/evaluation-input";
+import { resolveInputDifficulty } from "./domain/evaluation-input-difficulty";
 import {
   buildEvaluationPrompt,
   classifyNarrative,
@@ -46,6 +47,11 @@ import { calculateEvaluationVolume } from "./domain/evaluation-volume";
 export interface ScoringOptions {
   // 사용할 LLM model 식별자 — gateway 의 `LlmGenerateOptions.modelId` 로 그대로 전달.
   modelId: string;
+  // 사전 난이도 routing opt-in — **기본값 OFF**(미지정 = 종전 modelId 단일 경로 그대로).
+  // true 일 때만 `resolveInputDifficulty(input)` 결과가 generate 옵션의 `difficulty` 로
+  // 실린다(ADR-0065 § Decision 3 — 슬롯 미설정 환경의 전량 4xx 회귀를 opt-in 으로 차단.
+  // ON 경로의 fail-fast 4xx 는 가리지 않고 전파 — silent fallback 금지).
+  useInputDifficultyRouting?: boolean;
 }
 
 @Injectable()
@@ -69,11 +75,12 @@ export class EvaluationScoringService {
    *   5. `unitId`(= input.unitId 그대로 전사) + narrative + difficulty +
    *      contribution + volume 5 필드를 `EvaluationResult` 로 조립 반환.
    *
-   * difficulty 주입 정책(ADR-0032 §2 박제): 난이도는 narrative 의 **산물**이므로
-   * (분류는 generate 후에야 가능) generate 호출 전에는 알 수 없다. 따라서 본 slice 는
-   * `options.difficulty` 를 **미주입**한다(undefined) — gateway 는 modelId 를 config
-   * id 로 직접 사용하는 경로로 동작한다(R-97 active routing 은 사전 난이도가 확정되는
-   * 별도 후속 slice 책임). 분류된 difficulty 는 호출로 되먹이지 않고 결과에만 기록한다.
+   * difficulty 주입 정책(ADR-0065 § Decision 2·3): 사후 분류 난이도는 narrative 의
+   * **산물**이라 generate 호출 전에 알 수 없으므로, 호출에 얹는 값은 `metadata` 기반
+   * 결정적 순수 함수 `resolveInputDifficulty(input)` 의 **사전(routing 용) 난이도**다.
+   * 이 주입은 `options.useInputDifficultyRouting === true` 일 때만 일어나며, 기본 OFF
+   * 경로는 종전과 정확히 동일하게 `{ modelId }` 만 넘긴다(슬롯 미설정 4xx 회귀 0).
+   * 사전 난이도는 routing 전용 신호이며 결과 필드로 새지 않는다(§ Decision 2 (ii)).
    *
    * error 정책: gateway.generate 가 reject(network / timeout / non-2xx / config 부재
    * 등)하면 본 service 는 그 error 를 **swallow 하지 않고 그대로 전파(throw)** 한다
@@ -94,11 +101,17 @@ export class EvaluationScoringService {
     // (1) prompt 조립 — 순수 함수, raw 본문 0.
     const prompt = buildEvaluationPrompt(input);
 
-    // (2) gateway 호출 1 회 — difficulty 미주입(narrative 산물이라 사전 미상).
-    //     reject 는 전파(swallow 0).
-    const { narrative } = await this.gateway.generate(prompt, {
-      modelId: options.modelId,
-    });
+    // (2) gateway 호출 1 회 — opt-in ON 일 때만 사전 난이도를 얹는다(ADR-0065
+    //     § Decision 3). OFF / 미지정이면 인자는 종전과 정확히 동일한 `{ modelId }`
+    //     단일 키다. 어느 경로든 호출 횟수는 1 회. reject 는 전파(swallow 0).
+    const generateOptions =
+      options.useInputDifficultyRouting === true
+        ? {
+            modelId: options.modelId,
+            difficulty: resolveInputDifficulty(input),
+          }
+        : { modelId: options.modelId };
+    const { narrative } = await this.gateway.generate(prompt, generateOptions);
 
     // (3) narrative 분류 — marker 부재 / 미인식 값은 순수 함수가 default 로 환원(throw 0).
     const { difficulty, contribution } = classifyNarrative(narrative);
