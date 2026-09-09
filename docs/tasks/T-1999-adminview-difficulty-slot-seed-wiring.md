@@ -2,7 +2,7 @@
 id: T-1999
 title: Wire difficulty slot seed endpoint into AdminView (POST /api/llm/difficulty-mappings/seed consumer)
 phase: P6
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-050, REQ-049]
 estimatedDiff: 285
