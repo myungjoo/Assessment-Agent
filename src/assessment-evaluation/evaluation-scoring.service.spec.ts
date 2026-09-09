@@ -8,6 +8,7 @@
 import { LlmGateway, LlmProvider } from "../llm/llm-gateway.interface";
 
 import type { EvaluationInput } from "./domain/evaluation-input";
+import { resolveInputDifficulty } from "./domain/evaluation-input-difficulty";
 import { buildEvaluationPrompt } from "./domain/evaluation-prompt";
 import { calculateEvaluationVolume } from "./domain/evaluation-volume";
 import {
@@ -127,7 +128,7 @@ describe("EvaluationScoringService", () => {
       expect(promptArg).toBe(buildEvaluationPrompt(input));
     });
 
-    it("options.modelId 가 전달되고 difficulty 는 미주입(narrative 산물이라 사전 미상)", async () => {
+    it("options.modelId 가 전달되고 opt-in 미지정(OFF 기본)이면 difficulty 미주입", async () => {
       const gateway = makeGateway();
       gateway.generate.mockResolvedValueOnce(
         generateResult("difficulty: hard, contribution: high"),
@@ -261,6 +262,71 @@ describe("EvaluationScoringService", () => {
 
       expect(result.contribution).toBe("high");
       expect(result.unitId).toBe(input.unitId);
+    });
+  });
+
+  describe("사전 난이도 routing opt-in 배선(ADR-0065 § Decision 2·3)", () => {
+    const ON: ScoringOptions = { ...OPTIONS, useInputDifficultyRouting: true };
+    // 사전 규칙상 hard 로 산출되는 입력(code + 긴 title) — 사후 분류와 대비된다.
+    const hardInput = codeInput({ metadata: { titleLength: 120 } });
+
+    it("happy-path — opt-in ON 이면 generate 옵션에 resolveInputDifficulty 값이 실린다", async () => {
+      const gateway = makeGateway();
+      gateway.generate.mockResolvedValueOnce(
+        generateResult("difficulty: easy, contribution: low"),
+      );
+
+      await makeService(gateway).scoreUnit(hardInput, ON);
+
+      const [, optionsArg] = gateway.generate.mock.calls[0];
+      expect(optionsArg).toEqual({
+        modelId: OPTIONS.modelId,
+        difficulty: resolveInputDifficulty(hardInput),
+      });
+      expect(optionsArg.difficulty).toBe("hard");
+      // 주입 여부와 무관하게 호출은 정확히 1 회(ADR-0032 48 행 batch 경계).
+      expect(gateway.generate).toHaveBeenCalledTimes(1);
+    });
+
+    it("분기 — opt-in false 면 difficulty 키 자체가 없다(종전 인자와 정확히 동일)", async () => {
+      const gateway = makeGateway();
+      gateway.generate.mockResolvedValueOnce(
+        generateResult("difficulty: hard, contribution: high"),
+      );
+
+      await makeService(gateway).scoreUnit(hardInput, {
+        ...OPTIONS,
+        useInputDifficultyRouting: false,
+      });
+
+      const [, optionsArg] = gateway.generate.mock.calls[0];
+      expect(optionsArg).toEqual({ modelId: OPTIONS.modelId });
+      expect("difficulty" in optionsArg).toBe(false);
+      expect(gateway.generate).toHaveBeenCalledTimes(1);
+    });
+
+    it("error path — opt-in ON 에서 generate reject(4xx) 는 swallow 없이 전파된다", async () => {
+      const gateway = makeGateway();
+      const badRequest = new Error("난이도 슬롯(hard) 매핑 config 가 없습니다");
+      gateway.generate.mockRejectedValueOnce(badRequest);
+
+      await expect(
+        makeService(gateway).scoreUnit(hardInput, ON),
+      ).rejects.toThrow(badRequest);
+      expect(gateway.generate).toHaveBeenCalledTimes(1);
+    });
+
+    it("negative — opt-in ON 이어도 결과 difficulty 는 사후 classifyNarrative 값이다", async () => {
+      const gateway = makeGateway();
+      gateway.generate.mockResolvedValueOnce(
+        generateResult("difficulty: easy, contribution: low"),
+      );
+      expect(resolveInputDifficulty(hardInput)).toBe("hard");
+
+      const result = await makeService(gateway).scoreUnit(hardInput, ON);
+
+      // 사전 난이도(hard)로 덮이지 않고 narrative 의 easy 가 기록된다.
+      expect(result.difficulty).toBe("easy");
     });
   });
 
