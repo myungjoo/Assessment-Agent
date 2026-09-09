@@ -2,7 +2,7 @@
 id: T-1998
 title: Add idempotent difficulty slot seed endpoint (POST /api/llm/difficulty-mappings/seed)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-050, REQ-049]
 estimatedDiff: 360
