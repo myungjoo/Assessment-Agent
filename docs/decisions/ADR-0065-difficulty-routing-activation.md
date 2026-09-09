@@ -25,7 +25,7 @@ augments: [ADR-0011, ADR-0032]
 
 1. **결정 규칙 부재** — "어떤 항목이 어떤 난이도인지" 를 정하는 규칙이 코드에도 ADR 에도 없다. `git grep -l "항목→난이도" -- docs/decisions/` 결과 0 파일.
 2. **주입 0** — [evaluation-scoring.service.ts](../../src/assessment-evaluation/evaluation-scoring.service.ts) `97~101 행` 의 유일한 평가 `generate` 호출은 `modelId` 만 넘기며, 바로 위 주석이 `difficulty 미주입(narrative 산물이라 사전 미상)` 이라고 스스로 자인한다. 난이도는 그 **뒤** `104 행` `classifyNarrative(narrative)` 에서야 얻어진다 — 즉 호출 시점에는 미상이다.
-3. **요약 경로도 동일** — [summary-narrative.service.ts](../../src/assessment-evaluation/summary-narrative.service.ts) `104~108 행` 주석 역시 `difficulty 미주입(좌표 요약이라 사전 난이도 routing` + `대상 아님)` 으로 같은 사실을 자인한다.
+3. **요약 경로도 동일** — [summary-narrative.service.ts](../../src/assessment-evaluation/summary-narrative.service.ts) `104~108 행` 주석 역시 같은 사실을 자인한다 — `difficulty 미주입` 뒤에 "좌표 요약이라 사전 난이도 routing 대상 아님" 이라는 사유가 붙어 있다.
 4. **기능은 지어졌고 스위치가 꺼져 있다** — [llm-http-gateway.service.ts](../../src/llm/llm-http-gateway.service.ts) `100~120 행` 은 `options.difficulty === undefined` 면 `options.modelId` 를, 아니면 `DifficultyMappingService.resolveModel(options.difficulty)` 의 `configId` 를 쓰는 분기를 이미 갖는다. production 은 전자만 밟는다. 결과적으로 Admin 이 easy / medium / hard 3 슬롯을 지정해도 평가는 항상 단일 `modelId` 로 나간다.
 5. **계약 문서와 실측의 drift** — [ADR-0032](ADR-0032-p5-evaluation-contract.md) `56 행` 은 "이 값이 generate 호출 전 `options.difficulty` 로 주입" 된다고 단언하지만 2~4 와 어긋난다. 그 문장은 **의도 서술** 이며 실 발화 설계의 정본은 본 ADR 이다(원문은 삭제하지 않고 pointer 만 add-only 로 붙인다).
 
