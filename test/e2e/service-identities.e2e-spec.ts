@@ -119,9 +119,12 @@ const endpointFor = (personId: string): string =>
 const identityEndpointFor = (personId: string, identityId: string): string =>
   `${endpointFor(personId)}/${identityId}`;
 
-// primary 지정 action path builder — 단일 identity path 에 `/primary` 만 덧붙인다 (T-1756).
+// primary 지정 action path builder — 산출 문자열은 `identityEndpointFor` 중첩과 동일하되,
+// `/:identityId/primary` 조각이 소스에 그대로 드러나도록 인라인한다. e2e 커버리지 census
+// (test/smoke/route-e2e-coverage-census-drift.smoke-spec.ts) 가 이 실 경로 등장을 근거로
+// 삼으므로, 중첩 builder 로 되돌리면 주석 우연 매치에 기대는 취약한 계약이 된다 (T-1992).
 const primaryEndpointFor = (personId: string, identityId: string): string =>
-  `${identityEndpointFor(personId, identityId)}/primary`;
+  `${endpointFor(personId)}/${identityId}/primary`;
 
 // actor email — afterEach truncate + re-seed 로 격리되므로 충돌 0.
 const ADMIN_EMAIL = "si-admin-actor@e2e.test";
