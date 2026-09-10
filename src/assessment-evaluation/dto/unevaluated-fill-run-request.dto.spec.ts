@@ -15,6 +15,10 @@
 //   - negative: DTO 단독 validate() 는 whitelist 옵션이 없으므로 unknown 필드(임의 필드 +
 //     제거된 defaultModelId 포함)를 무시한다(forbidNonWhitelisted 거부는 controller-scope
 //     pipe 책임 — controller spec 검증) 2+.
+//
+// T-2011 로 선택 boolean `useInputDifficultyRouting`(ADR-0066 § Decision 1) 축이 더해져
+// DTO 는 3 축이 됐다 — 파일 끝 군이 3 갈래(true / false / 미지정) + 비-boolean / null /
+// 오타 필드명 negative 를 cover 한다.
 import "reflect-metadata";
 
 import { plainToInstance } from "class-transformer";
@@ -176,5 +180,69 @@ describe("UnevaluatedFillRunRequestDto (class-validator 형식 검증)", () => {
     );
     expect(emptyErrors).toHaveLength(0);
     expect(numberErrors).toHaveLength(0);
+  });
+
+  // --------------------------------------------------------------------------
+  // useInputDifficultyRouting (T-2011 / ADR-0066 § Decision 1·3) — 선택 boolean
+  // 스위치. EvaluateActivitiesDto 의 동형 군(evaluate-activities.dto.spec.ts
+  // 128~196 행) mirror: 3 갈래(true / false / 미지정) + 비-boolean negative 전수.
+  // --------------------------------------------------------------------------
+  it("useInputDifficultyRouting=true 면 error 0 (happy — 스위치 ON)", async () => {
+    const errors = await validatePayload(
+      makeValidPayload({ useInputDifficultyRouting: true }),
+    );
+    expect(errors).toHaveLength(0);
+  });
+
+  it("useInputDifficultyRouting=false 도 error 0 (branch — 명시 OFF)", async () => {
+    const errors = await validatePayload(
+      makeValidPayload({ useInputDifficultyRouting: false }),
+    );
+    expect(errors).toHaveLength(0);
+  });
+
+  it("useInputDifficultyRouting 미지정도 error 0 이고 undefined 로 남는다 (branch — @IsOptional 미지정 = OFF)", async () => {
+    const payload = makeValidPayload();
+    const errors = await validatePayload(payload);
+    expect(errors).toHaveLength(0);
+    // 미지정은 undefined 로 남는다 — coercion 으로 false/true 가 주입되지 않는다.
+    const dto = plainToInstance(UnevaluatedFillRunRequestDto, payload);
+    expect(dto.useInputDifficultyRouting).toBeUndefined();
+  });
+
+  it.each([
+    ['문자열 "true"', "true"],
+    ["숫자 1", 1],
+    ["객체", { on: true }],
+  ])(
+    "useInputDifficultyRouting 가 %s 면 isBoolean 위반 (negative — coercion 미부여, ADR-0066 § Decision 3)",
+    async (_label, value) => {
+      const errors = await validatePayload(
+        makeValidPayload({ useInputDifficultyRouting: value }),
+      );
+      const target = errors.find(
+        (e) => e.property === "useInputDifficultyRouting",
+      );
+      expect(Object.keys(target?.constraints ?? {})).toContain("isBoolean");
+    },
+  );
+
+  it("useInputDifficultyRouting 가 null 이면 @IsOptional 이 미지정과 동일하게 흡수한다 (negative — 안전 degrade, ON 아님)", async () => {
+    const payload = makeValidPayload({ useInputDifficultyRouting: null });
+    const errors = await validatePayload(payload);
+    expect(errors).toHaveLength(0);
+
+    // 켜지지 않는다 — helper 의 `=== true` 엄격 비교 기준으로 OFF.
+    const dto = plainToInstance(UnevaluatedFillRunRequestDto, payload);
+    expect(dto.useInputDifficultyRouting === true).toBe(false);
+  });
+
+  it("오타 필드명(useInputDifficultyRoutingg)은 DTO 단독 validate() 가 무시한다(error 0) — forbidNonWhitelisted 거부는 controller-scope pipe 책임 (negative — 오타로 켜지지 않음)", async () => {
+    const payload = makeValidPayload({ useInputDifficultyRoutingg: true });
+    const errors = await validatePayload(payload);
+    expect(errors).toHaveLength(0);
+    // 오타는 정의된 필드에 실리지 않으므로 스위치는 undefined 로 남는다(ON 0).
+    const dto = plainToInstance(UnevaluatedFillRunRequestDto, payload);
+    expect(dto.useInputDifficultyRouting).toBeUndefined();
   });
 });

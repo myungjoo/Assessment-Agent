@@ -99,6 +99,11 @@ export class UnevaluatedFillRunOrchestratorService {
    *   유효 non-empty 면 우선 채택, 빈 값이면 `defaultModelId` 로 fallback.
    * @param defaultModelId default modelId(string). request 가 비어있을 때 fallback 대상.
    *   request 도 비어있고 default 도 무효면 core 의 한국어 `TypeError` 전파.
+   * @param useInputDifficultyRouting 사전 난이도 routing opt-in 스위치(**선택** — 기존
+   *   3 인자 호출자는 무수정). 해석 · 정규화 없이 core 의 6 번째 인자로 **그대로 전사**
+   *   하며(ADR-0066 § Decision 2 fill-run 행), `=== true` 판정은 `buildFillRunScoringOptions`
+   *   단독 책임이라 본 service 는 이중 게이트를 두지 않는다. 미지정 / `false` / 비-boolean
+   *   은 throw 없이 OFF 로 환원돼 options 가 `{ modelId }` 단일 키로 남는다.
    * @returns `UnevaluatedFillRunResult` — dedup 된 좌표 순서·길이 일치 outcome + status 별
    *   집계(core/batch 가 만든 새 객체).
    * @throws {TypeError} options 도출 / dedup 입력 형식 위반 시(core 가 전파, 본 service 는
@@ -108,6 +113,7 @@ export class UnevaluatedFillRunOrchestratorService {
     rawBridges: PeriodBridgeDto[],
     requestModelId: string | undefined | null,
     defaultModelId: string,
+    useInputDifficultyRouting?: boolean | null,
   ): Promise<UnevaluatedFillRunResult> {
     // (a) person lookup adapter 조립 → resolver 화해. PersonService 의 NotFoundException(부재
     // 404 분기)을 null 로 변환해 buildResolvePersonFn 의 null-row 기대와 contract 를 맞춘다.
@@ -133,12 +139,15 @@ export class UnevaluatedFillRunOrchestratorService {
 
     // (c) core 1 회 위임 — dedup → options 도출 → 좌표 순차 순회 + 집계는 전부 core 책임.
     // core 의 fail-fast TypeError(options 무효 / rawBridges non-array)는 흡수하지 않고 전파.
+    // 스위치는 해석 없이 6 번째 인자로 그대로 전사한다 — `=== true` 판정 · OFF 환원은
+    // buildFillRunScoringOptions 단독 책임이라 여기서 정규화하면 이중 게이트가 된다.
     return runUnevaluatedFillRunCore(
       rawBridges,
       resolvePerson,
       persist,
       requestModelId,
       defaultModelId,
+      useInputDifficultyRouting,
     );
   }
 }
