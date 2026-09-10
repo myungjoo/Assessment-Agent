@@ -1,7 +1,8 @@
 // UnevaluatedFillRunRequestDto — P5 bullet 106(R-64 / REQ-037 "평가 없는 부분 일괄
 // 평가" / REQ-038) Q-0045 옵션1 run-side 사슬의 HTTP request body 검증 DTO. request body
-// 는 rawBridges / modelId 2 축만 보유한다 — rawBridges(필수 nested 배열) + modelId(선택
-// override) — 을 HTTP boundary 에서 **형식만** 검증한다(POST /api/assessment-evaluation/
+// 는 rawBridges / modelId / useInputDifficultyRouting 3 축을 보유한다 — rawBridges(필수
+// nested 배열) + modelId(선택 override) + 사전 난이도 routing 스위치(선택 boolean,
+// ADR-0066 § Decision 1·2) — 을 HTTP boundary 에서 **형식만** 검증한다(POST /api/assessment-evaluation/
 // unevaluated-fill-run). default modelId 는 request body 가 아니라 server-side resolver
 // (`LlmProviderConfigResolver`)가 LlmProviderConfig DB row 에서 단일 해석한다(ADR-0048
 // §Decision 1·3 — caller 가 default 를 매 호출마다 넘기는 구조 제거). controller 가
@@ -43,6 +44,7 @@
 import { Type } from "class-transformer";
 import {
   IsArray,
+  IsBoolean,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -77,4 +79,25 @@ export class UnevaluatedFillRunRequestDto {
   @IsString()
   @IsNotEmpty()
   modelId?: string;
+
+  // useInputDifficultyRouting — 사전 난이도 routing opt-in 스위치(ADR-0066 § Decision 1).
+  // 필드명은 `ScoringOptions.useInputDifficultyRouting`(evaluation-scoring.service.ts
+  // 54 행) · `EvaluateActivitiesDto`(199 행) 와 문자 단위로 동일하다 — controller 가
+  // orchestrator `run` 의 4 번째 인자로 전사 1 줄만 하면 되도록 오배선 여지를 없앤다.
+  //
+  // 기본 OFF 가 구조적으로 보존된다(ADR-0066 § Decision 3): 필드를 보내지 않는 기존
+  // client 는 undefined 로 남고, 그 값은 orchestrator → core → `buildFillRunScoringOptions`
+  // 로 해석 없이 pass-through 돼 `=== true` 엄격 비교에서 false 가 되므로 도출된
+  // `ScoringOptions` 는 종전과 문자 단위로 같은 `{ modelId }` 단일 키다.
+  //
+  // 형식 검증은 @IsOptional + @IsBoolean 만 — **coercion decorator 를 붙이지 않는다**.
+  // `@Type(() => Boolean)` 류를 얹으면 문자열 "false" 같은 임의 값이 true 로 접혀 오타 한
+  // 글자가 조용히 운영 발화를 켜므로 ADR-0066 § Decision 3 이 명시 기각했다. 따라서 문자열
+  // "true" · 숫자 1 · 객체/배열은 controller-scope ValidationPipe 가 400 으로 거부하고,
+  // 오타 필드명은 같은 pipe 의 forbidNonWhitelisted 가 400 으로 거부한다. 단 `null` 은
+  // @IsOptional 이 미지정과 동일하게 흡수하며(EvaluateActivitiesDto 선례 동형), `=== true`
+  // 게이트에서 false 로 남으므로 "의도치 않은 ON 없음" 불변식은 그대로 성립한다.
+  @IsOptional()
+  @IsBoolean()
+  useInputDifficultyRouting?: boolean;
 }

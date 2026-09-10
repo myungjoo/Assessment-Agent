@@ -351,4 +351,133 @@ describe("UnevaluatedFillRunOrchestratorService", () => {
       expect(generateAndPersist).toHaveBeenCalledTimes(2);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // T-2011 — 사전 난이도 routing 스위치(ADR-0066 § Decision 2 fill-run 행) 4 번째 인자.
+  // orchestrator 는 해석 없이 core 6 번째 인자로 전사만 하므로, 관측점은 batch 가
+  // generateAndPersist 에 넘긴 3 번째 인자(options)다.
+  // ---------------------------------------------------------------------------
+  describe("사전 난이도 routing 스위치 전사(ADR-0066 § Decision 2)", () => {
+    // optionsOfFirstCall — generateAndPersist 첫 호출이 받은 ScoringOptions.
+    function optionsOfFirstCall(generateAndPersist: jest.Mock) {
+      return generateAndPersist.mock.calls[0][2] as Record<string, unknown>;
+    }
+
+    it("run 의 4 번째 인자 true 가 core → batch 가 받은 ScoringOptions 에 실린다 (happy — 스위치 ON 전사)", async () => {
+      const findByIdWithIdentities = jest.fn().mockResolvedValue(personRow());
+      const generateAndPersist = jest.fn().mockResolvedValue(persistResult());
+      const service = await buildService({
+        findByIdWithIdentities,
+        generateAndPersist,
+      });
+
+      await service.run([bridge()], undefined, DEFAULT_MODEL, true);
+
+      expect(optionsOfFirstCall(generateAndPersist)).toEqual({
+        modelId: DEFAULT_MODEL,
+        useInputDifficultyRouting: true,
+      });
+    });
+
+    it("4 번째 인자 false 면 options 에 스위치 키가 부재한다 (branch — 명시 OFF, 반환 shape 무변경)", async () => {
+      const findByIdWithIdentities = jest.fn().mockResolvedValue(personRow());
+      const generateAndPersist = jest.fn().mockResolvedValue(persistResult());
+      const service = await buildService({
+        findByIdWithIdentities,
+        generateAndPersist,
+      });
+
+      await service.run([bridge()], undefined, DEFAULT_MODEL, false);
+
+      const options = optionsOfFirstCall(generateAndPersist);
+      expect("useInputDifficultyRouting" in options).toBe(false);
+      expect(options).toEqual({ modelId: DEFAULT_MODEL });
+    });
+
+    it("4 번째 인자 미지정(기존 3 인자 호출)이면 options 가 { modelId } 단일 키로 남는다 (branch — 미지정 = OFF, 기존 호출자 무수정)", async () => {
+      const findByIdWithIdentities = jest.fn().mockResolvedValue(personRow());
+      const generateAndPersist = jest.fn().mockResolvedValue(persistResult());
+      const service = await buildService({
+        findByIdWithIdentities,
+        generateAndPersist,
+      });
+
+      await service.run([bridge()], undefined, DEFAULT_MODEL);
+
+      const options = optionsOfFirstCall(generateAndPersist);
+      expect("useInputDifficultyRouting" in options).toBe(false);
+      expect(options).toEqual({ modelId: DEFAULT_MODEL });
+    });
+
+    it("스위치 ON 이어도 request·default modelId 가 모두 빈 값이면 한국어 TypeError 가 흡수 없이 전파된다 (error — 스위치가 modelId fail-fast 를 우회하지 못함)", async () => {
+      const findByIdWithIdentities = jest.fn().mockResolvedValue(personRow());
+      const generateAndPersist = jest.fn().mockResolvedValue(persistResult());
+      const service = await buildService({
+        findByIdWithIdentities,
+        generateAndPersist,
+      });
+
+      await expect(service.run([bridge()], "  ", "", true)).rejects.toThrow(
+        /modelId/,
+      );
+      await expect(service.run([bridge()], "  ", "", true)).rejects.toThrow(
+        TypeError,
+      );
+      expect(generateAndPersist).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['문자열 "true"', "true"],
+      ["숫자 1", 1],
+      ["null", null],
+    ])(
+      "비-boolean(%s)을 넘겨도 throw 없이 OFF 로 환원돼 options 에 스위치 키가 부재한다 (negative — 서비스 경계 안전 degrade, ADR-0066 § Decision 3)",
+      async (_label, value) => {
+        const findByIdWithIdentities = jest.fn().mockResolvedValue(personRow());
+        const generateAndPersist = jest.fn().mockResolvedValue(persistResult());
+        const service = await buildService({
+          findByIdWithIdentities,
+          generateAndPersist,
+        });
+
+        const result = await service.run(
+          [bridge()],
+          undefined,
+          DEFAULT_MODEL,
+          value as unknown as boolean | null,
+        );
+
+        // throw 0 · 정상 evaluated · 스위치 키 부재(의도치 않은 ON 없음).
+        expect(result.evaluatedCount).toBe(1);
+        const options = optionsOfFirstCall(generateAndPersist);
+        expect("useInputDifficultyRouting" in options).toBe(false);
+      },
+    );
+
+    it("스위치 ON 이어도 modelId 채택(request 우선 / default fallback)은 종전과 동일하다 (branch — 축 독립성)", async () => {
+      const findByIdWithIdentities = jest.fn().mockResolvedValue(personRow());
+      const requestPersist = jest.fn().mockResolvedValue(persistResult());
+      const requestService = await buildService({
+        findByIdWithIdentities,
+        generateAndPersist: requestPersist,
+      });
+      await requestService.run(
+        [bridge()],
+        "request-model",
+        DEFAULT_MODEL,
+        true,
+      );
+
+      const fallbackPersist = jest.fn().mockResolvedValue(persistResult());
+      const fallbackService = await buildService({
+        findByIdWithIdentities,
+        generateAndPersist: fallbackPersist,
+      });
+      await fallbackService.run([bridge()], "   ", DEFAULT_MODEL, true);
+
+      // 스위치와 무관하게 request 우선 · 빈 request 는 default fallback.
+      expect(optionsOfFirstCall(requestPersist).modelId).toBe("request-model");
+      expect(optionsOfFirstCall(fallbackPersist).modelId).toBe(DEFAULT_MODEL);
+    });
+  });
 });
