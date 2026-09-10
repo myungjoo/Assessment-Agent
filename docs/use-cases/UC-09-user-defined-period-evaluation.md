@@ -39,7 +39,7 @@ sourceTask: T-1411
 
 1. 요청자는 **임의의 ISO instant** 를 `periodStart` 로 낼 수 있다.
 2. controller 277 ~ 287 행 `normalizeKstPeriodStart` 가 `parseKstPeriodInput` (offset 미명시 입력의 해석 zone — 요청 principal 의 timezone, 기본 KST) 와 `getKstPeriodRangeByPeriod` 를 합성해 그 instant 를 **요청 `period` granularity 의 canonical 경계로 snap** 한다. 따라서 같은 주 안의 서로 다른 두 입력은 같은 좌표로 수렴한다.
-3. downstream 으로 흘러가는 값은 `{ since: <snap 된 boundary>.toISOString() }` **하나뿐** 이다 (User 분기 430 ~ 443 행 · Admin 분기 474 ~ 501 행). 수집 spec 조립부 `src/assessment-collection/collection-spec.service.ts` 39 ~ 42 행 `buildCollectionSpec(person, since?)` 도 **시작만** 받는다 — **종료 경계 입력 필드는 계약 어디에도 없다** (§7.5 한계 (a)).
+3. downstream 으로 흘러가는 값은 `{ since: <snap 된 boundary>.toISOString() }` **하나뿐** 이다 (User 분기 430 ~ 443 행 · Admin 분기 474 ~ 501 행). 수집 spec 조립부 `src/assessment-collection/collection-spec.service.ts` 39 ~ 42 행 `buildCollectionSpec(person, since?)` 도 **시작만** 받는다 — **종료 경계 입력 필드는 계약 어디에도 없다** (§7.5 한계 (a)). **정정 (T-2016)** — T-1940 · T-1942 이후 downstream 값은 `{ since, until }` 짝이다. controller 549 · 620 행이 367 ~ 377 행 `normalizeKstPeriodRange` 의 `.end` (period granularity 로 도출된 반열림 상한) 를 `until` 로 넘기고, ephemeral 136 행 · admin-persist 179 행의 `filterActivitiesByPeriodWindow` 가 상한을 강제한다 (`buildCollectionSpec` 은 여전히 시작만 받는다).
 
 [UC-01](UC-01-evaluation-execution.md) §3 의 3 trigger (cron / Admin manual / 재수집) 는 모두 시스템이 기간을 도출하지만, 본 UC 는 **사람이 좌표를 지정** 한다 — 이것이 두 UC 의 분리 근거다.
 
@@ -114,9 +114,9 @@ step 수 16 (autonumber 기준 — [UC-07](UC-07-export-import.md) §5 103 행 �
 - **7.3 입력 형식 오류 / 대상 부재** — 5 키 형식 위반 · 정의 외 필드 (ValidationPipe `whitelist` + `forbidNonWhitelisted`) · 비-ISO `periodStart` 는 400, `personId` row 부재는 404.
 - **7.4 수집 / LLM / 영속 실패** — 수집 orchestrator 는 부분 가용성을 자체 흡수해 throw 0 이지만, LLM gateway reject 는 **swallow 없이 전파** 되고, Admin 분기의 영속 충돌 (재평가 경합 등) 은 Conflict 로 좁혀 변환된다. 빈 / malformed narrative 는 `classifyNarrative` 가 안전 default 로 환원해 throw 0.
 - **7.5 본 UC 의 한계 3 종 (정직성 박제)** — 아래 3 항목은 error 라기보다 **현 계약의 미충족 축** 이며, [requirements.md](../requirements.md) 23 행 REQ-004 row 가 이미 실측으로 박제한 사실이다.
-  1. **(a) 종료 경계 입력 부재** — 계약이 시작 (`since`) 만 받으므로 수집이 **open-ended** 다. "지정 기간" 의 끝을 요청자가 좁힐 수 없다.
-  2. **(b) 프런트 기간 지정 UI 부재** — `web/src` 전수에서 `assessment-evaluation` 참조가 **0** 이라 `POST /period` 를 호출하는 화면 경로 자체가 없다 ([REQ-038](../requirements.md) UI 축 미도달).
-  3. **(c) 좌표 종합 코멘트의 HTTP 진입점 0** — 구간 전체를 종합하는 `generateBatchNarrative` chain 은 실재하지만 controller 측 caller 가 **0** 이라, API 로 도달하는 것은 단위별 평가문뿐이다.
+  1. **(a) 종료 경계 입력 부재** — 계약이 시작 (`since`) 만 받으므로 수집이 **open-ended** 다. "지정 기간" 의 끝을 요청자가 좁힐 수 없다. — **해소 (T-2016 확인)** — T-1939 ~ T-1942 (PR #1521 ~ #1524): 상한은 `period` granularity 에서 도출돼 `until` 로 전달되고 in-memory 창 필터가 강제한다 (controller 549 · 620 행, ephemeral 136 행 · admin-persist 179 행). 종료 instant 직접 입력 필드는 여전히 없지만 README 178 행의 기간 정의 (일/주/월 + 시작 시점) 충족으로 분류한다 ([requirements.md](../requirements.md) 23 행).
+  2. **(b) 프런트 기간 지정 UI 부재** — `web/src` 전수에서 `assessment-evaluation` 참조가 **0** 이라 `POST /period` 를 호출하는 화면 경로 자체가 없다 ([REQ-038](../requirements.md) UI 축 미도달). — **해소 (T-2016 확인)** — REQ-077 T-1732 ~ T-1735: `web/src/components/DashboardPeriodSelector.tsx` 가 `web/src/views/DashboardView.tsx` 832 행에 마운트되고, `web/src/api/evaluationPeriod.ts` 17 행 `PERIOD_EVALUATION_PATH` 로 `POST /period` 를 호출한다.
+  3. **(c) 좌표 종합 코멘트의 HTTP 진입점 0** — 구간 전체를 종합하는 `generateBatchNarrative` chain 은 실재하지만 controller 측 caller 가 **0** 이라, API 로 도달하는 것은 단위별 평가문뿐이다. — **해소 (T-2016 확인)** — T-1937 (PR #1520): controller 903 ~ 906 행 `@Post("summary")` + `@Roles("Admin")` 가 좌표 종합 코멘트 chain 의 HTTP 진입점이다.
 
 ## 8. Postconditions
 
@@ -155,7 +155,7 @@ step 수 16 (autonumber 기준 — [UC-07](UC-07-export-import.md) §5 103 행 �
 | REQ-048 (인접) | 조회·시각화 3 초 이내 | §8 NFR — 본 UC 는 생성 경로라 대상 아님을 명시 |
 | REQ-049 (인접) | Admin 이 LLM 모델 지정 | §4 precondition 5 / §5 evaluateActivities step / §9 LlmModule |
 
-**본 UC 문서의 신설이 [REQ-004](../requirements.md) 의 구현 완료를 뜻하지 않는다** — §7.5 의 한계 3 종 (종료 경계 입력 부재 · 프런트 UI 부재 · 좌표 종합 코멘트 진입점 0) 이 그대로 남아 있으므로 [requirements.md](../requirements.md) 23 행의 REQ-004 status 는 `IN_PROGRESS` 로 유지된다 (본 slice 는 그 파일을 편집하지 않는다). 본 문서가 닫는 것은 **UC 문서 축** 하나뿐이다.
+**본 UC 문서의 신설이 [REQ-004](../requirements.md) 의 구현 완료를 뜻하지 않는다** — §7.5 의 한계 3 종 (종료 경계 입력 부재 · 프런트 UI 부재 · 좌표 종합 코멘트 진입점 0) 이 그대로 남아 있으므로 [requirements.md](../requirements.md) 23 행의 REQ-004 status 는 `IN_PROGRESS` 로 유지된다 (본 slice 는 그 파일을 편집하지 않는다). **후속 (T-2016)** — §7.5 한계 3 종이 모두 해소돼 REQ-004 status 는 T-2016 재판정으로 `DONE` 승격됐다 ([requirements.md](../requirements.md) 23 행 T-2016 재판정 문단). 본 문서가 닫는 것은 **UC 문서 축** 하나뿐이다.
 
 본 task 는 production code 0 LOC + 새 public symbol 0 이라 [CLAUDE.md](../../CLAUDE.md) §3.2 R-112 의 4 항목 (happy / error / branch / negative) 은 모두 N/A 다. 본 UC 가 서술하는 분기는 §5 의 role dispatch `alt` 2 개 + `opt` 영속 block, §6 의 5 alternative, §7 의 5 error flow 로 문서 축에서 cover 된다.
 

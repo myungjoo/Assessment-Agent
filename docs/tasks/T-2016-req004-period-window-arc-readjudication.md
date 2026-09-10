@@ -104,3 +104,6 @@ status 를 DONE 으로 올릴지는 **미리 정해 두지 않는다**. 아래 A
 ## Follow-ups
 
 (비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가한다.)
+
+- (a) **modules.md 의존성 그래프 edge 누락** — `src/assessment-evaluation/assessment-evaluation.module.ts` `36 행` 이 `AssessmentCollectionModule` 을 import 하지만(T-0316), mermaid 그래프에는 `assessmentEvaluation --> assessmentCollection` edge 가 없고 `41 행` AssessmentEvaluationModule 행 의존 컬럼도 `LlmModule` · `AuthModule` 만 적는다. 본 task 는 AC 대로 그래프 · Acyclic 절을 건드리지 않았다. 기존 ADR · architecture 문서의 비-결정 수정이라 direct 1 slice 로 처리한다.
+- (b) **stale 좌표 일괄 갱신** — REQ-004 셀의 wiring 축(controller `154` · `161` · `439` · `495` 행, `339 행` → `353` / `355 행`)과 수치 · LLM 코멘트 축(scoring `90~93` · `99~101` · `104` · `107 행`, summary `861~864 행`)은 현재 좌표와 어긋난다. UC-09 `21 행` §1 · `74` · `77` · `79 행` §5 sequence(`normalizeKstPeriodStart` · `{since}`) · `100 행` · `170 행` §11 도 arc 이전 좌표다. 본 task 는 AC 의 "새로 적는 좌표 근처만" 원칙을 지켜 일괄 갱신하지 않았다.
