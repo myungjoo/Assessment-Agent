@@ -23,6 +23,7 @@ import { Type } from "class-transformer";
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsIn,
   IsISO8601,
   IsNotEmpty,
@@ -172,4 +173,23 @@ export class EvaluateActivitiesDto {
   @IsNotEmpty()
   @IsIn(["fill", "reeval"])
   mode?: string;
+
+  // useInputDifficultyRouting — 사전 난이도 routing opt-in 스위치(ADR-0066 §Decision 1).
+  // 필드명은 `ScoringOptions.useInputDifficultyRouting`(evaluation-scoring.service.ts 54 행)
+  // 과 문자 단위로 동일하다 — controller 가 전사 1 줄로 넘겨 오배선 여지를 없앤다.
+  //
+  // 기본 OFF 가 구조적으로 보존된다(ADR-0066 §Decision 3): 필드를 보내지 않는 기존
+  // client 는 undefined 로 남고, service 의 `=== true` 엄격 비교(108 행)가 false 라
+  // generate 인자는 종전과 문자 단위로 같은 `{ modelId }` 단일 키다. 회귀는 "주의해서 0"
+  // 이 아니라 구조상 0.
+  //
+  // 형식 검증은 @IsOptional + @IsBoolean 만 — **coercion decorator 를 붙이지 않는다**.
+  // `@Type(() => Boolean)` 류를 얹으면 문자열 "false" · 숫자 0 같은 임의 truthy 가 true 로
+  // 접혀 오타 한 글자가 조용히 운영 발화를 켜므로 ADR-0066 §Decision 3 · §Alternatives 가
+  // 명시 기각했다. 따라서 문자열 "true" · 숫자 1 · null · 객체/배열은 controller-scope
+  // ValidationPipe(159~163 행)가 400 BadRequest 로 거부하고, 오타 필드명은 같은 pipe 의
+  // forbidNonWhitelisted 가 400 으로 거부한다(period-bridge.dto.ts 의 reevaluate 선례 mirror).
+  @IsOptional()
+  @IsBoolean()
+  useInputDifficultyRouting?: boolean;
 }

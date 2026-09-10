@@ -694,6 +694,88 @@ describe("AssessmentEvaluationController (unit — delegation + persist wiring)"
     );
   });
 
+  // --------------------------------------------------------------------------
+  // 사전 난이도 routing 스위치 전사(T-2009, ADR-0066 §Decision 2/3) — 스위치 값
+  // 3 갈래(true / false / 미지정)가 orchestrator 옵션으로 그대로 전사되는지 분리 검증.
+  // --------------------------------------------------------------------------
+
+  // happy — 스위치 ON 요청은 옵션 객체에 useInputDifficultyRouting: true 로 실린다.
+  it("useInputDifficultyRouting=true 요청은 orchestrator 옵션에 true 로 전사된다 (happy — 스위치 ON)", async () => {
+    const { controller, evaluateSpy } = makeController(async () => [
+      makeEvaluationResult(),
+    ]);
+
+    const dto = makeDto({ useInputDifficultyRouting: true });
+    await controller.evaluate(dto);
+
+    expect(evaluateSpy).toHaveBeenCalledTimes(1);
+    expect(evaluateSpy).toHaveBeenCalledWith(dto.activities, {
+      modelId: "gpt-4o-mini",
+      useInputDifficultyRouting: true,
+    });
+  });
+
+  // branch — 명시 false 는 false 그대로 전사(임의 승격 0).
+  it("useInputDifficultyRouting=false 요청은 옵션에 false 로 전사돼 OFF 가 유지된다 (branch — 명시 OFF)", async () => {
+    const { controller, evaluateSpy } = makeController(async () => [
+      makeEvaluationResult(),
+    ]);
+
+    await controller.evaluate(makeDto({ useInputDifficultyRouting: false }));
+
+    const options = evaluateSpy.mock.calls[0][1] as {
+      useInputDifficultyRouting?: unknown;
+    };
+    expect(options.useInputDifficultyRouting).toBe(false);
+    // service 의 `=== true` 게이트 기준으로 OFF.
+    expect(options.useInputDifficultyRouting === true).toBe(false);
+  });
+
+  // branch — 미지정 경로. 옵션 값은 undefined 이며 `=== true` 게이트가 false 로 남아
+  // 기본 OFF 가 구조적으로 보존된다(ADR-0066 §Decision 3 "미지정 = OFF").
+  it("useInputDifficultyRouting 미지정 요청은 옵션이 undefined 로 남아 `=== true` 게이트가 false 다 (branch — 미지정 = OFF)", async () => {
+    const { controller, evaluateSpy } = makeController(async () => [
+      makeEvaluationResult(),
+    ]);
+
+    const dto = makeDto();
+    expect(dto.useInputDifficultyRouting).toBeUndefined();
+    await controller.evaluate(dto);
+
+    const options = evaluateSpy.mock.calls[0][1] as {
+      modelId: string;
+      useInputDifficultyRouting?: unknown;
+    };
+    expect(options.modelId).toBe("gpt-4o-mini");
+    expect(options.useInputDifficultyRouting).toBeUndefined();
+    expect(options.useInputDifficultyRouting === true).toBe(false);
+    // modelId 외에 값이 실린 키는 없다 — 기존 client 계약 회귀 0.
+    expect(Object.entries(options).filter(([, v]) => v !== undefined)).toEqual([
+      ["modelId", "gpt-4o-mini"],
+    ]);
+  });
+
+  // error path — 스위치 ON 요청에서 orchestrator 가 reject 하면 error 를 그대로
+  // 전파하고(swallow 0) RunStatus.end 는 1 회 호출된다(853~892 행 패턴 재사용).
+  it("스위치 ON 요청에서 orchestrator 가 reject 하면 예외가 그대로 전파되고 end 가 1 회 호출된다 (error path — ON 경로 fail-fast)", async () => {
+    const boom = new Error("difficulty model not configured: hard");
+    const { controller, persistSpy, beginSpy, endSpy } = makeController(
+      async () => {
+        throw boom;
+      },
+    );
+
+    await expect(
+      controller.evaluate(makeDto({ useInputDifficultyRouting: true })),
+    ).rejects.toBe(boom);
+
+    // 4xx 를 가리지 않는다 — persist 미도달 + 카운터 균형.
+    expect(persistSpy).not.toHaveBeenCalled();
+    expect(beginSpy).toHaveBeenCalledTimes(1);
+    expect(endSpy).toHaveBeenCalledTimes(1);
+    expect(endSpy).toHaveBeenCalledWith("evaluation");
+  });
+
   // branch — mode='fill' 명시 시 persist 에 'fill' 전달.
   it("mode='fill' 명시 시 persist 에 'fill' 을 전달한다 (branch — fill)", async () => {
     const { controller, persistSpy } = makeController(async () => [
@@ -1202,6 +1284,86 @@ describe("EvaluateActivitiesDto (ValidationPipe negative cases)", () => {
     await expect(
       pipe.transform(
         { modelId: "", activities: [{ ...githubActivity }] },
+        meta,
+      ),
+    ).rejects.toThrow();
+  });
+
+  // --------------------------------------------------------------------------
+  // useInputDifficultyRouting (T-2009, ADR-0066 §Decision 3) — HTTP 경계는 명시
+  // boolean 만 통과. coercion 을 붙이지 않았으므로 비-boolean 은 전부 400 거부.
+  // --------------------------------------------------------------------------
+
+  // sanity — 명시 boolean 은 통과하며 transform 후에도 boolean 그대로.
+  it.each([true, false])(
+    "useInputDifficultyRouting=%s 는 ValidationPipe 를 통과하고 boolean 그대로 유지된다 (happy — 명시 boolean)",
+    async (value) => {
+      const pipe = makePipe();
+      const transformed = await pipe.transform(
+        {
+          modelId: "gpt-4o-mini",
+          ...baseContext,
+          activities: [{ ...githubActivity }],
+          useInputDifficultyRouting: value,
+        },
+        meta,
+      );
+      expect(transformed.useInputDifficultyRouting).toBe(value);
+    },
+  );
+
+  // negative — 예외 분기(비-boolean 값 종류)마다 1 케이스씩 400 거부.
+  it.each([
+    ['문자열 "true"', "true"],
+    ["숫자 1", 1],
+    ["객체", { on: true }],
+    ["배열", [true]],
+  ])(
+    "useInputDifficultyRouting 가 %s 면 ValidationPipe 가 거부한다 (negative — coercion 미부여)",
+    async (_label, value) => {
+      const pipe = makePipe();
+      await expect(
+        pipe.transform(
+          {
+            modelId: "gpt-4o-mini",
+            ...baseContext,
+            activities: [{ ...githubActivity }],
+            useInputDifficultyRouting: value,
+          },
+          meta,
+        ),
+      ).rejects.toThrow();
+    },
+  );
+
+  // negative — null 은 @IsOptional 이 미지정과 동일하게 흡수해 pipe 를 통과하지만,
+  // ON 으로 접히지 않는다(안전 degrade). ADR-0066 §Decision 3 의 불변식 "의도치 않은
+  // ON 없음" 은 400 이 아니라 OFF 환원으로 지켜지는 층이다.
+  it("useInputDifficultyRouting 가 null 이면 pipe 를 통과하되 ON 으로 접히지 않는다 (negative — 안전 degrade)", async () => {
+    const pipe = makePipe();
+    const transformed = await pipe.transform(
+      {
+        modelId: "gpt-4o-mini",
+        ...baseContext,
+        activities: [{ ...githubActivity }],
+        useInputDifficultyRouting: null,
+      },
+      meta,
+    );
+    expect(transformed.useInputDifficultyRouting === true).toBe(false);
+  });
+
+  // negative — 오타 필드명은 forbidNonWhitelisted 로 거부(조용히 무시되지 않는다).
+  it("오타 필드명 useInputDifficultyRoutingg 는 forbidNonWhitelisted 가 거부한다 (negative — 오타 silent 무시 0)", async () => {
+    const pipe = makePipe();
+    await expect(
+      pipe.transform(
+        {
+          modelId: "gpt-4o-mini",
+          ...baseContext,
+          activities: [{ ...githubActivity }],
+          useInputDifficultyRoutingg: true,
+        },
         meta,
       ),
     ).rejects.toThrow();

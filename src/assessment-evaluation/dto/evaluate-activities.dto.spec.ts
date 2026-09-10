@@ -124,6 +124,79 @@ describe("EvaluateActivitiesDto", () => {
     expect(errors).toEqual([]);
   });
 
+  // --------------------------------------------------------------------------
+  // useInputDifficultyRouting (ADR-0066 §Decision 1/3) — 선택 boolean 스위치.
+  // 3 갈래(true / false / 미지정) happy + 비-boolean negative 전수.
+  // --------------------------------------------------------------------------
+  it("useInputDifficultyRouting=true 는 errors 빈 배열을 반환한다 (happy — 스위치 ON)", async () => {
+    const errors = await validateEvaluatePlain({
+      ...validEvaluatePayload,
+      useInputDifficultyRouting: true,
+    });
+    expect(errors).toEqual([]);
+  });
+
+  it("useInputDifficultyRouting=false 도 errors 빈 배열을 반환한다 (branch — 스위치 명시 OFF)", async () => {
+    const errors = await validateEvaluatePlain({
+      ...validEvaluatePayload,
+      useInputDifficultyRouting: false,
+    });
+    expect(errors).toEqual([]);
+  });
+
+  it("useInputDifficultyRouting 미지정도 errors 빈 배열을 반환한다 (branch — @IsOptional 미지정 = OFF)", async () => {
+    const errors = await validateEvaluatePlain(validEvaluatePayload);
+    expect(errors).toEqual([]);
+    // 미지정은 undefined 로 남는다 — coercion 으로 false/true 가 주입되지 않는다.
+    const dto = plainToInstance(EvaluateActivitiesDto, validEvaluatePayload);
+    expect(dto.useInputDifficultyRouting).toBeUndefined();
+  });
+
+  it.each([
+    ['문자열 "true"', "true"],
+    ['문자열 "false"', "false"],
+    ["숫자 1", 1],
+    ["숫자 0", 0],
+    ["객체", { on: true }],
+    ["배열", [true]],
+  ])(
+    "useInputDifficultyRouting 가 %s 면 isBoolean 위반 (negative — coercion 미부여, ADR-0066 §Decision 3)",
+    async (_label, value) => {
+      const errors = await validateEvaluatePlain({
+        ...validEvaluatePayload,
+        useInputDifficultyRouting: value,
+      });
+      expect(errors).toEqual(expect.arrayContaining(["isBoolean"]));
+    },
+  );
+
+  // null 은 class-validator 의 @IsOptional 이 미지정과 동일하게 흡수한다(period-bridge.
+  // dto.spec.ts 183 행 `reevaluate` 선례와 동형). ADR-0066 §Decision 3 이 요구한 불변식은
+  // "의도치 않은 ON 이 발생하지 않음" 이며 null 은 그 반대편(OFF)으로 degrade 하므로
+  // 안전하다 — `=== true` 게이트가 false 로 남는다. 400 거부 층이 아니라는 사실만 고정한다.
+  it("useInputDifficultyRouting 가 null 이면 @IsOptional 이 미지정과 동일하게 흡수한다 (negative — 안전 degrade, ON 아님)", async () => {
+    const errors = await validateEvaluatePlain({
+      ...validEvaluatePayload,
+      useInputDifficultyRouting: null,
+    });
+    expect(errors).toEqual([]);
+
+    const dto = plainToInstance(EvaluateActivitiesDto, {
+      ...validEvaluatePayload,
+      useInputDifficultyRouting: null,
+    });
+    // 켜지지 않는다 — service 의 `=== true` 엄격 비교 기준으로 OFF.
+    expect(dto.useInputDifficultyRouting === true).toBe(false);
+  });
+
+  it("오타 필드명(useInputDifficultyRoutingg)은 forbidNonWhitelisted 위반 (negative — 오타로 켜지지 않음)", async () => {
+    const errors = await validateEvaluatePlain(
+      { ...validEvaluatePayload, useInputDifficultyRoutingg: true },
+      { whitelist: true, forbidNonWhitelisted: true },
+    );
+    expect(errors).toEqual(expect.arrayContaining(["whitelistValidation"]));
+  });
+
   it("mode='reeval' 명시도 errors 빈 배열을 반환한다 (happy — branch mode reeval)", async () => {
     const errors = await validateEvaluatePlain({
       ...validEvaluatePayload,
@@ -347,7 +420,7 @@ describe("EvaluateActivitiesDto", () => {
   // --------------------------------------------------------------------------
   // DTO contract: 정의된 2 키만 선언됨(정의 외 키는 contract 일부 아님).
   // --------------------------------------------------------------------------
-  it("DTO 는 modelId / activities / context 4-tuple / mode 를 contract 로 가진다", () => {
+  it("DTO 는 modelId / activities / context 4-tuple / mode / useInputDifficultyRouting 를 contract 로 가진다", () => {
     const dto = plainToInstance(EvaluateActivitiesDto, {
       ...validEvaluatePayload,
       mode: "fill",
@@ -360,6 +433,7 @@ describe("EvaluateActivitiesDto", () => {
       "periodStart",
       "personId",
       "scope",
+      "useInputDifficultyRouting",
     ]);
   });
 });
