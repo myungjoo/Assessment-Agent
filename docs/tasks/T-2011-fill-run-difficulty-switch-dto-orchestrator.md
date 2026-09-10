@@ -2,7 +2,7 @@
 id: T-2011
 title: fill-run 난이도 스위치 DTO + orchestrator 배선 — UnevaluatedFillRunRequestDto + run 4 번째 인자 (ADR-0066 Follow-ups (b) 2/3)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-050, REQ-049]
 estimatedDiff: 260
