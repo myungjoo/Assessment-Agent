@@ -703,10 +703,12 @@ export class AssessmentEvaluationController {
   //     string)라 **response mapper 불요** — service 반환을 그대로 controller 반환으로 노출.
   //   - controller-scope ValidationPipe(whitelist + forbidNonWhitelisted + transform)가
   //     `UnevaluatedFillRunRequestDto` 의 3 축(rawBridges nested PeriodBridgeDto 배열 /
-  //     선택 modelId / 필수 defaultModelId)을 형식만 검증한다(허용 literal 값은 service 책임).
-  //   - thin delegate: 분기 / 조립 / dedup / options 도출 / 재정렬 0. 검증된 DTO 의 3 축을
-  //     `unevaluatedFillRunOrchestrator.run(rawBridges, modelId, defaultModelId)` 로 그대로
-  //     분해 forward 하고, 반환 `UnevaluatedFillRunResult` 도 가공 0 으로 그대로 반환한다
+  //     선택 modelId / 선택 useInputDifficultyRouting)을 형식만 검증한다(허용 literal 값은
+  //     service 책임). 스위치는 coercion 미부여라 비-boolean 이면 여기서 400 으로 걸린다.
+  //   - thin delegate: 분기 / 조립 / dedup / options 도출 / 재정렬 0. 검증된 DTO 축을
+  //     `unevaluatedFillRunOrchestrator.run(rawBridges, modelId, defaultModelId,
+  //     useInputDifficultyRouting)` 4 인자로 그대로 분해 forward 하고, 반환
+  //     `UnevaluatedFillRunResult` 도 가공 0 으로 그대로 반환한다
   //     (dedup / options 도출 / 좌표 순회 / 좌표 단위 부분 실패 흡수는 전부 service / core 책임).
   //   - service-layer error 는 raw 전파(swallow 0) — core 의 한국어 `TypeError`(options
   //     무효 / rawBridges non-array)가 그대로 NestJS 응답에 매핑된다. 좌표 1 개 단위 person
@@ -764,16 +766,24 @@ export class AssessmentEvaluationController {
       }
 
       // orchestrator 위임 — rawBridges + dto.modelId(override) + server-side 해석된
-      // defaultModelId 를 forward(가공 0). dedup / options 도출 / 좌표 순회 / 좌표 단위
-      // 부분 실패 흡수는 service → core 책임이라 controller 는 pass-through 만 한다.
-      // modelId 미지정(undefined) 시에도 임의 default 를 채우지 않고 그대로 undefined 를
-      // forward 한다(service 가 resolved defaultModelId 로 fallback). resolver 가 이미
-      // 성공한 뒤의 orchestrator reject(options 무효 TypeError 등)는 await 가 그대로
-      // throw → raw 전파(swallow 0, resolver fail 의 503 매핑과 구분).
+      // defaultModelId + 사전 난이도 routing 스위치를 forward(가공 0). dedup / options
+      // 도출 / 좌표 순회 / 좌표 단위 부분 실패 흡수는 service → core 책임이라 controller
+      // 는 pass-through 만 한다. modelId 미지정(undefined) 시에도 임의 default 를 채우지
+      // 않고 그대로 undefined 를 forward 한다(service 가 resolved defaultModelId 로
+      // fallback). resolver 가 이미 성공한 뒤의 orchestrator reject(options 무효 TypeError
+      // 등)는 await 가 그대로 throw → raw 전파(swallow 0, resolver fail 의 503 매핑과 구분).
+      //
+      // 4 번째 인자는 사전 난이도 routing 스위치 전사(ADR-0066 §Decision 2 fill-run 행 —
+      // `/evaluate` 축 291~298 행과 동형). **무조건 전사** 한다: 조건부 전달로 arity 를
+      // 가변시키지 않고, 미지정 요청은 undefined 가 그대로 실려 core 의
+      // `buildFillRunScoringOptions` 가 `=== true` 게이트에서 false 로 판정해 OFF 가
+      // 보존된다(§Decision 3 "미지정 = OFF"). controller 는 판정 · 기본값 채움 · 정규화를
+      // 하지 않는다 — 여기서 접으면 helper 와 이중 게이트가 된다.
       return await this.unevaluatedFillRunOrchestrator.run(
         dto.rawBridges,
         dto.modelId,
         resolvedDefaultModelId,
+        dto.useInputDifficultyRouting,
       );
     } finally {
       this.runStatus.end("evaluation");

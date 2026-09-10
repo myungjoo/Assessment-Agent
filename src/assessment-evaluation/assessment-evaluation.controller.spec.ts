@@ -3694,9 +3694,10 @@ function makeEmptyRunResult(): UnevaluatedFillRunResult {
 
 describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → resolver → orchestrator.run → result delegation)", () => {
   // happy: 유효 DTO(rawBridges 2 + modelId 지정) 입력 + resolver 단일-row resolve 성공 시,
-  // orchestrator.run 이 (rawBridges, dto.modelId, **resolver 가 반환한** defaultModelId)
-  // 3 인자로 정확히 호출되고, 반환 UnevaluatedFillRunResult 가 controller 반환과
-  // deep-equal(가공 0). 3 번째 인자는 더 이상 dto.defaultModelId 가 아니라 resolver source.
+  // orchestrator.run 이 (rawBridges, dto.modelId, **resolver 가 반환한** defaultModelId,
+  // 스위치) 4 인자로 정확히 호출되고, 반환 UnevaluatedFillRunResult 가 controller 반환과
+  // deep-equal(가공 0). 3 번째 인자는 더 이상 dto.defaultModelId 가 아니라 resolver source
+  // 이고, 4 번째는 무조건 전사되는 스위치라 미지정이면 undefined 다(T-2012).
   it("resolver 성공 시 orchestrator.run 을 (rawBridges, dto.modelId, resolved defaultModelId) 로 호출하고 결과를 그대로 반환한다 (happy)", async () => {
     const expected = makeRunResult();
     const { controller, runSpy, resolveSpy } = makeRunController(
@@ -3715,6 +3716,7 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → re
       dto.rawBridges,
       "gpt-4o-mini",
       "resolved-default",
+      undefined,
     );
     // 반환 — service 결과 deep-equal(controller 가공 0).
     expect(result).toEqual(expected);
@@ -3742,6 +3744,7 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → re
       dto.rawBridges,
       "gpt-4o-mini",
       "resolved-default",
+      undefined,
     );
   });
 
@@ -3859,6 +3862,7 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → re
       dto.rawBridges,
       undefined,
       "resolved-default",
+      undefined,
     );
   });
 
@@ -3877,6 +3881,7 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → re
       expect.any(Array),
       "custom-model",
       "resolved-default",
+      undefined,
     );
   });
 
@@ -3893,7 +3898,12 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → re
 
     // 빈 배열도 그대로 forward(controller 가 빈 입력을 거부하지 않음 — 도메인 결정성).
     expect(runSpy).toHaveBeenCalledTimes(1);
-    expect(runSpy).toHaveBeenCalledWith([], "gpt-4o-mini", "resolved-default");
+    expect(runSpy).toHaveBeenCalledWith(
+      [],
+      "gpt-4o-mini",
+      "resolved-default",
+      undefined,
+    );
     expect(result.outcomes).toEqual([]);
     expect(result.totalCount).toBe(0);
   });
@@ -3935,7 +3945,137 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → re
       dto.rawBridges,
       null,
       "resolved-default",
+      undefined,
     );
+  });
+});
+
+// -----------------------------------------------------------------------
+// 사전 난이도 routing 스위치 전사(T-2012, ADR-0066 §Decision 2 fill-run 행) — HTTP
+// 요청 본문의 useInputDifficultyRouting 이 orchestrator.run 의 **4 번째 인자** 로
+// 가공 없이 도달하는지 3 갈래(true / 명시 false / 미지정)로 분리 검증한다. 판정
+// (`=== true`)은 buildFillRunScoringOptions 단독 책임이라 controller 층에서는
+// "값이 그대로 실렸는가" 만 본다(이중 게이트 0). /evaluate 축 702~770 행 mirror.
+// -----------------------------------------------------------------------
+describe("AssessmentEvaluationController.runUnevaluatedFill (unit — 사전 난이도 routing 스위치 전사, ADR-0066 §Decision 2/3)", () => {
+  // happy — 스위치 ON 요청은 4 번째 인자에 true 로 실리고 반환은 가공 0.
+  it("useInputDifficultyRouting=true 요청은 run 의 4 번째 인자로 true 가 전사된다 (happy — 스위치 ON)", async () => {
+    const expected = makeRunResult();
+    const { controller, runSpy } = makeRunController(async () => expected);
+
+    const dto = makeRunDto({ useInputDifficultyRouting: true });
+    const result = await controller.runUnevaluatedFill(dto);
+
+    expect(runSpy).toHaveBeenCalledTimes(1);
+    expect(runSpy).toHaveBeenCalledWith(
+      dto.rawBridges,
+      "gpt-4o-mini",
+      "resolved-default",
+      true,
+    );
+    // 스위치가 반환 경로를 바꾸지 않는다 — deep-equal + 동일 참조.
+    expect(result).toEqual(expected);
+    expect(result).toBe(expected);
+  });
+
+  // branch — 명시 false 는 false 그대로 전사(임의 승격 0). `=== true` 게이트 기준 OFF.
+  it("useInputDifficultyRouting=false 요청은 4 번째 인자에 false 로 전사돼 OFF 가 유지된다 (branch — 명시 OFF)", async () => {
+    const { controller, runSpy } = makeRunController(async () =>
+      makeRunResult(),
+    );
+
+    await controller.runUnevaluatedFill(
+      makeRunDto({ useInputDifficultyRouting: false }),
+    );
+
+    const forwarded = runSpy.mock.calls[0][3] as unknown;
+    expect(forwarded).toBe(false);
+    // helper 의 `=== true` 엄격 비교 기준으로 OFF 다.
+    expect(forwarded === true).toBe(false);
+  });
+
+  // branch — 미지정 경로. 조건부 전달이 아니라 **무조건 전사** 라 arity 는 항상 4 이고
+  // 4 번째 값만 undefined 로 남아 기본 OFF 가 구조적으로 보존된다(§Decision 3).
+  it("useInputDifficultyRouting 미지정 요청도 4 인자로 호출되며 4 번째가 undefined 다 (branch — 미지정 = OFF)", async () => {
+    const { controller, runSpy } = makeRunController(async () =>
+      makeRunResult(),
+    );
+
+    const dto = makeRunDto();
+    expect(dto.useInputDifficultyRouting).toBeUndefined();
+    await controller.runUnevaluatedFill(dto);
+
+    // arity 고정 — 조건부 전달로 인자 개수가 흔들리지 않는다.
+    expect(runSpy.mock.calls[0]).toHaveLength(4);
+    expect(runSpy.mock.calls[0][3]).toBeUndefined();
+    expect(runSpy.mock.calls[0][3] === true).toBe(false);
+  });
+
+  // 축 독립성 — 스위치 ON 이어도 2·3 번째 인자(modelId override · resolved default)는
+  // 종전과 동일하다. modelId 지정 / 미지정 두 조합 모두 고정.
+  it("스위치 ON 은 modelId 지정·미지정 어느 조합에서도 2·3 번째 인자를 바꾸지 않는다 (branch — 축 독립성)", async () => {
+    const specified = makeRunController(async () => makeRunResult());
+    const dto = makeRunDto({ useInputDifficultyRouting: true });
+    await specified.controller.runUnevaluatedFill(dto);
+    expect(specified.runSpy).toHaveBeenCalledWith(
+      dto.rawBridges,
+      "gpt-4o-mini",
+      "resolved-default",
+      true,
+    );
+
+    const omitted = makeRunController(async () => makeRunResult());
+    const bareDto = makeRunDto({
+      modelId: undefined,
+      useInputDifficultyRouting: true,
+    });
+    await omitted.controller.runUnevaluatedFill(bareDto);
+    expect(omitted.runSpy).toHaveBeenCalledWith(
+      bareDto.rawBridges,
+      undefined,
+      "resolved-default",
+      true,
+    );
+  });
+
+  // error path (1) — 스위치 ON 이 resolver fail-fast 를 우회하지 못한다. 503 매핑이
+  // 유지되고 평가 사슬(run)에는 진입조차 하지 않는다(비용 있는 round-trip 전 차단).
+  it("스위치 ON 이어도 resolver throw 시 503 매핑이 유지되고 run 은 호출되지 않는다 (error path — fail-fast 우회 0)", async () => {
+    const { controller, runSpy } = makeRunController(
+      async () => makeRunResult(),
+      () =>
+        Promise.reject(
+          new Error(
+            "LlmProviderConfig row 가 0 개다 (default modelId 미박제).",
+          ),
+        ),
+    );
+
+    await expect(
+      controller.runUnevaluatedFill(
+        makeRunDto({ useInputDifficultyRouting: true }),
+      ),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(runSpy).not.toHaveBeenCalled();
+  });
+
+  // error path (2) — 스위치 ON 상태의 orchestrator reject 는 흡수 0 raw 전파이고,
+  // RunStatus.end 는 정확히 1 회(짝 없는 end 0 — 카운터 균형 유지).
+  it("스위치 ON 상태에서 orchestrator 가 reject 하면 raw 전파되고 end 가 1 회 호출된다 (error path — swallow 0)", async () => {
+    const boom = new Error("difficulty model not configured: hard");
+    const { controller, beginSpy, endSpy } = makeRunController(async () => {
+      throw boom;
+    });
+
+    await expect(
+      controller.runUnevaluatedFill(
+        makeRunDto({ useInputDifficultyRouting: true }),
+      ),
+    ).rejects.toBe(boom);
+
+    expect(beginSpy).toHaveBeenCalledTimes(1);
+    expect(endSpy).toHaveBeenCalledTimes(1);
+    expect(endSpy).toHaveBeenCalledWith("evaluation");
   });
 });
 
@@ -3953,13 +4093,14 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — RunStatus 
     expect(beginSpy).toHaveBeenCalledWith("evaluation");
     expect(endSpy).toHaveBeenCalledTimes(1);
     expect(endSpy).toHaveBeenCalledWith("evaluation");
-    // 위임 인자 보존 — resolver 1 회 + orchestrator 3 인자 계약 그대로.
+    // 위임 인자 보존 — resolver 1 회 + orchestrator 4 인자 계약 그대로.
     expect(resolveSpy).toHaveBeenCalledTimes(1);
     expect(runSpy).toHaveBeenCalledTimes(1);
     expect(runSpy).toHaveBeenCalledWith(
       dto.rawBridges,
       "gpt-4o-mini",
       "resolved-default",
+      undefined,
     );
     // 반환 가공 0 — orchestrator 반환과 deep-equal(동일 참조).
     expect(result).toEqual(expected);
@@ -4069,6 +4210,7 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — RunStatus 
       dto.rawBridges,
       "gpt-4o-mini",
       "resolved-default",
+      undefined,
     );
     expect(specified.beginSpy).toHaveBeenCalledTimes(1);
     expect(specified.endSpy).toHaveBeenCalledTimes(1);
@@ -4080,6 +4222,7 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — RunStatus 
       bareDto.rawBridges,
       undefined,
       "resolved-default",
+      undefined,
     );
     expect(omitted.beginSpy).toHaveBeenCalledTimes(1);
     expect(omitted.endSpy).toHaveBeenCalledTimes(1);
@@ -4334,6 +4477,66 @@ describe("UnevaluatedFillRunRequestDto (ValidationPipe negative cases)", () => {
     const pipe = makePipe();
     await expect(
       pipe.transform({ ...validPayload, rawBody: "긴 raw 본문" }, meta),
+    ).rejects.toThrow();
+  });
+
+  // ----------------------------------------------------------------------
+  // useInputDifficultyRouting (T-2012, ADR-0066 §Decision 3) — HTTP 경계는 명시
+  // boolean 만 통과. coercion decorator 를 붙이지 않았으므로 비-boolean 은 전부
+  // 400 거부다(/evaluate 축 1293~1370 행 mirror).
+  // ----------------------------------------------------------------------
+
+  // sanity — 명시 boolean 은 통과하며 transform 후에도 boolean 그대로.
+  it.each([true, false])(
+    "useInputDifficultyRouting=%s 는 ValidationPipe 를 통과하고 boolean 그대로 유지된다 (happy — 명시 boolean)",
+    async (value) => {
+      const pipe = makePipe();
+      const transformed = await pipe.transform(
+        { ...validPayload, useInputDifficultyRouting: value },
+        meta,
+      );
+      expect(transformed.useInputDifficultyRouting).toBe(value);
+    },
+  );
+
+  // negative — 예외 분기(비-boolean 값 종류)마다 1 케이스씩 400 거부.
+  it.each([
+    ['문자열 "true"', "true"],
+    ["숫자 1", 1],
+    ["객체", { on: true }],
+    ["배열", [true]],
+  ])(
+    "useInputDifficultyRouting 가 %s 면 ValidationPipe 가 거부한다 (negative — coercion 미부여)",
+    async (_label, value) => {
+      const pipe = makePipe();
+      await expect(
+        pipe.transform(
+          { ...validPayload, useInputDifficultyRouting: value },
+          meta,
+        ),
+      ).rejects.toThrow();
+    },
+  );
+
+  // negative — null 은 @IsOptional 이 미지정과 동일하게 흡수해 통과하지만 ON 으로
+  // 접히지 않는다(안전 degrade — 불변식은 400 이 아니라 OFF 환원으로 지켜진다).
+  it("useInputDifficultyRouting 가 null 이면 pipe 를 통과하되 ON 으로 접히지 않는다 (negative — 안전 degrade)", async () => {
+    const pipe = makePipe();
+    const transformed = await pipe.transform(
+      { ...validPayload, useInputDifficultyRouting: null },
+      meta,
+    );
+    expect(transformed.useInputDifficultyRouting === true).toBe(false);
+  });
+
+  // negative — 오타 필드명은 forbidNonWhitelisted 로 거부(조용히 무시되지 않는다).
+  it("오타 필드명 useInputDifficultyRoutingg 는 forbidNonWhitelisted 가 거부한다 (negative — 오타 silent 무시 0)", async () => {
+    const pipe = makePipe();
+    await expect(
+      pipe.transform(
+        { ...validPayload, useInputDifficultyRoutingg: true },
+        meta,
+      ),
     ).rejects.toThrow();
   });
 });
