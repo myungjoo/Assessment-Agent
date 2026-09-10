@@ -184,11 +184,16 @@ export class EvaluateActivitiesDto {
   // 이 아니라 구조상 0.
   //
   // 형식 검증은 @IsOptional + @IsBoolean 만 — **coercion decorator 를 붙이지 않는다**.
-  // `@Type(() => Boolean)` 류를 얹으면 문자열 "false" · 숫자 0 같은 임의 truthy 가 true 로
-  // 접혀 오타 한 글자가 조용히 운영 발화를 켜므로 ADR-0066 §Decision 3 · §Alternatives 가
-  // 명시 기각했다. 따라서 문자열 "true" · 숫자 1 · null · 객체/배열은 controller-scope
-  // ValidationPipe(159~163 행)가 400 BadRequest 로 거부하고, 오타 필드명은 같은 pipe 의
-  // forbidNonWhitelisted 가 400 으로 거부한다(period-bridge.dto.ts 의 reevaluate 선례 mirror).
+  // `@Type(() => Boolean)` 류를 얹으면 문자열 "false" 같은 임의 값이 true 로 접혀 오타 한
+  // 글자가 조용히 운영 발화를 켜므로 ADR-0066 §Decision 3 · §Alternatives 가 명시 기각했다.
+  // 따라서 문자열 "true" · 숫자 1 · 객체/배열은 controller-scope ValidationPipe(159~163 행)가
+  // 400 BadRequest 로 거부하고, 오타 필드명은 같은 pipe 의 forbidNonWhitelisted 가 400 으로
+  // 거부한다(period-bridge.dto.ts 의 reevaluate 선례 mirror).
+  //
+  // 단 `null` 은 class-validator 의 @IsOptional 이 **미지정과 동일하게 흡수** 해 400 이
+  // 아니다(period-bridge.dto.spec.ts 183 행 선례 동형). ADR-0066 §Decision 3 산문은 null 도
+  // 400 으로 적었으나 실제 층은 OFF degrade 이며, 그 결정의 불변식 "의도치 않은 ON 없음" 은
+  // null 이 `=== true` 게이트에서 false 로 남으므로 그대로 성립한다(산문 정정은 Follow-ups).
   @IsOptional()
   @IsBoolean()
   useInputDifficultyRouting?: boolean;
