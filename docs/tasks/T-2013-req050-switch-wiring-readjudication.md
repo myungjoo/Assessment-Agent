@@ -2,7 +2,7 @@
 id: T-2013
 title: REQ-050 재판정 — 난이도 routing 스위치 발화 경로(evaluate · fill-run) 실측 반영
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-050]
 estimatedDiff: 40
