@@ -363,4 +363,149 @@ describe("runUnevaluatedFillRunCore — dedup → options → batch 순수 조�
       expect(original).toEqual(snapshot);
     });
   });
+
+  describe("스위치(useInputDifficultyRouting) — 6 번째 선택 인자 pass-through", () => {
+    // 관측 지점은 batch → runner 가 persist 에 넘기는 3 번째 인자(도출된 ScoringOptions)다.
+    it("[분기1 ON] true 를 넘기면 batch 가 받은 options 에 useInputDifficultyRouting: true 가 실린다", async () => {
+      const bridges = [makeBridge()];
+      const resolvePerson = makeResolveMock();
+      const persist = makePersistMock();
+
+      const result = await runUnevaluatedFillRunCore(
+        bridges,
+        resolvePerson,
+        persist,
+        "req-model",
+        "def-model",
+        true,
+      );
+
+      expect(persist.mock.calls[0][2]).toEqual<ScoringOptions>({
+        modelId: "req-model",
+        useInputDifficultyRouting: true,
+      });
+      // 스위치가 켜져도 실행 자체는 정상 반환(집계 pass-through 무변경).
+      expect(result.totalCount).toBe(1);
+      expect(result.outcomes[0].status).toBe("evaluated");
+    });
+
+    it("[분기2 명시 OFF] false 를 넘기면 options 는 { modelId } 단일 키다", async () => {
+      const bridges = [makeBridge()];
+      const resolvePerson = makeResolveMock();
+      const persist = makePersistMock();
+
+      await runUnevaluatedFillRunCore(
+        bridges,
+        resolvePerson,
+        persist,
+        "m",
+        "d",
+        false,
+      );
+
+      const options = persist.mock.calls[0][2];
+      expect(options).toEqual<ScoringOptions>({ modelId: "m" });
+      expect("useInputDifficultyRouting" in options).toBe(false);
+    });
+
+    it("[분기3 미지정 OFF] 기존 5 인자 호출은 종전과 문자 단위로 같은 options 를 만든다", async () => {
+      const bridges = [makeBridge()];
+      const resolvePerson = makeResolveMock();
+      const persist = makePersistMock();
+
+      await runUnevaluatedFillRunCore(
+        bridges,
+        resolvePerson,
+        persist,
+        "m",
+        "d",
+      );
+
+      const options = persist.mock.calls[0][2];
+      expect(options).toEqual<ScoringOptions>({ modelId: "m" });
+      expect("useInputDifficultyRouting" in options).toBe(false);
+    });
+
+    it("modelId 축 × 스위치 축 독립 — request 비어 default fallback + ON 조합", async () => {
+      const bridges = [makeBridge()];
+      const resolvePerson = makeResolveMock();
+      const persist = makePersistMock();
+
+      await runUnevaluatedFillRunCore(
+        bridges,
+        resolvePerson,
+        persist,
+        undefined,
+        "def-model",
+        true,
+      );
+
+      expect(persist.mock.calls[0][2]).toEqual<ScoringOptions>({
+        modelId: "def-model",
+        useInputDifficultyRouting: true,
+      });
+    });
+
+    it("[error path] 스위치 ON 이어도 modelId 축 실패는 그대로 전파 + 좌표 0 개 흘림", async () => {
+      const bridges = [makeBridge()];
+      const resolvePerson = makeResolveMock();
+      const persist = makePersistMock();
+
+      await expect(
+        runUnevaluatedFillRunCore(
+          bridges,
+          resolvePerson,
+          persist,
+          "",
+          "   ",
+          true,
+        ),
+      ).rejects.toThrow(/request·default modelId 가 모두 비어있어/);
+      expect(resolvePerson).not.toHaveBeenCalled();
+      expect(persist).not.toHaveBeenCalled();
+    });
+
+    it.each([[null], ["true"], [1], [{}]])(
+      "[negative] 비-boolean 스위치 %p 는 throw 0 + options 에 스위치 키 부재",
+      async (value: unknown) => {
+        const bridges = [makeBridge()];
+        const resolvePerson = makeResolveMock();
+        const persist = makePersistMock();
+
+        const result = await runUnevaluatedFillRunCore(
+          bridges,
+          resolvePerson,
+          persist,
+          "m",
+          "d",
+          value as boolean,
+        );
+
+        const options = persist.mock.calls[0][2];
+        expect(options).toEqual<ScoringOptions>({ modelId: "m" });
+        expect("useInputDifficultyRouting" in options).toBe(false);
+        expect(result.totalCount).toBe(1);
+      },
+    );
+
+    it("스위치 ON 이어도 입력 좌표를 mutate 하지 않는다(비변형)", async () => {
+      const original = makeBridge({ personId: "immutable-on" });
+      const snapshot = { ...original };
+      const bridges = [original];
+      const resolvePerson = makeResolveMock();
+      const persist = makePersistMock();
+
+      await runUnevaluatedFillRunCore(
+        bridges,
+        resolvePerson,
+        persist,
+        "m",
+        "d",
+        true,
+      );
+
+      expect(bridges).toHaveLength(1);
+      expect(original).toEqual(snapshot);
+    });
+  });
 });

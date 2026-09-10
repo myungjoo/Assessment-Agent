@@ -106,6 +106,10 @@ import type { UnevaluatedFillRunResult } from "./unevaluated-fill-run-result";
  *   `buildFillRunScoringOptions` 의 한국어 `TypeError` 전파.
  * @param defaultModelId default modelId(string). request 가 비어있을 때 fallback 대상.
  *   request 도 비어있고 default 도 무효(빈/whitespace)면 한국어 `TypeError` 전파.
+ * @param useInputDifficultyRouting 사전 난이도 routing opt-in 스위치(**선택** — 기존 5 인자
+ *   호출자는 무수정). 해석 없이 `buildFillRunScoringOptions` 로 **그대로 pass-through** 하며
+ *   (ADR-0066 § Decision 2 fill-run 행), `=== true` 일 때만 도출된 options 에 실린다. 미지정 /
+ *   `false` / 비-boolean 은 throw 없이 OFF 로 환원돼 options 가 `{ modelId }` 단일 키로 남는다.
  * @returns `UnevaluatedFillRunResult` — outcomes(dedup 된 좌표 순서·길이 일치) + status 별
  *   집계. batch 가 만든 새 객체.
  * @throws {TypeError} options 도출(request/default 무효) 또는 dedup(rawBridges non-array·
@@ -119,10 +123,15 @@ export async function runUnevaluatedFillRunCore(
   persist: GenerateAndPersistFn,
   requestModelId: string | undefined | null,
   defaultModelId: string,
+  useInputDifficultyRouting?: boolean | null,
 ): Promise<UnevaluatedFillRunResult> {
   // (a) options 도출 먼저 — modelId 무효(request·default 모두 빈 값 / type mismatch)면
   // 좌표를 단 1 개도 dedup/흘리기 전에 한국어 TypeError 로 차단(영속 부수효과 0).
-  const options = buildFillRunScoringOptions(requestModelId, defaultModelId);
+  const options = buildFillRunScoringOptions(
+    requestModelId,
+    defaultModelId,
+    useInputDifficultyRouting,
+  );
 
   // (b) 좌표 first-wins 중복 제거 — rawBridges non-array·원소 null/undefined 면 한국어
   // TypeError 전파(흡수 0). 같은 좌표를 두 번 평가·영속하는 낭비를 batch 전에 제거한다.

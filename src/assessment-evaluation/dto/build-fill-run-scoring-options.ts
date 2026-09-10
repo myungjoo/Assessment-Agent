@@ -76,6 +76,30 @@ function normalizeModelId(candidate: unknown, label: string): string | null {
 }
 
 /**
+ * 채택된 modelId 와 스위치 인자를 받아 반환 `ScoringOptions`(새 객체)를 조립한다 —
+ * 스위치가 `=== true` 일 때만 `useInputDifficultyRouting: true` 키를 얹는다
+ * (ADR-0066 § Decision 3).
+ *
+ * 게이트는 [evaluation-scoring.service.ts](../evaluation-scoring.service.ts) `108 행`
+ * 과 **같은 엄격 비교** 다 — truthy coercion 을 도입하지 않는다. 문자열 `"true"` · 숫자
+ * `1` · 객체 같은 비-boolean 은 throw 없이 OFF 로 환원되며(§ Decision 3 service 경계 —
+ * "요청은 400, 내부는 OFF"), OFF 경로 반환은 스위치 도입 **이전** 과 문자 단위로 같은
+ * `{ modelId }` 단일 키다. 따라서 미지정 caller 의 회귀는 구조상 0 이다.
+ *
+ * @param modelId 이미 정규화(trim)되어 채택된 non-empty modelId.
+ * @param useInputDifficultyRouting 사전 난이도 routing opt-in 스위치(비-boolean 은 OFF).
+ * @returns `ScoringOptions` 새 객체 — ON 이면 2 키, 그 외에는 `{ modelId }` 단일 키.
+ */
+function composeScoringOptions(
+  modelId: string,
+  useInputDifficultyRouting: unknown,
+): ScoringOptions {
+  return useInputDifficultyRouting === true
+    ? { modelId, useInputDifficultyRouting: true }
+    : { modelId };
+}
+
+/**
  * run-request 의 선택적 `modelId` 와 default `modelId` 를 받아 검증된 `ScoringOptions`
  * (= `{ modelId }`, 새 객체)를 조립해 반환하는 dependency-free 순수 factory(P5 bullet 106 /
  * R-64 / REQ-037·038 run-side 사슬의 마지막 순수 입력, Q-0045 옵션1).
@@ -101,26 +125,32 @@ function normalizeModelId(candidate: unknown, label: string): string | null {
  *   한국어 `TypeError`.
  * @param defaultModelId default modelId(string). request 가 비어있을 때 fallback 대상.
  *   본인이 빈/whitespace 이고 fallback 이 필요한 상황이면 한국어 `TypeError`.
- * @returns `ScoringOptions`(새 객체) — `{ modelId }`(채택된 trim 된 modelId).
+ * @param useInputDifficultyRouting 사전 난이도 routing opt-in 스위치(선택, ADR-0066
+ *   § Decision 1 — 이름은 `ScoringOptions` · `EvaluateActivitiesDto` 와 문자 단위 동일).
+ *   `=== true` 일 때만 반환에 실리고, 미지정 / `false` / 비-boolean 은 **throw 없이** OFF
+ *   로 환원돼 반환이 `{ modelId }` 단일 키로 남는다(modelId 축 fail-fast 무적용).
+ * @returns `ScoringOptions`(새 객체) — `{ modelId }`(채택된 trim 된 modelId), 스위치 ON
+ *   이면 `useInputDifficultyRouting: true` 가 함께 실린다.
  * @throws {TypeError} request/default type mismatch, 또는 default 무효 + request 도 비어
  *   fallback 불가일 때(한국어 메시지).
  */
 export function buildFillRunScoringOptions(
   requestModelId: string | undefined | null,
   defaultModelId: string,
+  useInputDifficultyRouting?: boolean | null,
 ): ScoringOptions {
   // request 우선 — 유효 non-empty string(trim 후 비어있지 않음)이면 그것을 채택하고
   // default 는 보지 않는다(request 우선 분기). type mismatch 는 normalize 내부에서 throw.
   const requestModel = normalizeModelId(requestModelId, "request modelId");
   if (requestModel !== null) {
-    return { modelId: requestModel };
+    return composeScoringOptions(requestModel, useInputDifficultyRouting);
   }
 
   // request 가 비어있음(null/undefined/""/whitespace) → default 로 fallback. default 의
   // type mismatch 도 normalize 내부에서 throw(default 가 비-string 이면 거부).
   const defaultModel = normalizeModelId(defaultModelId, "default modelId");
   if (defaultModel !== null) {
-    return { modelId: defaultModel };
+    return composeScoringOptions(defaultModel, useInputDifficultyRouting);
   }
 
   // request 도 default 도 비어있어 채택 불가 — orchestrator 가 modelId 없이 LLM 호출을
