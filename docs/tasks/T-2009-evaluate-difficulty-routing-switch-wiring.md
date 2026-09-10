@@ -2,7 +2,7 @@
 id: T-2009
 title: POST /evaluate 에 사전 난이도 routing opt-in 스위치 배선 (ADR-0066 Follow-ups (a))
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-050, REQ-049]
 estimatedDiff: 220
