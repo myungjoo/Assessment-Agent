@@ -792,8 +792,12 @@ describe('useAdminLlmProviders — negative cases', () => {
     ]) {
       expect(keys).not.toContain(hidden);
     }
-    // 공개 표면은 JSX 소비처가 실제로 쓰는 심볼 42 개로 고정된다(T-1899 의 기본 provider 재지정
-    // 3 에 이어 T-1999 의 슬롯 seed 3(seeding · seedError · handleSeedSlots)을 더해 39 → 42).
-    expect(keys).toHaveLength(42);
+    // 공개 표면은 JSX 소비처가 실제로 쓰는 심볼 43 개로 고정된다(T-1899 의 기본 provider 재지정
+    // 3 에 이어 T-1999 의 슬롯 seed 3(seeding · seedError · handleSeedSlots)을 더해 39 → 42,
+    // 여기에 T-2007 의 seed 성공 요약 1(seedSummary)을 더해 42 → 43 — 증가분은 이 1 개뿐이고
+    // setter(setSeedSummary)는 위 hidden 목록과 같은 이유로 공개하지 않는다).
+    expect(keys).toContain('seedSummary');
+    expect(keys).not.toContain('setSeedSummary');
+    expect(keys).toHaveLength(43);
   });
 });

@@ -370,6 +370,11 @@ export function useAdminLlmProviders() {
   // 보관해 버튼 옆 alert 로 안전 표시한다(throw 없음). 성공/재시도 시작 시 비운다.
   const [seedError, setSeedError] = useState<string | undefined>(undefined);
 
+  // 슬롯 seed 성공 요약 문구(T-2007) — POST 응답 `{ created, existing }` 을 러너가 방어 파싱한
+  // 사람-친화 1 줄(무엇이 새로 생겼고 무엇이 이미 있었는지)을 보관한다. 발사 시작 시 비워지고
+  // 실패 경로에서는 채워지지 않으므로, 화면에 남는 요약은 항상 **직전 성공 발사**의 것이다.
+  const [seedSummary, setSeedSummary] = useState<string | undefined>(undefined);
+
   // 슬롯 seed 실 mutation 핸들러(T-1999) — 3 난이도 슬롯 멱등 확보 POST(/api/llm/difficulty-
   // mappings/seed, api.md 139 행)를 발사한다. PATCH 가 upsert 가 아니라 슬롯 row 부재 시 영원히
   // 404 이므로(운영 DB 의 실제 빈칸) 그 선행 row 를 UI 에서 만들어 주는 진입점이다. 가드(이전
@@ -385,14 +390,16 @@ export function useAdminLlmProviders() {
         seeding,
         setSeeding,
         setSeedError,
+        setSeedSummary,
         bumpRefresh: () => setRefreshNonce((n) => n + 1),
       }),
     [seeding],
   );
 
   // 반환 표면 — JSX LLM 패널 구역(provider 목록 · 생성 폼 · 인라인 편집 폼 · 난이도 슬롯 선택기)이
-  // 실제로 소비하는 42 심볼만 공개한다(T-1899 의 기본 provider 재지정 3 에 이어 T-1999 의 슬롯
-  // seed 3(seeding · seedError · handleSeedSlots)을 더해 39 → 42).
+  // 실제로 소비하는 43 심볼만 공개한다(T-1899 의 기본 provider 재지정 3 에 이어 T-1999 의 슬롯
+  // seed 3(seeding · seedError · handleSeedSlots)을 더해 39 → 42, 여기에 T-2007 의 seed 성공
+  // 요약 1(seedSummary)을 더해 42 → 43).
   // 내부 전용(원본 응답 2 · 재조회 nonce 2 · 경로 2 · 낙관 override · mapping 조회 loading/error ·
   // assign in-flight/실패 문구 · 편집 폼 리셋 helper · 나머지 setter)은 의도적으로 빼 축 밖에서 이
   // 축의 내부 상태를 건드릴 경로를 만들지 않는다.
@@ -438,6 +445,7 @@ export function useAdminLlmProviders() {
     handleAssign,
     seeding,
     seedError,
+    seedSummary,
     handleSeedSlots,
   };
 }
