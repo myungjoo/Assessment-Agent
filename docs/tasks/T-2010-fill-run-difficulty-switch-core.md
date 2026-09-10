@@ -2,7 +2,7 @@
 id: T-2010
 title: fill-run 난이도 스위치 하단 2 층 배선 — buildFillRunScoringOptions + runUnevaluatedFillRunCore (ADR-0066 Follow-ups (b) 1/3)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-050, REQ-049]
 estimatedDiff: 250
