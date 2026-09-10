@@ -2,7 +2,7 @@
 id: T-2016
 title: REQ-004 재판정 — 기간 상한 arc(T-1939~T-1942) 머지 실측 반영 + modules.md · UC-09 좌표 정정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004]
 estimatedDiff: 45
