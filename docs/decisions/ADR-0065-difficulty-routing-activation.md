@@ -94,6 +94,7 @@ REQ-050 은 요구표상 `Constraint` · 검증 위치 `policy + unit + e2e` · 
 - **(b) opt-in ON 경로의 fail-fast 전파 회귀 test** — [evaluation-scoring.service.ts](../../src/assessment-evaluation/evaluation-scoring.service.ts) 의 spec 에 (i) OFF 기본값 → `modelId` 경로 유지 (ii) ON + 슬롯 미설정 → 4xx **그대로 전파**(swallow 0) (iii) ON + 정상 → 사후 `classifyNarrative` 값이 결과에 기록됨(`§ Decision 2` (ii)) 을 박제. 필요 시 e2e 1 종.
 - **(c) doc-sync (direct)** — [requirements.md](../requirements.md) `69 행` REQ-050 재판정. [PLAN.md](../PLAN.md) `183 행` once-rule 대로 (a) · (b) 전량 머지 후 **1 회만** 수행한다(T-2002 가 소진한 회차와 별개 회차).
 - **(확장 지점, task 아님)** 요약 경로의 난이도 routing(`§ Decision 4` 로 범위 밖) · 사전 난이도의 운영 설정화 · 사전/사후 난이도 괴리율 관측 — 각각 본 ADR 을 augment 하는 후속 ADR 이 선행한다.
+  - **운영 설정화는 [ADR-0066](ADR-0066-input-difficulty-routing-activation.md) 이 결정** (T-2008) — `§ Decision 3` 의 opt-in 스위치를 **무엇으로 켜는가**(요청 DTO 선택 boolean) · **어느 진입점에 배선하는가**(`POST /evaluate` + fill-run helper, 요약 · period bridge 는 제외) · 잘못된 값의 층별 취급을 그 ADR 이 확정한다. 본 문서의 `§ Decision 1 ~ 4` 는 그대로 유지되며 ADR-0066 은 augment 다(supersede 0).
 
 ## References
 
