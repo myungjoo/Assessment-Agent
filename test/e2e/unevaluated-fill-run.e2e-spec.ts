@@ -293,4 +293,76 @@ describe("E2E: POST /api/assessment-evaluation/unevaluated-fill-run — Admin ru
     expect(response.body.outcomes).toEqual([]);
     expect(response.body.totalCount).toBe(0);
   });
+
+  // -- 난이도 routing 스위치 HTTP 계약 (T-2014, REQ-050 잔여 e2e 축 · ADR-0066 § Decision 3) --
+  //
+  // 한계: fill-run 은 좌표 0 이라 gateway 도달을 관측하지 못한다(위 live-LLM 경계). 본 describe 는
+  // whitelist 수용 · 비-boolean 400 · 503 fail-fast 비우회만 잠그고, routing 도달은
+  // assessment-evaluation-evaluate.e2e-spec.ts 의 스위치 describe 가 잠근다.
+  describe("난이도 routing 스위치 useInputDifficultyRouting HTTP 계약 (T-2014)", () => {
+    const postWithSwitch = (cookie: string, value: unknown) =>
+      request(app.getHttpServer())
+        .post(ROUTE)
+        .set("Cookie", cookie)
+        .send({ ...validEmptyBody(), useInputDifficultyRouting: value });
+
+    const expectEmptyRun = (body: Record<string, unknown>): void => {
+      expect(body.outcomes).toEqual([]);
+      expect(body.totalCount).toBe(0);
+      expect(body.evaluatedCount).toBe(0);
+      expect(body.skippedCount).toBe(0);
+      expect(body.failedCount).toBe(0);
+      expect(body.totalEvaluatedRecords).toBe(0);
+    };
+
+    it("Admin + 스위치 true 는 200 + 빈 outcomes · 4 count 0 (happy — whitelist 가 필드를 받아 사슬 끝까지 통과)", async () => {
+      const response = await postWithSwitch(adminCookie, true);
+
+      expect(response.status).toBe(200);
+      expectEmptyRun(response.body as Record<string, unknown>);
+    });
+
+    it.each([
+      { label: "명시 false", value: false as unknown },
+      // @IsOptional 이 null 을 미지정과 동일하게 흡수 → `=== true` 게이트에서 OFF.
+      { label: "null", value: null as unknown },
+    ])(
+      "Admin + 스위치 $label 도 200 + 빈 outcomes (분기별)",
+      async ({ value }) => {
+        const response = await postWithSwitch(adminCookie, value);
+
+        expect(response.status).toBe(200);
+        expectEmptyRun(response.body as Record<string, unknown>);
+      },
+    );
+
+    it("스위치 true + LlmProviderConfig row 부재 시 503 (error path — 스위치가 resolver fail-fast 를 우회하지 못함)", async () => {
+      await prisma.llmProviderConfig.deleteMany();
+
+      const response = await postWithSwitch(adminCookie, true);
+
+      expect(response.status).toBe(503);
+      expect(messageText(response.body)).toMatch(/LLM provider/);
+    });
+
+    it.each([
+      { label: '문자열 "true"', value: "true" as unknown },
+      { label: "숫자 1", value: 1 as unknown },
+      { label: "객체 {}", value: {} as unknown },
+    ])(
+      "Admin + 스위치 $label 은 400 (negative — @IsBoolean, coercion 미부여)",
+      async ({ value }) => {
+        const response = await postWithSwitch(adminCookie, value);
+
+        expect(response.status).toBe(400);
+        expect(messageText(response.body)).toMatch(/useInputDifficultyRouting/);
+      },
+    );
+
+    it("스위치 true + User tier 토큰은 403 (negative — 스위치가 RolesGuard 를 우회하지 못함)", async () => {
+      const response = await postWithSwitch(userCookie, true);
+
+      expect(response.status).toBe(403);
+    });
+  });
 });
