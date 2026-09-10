@@ -46,13 +46,17 @@ type EvaluateBody = {
 };
 
 // 유효 nested 활동 1 건(github commit = code 기여 — 문서기여 marker 비대상).
-const activity = (externalId: string): JsonBody => ({
+// metadata 미지정 시 기존 `{ titleLength: 12 }` 그대로(T-2014 스위치 describe 만 override).
+const activity = (
+  externalId: string,
+  metadata: JsonBody = { titleLength: 12 },
+): JsonBody => ({
   externalId,
   sourceType: "github",
   instanceKey: "com",
   author: AUTHOR,
   timestamp: "2026-06-10T03:00:00.000Z",
-  metadata: { titleLength: 12 },
+  metadata,
   repoRef: "org/repo",
   kind: "commit",
 });
@@ -294,5 +298,183 @@ describe("E2E: POST /api/assessment-evaluation/evaluate 왕복 + 영속 분기 +
     expect(response.status).toBe(200);
     expect((response.body as EvaluateBody).contributionCount).toBe(2);
     expect(await prisma.assessment.count()).toBe(1);
+  });
+
+  // -- 난이도 routing 스위치 ON 경로 (T-2014, REQ-050 잔여 e2e 축 · ADR-0066 § Decision 3) --
+  //
+  // stub gateway 는 `options.difficulty` 가 주어질 때만 narrative 에 ` difficulty=<값>` 을
+  // 붙인다(llm-stub-gateway.service.ts 94~100 행). 그래서 스위치 → scoring 주입 → gateway
+  // 인자 → 응답 narrative 사슬이 HTTP 로 관측된다. 새 app 부팅 0 — 위 부팅 · actor · stub env 재사용.
+  describe("난이도 routing 스위치 useInputDifficultyRouting (T-2014)", () => {
+    type RoutedBody = {
+      contributionCount: number;
+      results: { unitId: string; narrative: string; difficulty: string }[];
+    };
+
+    const MARK = `${LLM_STUB_NARRATIVE_PREFIX} difficulty=`;
+    // github commit = code(KIND_SCORE_CODE 1). titleLength 12 ≤ 20 → LOW 0 → 합 1 → medium,
+    // titleLength 100 ≥ 80 → HIGH 2 → 합 3 ≥ HARD_SCORE_MIN 3 → hard (evaluation-input-difficulty.ts 20~33 행).
+    const MEDIUM_ID = "sha-mid";
+    const HARD_ID = "sha-hard";
+
+    const routedBody = (overrides: JsonBody = {}): JsonBody =>
+      validBody({
+        activities: [
+          activity(MEDIUM_ID),
+          activity(HARD_ID, { titleLength: 100 }),
+        ],
+        ...overrides,
+      });
+
+    // 응답 results 순서에 기대지 않고 unitId(`<sourceType>:<instanceKey>:<externalId>`)로 대응.
+    const resultOf = (body: RoutedBody, externalId: string) => {
+      const found = body.results.find(
+        (result) => result.unitId === `github:com:${externalId}`,
+      );
+      if (found === undefined) {
+        throw new Error(`unitId 대응 실패: ${externalId}`);
+      }
+      return found;
+    };
+
+    it("Admin + 스위치 true 는 200 이고 단위별 narrative 에 사전 난이도 medium · hard 가 각각 실린다 (happy · 단위별 routing)", async () => {
+      const response = await postAs(
+        adminCookie,
+        routedBody({ useInputDifficultyRouting: true }),
+      );
+
+      expect(response.status).toBe(200);
+      const body = response.body as RoutedBody;
+      expect(body.contributionCount).toBe(2);
+      expect(body.results).toHaveLength(2);
+      // 2 종 이상의 값 — routing 이 상수 주입이 아니라 단위별 산출임을 증명한다.
+      expect(resultOf(body, MEDIUM_ID).narrative).toContain(`${MARK}medium`);
+      expect(resultOf(body, HARD_ID).narrative).toContain(`${MARK}hard`);
+      expect(await prisma.assessment.count()).toBe(1);
+      expect(await prisma.contribution.count()).toBe(2);
+      await expect(evaluationActive()).resolves.toBe(false);
+    });
+
+    it.each([
+      {
+        label: "명시 false",
+        overrides: (): JsonBody => ({ useInputDifficultyRouting: false }),
+      },
+      { label: "미지정", overrides: (): JsonBody => ({}) },
+      // DTO 195~196 행 — @IsOptional 이 null 을 미지정과 동일하게 흡수(ADR 산문의 400 아님).
+      {
+        label: "null",
+        overrides: (): JsonBody => ({ useInputDifficultyRouting: null }),
+      },
+    ])(
+      "스위치 $label 은 200 이고 narrative 에 난이도 표기가 없다 (분기 · OFF 환원)",
+      async ({ overrides }) => {
+        const response = await postAs(adminCookie, routedBody(overrides()));
+
+        expect(response.status).toBe(200);
+        const body = response.body as RoutedBody;
+        expect(body.contributionCount).toBe(2);
+        expect(resultOf(body, MEDIUM_ID).narrative).not.toContain(MARK);
+        expect(resultOf(body, HARD_ID).narrative).not.toContain(MARK);
+      },
+    );
+
+    it("같은 활동의 ON 응답과 OFF(reeval) 응답은 unitId 별 결과 difficulty 가 동일하다 (비대칭 · ADR-0065 § Decision 2)", async () => {
+      const on = (
+        await postAs(
+          adminCookie,
+          routedBody({ useInputDifficultyRouting: true }),
+        )
+      ).body as RoutedBody;
+      // reeval 로 idempotent no-op(contributionCount 0)을 피하고 같은 좌표를 재평가한다.
+      const response = await postAs(
+        adminCookie,
+        routedBody({ mode: "reeval" }),
+      );
+
+      expect(response.status).toBe(200);
+      const off = response.body as RoutedBody;
+      expect(off.contributionCount).toBe(2);
+      for (const id of [MEDIUM_ID, HARD_ID]) {
+        expect(resultOf(on, id).narrative).toContain(MARK);
+        expect(resultOf(off, id).narrative).not.toContain(MARK);
+        expect(resultOf(on, id).difficulty).toBe(resultOf(off, id).difficulty);
+      }
+      // stub 표기 `=` 는 사후 marker(`:`)와 불일치 — hard 로 routing 된 단위도 결과 필드로 새지 않는다.
+      expect(resultOf(on, HARD_ID).difficulty).not.toBe("hard");
+    });
+
+    it("스위치 true 여도 미허용 scope 는 500 이고 row 0 · evaluation.active false (error path · persist 오류 표면 불변)", async () => {
+      const response = await postAs(
+        adminCookie,
+        routedBody({ useInputDifficultyRouting: true, scope: "bogus" }),
+      );
+
+      expect(response.status).toBe(500);
+      expect(response.body).not.toHaveProperty("assessmentId");
+      expect(await prisma.assessment.count()).toBe(0);
+      await expect(evaluationActive()).resolves.toBe(false);
+    });
+
+    it.each([
+      { label: '(1) 문자열 "true"', value: "true" as unknown },
+      { label: "(2) 숫자 1", value: 1 as unknown },
+      { label: "(3) 객체 {}", value: {} as unknown },
+      { label: "(4) 배열 []", value: [] as unknown },
+    ])(
+      "스위치 $label 은 400 이고 Assessment row 0 (negative · coercion 미부여)",
+      async ({ value }) => {
+        const response = await postAs(
+          adminCookie,
+          routedBody({ useInputDifficultyRouting: value }),
+        );
+
+        expect(response.status).toBe(400);
+        expect(JSON.stringify(response.body)).toContain(
+          "useInputDifficultyRouting",
+        );
+        expect(response.body).not.toHaveProperty("assessmentId");
+        expect(await prisma.assessment.count()).toBe(0);
+      },
+    );
+
+    it("(5) 오타 필드명 useInputDifficultyRoutingg 는 400 이고 (6) 직후 evaluation.active 가 false (negative · forbidNonWhitelisted · begin 미진입)", async () => {
+      const response = await postAs(
+        adminCookie,
+        routedBody({ useInputDifficultyRoutingg: true }),
+      );
+
+      expect(response.status).toBe(400);
+      expect(JSON.stringify(response.body)).toContain(
+        "useInputDifficultyRoutingg",
+      );
+      expect(response.body).not.toHaveProperty("assessmentId");
+      expect(await prisma.assessment.count()).toBe(0);
+      await expect(evaluationActive()).resolves.toBe(false);
+    });
+
+    it.each([
+      {
+        label: "cookie 부재",
+        cookie: (): string | undefined => undefined,
+        expected: 401,
+      },
+      {
+        label: "User role",
+        cookie: (): string | undefined => userCookie,
+        expected: 403,
+      },
+    ])(
+      "(7) 스위치 true 여도 $label 은 $expected 이고 row 0 (negative · guard 비우회)",
+      async ({ cookie, expected }) => {
+        const response = await postAs(
+          cookie(),
+          routedBody({ useInputDifficultyRouting: true }),
+        );
+
+        expect(response.status).toBe(expected);
+        expect(await prisma.assessment.count()).toBe(0);
+      },
+    );
   });
 });
