@@ -2,7 +2,7 @@
 id: T-2017
 title: REQ-045 재판정 + REQ-046 · REQ-073 drift 정정 — 인원 · 그룹 · 파트 편집 route 미보호 실측 반영
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-045, REQ-046, REQ-073]
 estimatedDiff: 60
@@ -97,3 +97,6 @@ README `85 행` 은 "Admin 은 평가 자료 재작성, Reset, Import/Export, �
 ## Follow-ups
 
 - (a) **오너 결정 필요 — 인원 · 그룹 · 파트 20 route guard 배선** (planner 기록) — `api/persons` 5 · `api/groups` 9 · `api/parts` 6 route 가 무인증으로 편집까지 열려 있다. [api.md](../architecture/api.md) `80~97 행` 계약(`Admin+` / `User+`)과 README `83 행` · `85 행` · `168 행` 을 위반한다. 배선 자체는 기존 `JwtAuthGuard` + `RolesGuard` + `@Roles` 재사용이다. 새 인증 방식도 새 dependency 도 아니다. 하지만 T-1983 · T-1984 가 CLAUDE.md `§5` 인증 변경으로 분류했으므로 `humanQuestion` 으로 오너 승인을 받아야 착수할 수 있다. 승인이 나면 controller 별 slice 로 나눈다. 각 slice 는 controller 1 개 + 그 controller spec + e2e 1 파일(무인증 요청에 cookie 추가 · 401 / 403 단언 신설) + census `known-gap-REQ-043` allowlist 축소를 함께 가져간다(5 파일 cap 안). 이 흐름은 persons → groups → parts 순서로 진행한다.
+- (b) **task 파일 서술과 실측 차이 — person 주석 문구** (executor 실측) — `src/user/person.controller.ts` `20 행` 주석은 "T-0038+ 책임" 이다. 본 task 의 "후속 task 책임" 과 다르다(group `51 행` · part `28 행` 은 일치). requirements.md 셀에는 실제 문구를 적었다.
+- (c) **REQ-043 셀 stale 좌표** (executor 실측, 본 task 범위 밖) — [requirements.md](../requirements.md) `62 행` REQ-043 셀이 person 주석을 "19 행" 으로 가리키지만 실제는 `20 행` 이다. 후순위 doc 정정 slice 후보.
+- (d) **api.md persons 행 좌표** (executor 실측) — [api.md](../architecture/api.md) persons 행은 `79~83 행` 이다. 본 task 의 "80~97 행" 은 부정확하며, 셀에는 `79~83 행` · `89~97 행` 으로 적었다. (a) 의 좌표도 같은 이유로 근사치다.
