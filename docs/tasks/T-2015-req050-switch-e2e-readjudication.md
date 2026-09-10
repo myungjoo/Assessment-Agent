@@ -2,7 +2,7 @@
 id: T-2015
 title: REQ-050 재판정 — 스위치 ON e2e 축(T-2014) 머지 실측 반영
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-050]
 estimatedDiff: 40
