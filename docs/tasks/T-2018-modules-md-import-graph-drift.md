@@ -2,7 +2,7 @@
 id: T-2018
 title: modules.md 의존성 표 · 그래프를 실 imports 배열과 정합 — 평가 · 수집 · 스케줄링 edge 누락 + RunStatusModule 각주 보강
 phase: P5
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-004, REQ-040, REQ-083]
 estimatedDiff: 30
@@ -97,4 +97,5 @@ plannerNote: P5 · T-2016 Follow-ups (a) 회수 — modules.md 그래프 · deps
 
 ## Follow-ups
 
-(비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가한다.)
+- (a) 그래프에 있으나 실 imports 에 없는 edge — `assessmentEvaluation --> auth`, `scheduler --> assessment`, `scheduler --> persistence`, 그리고 `42 행` SchedulerModule deps 칸의 Persistence · Assessment · Auth 서술. P1 conceptual edge 인지 drift 인지 판정 필요 (본 task Out of Scope).
+- (b) Topological order `153 행` 의 AssessmentCollectionModule 괄호에 실 imports 인 Auth · RunStatus 누락 (순서 자체는 성립). 후순위 doc 정정 후보.
