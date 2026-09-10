@@ -2,7 +2,7 @@
 id: T-2012
 title: fill-run 난이도 스위치 controller 전사 — POST /unevaluated-fill-run 핸들러 4 번째 인자 (ADR-0066 Follow-ups (b) 3/3)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-050, REQ-049]
 estimatedDiff: 200
