@@ -856,6 +856,7 @@ function AdminView({
     handleAssign,
     seeding,
     seedError,
+    seedSummary,
     handleSeedSlots,
   } = useAdminLlmProviders();
 
@@ -1099,6 +1100,10 @@ function AdminView({
             {seeding ? '슬롯 초기화 중…' : '난이도 슬롯 초기화'}
           </button>
           {seedError ? <p role="alert">{seedError}</p> : null}
+          {/* seed 성공 요약(T-2007) — 응답 {`{ created, existing }`} 을 러너가 방어 파싱한 1 줄.
+              무엇이 새로 생겼고 무엇이 이미 있었는지를 보여 멱등 재실행과 첫 실행을 사람 눈으로
+              구분하게 한다. 실패 문구(alert)와 달리 비긴급 상태 알림이라 role="status" 다. */}
+          {seedSummary ? <p role="status">{seedSummary}</p> : null}
           {/* 등록된 LLM provider 설정 목록(T-1134 마운트 + T-1135 삭제 배선, R-96). 기존 providerData 를
               재사용해 sanitized view(providerConfigs)로 파생하고, 삭제 콜백(handleDeleteProvider)을
               onDelete 로 내려 각 행에 삭제 버튼을 배선한다. loading 은 조회+삭제 in-flight 를 합성

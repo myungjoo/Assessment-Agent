@@ -430,6 +430,50 @@ export async function runAssign(
   }
 }
 
+// 난이도 슬롯 seed 응답 요약에 쓰는 한국어 라벨(T-2007) — DifficultyModelSelector 의
+// DIFFICULTY_SLOTS 라벨과 같은 값이다. 미지의 키가 섞여 들어와도 키 원문을 그대로 보여
+// 요약이 조용히 비지 않게 한다.
+const SEED_DIFFICULTY_LABELS: Record<string, string> = {
+  easy: '쉬움',
+  medium: '보통',
+  hard: '어려움',
+};
+
+// unknown 값이 **문자열만 담은 배열** 인지 판정하는 좁히기 가드(T-2007). 원소에 숫자·null 이
+// 섞이면 false — 라벨 파생이 `undefined` 문자열을 뱉는 것을 원천 차단한다.
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((v) => typeof v === 'string');
+}
+
+// 배열 하나를 `N개(라벨 · 라벨)` 형태로 적는다. 빈 배열은 괄호 없이 `0개`.
+function describeSlotGroup(slots: string[]): string {
+  if (slots.length === 0) {
+    return '0개';
+  }
+  const labels = slots.map((s) => SEED_DIFFICULTY_LABELS[s] ?? s).join(' · ');
+  return `${slots.length}개(${labels})`;
+}
+
+// 난이도 슬롯 seed 응답(`{ created, existing }`, api.md 139 행 · difficulty-mapping.service.ts
+// seedDifficultySlots)을 사람-친화 요약 1 줄로 파생하는 **순수 함수**(T-2007). 두 필드가 모두
+// 문자열 배열인 계약 shape 일 때만 문구를 만들고, 그 외(undefined · null · 비객체 · 배열 ·
+// 필드 누락 · 원소가 문자열 아님)에는 undefined 를 돌려준다 — 응답이 계약과 다르면 아무 말도
+// 하지 않는 쪽이 근거 없는 요약을 지어내는 것보다 안전하다. created / existing 은 카운트가
+// 아니라 Difficulty[] 이므로 길이와 라벨을 함께 적는다.
+export function summarizeSeedSlots(raw: unknown): string | undefined {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return undefined;
+  }
+  const { created, existing } = raw as {
+    created?: unknown;
+    existing?: unknown;
+  };
+  if (!isStringArray(created) || !isStringArray(existing)) {
+    return undefined;
+  }
+  return `난이도 슬롯 초기화 완료 — 생성 ${describeSlotGroup(created)} · 기존 ${describeSlotGroup(existing)}`;
+}
+
 // 난이도 슬롯 seed POST 에 주입하는 deps(T-1999 — AssignDeps 1:1 mirror). assign 축과 달리
 // 대상 식별자(difficulty · providerId)도 body 도 없어 러너 인자는 deps 하나뿐이고, 낙관 반영
 // override 도 없다(seed 가 만드는 슬롯의 llmProviderConfigId 는 항상 null 이라 화면에 즉시
@@ -437,6 +481,11 @@ export async function runAssign(
 export interface SeedSlotsDeps {
   // POST 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
   post: (path: string, options: RequestOptions) => Promise<unknown>;
+  // seed 성공 요약 문구 setter(T-2007) — **optional** 이다. 기존 계약 spec
+  // AdminView.difficulty-mapping-seed-contract.test.ts 가 SeedSlotsDeps 리터럴을 직접
+  // 조립하는데, 필수 dep 로 만들면 그 spec 을 함께 고쳐야 해 이 slice 의 5 파일 cap 을 넘긴다.
+  // 미주입 시에는 호출부(optional chaining)가 조용히 건너뛰고 나머지 전이는 무변경이다.
+  setSeedSummary?: (next: string | undefined) => void;
   // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
   describeError: (e: unknown) => string;
   // 현재 seed in-flight 여부 — true 면 미발사(이중 POST·경합 가드).
@@ -458,8 +507,10 @@ export interface SeedSlotsDeps {
 //  - 발사 시 진행 on + 직전 error 비움 → POST → 성공(권위 재조회 트리거) / 실패(사람-친화
 //    문구 표면화 — throw 없이) → 진행 off(공통, finally).
 //
-// 응답 body(`{ created, existing }`)는 소비하지 않는다 — seed 슬롯은 전부 미지정(null)이라
-// 화면 상태는 아래 bumpRefresh 의 권위 재조회 결과로만 갱신된다(낙관 반영 없음).
+// 응답 body(`{ created, existing }`)는 화면 상태 갱신에 쓰지 않는다 — seed 슬롯은 전부
+// 미지정(null)이라 화면 상태는 아래 bumpRefresh 의 권위 재조회 결과로만 갱신된다(낙관 반영
+// 없음). 다만 T-2007 부터 그 body 를 summarizeSeedSlots 로 방어 파싱해 **사람-친화 요약 1 줄**
+// 로만 표면화한다(무엇이 새로 생겼고 무엇이 이미 있었는지 = 멱등 재실행과 첫 실행의 구분).
 export async function runSeedSlots(deps: SeedSlotsDeps): Promise<void> {
   // 동시 재호출 가드 — 이전 seed 미완 중이면 미발사(이중 POST·state 경합 차단).
   if (deps.seeding) {
@@ -468,12 +519,21 @@ export async function runSeedSlots(deps: SeedSlotsDeps): Promise<void> {
   deps.setSeeding(true);
   // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리).
   deps.setSeedError(undefined);
+  // 직전 발사의 성공 요약도 함께 비운다 — 새 발사 결과가 나오기 전까지 과거 요약을 화면에
+  // 남겨두면 이번 발사의 결과로 오독된다(실패 경로에서 요약이 남지 않는 근거이기도 하다).
+  deps.setSeedSummary?.(undefined);
   try {
     // POST /api/llm/difficulty-mappings/seed — body 없음(Content-Type 헤더도 없다. 보낼
     // payload 가 없는데 헤더만 붙이면 계약과 어긋난다). path 는 정적 문자열이라 인코딩할
     // param 이 없고, 접미는 정확히 `/seed` 여야 한다(`/:difficulty` PATCH 와 혼동 금지).
-    await deps.post(`${LLM_MAPPINGS_PATH}/seed`, { method: 'POST' });
-    // 성공 — 권위 매핑 재조회 트리거(seed 로 생긴 슬롯 row 를 서버 응답으로 확인).
+    const body = await deps.post(`${LLM_MAPPINGS_PATH}/seed`, {
+      method: 'POST',
+    });
+    // 성공 — 응답 body 를 방어 파싱해 요약만 표면화한다(형태가 계약과 다르면 undefined 라
+    // 근거 없는 문구가 지어지지 않는다). 실패 경로(catch)에서는 호출하지 않으므로 직전 성공
+    // 요약이 실패 뒤에 남지 않는다(위에서 이미 비웠다).
+    deps.setSeedSummary?.(summarizeSeedSlots(body));
+    // 권위 매핑 재조회 트리거(seed 로 생긴 슬롯 row 를 서버 응답으로 확인).
     deps.bumpRefresh();
   } catch (e) {
     // 실패 — 사람-친화 문구를 error state 로 안전 표시(throw 없이). 403 Admin+ 미만 /

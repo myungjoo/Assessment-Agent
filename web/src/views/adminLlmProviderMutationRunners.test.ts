@@ -21,6 +21,7 @@ import {
   runSetDefaultProvider,
   runAssign,
   runSeedSlots,
+  summarizeSeedSlots,
 } from './adminLlmProviderMutationRunners';
 import {
   runCreateProvider as reexportedRunCreateProvider,
@@ -634,6 +635,160 @@ describe('adminLlmProviderMutationRunners 모듈 경계(T-1857 순수 추출)', 
       await runSeedSlots(deps);
       expect(deps.bumpRefresh).toHaveBeenCalledTimes(1);
       expect(deps.setSeedError.mock.calls).toEqual([[undefined]]);
+      expect(deps.setSeeding.mock.calls).toEqual([[true], [false]]);
+    });
+  });
+
+  describe('summarizeSeedSlots — seed 응답 요약 파서(T-2007)', () => {
+    it('happy-path ① — 전량 생성(created 3 · existing 0)을 라벨과 함께 요약한다', () => {
+      expect(
+        summarizeSeedSlots({
+          created: ['easy', 'medium', 'hard'],
+          existing: [],
+        }),
+      ).toBe('난이도 슬롯 초기화 완료 — 생성 3개(쉬움 · 보통 · 어려움) · 기존 0개');
+    });
+
+    it('happy-path ② — 일부 생성 + 일부 기존을 양쪽 모두 적는다', () => {
+      expect(
+        summarizeSeedSlots({ created: ['medium'], existing: ['easy', 'hard'] }),
+      ).toBe('난이도 슬롯 초기화 완료 — 생성 1개(보통) · 기존 2개(쉬움 · 어려움)');
+    });
+
+    it('happy-path ③ — 전량 기존(멱등 재실행)도 첫 실행과 구분되는 문구가 된다', () => {
+      const summary = summarizeSeedSlots({
+        created: [],
+        existing: ['easy', 'medium', 'hard'],
+      });
+      expect(summary).toBe(
+        '난이도 슬롯 초기화 완료 — 생성 0개 · 기존 3개(쉬움 · 보통 · 어려움)',
+      );
+      // 첫 실행 문구와 문자열이 실제로 달라야 사람 눈에 구분이 생긴다.
+      expect(summary).not.toBe(
+        summarizeSeedSlots({ created: ['easy', 'medium', 'hard'], existing: [] }),
+      );
+    });
+
+    it('분기 — 미지의 난이도 키는 라벨 대신 키 원문으로 적어 요약이 비지 않는다', () => {
+      expect(summarizeSeedSlots({ created: ['legendary'], existing: [] })).toBe(
+        '난이도 슬롯 초기화 완료 — 생성 1개(legendary) · 기존 0개',
+      );
+    });
+
+    it('negative ① — 응답 없음(undefined · null)에는 요약을 지어내지 않는다', () => {
+      expect(summarizeSeedSlots(undefined)).toBeUndefined();
+      expect(summarizeSeedSlots(null)).toBeUndefined();
+    });
+
+    it('negative ② — 비객체(문자열 · 숫자 · boolean · 배열)는 전부 undefined 다', () => {
+      expect(summarizeSeedSlots('created')).toBeUndefined();
+      expect(summarizeSeedSlots(3)).toBeUndefined();
+      expect(summarizeSeedSlots(true)).toBeUndefined();
+      expect(summarizeSeedSlots(['easy'])).toBeUndefined();
+    });
+
+    it('negative ③ — 두 필드 중 하나만 있으면 undefined 다', () => {
+      expect(summarizeSeedSlots({ created: ['easy'] })).toBeUndefined();
+      expect(summarizeSeedSlots({ existing: ['easy'] })).toBeUndefined();
+      expect(summarizeSeedSlots({})).toBeUndefined();
+    });
+
+    it('negative ④ — 필드가 배열이 아니거나 원소에 비문자열이 섞이면 undefined 다', () => {
+      expect(
+        summarizeSeedSlots({ created: 'easy', existing: [] }),
+      ).toBeUndefined();
+      expect(summarizeSeedSlots({ created: 3, existing: [] })).toBeUndefined();
+      expect(
+        summarizeSeedSlots({ created: ['easy', 3], existing: [] }),
+      ).toBeUndefined();
+      expect(
+        summarizeSeedSlots({ created: [], existing: [null] }),
+      ).toBeUndefined();
+    });
+  });
+
+  describe('runSeedSlots — 요약 배선(T-2007)', () => {
+    // 요약 setter 를 주입한 seed deps — optional dep 라 기본 helper 에는 없다.
+    function makeSummaryDeps() {
+      return { ...makeSeedDeps(), setSeedSummary: vi.fn() };
+    }
+
+    it('happy-path — 발사 시 요약을 비우고 성공 후 파생 문구로 채운다', async () => {
+      const deps = makeSummaryDeps();
+      await runSeedSlots(deps);
+      expect(deps.setSeedSummary.mock.calls).toEqual([
+        [undefined],
+        ['난이도 슬롯 초기화 완료 — 생성 1개(쉬움) · 기존 0개'],
+      ]);
+      expect(deps.bumpRefresh).toHaveBeenCalledTimes(1);
+      // 기존 계약 무변경 — path · method · body 없음은 그대로다.
+      expect(deps.post).toHaveBeenCalledWith(`${LLM_MAPPINGS_PATH}/seed`, {
+        method: 'POST',
+      });
+    });
+
+    it('happy-path — 멱등 재발사(created 0 · existing 3)도 요약으로 구분된다', async () => {
+      const deps = makeSummaryDeps();
+      deps.post = vi.fn(
+        async (): Promise<unknown> => ({
+          created: [],
+          existing: ['easy', 'medium', 'hard'],
+        }),
+      );
+      await runSeedSlots(deps);
+      expect(deps.setSeedSummary).toHaveBeenLastCalledWith(
+        '난이도 슬롯 초기화 완료 — 생성 0개 · 기존 3개(쉬움 · 보통 · 어려움)',
+      );
+    });
+
+    it('error path / negative — 실패 시 요약은 비워진 채로 남고 문구만 표면화된다', async () => {
+      const deps = makeSummaryDeps();
+      deps.post = vi.fn(async () => {
+        throw BOOM;
+      });
+      await expect(runSeedSlots(deps)).resolves.toBeUndefined();
+      expect(deps.setSeedError).toHaveBeenLastCalledWith(describeError(BOOM));
+      // 발사 시작의 비움 1 회뿐 — 실패 경로는 요약을 설정하지 않는다(직전 성공 요약 잔류 0).
+      expect(deps.setSeedSummary.mock.calls).toEqual([[undefined]]);
+      expect(deps.bumpRefresh).not.toHaveBeenCalled();
+    });
+
+    it('negative — post 가 undefined 를 resolve 하면 요약도 undefined 다', async () => {
+      const deps = makeSummaryDeps();
+      deps.post = vi.fn(async (): Promise<unknown> => undefined);
+      await runSeedSlots(deps);
+      expect(deps.setSeedSummary.mock.calls).toEqual([[undefined], [undefined]]);
+      // 응답을 못 읽어도 성공 전이 자체는 무변경이다(권위 재조회는 돈다).
+      expect(deps.bumpRefresh).toHaveBeenCalledTimes(1);
+    });
+
+    it('negative — 비객체 · 필드 누락 · 비문자열 원소 응답도 요약 없이 성공 전이만 한다', async () => {
+      for (const body of ['ok', { created: ['easy'] }, { created: ['easy', 1], existing: [] }]) {
+        const deps = makeSummaryDeps();
+        deps.post = vi.fn(async (): Promise<unknown> => body);
+        await runSeedSlots(deps);
+        expect(deps.setSeedSummary.mock.calls).toEqual([
+          [undefined],
+          [undefined],
+        ]);
+        expect(deps.setSeeding.mock.calls).toEqual([[true], [false]]);
+      }
+    });
+
+    it('분기 / negative — seeding in-flight 재호출은 요약도 건드리지 않는다', async () => {
+      const deps = { ...makeSummaryDeps(), seeding: true };
+      await runSeedSlots(deps);
+      expect(deps.post).not.toHaveBeenCalled();
+      expect(deps.setSeedSummary).not.toHaveBeenCalled();
+    });
+
+    it('분기 — setSeedSummary 미주입(optional dep 부재)에도 throw 없이 정상 종료한다', async () => {
+      // 기존 계약 spec(AdminView.difficulty-mapping-seed-contract)이 만드는 deps 리터럴과
+      // 같은 형태 — 새 dep 가 optional 이어야 하는 이유의 실증이다.
+      const deps = makeSeedDeps();
+      expect(deps).not.toHaveProperty('setSeedSummary');
+      await expect(runSeedSlots(deps)).resolves.toBeUndefined();
+      expect(deps.bumpRefresh).toHaveBeenCalledTimes(1);
       expect(deps.setSeeding.mock.calls).toEqual([[true], [false]]);
     });
   });
