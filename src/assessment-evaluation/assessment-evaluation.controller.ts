@@ -287,8 +287,14 @@ export class AssessmentEvaluationController {
       // timestamp/metadata + source-별 옵션 필드). orchestrator 는 `Activity[]` 시그니처를
       // 요구하므로 unknown 을 거쳐 cast(런타임 변환 0 — 동일 객체 forward).
       const activities = dto.activities as unknown as Activity[];
+      // 사전 난이도 routing 스위치 전사(ADR-0066 §Decision 2 — 요청 DTO 가 modelId
+      // source 인 좌표에만 배선). 가공 0 · 기본값 주입 0 의 그대로 전사이며, 미지정
+      // 요청은 undefined 가 실려 service 의 `=== true` 게이트가 false 로 남아 OFF 가
+      // 보존된다(§Decision 3 "미지정 = OFF"). 값 자체의 형식 강제는 DTO 의
+      // @IsOptional + @IsBoolean + controller-scope ValidationPipe 책임.
       const results = await this.orchestrator.evaluateActivities(activities, {
         modelId: dto.modelId,
+        useInputDifficultyRouting: dto.useInputDifficultyRouting,
       });
 
       // context 4-tuple 조립(ADR-0033 §51) — periodStart 만 string → Date 파싱, 나머지
