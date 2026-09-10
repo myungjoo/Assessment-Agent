@@ -2,7 +2,7 @@
 id: T-2019
 title: REQ-002 재판정 + PLAN P6 deferred 잔여 stale 정정 — Web Interface 축 실측 반영
 phase: P6
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-002]
 estimatedDiff: 30
@@ -96,4 +96,5 @@ README `6 행` 은 "AA (Assessment-Agent)는 Web Interface를 제공하는 Agent
 
 ## Follow-ups
 
-(비어 있음 — sub-agent 가 관련 작업을 발견하면 여기에 추가한다.)
+- (a) PLAN `119 행` 편집 주의의 "실 defer 잔여 1 항목" 서술이 `126 행` 실 defer 0 건 정정과 어긋난다 — 재판정 필요 (본 task Out of Scope).
+- (b) PLAN `123 행` 의 "121 행 R-78 bullet" pointer 가 실제로는 `124 행` 을 가리킨다 — 좌표 정정 필요.
