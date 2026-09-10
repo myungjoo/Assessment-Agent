@@ -2,7 +2,7 @@
 id: T-2014
 title: 난이도 routing 스위치 ON 경로 e2e 잠금 — POST /evaluate stub 왕복 + fill-run HTTP 계약 (REQ-050 잔여 e2e 축)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-050]
 estimatedDiff: 230
