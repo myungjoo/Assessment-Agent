@@ -2,7 +2,7 @@
 id: T-2008
 title: ADR-0066 신설 — 사전 난이도 routing 의 운영 발화 스위치(스위치 source · 적용 진입점 · 기본값 경계) 결정
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-050, REQ-049]
 estimatedDiff: 240
