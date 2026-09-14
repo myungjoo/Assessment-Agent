@@ -1948,7 +1948,7 @@
       ],
       "resolvedAt": "2026-09-14T00:46:00Z",
       "resolvedBy": "human (owner, interactive session)",
-      "decision": "옵션 ① 승인 + 조건 1 개. persons → groups → parts 순서로 controller 별 `pr` slice 3 개를 진행한다 (각 slice 에 controller guard 배선 · spec · e2e 401/403 단언 · census allowlist 축소 포함, 기존 `JwtAuthGuard` · `RolesGuard` · `@Roles` 재사용, 새 dependency 0). 조건: 각 slice 는 해당 route 를 호출하는 web 측 (AdminView 등 `web/src/api/apiClient.ts` 경유) 이 인증 cookie 를 실제로 전송해 guard 배선 후에도 401 로 깨지지 않는지 확인하고, 그 확인을 AC 와 test 로 박제한다. 권한 등급 (User+ / Admin+) 은 `docs/architecture/api.md` 표를 따른다. REQ-047 자격증명 · REQ-048 브라우저 측정 dep 은 이번 답변 범위 밖 (미결). 오너가 함께 제기한 'API localhost 외 차단 옵션 (기본 ON, web UI on/off)' 제안은 설계 검토 중이며 본 승인에 포함하지 않는다 — 결정 시 별도 HQ/ADR 로 다룬다."
+      "decision": "옵션 ① 승인 + 조건 1 개. persons → groups → parts 순서로 controller 별 `pr` slice 3 개를 진행한다 (각 slice 에 controller guard 배선 · spec · e2e 401/403 단언 · census allowlist 축소 포함, 기존 `JwtAuthGuard` · `RolesGuard` · `@Roles` 재사용, 새 dependency 0). 조건: 각 slice 는 해당 route 를 호출하는 web 측 (AdminView 등 `web/src/api/apiClient.ts` 경유) 이 인증 cookie 를 실제로 전송해 guard 배선 후에도 401 로 깨지지 않는지 확인하고, 그 확인을 AC 와 test 로 박제한다. 권한 등급 (User+ / Admin+) 은 `docs/architecture/api.md` 표를 따른다. REQ-047 자격증명 · REQ-048 브라우저 측정 dep 은 이번 답변 범위 밖 (미결). 오너가 함께 제기했던 'API localhost 외 차단' 제안은 오너가 철회했다 (후속 task · HQ 불요)."
     }
   ],
   "humanQuestionsArchive": "docs/progress/humanQuestions-archive.md",
