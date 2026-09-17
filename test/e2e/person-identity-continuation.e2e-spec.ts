@@ -29,8 +29,9 @@
 //   - `afterEach` 는 `truncateAll` → `reseedAuthenticatedActors` 순서 고정 — truncate
 //     명단에 "User" 가 있어 인증 actor row 까지 사라지므로 원본 id 로 재삽입해야 후속
 //     요청이 엉뚱한 404 를 내지 않는다 (T-0520 선례).
-//   - `/api/persons` 는 guard 미적용이라 인원 생성·수정·삭제는 쿠키 없이 호출하고,
-//     identity 축만 조회 tier (User+) · 편집 tier (Admin+) 쿠키를 싣는다.
+//   - `/api/persons` 도 인원 생성·수정·삭제 요청에 편집 tier (Admin+) 쿠키를 싣는다
+//     (guard 배선 선행, T-2020 — Q-0056 ① 배선 후에도 401 로 깨지지 않도록 선탑재).
+//     identity 축은 종전대로 조회 tier (User+) · 편집 tier (Admin+) 쿠키를 싣는다.
 //
 // R-113 cover:
 //   - test/jest-e2e.json 의 testRegex `.*\.e2e-spec\.ts$` 가 본 파일을 자동 picking
@@ -72,6 +73,7 @@ describe("E2E: 인원 추가·수정 → ServiceIdentity 매핑 연속 동선 (T
   ): Promise<string> => {
     const response = await request(app.getHttpServer())
       .post("/api/persons")
+      .set("Cookie", adminCookie)
       .send({ fullName: "연속 동선 대상", email });
 
     expect(response.status).toBe(201);
@@ -136,6 +138,7 @@ describe("E2E: 인원 추가·수정 → ServiceIdentity 매핑 연속 동선 (T
 
     const patched = await request(app.getHttpServer())
       .patch(`/api/persons/${personId}`)
+      .set("Cookie", adminCookie)
       .send({ fullName: "수정된 이름" });
 
     expect(patched.status).toBe(200);
@@ -204,6 +207,7 @@ describe("E2E: 인원 추가·수정 → ServiceIdentity 매핑 연속 동선 (T
   it("error path — 빈 body 로 인원 생성이 400 이면 person row 0 이라 동선이 시작되지 않음", async () => {
     const response = await request(app.getHttpServer())
       .post("/api/persons")
+      .set("Cookie", adminCookie)
       .send({});
 
     expect(response.status).toBe(400);
@@ -216,6 +220,7 @@ describe("E2E: 인원 추가·수정 → ServiceIdentity 매핑 연속 동선 (T
   it("error path — 잘못된 email 로 인원 생성이 400 이면 person row 0 (형식 위반 축)", async () => {
     const response = await request(app.getHttpServer())
       .post("/api/persons")
+      .set("Cookie", adminCookie)
       .send({ fullName: "연속 동선 대상", email: "not-an-email" });
 
     expect(response.status).toBe(400);
@@ -257,6 +262,7 @@ describe("E2E: 인원 추가·수정 → ServiceIdentity 매핑 연속 동선 (T
 
     await request(app.getHttpServer())
       .delete(`/api/persons/${personId}`)
+      .set("Cookie", adminCookie)
       .expect(204);
 
     const response = await request(app.getHttpServer())
