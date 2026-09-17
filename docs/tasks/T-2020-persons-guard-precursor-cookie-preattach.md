@@ -2,7 +2,8 @@
 id: T-2020
 title: persons guard 배선 선행 — 무-cookie 소비처 3 spec 에 인증 cookie 선탑재 + web cookie 전송 계약 test
 phase: P5
-status: PENDING
+status: DONE
+prNumber: 1581
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-046, REQ-073]
 estimatedDiff: 210
@@ -88,3 +89,4 @@ plannerNote: P5 · Q-0056 ① persons slice 선행 1 — guard 배선 시 깨질
   - ③ **k6 선행**: `s1-batch.js` · `s2-read.js` · `s3-concurrent.js` setup 에서 login cookie 를 획득해 persons 요청에 싣고, `load-workflow-k6-harness-wiring-drift.smoke-spec.ts` 의 "guard-free" 전제를 갱신한다. 착수 전에 drift smoke 짝 개수를 다시 센다.
   - ④ **persons guard 배선**: `person.controller.ts` + `person.controller.spec.ts` (guard metadata 단언) + `persons.e2e-spec.ts` (무 cookie 401 · User cookie mutation 403) + census `KNOWN_GAP_REQ_043` 20 → 15 · `MIN.guarded` 상향 + `person-measure-confirm-realdb.perf-spec.ts` 의 cookie-less 200 단언 flip. AC 에 T-2020 web cookie test green 유지를 적는다.
   - 그 뒤 groups · parts 도 같은 방식으로 소비처를 먼저 실측하고 선행 slice 로 나눈다.
+- (executor, 실측) estimatedDiff 210 은 과소 추정이었다 — 첫 diff 486 LOC 를 +255/-44 로 줄여 cap 에 맞췄다. 후속 ②~④ slice 는 추정치를 넉넉히 잡는다. 로컬 DB 부재로 guard 임시 부착 dry-run 은 미실행 (`docs/progress/details/T-2020-dryrun.md`).
