@@ -31,12 +31,23 @@
 //     PrismaClient connect + truncate + disconnect 1 회 실행).
 //   - 기존 app.e2e-spec.ts 2 test + 본 spec 11 test (happy 5 + negative 3 + branch 3)
 //     = 합계 13 test. T-0054 cutover 는 test 개수 보존 — mock → real seed mechanical 변환.
+//
+// 인증 cookie 선탑재 (T-2020, Q-0056 ① guard 배선 선행): 요청 11 곳 전부에 tier cookie 를
+// 싣는다 — GET 은 `userCookie`, 그 외는 `adminCookie` (api.md `79~83 행`). 단언은 무변경.
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
 import { PrismaService } from "../../src/persistence/prisma.service";
+import {
+  buildAuthCookie,
+  createAuthenticatedE2EApp,
+  reseedAuthenticatedActors,
+  type AuthenticatedE2EContext,
+} from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
-import { createE2EApp } from "../helpers/e2e-app-factory";
+
+const ADMIN_EMAIL = "persons-admin-actor@e2e.test";
+const USER_EMAIL = "persons-user-actor@e2e.test";
 
 // Person DTO 필수 5 field — 모든 happy endpoint 응답이 동일하게 노출.
 const PERSON_DTO_FIELDS = [
@@ -59,15 +70,21 @@ const expectDtoFields = (body: object): void => {
 };
 
 describe("E2E: /api/persons HTTP contract", () => {
+  let ctx: AuthenticatedE2EContext;
   let app: INestApplication;
   let prisma: PrismaService;
+  let adminCookie: string;
+  let userCookie: string;
 
   beforeAll(async () => {
-    // 부트스트랩 + applyGlobalMiddleware wire 는 createE2EApp 책임 (T-0090 박제).
-    const created = await createE2EApp();
-    app = created.app;
-    // 실 PrismaService 인스턴스를 DI container 에서 획득 — seed / truncate / disconnect 용.
-    prisma = created.moduleRef.get<PrismaService>(PrismaService);
+    ctx = await createAuthenticatedE2EApp([
+      { role: "Admin", email: ADMIN_EMAIL },
+      { role: "User", email: USER_EMAIL },
+    ]);
+    app = ctx.app;
+    prisma = ctx.prisma;
+    adminCookie = buildAuthCookie(ctx.tokens[ADMIN_EMAIL]);
+    userCookie = buildAuthCookie(ctx.tokens[USER_EMAIL]);
   });
 
   afterAll(async () => {
@@ -78,9 +95,11 @@ describe("E2E: /api/persons HTTP contract", () => {
   });
 
   // ADR-0004 §Cleanup 정책 박제 — 각 test 후 7 도메인 테이블 TRUNCATE ... RESTART
-  // IDENTITY CASCADE 로 초기화. test 간 state leak 0 보장.
+  // IDENTITY CASCADE 로 초기화. test 간 state leak 0 보장. truncate 가 "User" 까지 비우므로
+  // 원본 id 그대로 actor 를 복원한다 (순서 고정 — T-0520 선례).
   afterEach(async () => {
     await truncateAll(prisma);
+    await reseedAuthenticatedActors(ctx);
   });
 
   // -- B. Happy path (5 endpoint × status + header + body shape) ----
@@ -90,7 +109,9 @@ describe("E2E: /api/persons HTTP contract", () => {
       data: { fullName: "홍길동", email: "list@example.test" },
     });
 
-    const response = await request(app.getHttpServer()).get("/api/persons");
+    const response = await request(app.getHttpServer())
+      .get("/api/persons")
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(200);
     expect(response.headers["content-type"]).toMatch(/application\/json/);
@@ -109,9 +130,9 @@ describe("E2E: /api/persons HTTP contract", () => {
       data: { fullName: "김철수", email: "by-id@example.test" },
     });
 
-    const response = await request(app.getHttpServer()).get(
-      `/api/persons/${seed.id}`,
-    );
+    const response = await request(app.getHttpServer())
+      .get(`/api/persons/${seed.id}`)
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(200);
     expect(response.headers["content-type"]).toMatch(/application\/json/);
@@ -128,6 +149,7 @@ describe("E2E: /api/persons HTTP contract", () => {
   it("POST /api/persons returns 201 with created Person and persists to DB", async () => {
     const response = await request(app.getHttpServer())
       .post("/api/persons")
+      .set("Cookie", adminCookie)
       .send({ fullName: "김철수", email: "kim@example.test" });
 
     expect(response.status).toBe(201);
@@ -154,6 +176,7 @@ describe("E2E: /api/persons HTTP contract", () => {
 
     const response = await request(app.getHttpServer())
       .patch(`/api/persons/${seed.id}`)
+      .set("Cookie", adminCookie)
       .send({ fullName: "박영희", active: false });
 
     expect(response.status).toBe(200);
@@ -171,9 +194,9 @@ describe("E2E: /api/persons HTTP contract", () => {
       data: { fullName: "삭제대상", email: "delete@example.test" },
     });
 
-    const response = await request(app.getHttpServer()).delete(
-      `/api/persons/${seed.id}`,
-    );
+    const response = await request(app.getHttpServer())
+      .delete(`/api/persons/${seed.id}`)
+      .set("Cookie", adminCookie);
 
     expect(response.status).toBe(204);
     expect(response.body).toEqual({});
@@ -188,9 +211,9 @@ describe("E2E: /api/persons HTTP contract", () => {
   // C.1 GET missing → 404 envelope. 실 DB 의 findUnique 가 null 반환 (seed 없음) →
   // PersonService.findById() 가 NotFoundException throw → 404 envelope.
   it("GET /api/persons/:id with missing id returns 404 with envelope", async () => {
-    const response = await request(app.getHttpServer()).get(
-      "/api/persons/missing-id",
-    );
+    const response = await request(app.getHttpServer())
+      .get("/api/persons/missing-id")
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(404);
     expect(response.body).toMatchObject({
@@ -205,6 +228,7 @@ describe("E2E: /api/persons HTTP contract", () => {
   it("POST /api/persons with empty body returns 400 with envelope and validation message", async () => {
     const response = await request(app.getHttpServer())
       .post("/api/persons")
+      .set("Cookie", adminCookie)
       .send({});
 
     expect(response.status).toBe(400);
@@ -224,6 +248,7 @@ describe("E2E: /api/persons HTTP contract", () => {
   it("POST /api/persons with non-whitelisted field returns 400 with envelope and whitelist message", async () => {
     const response = await request(app.getHttpServer())
       .post("/api/persons")
+      .set("Cookie", adminCookie)
       .send({
         fullName: "홍길동",
         email: "hong@example.test",
@@ -258,6 +283,7 @@ describe("E2E: /api/persons HTTP contract", () => {
 
     const response = await request(app.getHttpServer())
       .patch(`/api/persons/${seedB.id}`)
+      .set("Cookie", adminCookie)
       .send({ email: "existing@example.test" });
 
     expect(response.status).toBe(409);
@@ -270,6 +296,7 @@ describe("E2E: /api/persons HTTP contract", () => {
   it("PATCH /api/persons/:id with missing id (P2025) returns 404 with envelope", async () => {
     const response = await request(app.getHttpServer())
       .patch("/api/persons/cuid-e2e-missing-patch")
+      .set("Cookie", adminCookie)
       .send({ fullName: "유령" });
 
     expect(response.status).toBe(404);
@@ -283,9 +310,9 @@ describe("E2E: /api/persons HTTP contract", () => {
   // D.3 DELETE missing id → 404 envelope. seed 없이 random id 로 DELETE 시도 →
   // 실 PostgreSQL 의 delete 가 P2025 발화 → NotFoundException 변환 → 404 envelope.
   it("DELETE /api/persons/:id with missing id (P2025) returns 404 with envelope", async () => {
-    const response = await request(app.getHttpServer()).delete(
-      "/api/persons/cuid-e2e-missing-delete",
-    );
+    const response = await request(app.getHttpServer())
+      .delete("/api/persons/cuid-e2e-missing-delete")
+      .set("Cookie", adminCookie);
 
     expect(response.status).toBe(404);
     expect(response.body).toMatchObject({
