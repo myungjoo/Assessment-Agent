@@ -19,9 +19,12 @@
 // `findActive`(`GET /api/persons`) → `findById`(`GET /api/persons/:id`) 로, list read 에서
 // detail(:id) read 로 바뀐다. (2) group-detail-read(T-0845) 와 배선 형태(findById(:id))
 // 는 같으나, 대상 controller/entity 가 Group → Person 으로 바뀐다. `PersonController` 는
-// group 과 마찬가지로 `@UseGuards`/`@Roles` 를 부착하지 않는다(person.controller.ts —
-// T-0036 시점 auth 미박제 정책). 따라서 본 spec 은 `overrideGuard` 없이 controller 를
-// 순수 부트스트랩한다(person-read(list) / group-detail-read 와 동일 패턴 — 적용해도 no-op).
+// group 과 마찬가지로 **아직** `@UseGuards`/`@Roles` 를 부착하지 않는다
+// (person.controller.ts — T-0036 시점 auth 미박제 정책). 그럼에도 본 spec 은 guard 배선
+// 선행(T-2021, Q-0056 ① persons 축)으로 `JwtAuthGuard`/`RolesGuard` 의 `overrideGuard` 를
+// **선탑재**한다 — Q-0056 ④ 에서 `PersonController` 에 guard 가 붙어도 controller 1 개만
+// 띄우는 이 mock 부트가 DI 실패나 전 요청 401 로 깨지지 않게 하려는 것이고, guard 가 없는
+// 현재는 no-op 이다(person-read(list) 와 동일 패턴).
 // `PersonController.findOne` 은 `@Param("id")` 로 받은 id 를 `service.findById(id)` 로 raw
 // forward 하고(controller 자체 분기 없음), row 존재 시 200(단일 Person), row 부재 시
 // service 가 `NotFoundException`(404)을 던진다. non-2xx 분류 실증은 mocked `findById` 가
@@ -31,7 +34,9 @@
 // 결정론 전략 (Acceptance — 실 DB·실 LLM·외부 I/O 무의존):
 //   - `PersonService` 는 mock(`useValue`) — DB round-trip 없이 controller ↔ collector
 //     배선만 측정. baseline 실측(실 Postgres round-trip)은 §5 item 5 별도 follow-up.
-//   - guard 미적용 controller 라 `overrideGuard` 불요 — 순수 부트스트랩.
+//   - `JwtAuthGuard`/`RolesGuard` 는 `overrideGuard(...).useValue({ canActivate: () =>
+//     true })` 로 통과 — guard 배선 선행 선탑재라 현재는 no-op 이고, ④ 배선 뒤에도 인증/
+//     인가 layer 를 벗겨 순수 harness 배선만 측정한다(latency 표본에 auth 비용 0).
 //   - latency 표본 자체는 wall-clock 이라 값은 비결정적이지만, mock service 는 즉시
 //     반환하므로 p95 는 항상 임계(3000ms) 훨씬 아래 → pass 분기 결정론적 도달.
 //     fail 분기는 mock 이 `NotFoundException`(404) 또는 일반 예외(500)를 던져 endpoint
@@ -49,6 +54,8 @@ import { NotFoundException } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
 
+import { JwtAuthGuard } from "../../src/auth/jwt-auth.guard";
+import { RolesGuard } from "../../src/auth/roles.guard";
 import { PersonController } from "../../src/user/person.controller";
 import { PersonService } from "../../src/user/person.service";
 
@@ -60,8 +67,8 @@ import {
 
 // mock PersonService — controller 가 주입받는 메서드 중 detail 경로가 실제로 호출하는
 // 것은 `findById` 뿐. 각 test 가 mockResolvedValue / mockRejectedValue 로 응답을 제어해
-// endpoint status(200 / 404 / 500)를 결정론적으로 만든다. (PersonController 는 guard
-// 미적용이라 인증/인가 분기 노이즈가 없다.)
+// endpoint status(200 / 404 / 500)를 결정론적으로 만든다. (guard 는 선탑재한 override 가
+// 항상 통과시키므로 인증/인가 분기 노이즈가 없다.)
 type MockPersonService = {
   findById: jest.Mock;
 };
@@ -70,16 +77,26 @@ describe("S2 조회 latency perf-spec — PersonController detail(:id) 배선 (R
   let app: INestApplication;
   let service: MockPersonService;
 
+  // 통과 guard — canActivate 가 항상 true. 인증/인가 layer 를 벗겨 harness 배선만 측정한다
+  // (`assessment-read.perf-spec.ts` 와 같은 형태, 분기 없는 상수).
+  const passGuard = { canActivate: () => true };
+
   beforeAll(async () => {
     service = {
       findById: jest.fn(),
     };
 
-    // PersonController 는 guard 미적용 — overrideGuard 없이 순수 부트스트랩.
+    // guard override 선탑재 (T-2021) — PersonController 에 guard 가 붙는 Q-0056 ④ 시점에도
+    // 이 부트가 깨지지 않도록 미리 통과 guard 를 꽂는다. guard 미부착인 현재는 no-op.
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [PersonController],
       providers: [{ provide: PersonService, useValue: service }],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue(passGuard)
+      .overrideGuard(RolesGuard)
+      .useValue(passGuard)
+      .compile();
 
     app = moduleRef.createNestApplication();
     await app.init();
