@@ -11,9 +11,12 @@
 // 로만 실행되며(기본 `pnpm test` 는 `.spec.ts$` 만 매칭 → picking 0), summary-read /
 // assessment-read / contribution-read 와 함께 넷 다 실행된다.
 //
-// 앞선 세 spec 과의 차이(본 spec 고유 특성): PersonController 는 `@UseGuards`/`@Roles`
-// 를 부착하지 않는다(person.controller.ts — T-0036 시점 auth 미박제 정책). 따라서 본
-// spec 은 `overrideGuard` 없이 controller 를 순수 부트스트랩한다(적용해도 no-op). 또한
+// 앞선 세 spec 과의 차이(본 spec 고유 특성): PersonController 는 **아직**
+// `@UseGuards`/`@Roles` 를 부착하지 않는다(person.controller.ts — T-0036 시점 auth 미박제
+// 정책). 그럼에도 본 spec 은 guard 배선 선행(T-2021, Q-0056 ① persons 축)으로
+// `JwtAuthGuard`/`RolesGuard` 의 `overrideGuard` 를 **선탑재**한다 — Q-0056 ④ 에서
+// `PersonController` 에 guard 가 붙어도 controller 1 개만 띄우는 이 mock 부트가 DI 실패나
+// 전 요청 401 로 깨지지 않게 하려는 것이고, guard 가 없는 현재는 no-op 이다. 또한
 // `GET /api/persons` 는 query-param 필수 분기(400)가 없는 단순 list read 라, non-2xx
 // 분류 실증은 400 query 대신 **`GET /api/persons/:id` 의 404 분기**(mocked `findById` 이
 // `NotFoundException` throw)로 이어간다.
@@ -21,7 +24,9 @@
 // 결정론 전략 (Acceptance — 실 DB·실 LLM·외부 I/O 무의존):
 //   - `PersonService` 는 mock(`useValue`) — DB round-trip 없이 controller ↔ collector
 //     배선만 측정. baseline 실측(실 Postgres round-trip)은 §5 item 5 별도 follow-up.
-//   - guard 미적용 controller 라 `overrideGuard` 불요 — 순수 부트스트랩.
+//   - `JwtAuthGuard`/`RolesGuard` 는 `overrideGuard(...).useValue({ canActivate: () =>
+//     true })` 로 통과 — guard 배선 선행 선탑재라 현재는 no-op 이고, ④ 배선 뒤에도 인증/
+//     인가 layer 를 벗겨 순수 harness 배선만 측정한다(latency 표본에 auth 비용 0).
 //   - latency 표본 자체는 wall-clock 이라 값은 비결정적이지만, mock service 는 즉시
 //     반환하므로 p95 는 항상 임계(3000ms) 훨씬 아래 → pass 분기 결정론적 도달.
 //     fail 분기는 mock 예외(500) 또는 상세 조회 404(NotFoundException)로 도달
@@ -50,6 +55,8 @@ import { NotFoundException } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
 
+import { JwtAuthGuard } from "../../src/auth/jwt-auth.guard";
+import { RolesGuard } from "../../src/auth/roles.guard";
 import { PersonController } from "../../src/user/person.controller";
 import { PersonService } from "../../src/user/person.service";
 
@@ -67,8 +74,8 @@ import { createStepClock } from "./step-clock";
 
 // mock PersonService — controller 가 주입받는 메서드 중 조회(findActive/findById)만
 // harness 에 필요. 각 test 가 mockResolvedValue / mockRejectedValue 로 응답을 제어해
-// endpoint status(200 / 500 / 404)를 결정론적으로 만든다. (PersonController 는 guard
-// 미적용이라 인증/인가 분기 노이즈가 없다.)
+// endpoint status(200 / 500 / 404)를 결정론적으로 만든다. (guard 는 선탑재한 override 가
+// 항상 통과시키므로 인증/인가 분기 노이즈가 없다.)
 type MockPersonService = {
   findActive: jest.Mock;
   findById: jest.Mock;
@@ -86,6 +93,10 @@ describe("S2 조회 latency perf-spec — PersonController 배선 (REQ-048)", ()
   /** 매 test 격리 임시 repo root(tmpParent 하위) — 배선 국면은 이 아래에만 파일을 만든다. */
   let tmpRoot: string;
 
+  // 통과 guard — canActivate 가 항상 true. 인증/인가 layer 를 벗겨 harness 배선만 측정한다
+  // (`assessment-read.perf-spec.ts` 와 같은 형태, 분기 없는 상수).
+  const passGuard = { canActivate: () => true };
+
   beforeAll(async () => {
     tmpParent = fs.mkdtempSync(
       path.join(os.tmpdir(), "s2-person-read-checkin-"),
@@ -95,11 +106,17 @@ describe("S2 조회 latency perf-spec — PersonController 배선 (REQ-048)", ()
       findById: jest.fn(),
     };
 
-    // PersonController 는 guard 미적용 — overrideGuard 없이 순수 부트스트랩.
+    // guard override 선탑재 (T-2021) — PersonController 에 guard 가 붙는 Q-0056 ④ 시점에도
+    // 이 부트가 깨지지 않도록 미리 통과 guard 를 꽂는다. guard 미부착인 현재는 no-op.
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [PersonController],
       providers: [{ provide: PersonService, useValue: service }],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue(passGuard)
+      .overrideGuard(RolesGuard)
+      .useValue(passGuard)
+      .compile();
 
     app = moduleRef.createNestApplication();
     await app.init();
