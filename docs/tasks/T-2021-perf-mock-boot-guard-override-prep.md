@@ -2,7 +2,7 @@
 id: T-2021
 title: persons guard 배선 선행 2 — mock 부트 perf 2 spec 에 guard override 선탑재
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-048, REQ-073]
 estimatedDiff: 110
