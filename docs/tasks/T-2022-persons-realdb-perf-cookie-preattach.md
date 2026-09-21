@@ -2,7 +2,7 @@
 id: T-2022
 title: persons guard 배선 선행 3 — realdb perf 3 spec 에 인증 cookie 선탑재
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-048, REQ-073]
 estimatedDiff: 170
@@ -78,3 +78,4 @@ guard 가 없는 지금 인증 harness 로 먼저 옮겨두면 cookie 는 무시
 
 - (planner, arc 계획 — Q-0056 persons 축 잔여) 본 task 머지로 ② 가 끝난다. 다음은 ③ k6 선행 (`s1-batch.js` · `s2-read.js` · `s3-concurrent.js` setup 의 login cookie 획득 + `load-workflow-k6-harness-wiring-drift.smoke-spec.ts` 의 "guard-free" 전제 갱신 — 착수 전 drift smoke 짝 개수를 다시 센다), 그 뒤 ④ guard 실배선이다. 정본 순서는 [T-2020](T-2020-persons-guard-precursor-cookie-preattach.md) `## Follow-ups`.
 - (planner, doc-sync) `docs/ops/load-resilience-test-plan.md` `2876` · `3142` · `3227 행` 의 slice 1 · 19 · 23 서술이 "cookie 없이 측정" 전제를 담고 있으면 ④ 머지 후 doc-only direct slice 로 한 번에 정정한다.
+- (planner, doc-sync — 본 PR reviewer MINOR) [test/perf/README.md](../../test/perf/README.md) `621 행` 부근 slice 1 서술이 아직 `createE2EApp()` 전제, `1081 행` 부근 slice 23 서술이 "인증 · 권한 노이즈 0" 전제다. 바로 위 doc-sync slice 에 합쳐 ④ 머지 후 한 번에 정정한다.
