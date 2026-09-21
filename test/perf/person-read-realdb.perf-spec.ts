@@ -8,9 +8,10 @@
 // 만 실 DB 로 cutover 해, 임계가 실 query 포함 경로에서도 성립함을 최초로 실측한다.
 //
 // mock 짝(`person-read.perf-spec.ts`, T-0833)과의 차이:
-//   - 부트스트랩: mock 짝은 controller + mock provider 만 띄운다. 본 spec 은 `createE2EApp()`
-//     로 **AppModule 전체를 mock override 0**(PersonService·PrismaService 미대체) 으로 띄우고
-//     `moduleRef.get(PrismaService)` 로 얻은 실 client 로 seed 한다.
+//   - 부트스트랩: mock 짝은 controller + mock provider 만 띄운다. 본 spec 은
+//     `createAuthenticatedE2EApp()` 로 **AppModule 전체를 mock override 0**(PersonService·
+//     PrismaService 미대체) 으로 띄우고 `ctx.prisma` 실 client 로 seed 한다(인증 cookie 선탑재는
+//     guard 배선 선행 — Q-0056 ④).
 //   - 측정 대상: mock 짝 = 배선 latency(즉시 반환) / 본 spec = **DB round-trip 포함** latency.
 //   - 검증 방식: mock 짝은 `service.findActive` 호출 횟수를, 본 spec 은 **응답 body 가 seed 한
 //     row 값과 일치**함을 확인해 실 query 발화를 입증한다.
@@ -43,8 +44,13 @@ import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
 import { PrismaService } from "../../src/persistence/prisma.service";
+import {
+  buildAuthCookie,
+  createAuthenticatedE2EApp,
+  reseedAuthenticatedActors,
+  type AuthenticatedE2EContext,
+} from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
-import { createE2EApp } from "../helpers/e2e-app-factory";
 
 import { CHECKIN_BASELINE_ENV_FLAG } from "./checkin-baseline-plan";
 import { CHECKIN_LOG_PREFIX } from "./checkin-baseline-report";
@@ -88,8 +94,12 @@ const ITERATIONS = 20;
 const WIRING_ITER = 2;
 
 describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/persons, REQ-048)", () => {
+  let ctx: AuthenticatedE2EContext;
   let app: INestApplication;
   let prisma: PrismaService;
+  // guard 배선 선행 (Q-0056 ④) — guard 가 붙어도 401 로 깨지지 않도록 인증 cookie 를 선탑재한다.
+  // 현재 controller 는 guard 미부착이라 cookie 는 no-op 이다.
+  let cookie: string;
   // 매 test 격리 임시 baseline 루트(afterEach 재귀 삭제 — 저장소 실경로 오염 0).
   let tmpRoot: string;
   // 배선 전용 label — 아래 baseline 리포트 국면의 `ci-realdb-person-read` 와 겹치지 않게 분리해
@@ -100,14 +110,18 @@ describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/persons, R
   };
 
   beforeAll(async () => {
-    // mock override 0 — AppModule 실 부트스트랩 + applyGlobalMiddleware(T-0090 helper).
-    const created = await createE2EApp();
-    app = created.app;
+    // mock override 0 — AppModule 실 부트스트랩 + applyGlobalMiddleware(T-0090 helper) +
+    // actor User seed + 실 JWT 발급을 한 번에(guard 배선 선행 — Q-0056 ④).
+    ctx = await createAuthenticatedE2EApp([{ role: "User" }]);
+    app = ctx.app;
     // 실 PrismaService 인스턴스를 DI container 에서 획득 — seed / truncate / disconnect 용.
-    prisma = created.moduleRef.get<PrismaService>(PrismaService);
+    prisma = ctx.prisma;
+    cookie = buildAuthCookie(Object.values(ctx.tokens)[0]);
     // 앞선 스위트(e2e 등)가 남긴 row 가 있으면 첫 test 의 seed 수 검증이 오염되므로
     // 시작 시점에도 한 번 비운다(afterEach 와 동일 helper — 격리 전제 확정).
+    // truncate 가 actor User 도 지우므로 곧바로 **원본 id 그대로** 재-seed 한다.
     await truncateAll(prisma);
+    await reseedAuthenticatedActors(ctx);
   });
 
   beforeEach(() => {
@@ -119,7 +133,10 @@ describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/persons, R
     // 임시 baseline 트리 재귀 삭제 — `test/perf/baselines/` 실경로에는 아무것도 남지 않는다.
     fs.rmSync(tmpRoot, { recursive: true, force: true });
     // ADR-0004 §Cleanup — 매 test 후 도메인 테이블 TRUNCATE 로 row leak 0.
+    // `truncateAll` 명단의 "User" 때문에 JWT `sub` 가 가리키는 actor row 가 사라지므로
+    // 곧바로 원본 id 그대로 재삽입한다(새 id · token 재발급 금지).
     await truncateAll(prisma);
+    await reseedAuthenticatedActors(ctx);
   });
 
   afterAll(async () => {
@@ -153,7 +170,9 @@ describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/persons, R
 
   // 목록 조회 1회 — collector 가 소비할 { status } 반환(supertest 는 non-2xx 도 resolve).
   const listRequest: RequestFn = async () => {
-    const res = await request(app.getHttpServer()).get("/api/persons");
+    const res = await request(app.getHttpServer())
+      .get("/api/persons")
+      .set("Cookie", cookie);
     lastListBody = res.body;
     return { status: res.status };
   };
@@ -162,7 +181,9 @@ describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/persons, R
   const detailRequest =
     (id: string): RequestFn =>
     async () => {
-      const res = await request(app.getHttpServer()).get(`/api/persons/${id}`);
+      const res = await request(app.getHttpServer())
+        .get(`/api/persons/${id}`)
+        .set("Cookie", cookie);
       return { status: res.status };
     };
 
@@ -333,10 +354,12 @@ describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/persons, R
   // spec(`checkin-baseline-spec-suite.spec.ts`) 책임이라 여기서 중복 작성하지 않는다.
   registerCheckinBaselineWiringSuite({
     envMeta: wiringEnv,
-    // 측정은 collector 위임(주입 clock 으로 결정론화). `GET /api/persons` 는 guard 미부착이라
-    // cookie 없이 200 이고, `afterEach(truncateAll)` 로 seed 가 비어도 빈 배열 200 · errorRate 0
-    // 이므로 배선 국면은 seed 무의존이다 — 기존 국면의 `lastListBody` 대조 단언과 `truncateAll`
-    // 순서에 간섭하지 않는다. `listRequest` 는 `RequestFn` **값**이라 호출하지 않고 그대로 넘긴다.
+    // 측정은 collector 위임(주입 clock 으로 결정론화). `GET /api/persons` 는 guard 배선 선행
+    // (Q-0056 ④)으로 인증 cookie 를 선탑재해 guard 가 붙어도 401 로 깨지지 않으며 — 현재
+    // controller 는 guard 미부착이라 cookie 는 no-op — 200 이다. `afterEach(truncateAll)` 로
+    // seed 가 비어도 빈 배열 200 · errorRate 0 이므로 배선 국면은 seed 무의존이다 — 기존 국면의
+    // `lastListBody` 대조 단언과 `truncateAll` → 재-seed 순서에 간섭하지 않는다. `listRequest` 는
+    // `RequestFn` **값**이라 호출하지 않고 그대로 넘긴다.
     measure: (stepMs) =>
       measureBaselineCandidate(listRequest, wiringEnv, {
         iterations: WIRING_ITER,

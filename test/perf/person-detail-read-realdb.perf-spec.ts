@@ -40,7 +40,9 @@
 // ⑤ 인증·인가 negative 부재(구조적) — `PersonController` 는 **guard 미부착** 이라 401 / 403 분기가
 //    구조적으로 존재하지 않는다. slice 4~17 의 cookie 미부착 401 · 서명 변조 401 · tier 403 negative 를
 //    복사하면 **없는 분기를 가리키는 거짓 test** 가 된다. 대신 404 · 격리 · soft-delete 전이 · 비노출
-//    컬럼 · path 변형 · 임계 주입 축으로 negative 를 채운다.
+//    컬럼 · path 변형 · 임계 주입 축으로 negative 를 채운다. 다만 **guard 배선 선행**(Q-0056 ④)으로
+//    요청에는 인증 cookie 를 미리 싣는다 — guard 가 붙어도 401 로 깨지지 않게 하는 선탑재이고, 현재
+//    controller 는 guard 미부착이라 cookie 는 no-op 이다(단언은 한 줄도 바뀌지 않는다).
 // ⑥ 결정론 전략 — seed 는 고정 행 수, `afterEach(truncateAll)`(ADR-0004 §Cleanup)가 매 test 후 도메인
 //    테이블을 비워 각 test 는 자기 seed 만 본다(`Person.email` 은 `@unique` 라 seed 호출별 index 접미로
 //    충돌 회피, `db-truncate.ts` 수정 0). latency 는 wall-clock 이라 비결정적이므로 두 route 의 대소도,
@@ -60,8 +62,13 @@ import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
 import { PrismaService } from "../../src/persistence/prisma.service";
+import {
+  buildAuthCookie,
+  createAuthenticatedE2EApp,
+  reseedAuthenticatedActors,
+  type AuthenticatedE2EContext,
+} from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
-import { createE2EApp } from "../helpers/e2e-app-factory";
 
 import {
   buildBaselineReport,
@@ -109,8 +116,12 @@ interface PersonRow {
 }
 
 describe("S2 조회 latency perf-spec — 실 DB 단건 상세 조회 (GET /api/persons/:id, REQ-048/REQ-026)", () => {
+  let ctx: AuthenticatedE2EContext;
   let app: INestApplication;
   let prisma: PrismaService;
+  // guard 배선 선행 (Q-0056 ④) — guard 가 붙어도 401 로 깨지지 않도록 인증 cookie 를 선탑재한다.
+  // 현재 controller 는 guard 미부착이라 cookie 는 no-op 이다.
+  let cookie: string;
   // 마지막 응답 body 보관 — mock spec 의 `toHaveBeenCalledTimes(N)` 의 실 DB 등가 검증용.
   let lastBody: unknown;
   // Person.email 은 `@unique` — seed 호출마다 접미를 갈아 test 내·간 충돌을 원천 차단.
@@ -120,18 +131,24 @@ describe("S2 조회 latency perf-spec — 실 DB 단건 상세 조회 (GET /api/
 
   beforeAll(async () => {
     // mock override 0 — AppModule 실 부트스트랩(PersonService·PrismaService 어느 것도 useValue 로
-    // 대체하지 않는다) + applyGlobalMiddleware(T-0090 helper). guard 미부착 controller 라
-    // `createAuthenticatedE2EApp` 불요(slice 1 과 동일).
-    const created = await createE2EApp();
-    app = created.app;
-    prisma = created.moduleRef.get<PrismaService>(PrismaService);
+    // 대체하지 않는다) + applyGlobalMiddleware(T-0090 helper). guard 배선 선행 (Q-0056 ④) 으로
+    // 인증 harness 를 쓴다 — guard 가 붙어도 401 로 깨지지 않도록 cookie 를 선탑재하며, 현재
+    // controller 는 guard 미부착이라 cookie 는 no-op 이다(slice 1 과 동일).
+    ctx = await createAuthenticatedE2EApp([{ role: "User" }]);
+    app = ctx.app;
+    prisma = ctx.prisma;
+    cookie = buildAuthCookie(Object.values(ctx.tokens)[0]);
     // 앞선 스위트가 남긴 row 가 첫 test 의 seed 수 검증을 오염시키지 않도록 시작 시점에도 비운다.
+    // truncate 가 actor User 도 지우므로 곧바로 **원본 id 그대로** 재-seed 한다.
     await truncateAll(prisma);
+    await reseedAuthenticatedActors(ctx);
   });
 
-  // ADR-0004 §Cleanup — 매 test 후 도메인 테이블 TRUNCATE 로 row leak 0.
+  // ADR-0004 §Cleanup — 매 test 후 도메인 테이블 TRUNCATE 로 row leak 0. `truncateAll` 명단의
+  // "User" 가 JWT `sub` actor row 를 지우므로 직후 원본 id 그대로 재삽입한다.
   afterEach(async () => {
     await truncateAll(prisma);
+    await reseedAuthenticatedActors(ctx);
   });
 
   // connection 누수 0 — app.close() 의 lifecycle hook + 명시적 $disconnect.
@@ -172,14 +189,18 @@ describe("S2 조회 latency perf-spec — 실 DB 단건 상세 조회 (GET /api/
   const detailRequest =
     (id: string): RequestFn =>
     async () => {
-      const res = await request(app.getHttpServer()).get(`/api/persons/${id}`);
+      const res = await request(app.getHttpServer())
+        .get(`/api/persons/${id}`)
+        .set("Cookie", cookie);
       lastBody = res.body;
       return { status: res.status };
     };
 
   // 페어 대조군 — slice 1 이 이미 잰 목록 route(`findActive` — active 필터 O).
   const listRequest: RequestFn = async () => {
-    const res = await request(app.getHttpServer()).get("/api/persons");
+    const res = await request(app.getHttpServer())
+      .get("/api/persons")
+      .set("Cookie", cookie);
     lastBody = res.body;
     return { status: res.status };
   };
@@ -389,9 +410,9 @@ describe("S2 조회 latency perf-spec — 실 DB 단건 상세 조회 (GET /api/
     ).toBe(true);
 
     // 404 body 에 raw stack / Prisma 내부 메시지가 새지 않는다(REQ-032 계열 확인).
-    const res = await request(app.getHttpServer()).get(
-      `/api/persons/${missingId}`,
-    );
+    const res = await request(app.getHttpServer())
+      .get(`/api/persons/${missingId}`)
+      .set("Cookie", cookie);
     expect(res.status).toBe(404);
     expect(res.body).not.toHaveProperty("stack");
     const serialized = JSON.stringify(res.body);
@@ -424,9 +445,9 @@ describe("S2 조회 latency perf-spec — 실 DB 단건 상세 조회 (GET /api/
     it("(b) 빈 문자열 대체 토큰 · 비-cuid 문자열 id → 500 이 아니라 404", async () => {
       await seedPersons(1);
       for (const token of ["%20", "not-a-cuid-9999", "0"]) {
-        const res = await request(app.getHttpServer()).get(
-          `/api/persons/${token}`,
-        );
+        const res = await request(app.getHttpServer())
+          .get(`/api/persons/${token}`)
+          .set("Cookie", cookie);
         expect(res.status).toBe(404);
         expect(res.body).not.toHaveProperty("stack");
       }
@@ -484,14 +505,16 @@ describe("S2 조회 latency perf-spec — 실 DB 단건 상세 조회 (GET /api/
         `/api/persons/${target.id}/extra`,
         `/api/persons/${target.id}/extra/deeper`,
       ]) {
-        const res = await request(app.getHttpServer()).get(path);
+        const res = await request(app.getHttpServer())
+          .get(path)
+          .set("Cookie", cookie);
         expect(res.status).toBeGreaterThanOrEqual(400);
         expect(res.status).toBeLessThan(500);
       }
       // 정상 경로는 그대로 200 — 위 4xx 가 서버 고장이 아님의 대조군.
-      const ok = await request(app.getHttpServer()).get(
-        `/api/persons/${target.id}`,
-      );
+      const ok = await request(app.getHttpServer())
+        .get(`/api/persons/${target.id}`)
+        .set("Cookie", cookie);
       expect(ok.status).toBe(200);
     });
 
