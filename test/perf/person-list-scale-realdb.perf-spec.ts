@@ -9,7 +9,9 @@
 //    `findActive` 는 단일 SELECT 라 query 수가 1 로 고정이고 **결과 집합 크기(직렬화·전송 비용)** 만
 //    커진다 — 같은 "규모" 가 가리키는 비용 항목이 서로 다르다.
 // ③ 측정 의도 — `PersonController.findActive`(guard 미부착 · 필수 query-param 분기 0)는 인증·권한
-//    노이즈 0 이라 **row 수 → latency** 만 분리 관측된다. 여기에 `active: false` 를 섞어 **응답 row
+//    분기 0 이라 **row 수 → latency** 만 분리 관측된다. 요청에는 **guard 배선 선행**(Q-0056 ④)으로
+//    인증 cookie 를 미리 싣는다 — guard 가 붙어도 401 로 깨지지 않게 하는 선탑재이고, 현재 controller
+//    는 guard 미부착이라 cookie 는 no-op 이라 측정 축은 그대로다. 여기에 `active: false` 를 섞어 **응답 row
 //    수(120)와 스캔 대상(200)이 분리** 되는 필터 선택도 축을 처음 증거화한다. **측정만 한다** — index
 //    추가 · 쿼리 최적화 · 페이지네이션은 production / schema 변경이라 범위 밖.
 // ④ 결정론 전략 — 고정 행 수 seed + `afterEach(truncateAll)`(ADR-0004 §Cleanup), `Person.email` 은
@@ -27,8 +29,13 @@ import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
 import { PrismaService } from "../../src/persistence/prisma.service";
+import {
+  buildAuthCookie,
+  createAuthenticatedE2EApp,
+  reseedAuthenticatedActors,
+  type AuthenticatedE2EContext,
+} from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
-import { createE2EApp } from "../helpers/e2e-app-factory";
 
 import {
   buildBaselineReport,
@@ -57,25 +64,35 @@ const LARGE_ITERATIONS = 6;
 const SHORT_ITERATIONS = 4;
 
 describe("S2 조회 latency perf-spec — 실 DB 목록 규모 민감도 (GET /api/persons, REQ-048)", () => {
+  let ctx: AuthenticatedE2EContext;
   let app: INestApplication;
   let prisma: PrismaService;
+  // guard 배선 선행 (Q-0056 ④) — guard 가 붙어도 401 로 깨지지 않도록 인증 cookie 를 선탑재한다.
+  // 현재 controller 는 guard 미부착이라 cookie 는 no-op 이다.
+  let cookie: string;
   // 마지막 응답 body 보관 — mock spec 의 `toHaveBeenCalledTimes(N)` 의 실 DB 등가 검증용.
   let lastBody: unknown;
   // AC 6 — 표본별 baseline 한 줄 관찰을 선언 순서대로 축적(대소 assert 금지, 파일 write 0).
   const observations: { line: string; report: BaselineReport }[] = [];
 
   beforeAll(async () => {
-    // mock override 0 — AppModule 실 부트스트랩(PersonService·PrismaService 미대체).
-    const created = await createE2EApp();
-    app = created.app;
-    prisma = created.moduleRef.get<PrismaService>(PrismaService);
+    // mock override 0 — AppModule 실 부트스트랩(PersonService·PrismaService 미대체) + actor User
+    // seed + 실 JWT 발급(guard 배선 선행 — Q-0056 ④).
+    ctx = await createAuthenticatedE2EApp([{ role: "User" }]);
+    app = ctx.app;
+    prisma = ctx.prisma;
+    cookie = buildAuthCookie(Object.values(ctx.tokens)[0]);
     // 앞선 스위트가 남긴 row 가 첫 test 의 seed 수 검증을 오염시키지 않게 시작 시점에도 비운다.
+    // truncate 가 actor User 도 지우므로 곧바로 **원본 id 그대로** 재-seed 한다.
     await truncateAll(prisma);
+    await reseedAuthenticatedActors(ctx);
   });
 
-  // ADR-0004 §Cleanup — 매 test 후 도메인 테이블을 비워 row leak 0.
+  // ADR-0004 §Cleanup — 매 test 후 도메인 테이블을 비워 row leak 0. `truncateAll` 명단의 "User" 가
+  // JWT `sub` actor row 를 지우므로 직후 원본 id 그대로 재삽입한다.
   afterEach(async () => {
     await truncateAll(prisma);
+    await reseedAuthenticatedActors(ctx);
   });
 
   // connection 누수 0 — app.close() 의 lifecycle hook + 명시적 $disconnect.
@@ -101,7 +118,9 @@ describe("S2 조회 latency perf-spec — 실 DB 목록 규모 민감도 (GET /a
 
   // 목록 조회 1회 — 단일 SELECT 가 결과 집합 전체를 직렬화해 반환하는 경로.
   const listRequest: RequestFn = async () => {
-    const res = await request(app.getHttpServer()).get("/api/persons");
+    const res = await request(app.getHttpServer())
+      .get("/api/persons")
+      .set("Cookie", cookie);
     lastBody = res.body;
     return { status: res.status };
   };
@@ -223,13 +242,15 @@ describe("S2 조회 latency perf-spec — 실 DB 목록 규모 민감도 (GET /a
     });
 
     // (d) 대규모 표본의 truncate 전/후 대조 쌍 — 응답 길이가 200 → 0 으로 바뀌고 두 요청 모두 200.
-    //     본 route 는 guard 미부착이라 actor row 재-seed 가 불요하다(`db-truncate.ts` 수정 0).
+    //     guard 배선 선행(Q-0056 ④)으로 cookie 를 선탑재했으므로 본문 안 `truncateAll` 직후에도
+    //     actor User row 를 원본 id 그대로 재-seed 한다(`db-truncate.ts` 수정 0).
     it("(d) 대규모 seed → truncate 전/후 대조 쌍: 응답 200 건 → 0 건, 둘 다 status 200", async () => {
       await seedPersons(LARGE_ROWS);
       const before = await collectLatencySamples(listRequest, 1);
       expect(before.failures).toBe(0);
       expect(lastBody as unknown[]).toHaveLength(LARGE_ROWS);
       await truncateAll(prisma);
+      await reseedAuthenticatedActors(ctx);
       const after = await collectLatencySamples(listRequest, SHORT_ITERATIONS);
       expect(after.failures).toBe(0);
       expect(lastBody as unknown[]).toHaveLength(0);
