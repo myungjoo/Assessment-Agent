@@ -887,6 +887,18 @@ const AUTH_TAG = "me";
 const SIGNUP_ROUTE = "/api/users";
 const LOGIN_ROUTE = "/api/auth/login";
 const COOKIE_NAME = "access_token";
+/**
+ * (T-2023) setup 의 persons 표본 조회 — 인증 cookie 와 seed tag 가 **같은 http.get 호출** 안에
+ * 있어야 한다. tag 가 seed 그대로여야 route:persons p95 표본이 오염되지 않는다.
+ */
+const S2_PERSONS_SEED_COOKIE_CALL =
+  /http\.get\(`\$\{BASE_URL\}\/api\/persons`,\s*\{\s*headers: \{ Cookie: authCookie \},\s*tags: \{ route: "seed" \},\s*\}\)/;
+/**
+ * (T-2023) default 의 persons 측정 GET — setup 이 넘긴 cookie 와 route:persons tag 가 같은
+ * 호출 안에 있어야 한다. Q-0056 ④ 가 guard 를 붙이는 순간 이 배선이 401 을 막는다.
+ */
+const S2_PERSONS_READ_COOKIE_CALL =
+  /http\.get\(`\$\{BASE_URL\}\/api\/persons`,\s*\{\s*headers: \{ Cookie: data\.authCookie \},\s*tags: \{ route: "persons" \},\s*\}\)/;
 /** 임계 정본 — 전역 2 + route tag 4(T-1624 의 me 포함) = 6 종. */
 const EXPECTED_THRESHOLD_KEYS = [
   "http_req_duration",
@@ -927,11 +939,16 @@ describe("test/load/s2-read.js 인증 조회 확장(signup → login → me) 배
       expect(setup).toContain(SIGNUP_ROUTE);
       expect(setup).toContain(LOGIN_ROUTE);
       // 두 요청 모두 seed tag 재사용 — 조회 route tag 4 종의 p95 오염 0.
-      expect(setup.match(/SEED_PARAMS/g)).toHaveLength(5);
+      // (T-2023) 5 → 4: 줄어든 1 건은 persons 표본 조회로, SEED_PARAMS 대신 같은 seed tag 에
+      // 인증 cookie 를 더한 인라인 params 를 쓴다. 수치만 내리면 cookie 소실이 조용히 통과하므로
+      // 대체 단언을 같은 호출 하나에 못 박는다(headers + tags 가 한 http.get 안에 있어야 한다).
+      expect(setup.match(/SEED_PARAMS/g)).toHaveLength(4);
+      expect(setup).toMatch(S2_PERSONS_SEED_COOKIE_CALL);
       // 토큰은 Set-Cookie 로만 오므로 응답 cookie 에서 값을 꺼내 문자열로 담는다.
       expect(setup).toContain(`cookies["${COOKIE_NAME}"][0].value`);
+      // (T-2023) cookie 문자열은 지역 const 에서 조립되고 return 은 그 const 를 재사용한다.
       expect(setup).toMatch(
-        new RegExp(`authCookie:\\s*\`${COOKIE_NAME}=\\$\\{`),
+        new RegExp(`const authCookie = \`${COOKIE_NAME}=\\$\\{`),
       );
       // 자격증명은 run 마다 stamp 로 생성(고정 리터럴 0) — password 는 8 자 이상.
       expect(setup).toMatch(/email: `[^`]*\$\{stamp\}[^`]*@/);
@@ -1066,6 +1083,137 @@ describe("test/load/s2-read.js 인증 조회 확장(signup → login → me) 배
       const script = s2Script();
       ["if (", "} else", " ? ", " && "].forEach((token) =>
         expect(script).not.toContain(token),
+      );
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-2023 — s2-read.js persons 2 지점 인증 cookie 선탑재(Q-0056 ④ guard 배선 선행) drift.
+// 존재 이유 — persons 에 JwtAuthGuard 가 붙는 순간 cookie 없는 요청은 401 이 되어 전역
+// http_req_failed 임계와 route:persons p95 표본을 동시에 오염시킨다. 부하 job 은 수동 발화
+// 전용이라 ① cookie 부착이 되돌려지거나 ② 인증 부트스트랩이 표본 조회 뒤로 밀려 authCookie 가
+// TDZ 로 깨져도 상시 CI 는 green 이다. 문자열 배선 parity 로 그 침묵을 깬다.
+//      🔥 새 helper 0(s2Script · s2Body · extractTopLevelBlock 재사용) · 실 k6 실행 0 ·
+//         실 HTTP 0 · 실 GitHub Actions 발화 0 · 새 dependency 0 · DB 의존 0.
+describe("test/load/s2-read.js persons 인증 cookie 선탑재 배선 drift smoke (T-2023)", () => {
+  describe("Happy-path: cookie 부착 2 지점 · 부트스트랩 선행 순서 · authCookie 재사용", () => {
+    it("default(data) 의 persons GET 이 Cookie header 와 route:persons tag 를 같은 호출에 싣는다", () => {
+      const read = s2Body("export default function");
+      expect(read).toMatch(S2_PERSONS_READ_COOKIE_CALL);
+      // 기존 4 종 GET 구성 · 순서는 불변 — cookie 추가가 타격면을 늘리지 않는다.
+      expect(read.match(/http\.get\(/g)).toHaveLength(4);
+    });
+
+    it("setup() 안에서 login 획득 → authCookie 조립 → persons 표본 조회 순서가 지켜진다", () => {
+      const setup = s2Body("export function setup");
+      const loginAt = setup.indexOf(LOGIN_ROUTE);
+      const cookieAt = setup.indexOf("const authCookie = ");
+      const queryAt = setup.search(/http\.get\(`\$\{BASE_URL\}\/api\/persons`/);
+      expect(loginAt).toBeGreaterThan(-1);
+      // 순서가 역전되면 표본 조회가 TDZ 의 authCookie 를 읽어 run 이 통째로 깨진다.
+      expect(cookieAt).toBeGreaterThan(loginAt);
+      expect(queryAt).toBeGreaterThan(cookieAt);
+    });
+
+    it("authCookie 지역 const 가 표본 조회 params 와 return 두 곳에서 재사용된다", () => {
+      const setup = s2Body("export function setup");
+      expect(setup).toContain(
+        `const authCookie = \`${COOKIE_NAME}=\${accessToken}\`;`,
+      );
+      // 사용처 ① 표본 조회 params ② return — 문자열 재조립은 0 이다.
+      expect(setup).toContain("headers: { Cookie: authCookie },");
+      expect(setup).toMatch(/return \{[\s\S]*?\n\s*authCookie,\n\s*\};/);
+      expect(
+        setup.match(new RegExp(`\`${COOKIE_NAME}=\\$\\{`, "g")),
+      ).toHaveLength(1);
+    });
+  });
+
+  describe("flow / 분기 cover — 새 params 리터럴이 분기를 늘리지 않는다", () => {
+    it("cookie params 는 문자열 리터럴 3 곳뿐이고 분기 토큰은 여전히 0 이다", () => {
+      const script = s2Script();
+      // setup persons + default persons + default me = 3 곳.
+      expect(script.match(/headers: \{ Cookie: /g)).toHaveLength(3);
+      ["if (", "} else", " ? ", " && "].forEach((token) =>
+        expect(script).not.toContain(token),
+      );
+    });
+  });
+
+  describe("Error path — 추출기 계약 유지(블록 부재 null · non-string TypeError)", () => {
+    it("s2Body 가 쓰는 extractTopLevelBlock 계약이 그대로다 — 0-byte 조용한 PASS 차단", () => {
+      expect(
+        extractTopLevelBlock(s2Script(), "export function nonexistent"),
+      ).toBeNull();
+      // 0-byte read 는 블록 부재로 null — 빈 문자열이 단언을 조용히 통과시키지 않는다.
+      expect(extractTopLevelBlock("", "export function setup")).toBeNull();
+      expect(() =>
+        extractTopLevelBlock(
+          undefined as unknown as string,
+          "export function setup",
+        ),
+      ).toThrow(TypeError);
+      expect(() =>
+        extractTopLevelBlock(s2Script(), 42 as unknown as string),
+      ).toThrow(TypeError);
+    });
+  });
+
+  describe("negative cases 충분 cover — 축 경계 · 토큰 리터럴 · 합성 mutation 대조군", () => {
+    it("(1) groups · parts GET 은 문자 단위 무변경 — Cookie 잔존 0(축 경계 보존)", () => {
+      const read = s2Body("export default function");
+      ["groups", "parts"].forEach((tag) =>
+        expect(read).toContain(
+          `http.get(\`\${BASE_URL}/api/${tag}\`, { tags: { route: "${tag}" } });`,
+        ),
+      );
+    });
+
+    it("(2)~(4) 토큰 리터럴 0 · __ENV 키 2 회 · 임계 프로파일 무변경", () => {
+      const script = s2Script();
+      ["eyJ", "Bearer ", "Authorization"].forEach((token) =>
+        expect(script).not.toContain(token),
+      );
+      expect(script.match(/__ENV\./g)).toHaveLength(2);
+      expect(thresholdKeys(script)).toEqual(EXPECTED_THRESHOLD_KEYS);
+      expect(script.match(/p\(95\)<3000/g)).toHaveLength(5);
+      expect(script.match(/rate<0\.01/g)).toHaveLength(1);
+      expect(script).toContain("vus: 5");
+      expect(script).toContain('duration: "20s"');
+    });
+
+    it("(5) 합성 mutation — persons GET 에서 Cookie header 를 빼면 단언이 실패한다", () => {
+      const read = s2Body("export default function");
+      // 첫 일치(= persons GET) 만 제거한다 — me 의 header 는 남는다.
+      const mutated = read.replace(
+        /\s*headers: \{ Cookie: data\.authCookie \},/,
+        "",
+      );
+      expect(mutated).not.toMatch(S2_PERSONS_READ_COOKIE_CALL);
+      const setup = s2Body("export function setup");
+      expect(
+        setup.replace(/\s*headers: \{ Cookie: authCookie \},/, ""),
+      ).not.toMatch(S2_PERSONS_SEED_COOKIE_CALL);
+    });
+
+    it("(6) 합성 mutation — 인증 부트스트랩을 표본 조회 뒤로 되돌리면 순서 단언이 실패한다", () => {
+      const setup = s2Body("export function setup");
+      const query = setup.match(
+        / {2}const persons = http\.get\(`\$\{BASE_URL\}\/api\/persons`,[\s\S]*?\n {2}\}\);\n/,
+      ) as RegExpMatchArray;
+      // 표본 조회를 부트스트랩 앞(credentials 선언 직전)으로 옮긴 합성 소스.
+      const reverted = setup
+        .replace(query[0], "")
+        .replace(
+          "  const credentials = {",
+          `${query[0]}  const credentials = {`,
+        );
+      expect(
+        reverted.search(/http\.get\(`\$\{BASE_URL\}\/api\/persons`/),
+      ).toBeLessThan(reverted.indexOf("const authCookie = "));
+      expect(reverted.indexOf(LOGIN_ROUTE)).toBeGreaterThan(
+        reverted.search(/http\.get\(`\$\{BASE_URL\}\/api\/persons`/),
       );
     });
   });
@@ -3728,7 +3876,9 @@ describe("s2-read.js 실 devset dataset 조회 교체 drift smoke (T-1672)", () 
       expect(setup).toMatch(S2_PERSON_IDS_CHAIN);
       expect(setup).toContain("personIds,");
       // 조회는 seed tag 라 route tag 별 p95 4 종을 오염시키지 않는다.
-      expect(setup).toContain("/api/persons`, SEED_PARAMS)");
+      // (T-2023) 공용 SEED_PARAMS → 같은 seed tag 에 인증 cookie 만 더한 인라인 params 로
+      // 바뀌었다. tag 가 seed 그대로라는 계약은 그대로 지킨다.
+      expect(setup).toMatch(S2_PERSONS_SEED_COOKIE_CALL);
     });
 
     it("② 도메인 리터럴이 realdata-devset-seed-descriptors.ts 정본 · s1 사본과 parity 다", () => {
