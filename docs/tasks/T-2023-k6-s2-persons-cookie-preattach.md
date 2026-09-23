@@ -2,7 +2,7 @@
 id: T-2023
 title: persons guard 배선 선행 4 — k6 s2-read.js persons 요청에 인증 cookie 선탑재
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-048, REQ-073]
 estimatedDiff: 150
