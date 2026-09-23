@@ -3,10 +3,11 @@
 //
 // T-1620 이 골격을, T-1621 이 부하 대상 기동을 열었고 본 스크립트가 처음으로 **DB round-trip 을
 // 실제로 타는 조회 route** 를 반복 타격해 계획 §3 의 p95 < 3s 게이트를 실발화시킨다.
-// 타격 대상은 `@UseGuards` 가 없는 guard-free 목록 GET 3 종뿐이다 — assessment / contribution /
+// 타격 대상은 작성 시점에 `@UseGuards` 가 없던 목록 GET 3 종이다 — assessment / contribution /
 // summary / user 의 조회는 JwtAuthGuard 가 붙어 토큰 없이는 401 이고, 그 401 이
 // http_req_failed 임계를 오염시킨다(인증 획득 배선은 후속 slice). id 파라미터 경로도 빈 DB 에서
-// 404 가 되므로 타격하지 않는다.
+// 404 가 되므로 타격하지 않는다. 그중 persons 는 Q-0056 ④ 로 guarded 가 될 예정이라 아래
+// T-2023 항목대로 인증 cookie 를 미리 싣는다(groups / parts 는 각자 축 몫이라 무변경).
 // 임계는 docs/ops/load-resilience-test-plan.md §3 표 그대로 — 재산정 0 (ADR-0054).
 // 조건 분기 로직 0 — 분기가 필요해지면 unit-testable helper 로 분리한다 (T-1620 규약 승계).
 //
@@ -26,6 +27,14 @@
 // 인원을 setup() 이 조회 1 회로 표본 추출하고, teardown 은 그 인원을 지우지 않는다(공유 dataset).
 // group / part leg 는 devset seed 가 적재하지 않는 row 라 합성 seed 를 유지한다. 임계 · 프로파일 ·
 // route tag 4 종 · __ENV 키 2 종 무변경 — 계획 §2 S2 "dataset 교체 설계" ①~⑤ 그대로.
+//
+// T-2023 — guard 배선 선행(Q-0056 ④): persons 2 지점(setup 의 표본 조회 · default 의 측정 GET)에
+// 인증 cookie 를 선탑재한다. 지금은 src/user/person.controller.ts 에 guard 가 없어 cookie 가
+// no-op 이지만, ④ 가 JwtAuthGuard · RolesGuard 를 붙이는 순간 두 지점이 401 이 되어 전역
+// http_req_failed 임계와 persons route 의 p95 표본을 동시에 오염시킨다. 그래서 인증 부트스트랩
+// 블록을 표본 조회 **앞** 으로 옮기고 cookie 문자열을 authCookie 지역 const 로 뽑아 표본 조회와
+// return 이 함께 쓴다. 새 __ENV 키 · 새 route tag · 임계 재산정 0 — cookie 획득 배선 자체는
+// T-1624 가 만든 것 그대로다.
 import http from "k6/http";
 
 // 대상 base URL. workflow 의 K6_BASE_URL 주입값과 동일한 기본값을 들고 있다 (smoke.js 와 동형).
@@ -81,10 +90,38 @@ export function setup() {
   // run 마다 유일한 접미사 — Part.name / 계정 email 의 @unique 충돌(409)이 전역
   // http_req_failed 임계를 오염시키지 않도록 한다 (로컬 반복 실행 포함).
   const stamp = Date.now();
+  // 인증 부트스트랩 — signup 은 guard 없는 public endpoint 라 별도 admin 준비 없이 계정
+  // 1 개를 만들 수 있다. 자격증명은 stamp 로 run 마다 새로 만든다 (고정 리터럴 0 — @unique
+  // 충돌 회피 + secret 규율). 두 요청 모두 seed tag 라 조회 route 4 종의 p95 는 오염 0.
+  // 생성된 계정 row 는 지우지 않는다 — user 삭제 endpoint 자체가 존재하지 않기 때문이며,
+  // CI DB 는 run 마다 폐기되고 로컬 반복 실행은 stamp 접미사가 충돌을 피한다.
+  // (T-2023) 이 블록은 아래 표본 조회보다 **앞** 에 있어야 한다 — 표본 조회가 authCookie 를
+  // 쓰므로 순서가 역전되면 TDZ 로 run 이 통째로 깨진다.
+  const credentials = {
+    email: `load-auth-${stamp}@example.com`,
+    password: `load-pass-${stamp}`,
+  };
+  http.post(`${BASE_URL}/api/users`, JSON.stringify(credentials), SEED_PARAMS);
+  const login = http.post(
+    `${BASE_URL}/api/auth/login`,
+    JSON.stringify(credentials),
+    SEED_PARAMS,
+  );
+  // 토큰은 응답 body 에 없고 Set-Cookie 로만 온다 (login 응답 body 는 userId 뿐). k6 의
+  // response.cookies 는 이름별 배열이라 index 접근만으로 값을 꺼낸다 (조건 분기 0 규약).
+  const accessToken = login.cookies["access_token"][0].value;
+  // (T-2023) cookie 문자열을 지역 const 로 한 번만 조립해 setup 의 표본 조회와 return 값이
+  // 같은 값을 재사용한다 (조립 중복 0).
+  const authCookie = `access_token=${accessToken}`;
   // (T-1672) 대상 person 을 만들지 않고 **조회** 한다(생성 0) — seed step 이 적재한 인원 중
   // email 이 devset 도메인으로 끝나는 원소만 골라 표본 상한만큼 취한다. 상한이 조회 결과보다
   // 많든 적든 slice 한 식이 그대로 처리하므로 분기문 0 규약을 지킨다.
-  const persons = http.get(`${BASE_URL}/api/persons`, SEED_PARAMS);
+  // (T-2023) 공용 seed params 대신 같은 seed tag 에 인증 cookie 만 더한 인라인 params 를 쓴다 —
+  // tag 가 seed 그대로라 persons route 의 p95 표본은 여전히 오염 0 이다.
+  const persons = http.get(`${BASE_URL}/api/persons`, {
+    headers: { Cookie: authCookie },
+    tags: { route: "seed" },
+  });
   const personIds = persons
     .json()
     .filter((row) => `${row.email}`.endsWith(`@${DEVSET_EMAIL_DOMAIN}`))
@@ -109,37 +146,24 @@ export function setup() {
     JSON.stringify({ name: `부하 파트 ${stamp}` }),
     SEED_PARAMS,
   );
-  // 인증 부트스트랩 — signup 은 guard 없는 public endpoint 라 별도 admin 준비 없이 계정
-  // 1 개를 만들 수 있다. 자격증명은 stamp 로 run 마다 새로 만든다 (고정 리터럴 0 — @unique
-  // 충돌 회피 + secret 규율). 두 요청 모두 seed tag 라 조회 route 4 종의 p95 는 오염 0.
-  // 생성된 계정 row 는 지우지 않는다 — user 삭제 endpoint 자체가 존재하지 않기 때문이며,
-  // CI DB 는 run 마다 폐기되고 로컬 반복 실행은 stamp 접미사가 충돌을 피한다.
-  const credentials = {
-    email: `load-auth-${stamp}@example.com`,
-    password: `load-pass-${stamp}`,
-  };
-  http.post(`${BASE_URL}/api/users`, JSON.stringify(credentials), SEED_PARAMS);
-  const login = http.post(
-    `${BASE_URL}/api/auth/login`,
-    JSON.stringify(credentials),
-    SEED_PARAMS,
-  );
-  // 토큰은 응답 body 에 없고 Set-Cookie 로만 온다 (login 응답 body 는 userId 뿐). k6 의
-  // response.cookies 는 이름별 배열이라 index 접근만으로 값을 꺼낸다 (조건 분기 0 규약).
-  const accessToken = login.cookies["access_token"][0].value;
   // 반환값은 teardown 으로 그대로 전달되므로 JSON 직렬화 가능한 형태만 담는다.
+  // (T-2023) authCookie 는 위에서 조립한 지역 const 를 그대로 재사용한다.
   return {
     personIds,
     groupIds: [group.json("id")],
     partIds: [part.json("id")],
-    authCookie: `access_token=${accessToken}`,
+    authCookie,
   };
 }
 
 export default function (data) {
-  // 한 iteration = guard-free 목록 GET 3 종 + 인증 GET 1 종 각 1 회. route tag 로 지표를
-  // 분리 집계한다.
-  http.get(`${BASE_URL}/api/persons`, { tags: { route: "persons" } });
+  // 한 iteration = 목록 GET 3 종 + 인증 GET 1 종 각 1 회. route tag 로 지표를 분리 집계한다.
+  // (T-2023) persons 만 setup 이 만든 cookie 를 싣는다 — ④ 가 guard 를 붙여도 401 로 바뀌지
+  // 않도록 미리 배선한다. groups / parts 는 각자 축이 처리할 몫이라 무변경이다.
+  http.get(`${BASE_URL}/api/persons`, {
+    headers: { Cookie: data.authCookie },
+    tags: { route: "persons" },
+  });
   http.get(`${BASE_URL}/api/groups`, { tags: { route: "groups" } });
   http.get(`${BASE_URL}/api/parts`, { tags: { route: "parts" } });
   // 인증 조회 — jwt.strategy 가 cookie 를 유일한 토큰 source 로 읽으므로(헤더 토큰 방식은
