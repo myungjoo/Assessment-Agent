@@ -13,6 +13,11 @@
 // 실 dataset 전제(T-1661): 평가 대상 person 은 이 스크립트가 만들지 않는다 — workflow 의
 //   `pnpm seed:devset-logins` step(load-k6.yml)이 선행해 적재한 실 devset 인원을 setup() 이
 //   조회해 표본 수만큼 취하고, 공유 dataset 이라 teardown() 은 그중 하나도 지우지 않는다.
+// guard 배선 선행(T-2024, Q-0056 ④) — 그 표본 조회에 인증 cookie 를 선탑재한다. 지금
+//   src/user/person.controller.ts 는 guard 미부착이라 cookie 는 no-op 이지만, ④ 가 JwtAuthGuard
+//   · RolesGuard 를 붙이는 순간 cookie 없는 조회는 401 이 되어 personIds 가 빈 배열이 되고 측정
+//   배치 POST 가 빈 rawBridges 로 돌아 run 전체가 조용히 무의미한 측정이 된다. tag 는 seed 그대로
+//   유지해 batch 임계 표본을 오염시키지 않는다.
 // 대상 route 가 Admin+ 라 이 run 의 첫 user 가 SuperAdmin 이어야 하고(src/user/user.controller.ts
 // 9~11 행), 그 전제는 workflow step 순서 smoke → S1 → S2 → S3 이 보장한다. 규약 승계(s2-read.js):
 // __ENV 기본값 · route tag 분리 · signup → login → cookie · setup/teardown 자기 정리 · 분기 0.
@@ -53,8 +58,8 @@ const DEVSET_EMAIL_DOMAIN = "load.devset.test";
 
 // D3 tag 3 종 — seed(준비 write · 조회 · 정리) · auth(signup · login) 는 대상 route 와 다른
 // 이름을 써 batch 지표를 오염시키지 않는다(S2·S3 오염 차단 규약 승계).
+// seed 왕복 params 는 전부 cookie 를 실어야 해서 공용 상수 없이 setup() 안에서 조립한다(T-2024).
 const JSON_HEADERS = { "Content-Type": "application/json" };
-const SEED_PARAMS = { headers: JSON_HEADERS, tags: { route: "seed" } };
 const AUTH_PARAMS = { headers: JSON_HEADERS, tags: { route: "auth" } };
 
 export const options = {
@@ -134,8 +139,12 @@ export function setup() {
   );
   // (c) 평가 대상 person 을 만들지 않고 **조회** 한다(생성 0) — workflow 의 seed step 이 적재한
   // 실 devset 인원 중 email 이 devset 도메인으로 끝나는 원소만 골라 표본 수만큼 취한다. 표본이
-  // 조회 결과보다 많든 적든 slice 한 식이 그대로 처리하므로 분기문 0 규약을 유지한다.
-  const persons = http.get(`${BASE_URL}/api/persons`, SEED_PARAMS);
+  // 조회 결과보다 많든 적든 slice 한 식이 그대로 처리하므로 분기문 0 규약을 유지한다. 조회 params
+  // 는 providerDeleteParams 와 동형으로 cookie 를 싣는다(T-2024) — tag 는 seed 그대로다.
+  const persons = http.get(`${BASE_URL}/api/persons`, {
+    headers: { Cookie: authCookie },
+    tags: { route: "seed" },
+  });
   const personIds = persons
     .json()
     .filter((row) => `${row.email}`.endsWith(`@${DEVSET_EMAIL_DOMAIN}`))

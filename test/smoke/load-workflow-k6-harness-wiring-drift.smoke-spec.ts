@@ -1495,6 +1495,12 @@ const s1Script = (): string =>
   readFileSync(path.join(REPO_ROOT, S1_SCRIPT_REL), "utf8");
 const s1Body = (header: string): string =>
   (extractTopLevelBlock(s1Script(), header) as string[]).join("\n");
+/**
+ * (T-2024) setup 의 persons 표본 조회 — 인증 cookie 와 seed tag 가 **같은 http.get 호출** 안에
+ * 있어야 한다. tag 가 seed 그대로여야 batch 판정 표본이 오염되지 않는다.
+ */
+const S1_PERSONS_SEED_COOKIE_CALL =
+  /http\.get\(`\$\{BASE_URL\}\/api\/persons`,\s*\{\s*headers: \{ Cookie: authCookie \},\s*tags: \{ route: "seed" \},\s*\}\)/;
 
 /** 주석 행을 뺀 코드의 타격 `/api/...` 경로(중복 제거). 분기 없음 — 필터 + 매칭만. */
 const apiRoutesOf = (script: string): string[] =>
@@ -1641,7 +1647,11 @@ describe("test/load/s1-batch.js S1 평가 배치 부하 골격 drift smoke (T-16
       // T-1661 이후 person 은 생성이 아니라 조회다 — signup + login + provider seed = POST 3 회.
       expect(setup.match(/http\.post\(/g)).toHaveLength(3);
       // T-1632 이후 인증이 person 조회보다 앞선다(D5 provider 왕복이 Admin+ gate 라서).
-      expect(setup).toMatch(/AUTH_PARAMS[\s\S]*authCookie =[\s\S]*SEED_PARAMS/);
+      // (T-2024) 공용 SEED_PARAMS 가 cookie 인라인 params 로 바뀌어, 순서 좌표를 상수 이름 대신
+      // 조회 route 자체로 옮긴다 — 같은 3 단 순서를 같은 강도로 못 박는다.
+      expect(setup).toMatch(
+        /AUTH_PARAMS[\s\S]*authCookie =[\s\S]*http\.get\(`\$\{BASE_URL\}\/api\/persons`/,
+      );
       // 공유 dataset 보존 — teardown 에 person 회수 반복문도 그 전용 params 도 남지 않는다.
       const down = s1Body("export function teardown");
       ["personIds", "SEED_DELETE_PARAMS"].forEach((t) =>
@@ -1658,7 +1668,10 @@ describe("test/load/s1-batch.js S1 평가 배치 부하 골격 drift smoke (T-16
       );
       expect(setup).toMatch(/existing\.length[\s\S]*existing\[i\]\.id/);
       // 세 왕복 모두 seed tag — cookie 를 실은 params 2 종이 batch 임계를 오염시키지 않는다.
-      expect(setup.match(/tags: \{ route: "seed" \}/g)).toHaveLength(2);
+      // (T-2024) 2 → 3: 늘어난 1 건은 persons 표본 조회의 cookie 인라인 params 이고, 그 tag 도
+      // seed 그대로다(수치만 올리지 않고 그 1 건의 정체를 아래 단언이 못 박는다).
+      expect(setup.match(/tags: \{ route: "seed" \}/g)).toHaveLength(3);
+      expect(setup).toMatch(S1_PERSONS_SEED_COOKIE_CALL);
       expect(setup).toContain("Cookie: authCookie");
     });
 
@@ -3607,6 +3620,149 @@ describe("s1-batch.js 실 devset dataset 조회 교체 drift smoke (T-1661)", ()
       expect(apiRoutesOf(s1Script()).sort()).toEqual(
         [...S1_ROUTES, S1_BATCH_ROUTE].sort(),
       );
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-2024 — s1-batch.js persons 표본 조회 인증 cookie 선탑재(Q-0056 ④ guard 배선 선행) drift.
+// 존재 이유 — persons 에 JwtAuthGuard 가 붙는 순간 cookie 없는 표본 조회는 401 이 되고 personIds
+// 가 빈 배열이 되어 측정 배치 POST 가 빈 rawBridges 로 돈다. 판정 지표는 남지만 내용이 없는
+// 측정이고 http_req_failed rate<0.01 까지 함께 깨지는데, 부하 job 은 수동 발화 전용이라 ① cookie
+// 부착이 되돌려지거나 ② seed tag 가 batch 로 오염돼도 상시 CI 는 green 이다. 문자열 배선 parity
+// 로 그 침묵을 깬다(T-2023 s2 describe 구조 승계).
+//      🔥 새 helper 0(s1Script · s1Body · extractTopLevelBlock 재사용) · 실 k6 실행 0 ·
+//         실 HTTP 0 · 실 GitHub Actions 발화 0 · 새 dependency 0 · DB 의존 0.
+describe("test/load/s1-batch.js persons 인증 cookie 선탑재 배선 drift smoke (T-2024)", () => {
+  describe("Happy-path: cookie 부착 1 지점 · 부트스트랩 선행 순서 · authCookie 재사용", () => {
+    it("① setup 의 persons 표본 조회가 Cookie header 와 seed tag 를 같은 호출에 싣는다", () => {
+      const setup = s1Body("export function setup");
+      expect(setup).toMatch(S1_PERSONS_SEED_COOKIE_CALL);
+      // 조회 횟수는 1 회 그대로 — cookie 추가가 타격면을 늘리지 않는다.
+      expect(
+        setup.match(/http\.get\(`\$\{BASE_URL\}\/api\/persons`/g),
+      ).toHaveLength(1);
+      // batch tag 오염 0 — 판정 표본은 대상 route 1 개뿐이어야 한다.
+      expect(setup).not.toContain('route: "batch"');
+    });
+
+    it("② setup 안에서 login → authCookie 조립 → persons 조회 순서가 지켜진다(블록 이동 0)", () => {
+      const setup = s1Body("export function setup");
+      const loginAt = setup.indexOf(LOGIN_ROUTE);
+      const cookieAt = setup.indexOf("const authCookie = ");
+      const queryAt = setup.search(/http\.get\(`\$\{BASE_URL\}\/api\/persons`/);
+      expect(loginAt).toBeGreaterThan(-1);
+      // 순서가 역전되면 표본 조회가 TDZ 의 authCookie 를 읽어 run 이 통째로 깨진다.
+      expect(cookieAt).toBeGreaterThan(loginAt);
+      expect(queryAt).toBeGreaterThan(cookieAt);
+    });
+
+    it("③ authCookie 가 provider 2 params · persons params · return 에서 재사용된다", () => {
+      const setup = s1Body("export function setup");
+      // 사용처 3 = providerParams · providerDeleteParams · persons 조회 params.
+      expect(setup.match(/Cookie: authCookie/g)).toHaveLength(3);
+      expect(setup).toMatch(/return \{[\s\S]*?\n\s*authCookie,\n/);
+      // 새 cookie 변수 · 문자열 재조립 0 — 조립은 login 직후 1 곳뿐이다.
+      expect(
+        setup.match(new RegExp(`\`${COOKIE_NAME}=\\$\\{`, "g")),
+      ).toHaveLength(1);
+    });
+  });
+
+  describe("flow / 분기 cover — 새 params 리터럴이 분기를 늘리지 않는다", () => {
+    it("분기 토큰 잔존 0 과 || 카운트 2 가 그대로다", () => {
+      const script = s1Script();
+      ["if (", "} else", " ? ", " && ", " || ("].forEach((t) =>
+        expect(script).not.toContain(t),
+      );
+      expect(script.match(/\|\|/g)).toHaveLength(2);
+    });
+  });
+
+  describe("Error path — 추출기 계약 유지(블록 부재 · 0-byte · non-string)", () => {
+    it("s1Body · extractTopLevelBlock 계약이 그대로다 — 0-byte 조용한 PASS 차단", () => {
+      // 대상 블록이 없으면 s1Body 는 빈 문자열을 만들지 않고 즉시 터진다.
+      expect(() => s1Body("export function nonexistent")).toThrow();
+      expect(
+        extractTopLevelBlock(s1Script(), "export function nonexistent"),
+      ).toBeNull();
+      // 0-byte read 는 블록 부재로 null — 빈 문자열이 단언을 조용히 통과시키지 않는다.
+      expect(extractTopLevelBlock("", "export function setup")).toBeNull();
+      expect(() =>
+        extractTopLevelBlock(
+          undefined as unknown as string,
+          "export function setup",
+        ),
+      ).toThrow(TypeError);
+      expect(() =>
+        extractTopLevelBlock(s1Script(), 42 as unknown as string),
+      ).toThrow(TypeError);
+    });
+  });
+
+  describe("negative cases 충분 cover — 리터럴 잔존 · 축 경계 · 합성 mutation 대조군", () => {
+    it("① SEED_PARAMS 리터럴이 스크립트 전체에 잔존 0 이다(선언 · 사용 모두)", () => {
+      const script = s1Script();
+      expect(script).not.toContain("SEED_PARAMS");
+      // 남는 공용 선언은 JSON_HEADERS · AUTH_PARAMS 2 종뿐이다(auth 왕복이 계속 쓴다).
+      expect(script).toContain("const JSON_HEADERS = ");
+      expect(script).toContain(
+        'const AUTH_PARAMS = { headers: JSON_HEADERS, tags: { route: "auth" } };',
+      );
+    });
+
+    it("② persons 생성 POST · /api/persons/ DELETE 잔존 0 이 유지된다(공유 dataset 보존)", () => {
+      const script = s1Script();
+      expect(script).not.toMatch(
+        /http\.post\(\s*`\$\{BASE_URL\}\/api\/persons`/,
+      );
+      expect(script).not.toContain("/api/persons/");
+      // 남은 DELETE 는 provider 열거 회수 1 + teardown 단일-row 회수 1 = 2 회뿐이다.
+      expect(script.match(/http\.del\(/g)).toHaveLength(2);
+    });
+
+    it("③ 토큰 리터럴 0 · __ENV 키 2 종 · 임계 프로파일이 문자 단위 무변경이다", () => {
+      const script = s1Script();
+      ["Authorization", "Bearer ", "eyJ"].forEach((t) =>
+        expect(script).not.toContain(t),
+      );
+      expect(script.match(/__ENV\./g)).toHaveLength(2);
+      expect(thresholdKeys(script)).toEqual(S1_THRESHOLD_KEYS);
+      expect(script).toContain(
+        "FULL_RUN_BUDGET_MS * (SAMPLE_PERSONS / EXTRAPOLATION_PERSONS)",
+      );
+      expect(script).toContain(
+        `const STUB_BASELINE_P95_MS = ${S1_STUB_BASELINE_P95_MS};`,
+      );
+      expect(script).toContain('http_req_failed: ["rate<0.01"],');
+    });
+
+    it("④ 합성 mutation — persons 조회에서 Cookie header 를 빼면 단언이 실패한다", () => {
+      const setup = s1Body("export function setup");
+      const call = setup.match(S1_PERSONS_SEED_COOKIE_CALL) as RegExpMatchArray;
+      const mutated = setup.replace(
+        call[0],
+        call[0].replace(" headers: { Cookie: authCookie },", ""),
+      );
+      expect(mutated).not.toBe(setup);
+      expect(mutated).not.toMatch(S1_PERSONS_SEED_COOKIE_CALL);
+      // 대조군 — 원본은 그대로 통과한다.
+      expect(setup).toMatch(S1_PERSONS_SEED_COOKIE_CALL);
+    });
+
+    it("⑤ 합성 mutation — persons 조회 tag 를 batch 로 바꾸면 tag 오염 단언이 실패한다", () => {
+      const setup = s1Body("export function setup");
+      const call = setup.match(S1_PERSONS_SEED_COOKIE_CALL) as RegExpMatchArray;
+      const drifted = setup.replace(
+        call[0],
+        call[0].replace('route: "seed"', 'route: "batch"'),
+      );
+      expect(drifted).not.toMatch(S1_PERSONS_SEED_COOKIE_CALL);
+      expect(drifted.match(/tags: \{ route: "seed" \}/g)).toHaveLength(2);
+      expect(drifted).toContain('route: "batch"');
+      // 대조군 — 원본 setup 의 seed tag 는 3 건이고 batch 는 0 건이다.
+      expect(setup.match(/tags: \{ route: "seed" \}/g)).toHaveLength(3);
+      expect(setup).not.toContain('route: "batch"');
     });
   });
 });
