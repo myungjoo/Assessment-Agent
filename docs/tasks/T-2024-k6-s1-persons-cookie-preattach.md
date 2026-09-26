@@ -2,7 +2,7 @@
 id: T-2024
 title: persons guard 배선 선행 5 — k6 s1-batch.js persons 표본 조회에 인증 cookie 선탑재
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-048, REQ-073]
 estimatedDiff: 180
