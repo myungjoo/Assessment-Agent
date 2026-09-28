@@ -2,13 +2,18 @@
 // — R-91 / REQ-047·REQ-048 의 S3 시나리오("동시 요청 내성") k6 스크립트 (T-1625).
 // 계획 docs/ops/load-resilience-test-plan.md §2 S3 — "평가 작성 진행 중 조회" 같은 read + write
 // 혼합 부하를 동시성 수준을 올려가며 인가 — 를 처음 실발화시킨다(§3 표 S3 행: error rate < 1%).
-// 규약(S2 승계): ① guard-free `/api/persons` 만 타격(401 이 http_req_failed 임계 오염 차단)
-// ② 한 iteration 이 만든 row 는 같은 iteration 이 지운다(DB 무한 성장 차단) ③ read / write 는
-// 별도 route tag(지표 오염 차단) ④ 임계는 §3 표 그대로 재산정 0(ADR-0054) ⑤ 조건 분기 로직 0.
+// 규약(S2 승계): ① 측정 타격은 `/api/persons` 하나뿐 — setup 의 인증 부트스트랩 2 왕복
+// (signup · login) 만 예외이고 둘 다 guard 없는 public endpoint 다. persons 표본 왕복에는
+// cookie 를 선탑재해, persons guard 실배선 뒤에도 401 이 http_req_failed 임계를 오염시키지
+// 않는다 (T-2025) ② 한 iteration 이 만든 row 는 같은 iteration 이 지운다(DB 무한 성장 차단)
+// ③ read / write 는 별도 route tag(지표 오염 차단) ④ 임계는 §3 표 그대로 재산정 0(ADR-0054)
+// ⑤ 조건 분기 로직 0.
 //
 // T-1682 — persons 행 수 로그 배선: setup / teardown 이 `GET /api/persons` 를 각 1 회 더 때리므로
 // `http_reqs` 항등식이 `3 × iterations` → `3 × iterations + 2` 로 바뀐다. `#### S3 1 회차` 가
 // 자기정리 판정 근거로 쓴 배수 관계를 다음 회차 분석자가 그대로 적용하면 2 건만큼 어긋난다.
+// T-2025 — 그 위에 인증 부트스트랩 2 왕복(signup · login)이 더해져 지금의 항등식은
+// `3 × iterations + 4` 다. 두 왕복 모두 seed tag 라 판정 표본(read / write)에는 섞이지 않는다.
 import http from "k6/http";
 // (T-1691) 단계별 값 생성용 custom Trend — k6 런타임이 기본 제공하는 내장 모듈이라 새 외부
 // dependency 는 0 이다(계획 §3 설계 조항 ⑥ (다)). 종료 요약은 request tag 를 sub-metric 으로
@@ -29,8 +34,14 @@ const READ_PARAMS = { tags: { route: "read" } };
 // (T-1682) 표본 왕복 전용 tag — 판정 tag read / write 와 겹치지 않는 별도 이름이라
 // `http_req_duration{route:read}` · `{route:write}` p95 가 준비/정리 조회에 오염되지 않는다
 // (s2-read.js 의 seed / teardown 동형). 새 tag 용 임계는 추가하지 않는다(§3 표 재산정 0).
-const SEED_PARAMS = { tags: { route: "seed" } };
-const TEARDOWN_PARAMS = { tags: { route: "teardown" } };
+// (T-2025) 공용 선언은 인증 부트스트랩 2 왕복이 쓰는 SEED_PARAMS 하나만 남는다 — JSON body 를
+// 싣는 왕복이라 Content-Type 을 함께 둔다(s2-read.js 동형). persons 표본 조회 2 지점은 같은
+// seed / teardown tag 에 cookie 만 더한 인라인 params 를 직접 쓰므로 공용 TEARDOWN_PARAMS 선언은
+// 없어졌고, route tag 값 집합 4 종(read · write · seed · teardown)은 문자 단위 그대로다.
+const SEED_PARAMS = {
+  headers: { "Content-Type": "application/json" },
+  tags: { route: "seed" },
+};
 
 // (T-1689) 단계 식별 전용 tag key — 판정 축(route)과 직교한 새 key 하나로 stages 3 단을 가른다
 // (계획 §3 설계 조항 ③). route 값 집합(read · write · seed · teardown)에는 단계 값을 섞지
@@ -89,17 +100,41 @@ export const options = {
 };
 
 export function setup() {
+  // (T-2025) 인증 부트스트랩 — persons guard 가 실배선되는 순간 cookie 없는 표본 조회는 401 이
+  // 되고 `.json().length` 가 통째로 깨진다. signup 은 guard 없는 public endpoint 라 별도 admin
+  // 준비 없이 계정 1 개를 만들 수 있고, 자격증명은 stamp 로 매 run 새로 만든다(고정 리터럴 ·
+  // secret 0 — @unique 충돌 회피 겸). user row 는 삭제 endpoint 자체가 없어 남긴다(s1 · s2 동형).
+  // 두 왕복 모두 seed tag 라 판정 tag read / write 의 p95 표본은 오염 0 이다. 이 블록은 아래 표본
+  // 조회보다 **앞** 이어야 한다 — 역전되면 조회가 TDZ 의 authCookie 를 읽어 run 이 통째로 깨진다.
+  const stamp = Date.now();
+  const credentials = {
+    email: `load-s3-auth-${stamp}@example.com`,
+    password: `load-s3-pass-${stamp}`,
+  };
+  http.post(`${BASE_URL}/api/users`, JSON.stringify(credentials), SEED_PARAMS);
+  const login = http.post(
+    `${BASE_URL}/api/auth/login`,
+    JSON.stringify(credentials),
+    SEED_PARAMS,
+  );
+  // 토큰은 Set-Cookie 로만 온다 — response.cookies 는 이름별 배열이라 index 접근만(분기 0).
+  const authCookie = `access_token=${login.cookies["access_token"][0].value}`;
   // (T-1682) 부하 시작 시점의 persons 행 수를 조회 1 회로 직접 센다 — S2 teardown 뒤 공유 dataset
   // 이 보존됐는지를 `data_received` 같은 정황이 아니라 run log 에서 그대로 회수한다. 수치만 싣고
   // email 원문 · cookie · 자격증명 · 경로 리터럴은 출력하지 않으며, 조건 없이 매 run 1 회(분기 0).
+  // (T-2025) 공용 params 대신 같은 seed tag 에 인증 cookie 만 더한 인라인 params 를 쓴다.
   const startRows = http
-    .get(`${BASE_URL}/api/persons`, SEED_PARAMS)
+    .get(`${BASE_URL}/api/persons`, {
+      headers: { Cookie: authCookie },
+      tags: { route: "seed" },
+    })
     .json().length;
   console.log(`[s3-concurrent] persons 행 수 시작 ${startRows}행`);
   // 반환값은 teardown 으로 그대로 전달되므로 JSON 직렬화 가능한 형태만 담는다.
   // (T-1689) startedAt 은 단계 축의 기준 시각 — 부하 시작 직전 1 회만 찍어 모든 VU 가 같은
   // 기준을 공유한다(VU 별 init 시각을 쓰면 ramping 중 생성 시점만큼 축이 어긋난다).
-  return { startRows, startedAt: Date.now() };
+  // (T-2025) authCookie 는 위에서 조립한 지역 const 를 그대로 재사용한다(문자열 재조립 0).
+  return { startRows, startedAt: Date.now(), authCookie };
 }
 
 export default function (data) {
@@ -135,8 +170,13 @@ export function teardown(data) {
   // (T-1682) 종료 시점의 persons 행 수를 조회 1 회로 직접 세고, 시작 행 수와 한 줄에 담는다 —
   // 두 수치의 차이가 곧 iteration 자기 정리(규약 ②)의 잔여라 `http_reqs` 배수 같은 간접 증거로
   // 잔여 0 을 추정하지 않아도 된다. 여기서도 수치 2 개만 싣고 조건 없이 run 당 1 회다(분기 0).
+  // (T-2025) setup 이 넘긴 cookie 를 같은 teardown tag 의 인라인 params 로 싣는다 — tag 가
+  // teardown 그대로라 판정 tag 2 종의 p95 표본은 여전히 오염 0 이다.
   const endRows = http
-    .get(`${BASE_URL}/api/persons`, TEARDOWN_PARAMS)
+    .get(`${BASE_URL}/api/persons`, {
+      headers: { Cookie: data.authCookie },
+      tags: { route: "teardown" },
+    })
     .json().length;
   console.log(
     `[s3-concurrent] persons 행 수 종료 ${endRows}행 / 시작 ${data.startRows}행`,
