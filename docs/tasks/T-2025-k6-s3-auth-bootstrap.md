@@ -2,7 +2,7 @@
 id: T-2025
 title: persons guard 배선 선행 6 — k6 s3-concurrent.js 에 인증 부트스트랩 신설 + setup·teardown 표본 조회 cookie 선탑재
 phase: P5
-status: TODO
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-048, REQ-073]
 estimatedDiff: 260
@@ -63,5 +63,7 @@ plannerNote: P5 · Q-0056 ① persons 선행 6 — T-2024 Follow-up ③c 를 둘
 `implementer → tester`
 
 ## Follow-ups
+
+- (tester, AC `분기별 test`) **분기 없음 — 이 항목 생략.** 본 slice 는 spec helper 를 신설하지 않았고 기존 helper 에 분기를 추가하지도 않았다 (추가분은 정규식 · `indexOf` 단언과 합성 본문 negative 뿐).
 
 - (planner, arc 계획 — Q-0056 persons 축 잔여) 본 task 머지 후 **③c-2**: `s3-concurrent.js` `export default function` 의 persons 3 지점(`http.post` 생성 · `http.get` 목록 · `http.del` 삭제)에 `data.authCookie` 를 싣는다. `WRITE_PARAMS` 는 이미 `headers` 를 쓰므로 병합 형태에 주의하고, drift guard 의 본문 정규식 단언(생성 · 목록 · 삭제 왕복 형태를 고정한 것들)이 함께 갱신 대상인지 착수 전에 센다. 그 뒤 ④ persons guard 실배선. 정본 순서는 [T-2020](T-2020-persons-guard-precursor-cookie-preattach.md) `## Follow-ups`.
