@@ -1413,7 +1413,10 @@ describe("load-k6.yml ↔ test/load/s3-concurrent.js ↔ package.json test:load:
 
     it("(4) S3 스크립트에 auth-guarded prefix 가 없고 조건 분기 0 규약이 유지된다", () => {
       const script = s3Script(); // 401 오염 차단 — guarded 경로 타격 0 + 분기 토큰 0.
-      const banned = ["/api/users", "Authorization", "if (", "} else", " ? "];
+      // (T-2025) `/api/users` 는 금지 목록에서 빠졌다 — `POST /api/users` signup 은 guard 없는
+      // public endpoint 라 setup 의 인증 부트스트랩이 정당하게 쓴다(GUARDED_PREFIXES 주석과
+      // 동형). Admin+ 인 `GET /api/users` 목록 금지는 T-2025 negative (c) 가 따로 지킨다.
+      const banned = ["Authorization", "if (", "} else", " ? "];
       [...GUARDED_PREFIXES, ...banned, " && "].forEach((t) =>
         expect(script).not.toContain(t),
       );
@@ -4467,9 +4470,13 @@ const S3_LOG_FORBIDDEN_TOKENS = [
   "email",
   "stamp",
 ];
-/** 행 수 산출 식 — 조회 1 회 → `.json()` → `.length` 단일 chain(중간 변수로 쪼개지면 깨진다). */
+/**
+ * 행 수 산출 식 — 조회 1 회 → `.json()` → `.length` 단일 chain(중간 변수로 쪼개지면 깨진다).
+ * (T-2025) 공용 params 참조가 같은 tag + cookie 인라인 params 로 바뀌었다 — chain 단일성과
+ * tag 값(seed / teardown) 계약은 그대로 고정한다.
+ */
 const S3_ROW_COUNT_CHAIN =
-  /http\s*\.get\(`\$\{BASE_URL\}\/api\/persons`,\s*(?:SEED|TEARDOWN)_PARAMS\)\s*\.json\(\)\s*\.length;/;
+  /http\s*\.get\(`\$\{BASE_URL\}\/api\/persons`,\s*\{\s*headers: \{ Cookie: (?:data\.)?authCookie \},\s*tags: \{ route: "(?:seed|teardown)" \},\s*\}\)\s*\.json\(\)\s*\.length;/;
 
 /**
  * 스크립트가 선언한 route tag 리터럴 목록(중복 제거 · 선언 순서 보존). `tags: { route: "x" }`
@@ -4505,10 +4512,13 @@ describe("s3-concurrent.js persons 행 수 로그 배선 drift smoke (T-1682)", 
         expect(args[0]).toContain(S3_ROW_LOG_PREFIX);
         // 인자는 template literal 하나뿐 — 객체 dump 같은 추가 인자를 붙이지 않는다.
         expect(args[0]).toMatch(/^`[^`]*`,?$/);
-        // 표본 왕복은 읽기 전용 — POST / DELETE 를 늘리지 않는다.
-        expect(block).not.toContain("http.post(");
+        // 표본 왕복은 읽기 전용 — DELETE 를 늘리지 않는다.
         expect(block).not.toContain("http.del(");
       });
+      // (T-2025) setup 의 POST 는 인증 부트스트랩 2 왕복(signup · login)뿐이고, 표본 조회 자체는
+      // 여전히 GET 1 회다. teardown 은 POST 0 을 그대로 유지한다.
+      expect(setup.match(/http\.post\(/g)).toHaveLength(2);
+      expect(teardown).not.toContain("http.post(");
     });
 
     it("② teardown 로그가 종료 · 시작 두 수치를 담고 시작값은 setup 반환값으로 넘어온다", () => {
@@ -4522,8 +4532,9 @@ describe("s3-concurrent.js persons 행 수 로그 배선 drift smoke (T-1682)", 
       expect(teardownArg).toContain("${endRows}");
       expect(teardownArg).toContain("${data.startRows}");
       // 시작값 전달 경로 — setup 이 return 하고 teardown 이 파라미터로 받는다.
+      // (T-2025) 같은 객체에 authCookie 가 더해졌다(JSON 직렬화 가능한 형태만 유지).
       expect(setupBlock).toContain(
-        "return { startRows, startedAt: Date.now() };",
+        "return { startRows, startedAt: Date.now(), authCookie };",
       );
       expect(s3Script()).toContain("export function teardown(data) {");
     });
@@ -4623,7 +4634,10 @@ describe("s3-concurrent.js persons 행 수 로그 배선 drift smoke (T-1682)", 
 
     it("(3) 로그 문자열에 /api/ 경로 리터럴 유입이 0 이다(route 집합 불변 · 대조군 동반)", () => {
       const script = s3Script();
-      expect(apiRoutesOf(script)).toEqual(["/api/persons"]);
+      // (T-2025) 타격 route 는 측정 대상 persons + 인증 부트스트랩 2 종 = 3 개로 고정된다.
+      expect(apiRoutesOf(script).sort()).toEqual(
+        ["/api/persons", LOGIN_ROUTE, SIGNUP_ROUTE].sort(),
+      );
       consoleLogArgsOf(script).forEach((arg) =>
         expect(arg).not.toContain("/api/"),
       );
@@ -4637,7 +4651,8 @@ describe("s3-concurrent.js persons 행 수 로그 배선 drift smoke (T-1682)", 
 
     it("(4) 분기 0 규약(T-1625 negative (4))이 로그 배선 후에도 회귀 0 이다(대조군 동반)", () => {
       const script = s3Script();
-      const banned = ["/api/users", "Authorization", "if (", "} else", " ? "];
+      // (T-2025) `/api/users` 제외 근거는 T-1625 negative (4) 주석과 동일(signup = public).
+      const banned = ["Authorization", "if (", "} else", " ? "];
       [...GUARDED_PREFIXES, ...banned, " && "].forEach((t) =>
         expect(script).not.toContain(t),
       );
@@ -4683,6 +4698,205 @@ describe("s3-concurrent.js persons 행 수 로그 배선 drift smoke (T-1682)", 
       expect(routeTagsOf(s3Script()).sort()).toEqual(
         ["read", "write", ...S3_PROBE_TAGS].sort(),
       );
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-2025 — s3-concurrent.js 인증 부트스트랩 신설 + setup·teardown 표본 조회 cookie 선탑재
+// (Q-0056 persons guard 배선 선행 6) drift. 존재 이유 — s3 는 시나리오 3 종 중 유일하게 인증
+// 부트스트랩이 아예 없어서, persons 에 guard 가 붙는 순간 표본 조회가 401 이 되고 그 body 위의
+// `.json().length` 가 터져 run 이 통째로 깨진다. 그런데 ① 부트스트랩이 표본 조회 뒤로 밀리거나
+// (TDZ) ② cookie 부착이 되돌려지거나 ③ Admin+ 인 guarded 조회로 번지거나 ④ 인증 왕복이 판정
+// tag(read / write)로 새어 p95 를 오염시키거나 ⑤ 조건 분기가 끼어도 상시 CI 는 green 이다(부하
+// job 은 workflow_dispatch 전용). 문자열 배선 parity 로 그 침묵을 깬다(T-2024 describe 승계).
+//      🔥 새 helper 0 · 실 k6 실행 0 · 실 HTTP 0 · DB 의존 0 · 새 dependency 0 — 파일 read 만.
+
+/** (T-2025) setup 의 persons 표본 조회 — cookie 와 seed tag 가 같은 호출 안에 있어야 한다. */
+const S3_PERSONS_SEED_COOKIE_CALL =
+  /http\s*\.get\(`\$\{BASE_URL\}\/api\/persons`, \{\s*headers: \{ Cookie: authCookie \},\s*tags: \{ route: "seed" \},\s*\}\)/;
+/** (T-2025) teardown 의 persons 표본 조회 — setup 이 넘긴 cookie + teardown tag 가 같은 호출. */
+const S3_PERSONS_TEARDOWN_COOKIE_CALL =
+  /http\s*\.get\(`\$\{BASE_URL\}\/api\/persons`, \{\s*headers: \{ Cookie: data\.authCookie \},\s*tags: \{ route: "teardown" \},\s*\}\)/;
+/** (T-2025) persons 표본 조회 호출 머리 — 순서 좌표와 호출 횟수를 함께 센다. */
+const S3_PERSONS_GET_HEAD = /http\s*\.get\(`\$\{BASE_URL\}\/api\/persons`/;
+
+describe("test/load/s3-concurrent.js 인증 부트스트랩 · persons cookie 선탑재 drift smoke (T-2025)", () => {
+  describe("Happy-path: 부트스트랩 선행 순서 · cookie 부착 2 지점 · return 전달", () => {
+    it("① setup 이 signup → login → authCookie 조립을 표본 조회보다 앞에서 끝낸다", () => {
+      const setup = s3Body("export function setup");
+      const signupAt = setup.indexOf(SIGNUP_ROUTE);
+      const loginAt = setup.indexOf(LOGIN_ROUTE);
+      const cookieAt = setup.indexOf("const authCookie = ");
+      const queryAt = setup.search(S3_PERSONS_GET_HEAD);
+      expect(signupAt).toBeGreaterThan(-1);
+      expect(loginAt).toBeGreaterThan(signupAt);
+      expect(cookieAt).toBeGreaterThan(loginAt);
+      // 순서가 역전되면 표본 조회가 TDZ 의 authCookie 를 읽어 run 이 통째로 깨진다.
+      expect(queryAt).toBeGreaterThan(cookieAt);
+      // 자격증명은 stamp 파생 — 고정 리터럴 · secret 은 0 이다.
+      expect(setup).toContain("const stamp = Date.now();");
+      expect(setup).toMatch(/email: `load-s3-auth-\$\{stamp\}@example\.com`/);
+      expect(setup).toMatch(/password: `load-s3-pass-\$\{stamp\}`/);
+      // cookie 문자열 조립은 login 직후 1 곳뿐이다(재조립 0).
+      expect(
+        setup.match(new RegExp(`\`${COOKIE_NAME}=\\$\\{`, "g")),
+      ).toHaveLength(1);
+    });
+
+    it("② setup · teardown 표본 조회가 각각 cookie 와 원래 tag 를 같은 호출에 싣는다", () => {
+      const setup = s3Body("export function setup");
+      const teardown = s3Body("export function teardown");
+      expect(setup).toMatch(S3_PERSONS_SEED_COOKIE_CALL);
+      expect(teardown).toMatch(S3_PERSONS_TEARDOWN_COOKIE_CALL);
+      // 조회 횟수는 각 1 회 그대로 — cookie 추가가 타격면을 늘리지 않는다.
+      [setup, teardown].forEach((block) =>
+        expect(
+          block.match(new RegExp(S3_PERSONS_GET_HEAD.source, "g")),
+        ).toHaveLength(1),
+      );
+      // 판정 tag 는 표본 · 인증 왕복 어디에도 새지 않는다.
+      [setup, teardown].forEach((block) => {
+        expect(block).not.toContain('route: "read"');
+        expect(block).not.toContain('route: "write"');
+      });
+    });
+
+    it("③ setup 반환이 authCookie 를 담고 판정면(tag 4 종 · 임계 4 종)은 무변경이다", () => {
+      const script = s3Script();
+      expect(s3Body("export function setup")).toContain(
+        "return { startRows, startedAt: Date.now(), authCookie };",
+      );
+      expect(script).toContain("export function teardown(data) {");
+      // 인증 왕복 2 회는 공용 seed params 를 그대로 쓴다 — 새 tag 신설 · 새 임계 0.
+      expect(script).toContain(
+        'const SEED_PARAMS = {\n  headers: { "Content-Type": "application/json" },\n  tags: { route: "seed" },\n};',
+      );
+      expect(routeTagsOf(script).sort()).toEqual(
+        [...S3_ROUTE_TAG_VALUES].sort(),
+      );
+      expect(thresholdKeys(script)).toEqual(S3_THRESHOLD_KEYS);
+      // 머리 주석 규약 ① 이 cookie 선탑재 사실을 담고 ② · ⑤ 문장은 그대로 남는다.
+      expect(script).toContain("cookie 를 선탑재해");
+      expect(script).toContain("⑤ 조건 분기 로직 0.");
+    });
+  });
+
+  describe("flow / 분기 cover — 새 배선이 분기를 늘리지 않는다(spec helper 신설 0)", () => {
+    it("분기 토큰 잔존 0 · || 1 회가 그대로다(본 slice 는 helper 를 추가하지 않는다)", () => {
+      const script = s3Script();
+      ["if (", "} else", " ? ", " && ", "switch ("].forEach((t) =>
+        expect(script).not.toContain(t),
+      );
+      expect(script.match(/\|\|/g)).toHaveLength(1);
+    });
+  });
+
+  describe("Error path — 추출기 계약 유지(블록 부재 · 0-byte · non-string)", () => {
+    it("s3Body · extractTopLevelBlock 계약이 그대로다 — 0-byte 조용한 PASS 차단", () => {
+      expect(() => s3Body("export function nonexistent")).toThrow();
+      expect(
+        extractTopLevelBlock(s3Script(), "export function nonexistent"),
+      ).toBeNull();
+      expect(extractTopLevelBlock("", "export function setup")).toBeNull();
+      // 0-byte 본문은 두 cookie 정규식 어느 쪽도 만족하지 않는다(빈 문자열 false-PASS 차단).
+      expect("").not.toMatch(S3_PERSONS_SEED_COOKIE_CALL);
+      expect("").not.toMatch(S3_PERSONS_TEARDOWN_COOKIE_CALL);
+      expect(() =>
+        extractTopLevelBlock(
+          undefined as unknown as string,
+          "export function setup",
+        ),
+      ).toThrow(TypeError);
+    });
+  });
+
+  describe("negative cases 충분 cover — 순서 역전 · cookie 제거 · guarded 혼입 · tag 유출 · 분기", () => {
+    it("(a) 부트스트랩을 표본 조회 뒤로 미룬 합성 본문이 red 가 된다(대조군 동반)", () => {
+      const setup = s3Body("export function setup");
+      const cookieLine = (
+        setup.match(/ *const authCookie = .*\n/) as RegExpMatchArray
+      )[0];
+      const moved = setup
+        .replace(cookieLine, "")
+        .replace(
+          "  console.log(`[s3-concurrent]",
+          `${cookieLine}  console.log(\`[s3-concurrent]`,
+        );
+      expect(moved).not.toBe(setup);
+      // 변조본에서는 조립이 조회 뒤 — 실행하면 TDZ 다.
+      expect(moved.indexOf("const authCookie = ")).toBeGreaterThan(
+        moved.search(S3_PERSONS_GET_HEAD),
+      );
+      // 대조군 — 원본은 조립이 조회보다 앞이다.
+      expect(setup.indexOf("const authCookie = ")).toBeLessThan(
+        setup.search(S3_PERSONS_GET_HEAD),
+      );
+    });
+
+    it("(b) 표본 조회에서 Cookie header 를 뗀 합성 본문이 red 가 된다(양쪽 · 대조군 동반)", () => {
+      const setup = s3Body("export function setup");
+      const teardown = s3Body("export function teardown");
+      const strippedSetup = setup.replace(
+        "      headers: { Cookie: authCookie },\n",
+        "",
+      );
+      const strippedTeardown = teardown.replace(
+        "      headers: { Cookie: data.authCookie },\n",
+        "",
+      );
+      expect(strippedSetup).not.toBe(setup);
+      expect(strippedTeardown).not.toBe(teardown);
+      expect(strippedSetup).not.toMatch(S3_PERSONS_SEED_COOKIE_CALL);
+      expect(strippedTeardown).not.toMatch(S3_PERSONS_TEARDOWN_COOKIE_CALL);
+      // 대조군 — 원본 두 블록은 그대로 통과한다.
+      expect(setup).toMatch(S3_PERSONS_SEED_COOKIE_CALL);
+      expect(teardown).toMatch(S3_PERSONS_TEARDOWN_COOKIE_CALL);
+    });
+
+    it("(c) guarded prefix 조회가 섞인 합성 본문이 red 가 된다(401 오염 · 대조군 동반)", () => {
+      const script = s3Script();
+      GUARDED_PREFIXES.forEach((p) => expect(script).not.toContain(p));
+      const drifted = script.replace(
+        "  console.log(`[s3-concurrent] persons 행 수 시작",
+        `  http.get(\`\${BASE_URL}${GUARDED_PREFIXES[0]}\`, SEED_PARAMS);\n  console.log(\`[s3-concurrent] persons 행 수 시작`,
+      );
+      expect(drifted).not.toBe(script);
+      expect(drifted).toContain(GUARDED_PREFIXES[0]);
+      expect(apiRoutesOf(drifted).length).toBe(apiRoutesOf(script).length + 1);
+      // `/api/users` 는 signup POST 1 회만 정당하다 — Admin+ 목록 GET 으로 번지지 않는다.
+      expect(
+        script.match(/http\.post\(`\$\{BASE_URL\}\/api\/users`/g),
+      ).toHaveLength(1);
+      expect(script).not.toMatch(/http\.get\(`\$\{BASE_URL\}\/api\/users`/);
+    });
+
+    it("(d) 인증 왕복이 판정 tag 로 새는 합성 본문이 red 가 된다(p95 오염 · 대조군 동반)", () => {
+      const script = s3Script();
+      const leaked = script.replace(
+        '  tags: { route: "seed" },\n};',
+        '  tags: { route: "read" },\n};',
+      );
+      expect(leaked).not.toBe(script);
+      // 인증 왕복이 read 표본에 섞이면 준비 tag 는 표본 조회 1 곳에만 남는다.
+      expect(leaked.match(/route: "seed"/g)).toHaveLength(1);
+      expect(leaked.match(/route: "read"/g)).toHaveLength(2);
+      // 대조군 — 원본은 seed 2 회(선언 + 표본 조회) · read 1 회(판정 params 선언)다.
+      expect(script.match(/route: "seed"/g)).toHaveLength(2);
+      expect(script.match(/route: "read"/g)).toHaveLength(1);
+    });
+
+    it("(e) 조건 분기를 끼운 합성 본문이 red 가 된다(머리 주석 규약 ⑤ · 대조군 동반)", () => {
+      const script = s3Script();
+      const branched = script.replace(
+        "  const authCookie = ",
+        "  const retry = login.status === 201 ? 1 : 0;\n  const authCookie = ",
+      );
+      expect(branched).not.toBe(script);
+      expect(branched).toContain(" ? ");
+      // 대조군 — 원본에는 분기 토큰이 0 이다.
+      expect(script).not.toContain(" ? ");
+      expect(script).not.toContain("if (");
     });
   });
 });
@@ -4964,9 +5178,11 @@ describe("s3-concurrent.js 단계 식별 tag key 배선 drift smoke (T-1689)", (
         (script.match(/STAGE_STEP_MS = (\d+)/) as RegExpMatchArray)[1],
       );
       expect(stepMs).toBe(stageSeconds(script)[0] * 1000);
-      // T-1682 로그 2 줄과 startRows 소비 경로는 그대로다.
+      // T-1682 로그 2 줄과 startRows 소비 경로는 그대로다(T-2025 가 authCookie 만 더했다).
       expect(consoleLogArgsOf(script)).toHaveLength(2);
-      expect(script).toContain("return { startRows, startedAt: Date.now() };");
+      expect(script).toContain(
+        "return { startRows, startedAt: Date.now(), authCookie };",
+      );
       expect(s3Body("export function teardown")).toContain("data.startRows");
     });
   });
@@ -5226,7 +5442,10 @@ describe("s3-concurrent.js 단계별 custom Trend 배선 drift smoke (T-1691)", 
         expect(trendAddArgsOf(s3Body(header))).toEqual([]),
       );
       expect(consoleLogArgsOf(script)).toHaveLength(2);
-      expect(script).toContain("return { startRows, startedAt: Date.now() };");
+      // (T-2025) 같은 return 에 authCookie 가 더해졌을 뿐 startedAt 전달 경로는 그대로다.
+      expect(script).toContain(
+        "return { startRows, startedAt: Date.now(), authCookie };",
+      );
     });
   });
 
