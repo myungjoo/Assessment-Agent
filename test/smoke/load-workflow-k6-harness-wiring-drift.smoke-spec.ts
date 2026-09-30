@@ -5135,8 +5135,11 @@ describe("s3-concurrent.js 단계 식별 tag key 배선 drift smoke (T-1689)", (
       expect(stageTagValuesOf(script)).toEqual(S3_STAGE_TAG_VALUES);
       // 선언만 있고 배선이 없으면 축이 생기지 않는다 — 요청 params 병합 경로까지 확인한다.
       expect(script).toContain("[STAGE_TAG_KEY]:");
-      ["WRITE_PARAMS", "READ_PARAMS", "DELETE_PARAMS"].forEach((params) =>
-        expect(script).toContain(`withStage(${params}, data.startedAt)`),
+      // (T-2026) 3 왕복 params 는 cookie 병합 사본(withAuth)을 withStage 로 한 번 더 감싼 중첩
+      // 호출이 됐다 — persons guard 실배선 뒤 401 차단이 이유다. 단계 축 검증력은 유지된다:
+      // 정규형이 `[STAGE_TAG_KEY]` 를 붙이는 withStage 와 data.startedAt 전달을 함께 본다.
+      expect(stageAuthParamsOf(s3Body("export default function"))).toEqual(
+        S3_STAGE_AUTH_PARAMS,
       );
     });
 
@@ -5422,9 +5425,9 @@ describe("s3-concurrent.js 단계별 custom Trend 배선 drift smoke (T-1691)", 
         ),
       );
       expect(body).not.toContain("stageTagOf(");
-      ["WRITE_PARAMS", "READ_PARAMS", "DELETE_PARAMS"].forEach((params) =>
-        expect(body).toContain(`withStage(${params}, data.startedAt)`),
-      );
+      // (T-2026) 같은 3 왕복이 cookie 병합 사본을 받는 중첩 호출로 바뀌었다(401 차단).
+      // data.startedAt 전달 확인이 정규형 안에 남아 단계 축 검증력은 약화되지 않는다.
+      expect(stageAuthParamsOf(body)).toEqual(S3_STAGE_AUTH_PARAMS);
     });
 
     it("④ 판정면 0 변경 · custom Trend 임계 0 · 준비/정리 왕복 record 0 이다", () => {
@@ -5577,6 +5580,263 @@ describe("s3-concurrent.js 단계별 custom Trend 배선 drift smoke (T-1691)", 
       );
       // 대조군 — 유입된 합성 목록은 같은 단언에서 즉시 걸린다(단언이 tautology 가 아님).
       expect([...deps, "k6"]).toContain("k6");
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// T-2026 — s3-concurrent.js default function 의 persons 판정 표본 3 왕복 cookie 선탑재
+// (Q-0056 persons guard 배선 선행 7) drift. 존재 이유 — T-2025 는 setup · teardown 표본 조회만
+// 닫았으므로 판정 표본을 실제로 만드는 생성 POST · 목록 GET · 삭제 DELETE 3 왕복은 guard 가 붙는
+// 순간 401 이 되어 `rate<0.01` 이 오염되고 `created.json("id")` 도 깨진다. 그런데 ① cookie 부착
+// 회귀 ② Content-Type 이 Cookie 로 덮임 ③ 원본 params mutate(VU 간 공유 상태 오염) ④ 단계 축
+// (T-1689 · T-1691)과 요청 tag 분리 ⑤ 판정 tag · 임계 변형 ⑥ 조건 분기 유입 어느 쪽도 상시 CI 를
+// red 로 만들지 않는다. 🔥 새 helper 2 · 실 k6 실행 0 · 실 HTTP 0 · DB 의존 0 · 새 dependency 0.
+
+/** (T-2026) 판정 표본 3 왕복의 원본 params 이름 — iteration 실행 순서 그대로. */
+const S3_STAGE_AUTH_PARAMS = ["WRITE_PARAMS", "READ_PARAMS", "DELETE_PARAMS"];
+/** (T-2026) 그 3 왕복이 실제 인자로 받는 사본 변수명 — 위 배열과 같은 순서. */
+const S3_AUTH_COPIES = ["writeParams", "readParams", "deleteParams"];
+/** (T-2026) 사본이 해당 왕복 호출의 인자로 들어갔는지 보는 정규식 — 순서 동일. */
+const S3_AUTH_CALLS = [
+  /http\.post\([\s\S]{0,240}?writeParams,\s*\)/,
+  /http\.get\([\s\S]{0,120}?readParams\)/,
+  /http\.del\([\s\S]{0,240}?deleteParams,\s*\)/,
+];
+/** (T-2026) cookie 병합 helper 선언 정본 — 사본 2 단 Object.assign(원본 mutate 0). */
+const S3_WITH_AUTH_DECL =
+  "const withAuth = (params, authCookie) =>\n" +
+  "  Object.assign({}, params, {\n" +
+  "    headers: Object.assign({}, params.headers, { Cookie: authCookie }),\n" +
+  "  });";
+/** (T-2026) WRITE_PARAMS 경로의 기대 병합 결과 — 두 header 가 함께 살아야 한다. */
+const S3_MERGED_HEADERS = {
+  "Content-Type": "application/json",
+  Cookie: "access_token=t",
+};
+/** (T-2026) 병합 평가용 fixture — WRITE_PARAMS 와 같은 모양의 **새** 객체를 매번 만든다. */
+const writeParamsFixture = (): Record<string, unknown> => ({
+  headers: { "Content-Type": "application/json" },
+  tags: { route: "write" },
+});
+
+/**
+ * (T-2026) `withStage(withAuth(<원본>, data.authCookie), data.startedAt)` 중첩 조립식의 원본
+ * params 이름을 선언 순서대로 낸다 — 형태가 어긋나면 그 이름이 빠지고(추측 0 · throw 0),
+ * non-string 은 `TypeError` 다. 공백 · 줄바꿈 배치 차이는 같은 정규형으로 접힌다.
+ */
+function stageAuthParamsOf(body: string): string[] {
+  if (typeof body !== "string") {
+    throw new TypeError("stageAuthParamsOf: body 는 string 이어야 함");
+  }
+  const calls = body.match(
+    /withStage\(\s*withAuth\(\s*([A-Z_]+),\s*data\.authCookie,?\s*\),\s*data\.startedAt,?\s*\)/g,
+  );
+  return (calls || []).map(
+    (raw) => (raw.match(/withAuth\(\s*([A-Z_]+)/) as RegExpMatchArray)[1],
+  );
+}
+
+/**
+ * (T-2026) 스크립트에 박힌 `withAuth` 선언문을 그대로 평가해 병합 headers 를 낸다 — 합성 mirror
+ * 는 병합 · 비-mutate 단언을 tautology 로 만들므로 정본 텍스트가 유일한 source 다. 선언 부재는
+ * `TypeError`(빈 함수 날조 0) 이고 둘째 인자는 mutate 관찰용 원본이다.
+ */
+function mergedHeadersOf(
+  script: string,
+  params: Record<string, unknown> = writeParamsFixture(),
+): Record<string, string> {
+  const decl = script.match(
+    /const withAuth = \(params, authCookie\) =>[\s\S]*?\n {2}\}\);/,
+  );
+  if (decl === null) {
+    throw new TypeError("mergedHeadersOf: withAuth 선언을 찾지 못함");
+  }
+  return new Function(`${decl[0]}\nreturn withAuth;`)()(
+    params,
+    "access_token=t",
+  ).headers;
+}
+
+describe("test/load/s3-concurrent.js default function persons 3 왕복 cookie 선탑재 drift smoke (T-2026)", () => {
+  describe("Happy-path: 3 왕복 부착 · Content-Type 공존 · 원본 mutate 0 · 판정면 0", () => {
+    it("① 3 왕복이 cookie 병합 사본을 조립해 그 왕복의 인자로 그대로 넘긴다", () => {
+      const body = s3Body("export default function");
+      expect(stageAuthParamsOf(body)).toEqual(S3_STAGE_AUTH_PARAMS);
+      S3_AUTH_COPIES.forEach((copy, i) => {
+        expect(body).toContain(`const ${copy} = withStage(`);
+        // 조립만 있고 소비가 없으면 guard 실배선 뒤 401 이 그대로 난다.
+        expect(body).toMatch(S3_AUTH_CALLS[i]);
+      });
+      // cookie 출처는 setup 이 넘긴 data.authCookie 3 회뿐 — 재조립 · 토큰 리터럴 0.
+      expect(body.match(/data\.authCookie/g)).toHaveLength(3);
+      expect(body).not.toMatch(/Authorization|Bearer |access_token=/);
+    });
+
+    it("② Content-Type 은 덮이지 않고 병합되며 headers 없던 params 는 Cookie 만 얻는다", () => {
+      const script = s3Script();
+      // 모듈 수준 원본 3 선언은 문자 단위 그대로 — 병합은 사본 경로에서만 일어난다.
+      [
+        'const WRITE_PARAMS = {\n  headers: { "Content-Type": "application/json" },\n  tags: { route: "write" },\n};',
+        'const DELETE_PARAMS = { tags: { route: "write" } };',
+        'const READ_PARAMS = { tags: { route: "read" } };',
+        S3_WITH_AUTH_DECL,
+      ].forEach((decl) => expect(script).toContain(decl));
+      expect(mergedHeadersOf(script)).toEqual(S3_MERGED_HEADERS);
+      // headers 가 없던 READ_PARAMS · DELETE_PARAMS 는 Cookie 만 담긴 headers 를 새로 얻는다.
+      expect(mergedHeadersOf(script, { tags: { route: "read" } })).toEqual({
+        Cookie: "access_token=t",
+      });
+      // 원본 객체는 변형 0 — VU 간 공유 상태 오염이 없다(tags 는 withStage 소관이라 무변경).
+      const pristine = writeParamsFixture();
+      mergedHeadersOf(script, pristine);
+      expect(pristine).toEqual(writeParamsFixture());
+    });
+
+    it("③ 단계 축 record 경로와 판정면(tag 4 종 · 임계 4 종)이 문자 단위 그대로다", () => {
+      const script = s3Script();
+      const body = s3Body("export default function");
+      S3_AUTH_COPIES.forEach((copy) =>
+        expect(body).toContain(
+          `STAGE_TRENDS[${copy}.tags[STAGE_TAG_KEY]].add(`,
+        ),
+      );
+      expect(body).not.toContain("stageTagOf(");
+      expect(routeTagsOf(script).sort()).toEqual(
+        [...S3_ROUTE_TAG_VALUES].sort(),
+      );
+      expect(thresholdKeys(script)).toEqual(S3_THRESHOLD_KEYS);
+      expect(script.match(/p\(95\)<3000/g)).toHaveLength(3);
+      // 머리 주석 규약 ① 이 판정 표본 3 왕복까지 포함하도록 갱신됐고 ⑤ 문장은 그대로다.
+      expect(script).toContain("판정 표본 3 왕복(생성 · 목록 · 삭제) 모두에");
+      expect(script).toContain("cookie 를 선탑재해");
+      expect(script).toContain("⑤ 조건 분기 로직 0.");
+    });
+  });
+
+  describe("flow / 분기 cover — 새 helper 2 종의 분기마다 1+ · Error path", () => {
+    it("stageAuthParamsOf 의 발견 · 미발견 분기와 공백 배치 변형을 모두 덮는다", () => {
+      // 미발견 분기(`|| []`) — 중첩 형태가 없는 본문은 이름을 만들어내지 않는다.
+      ["", "export default function (data) {}", "withStage(P, data.startedAt)"]
+        .map(stageAuthParamsOf)
+        .forEach((names) => expect(names).toEqual([]));
+      // 발견 분기 — 한 줄 배치와 여러 줄 배치가 같은 정규형을 낸다.
+      [
+        "const p = withStage(withAuth(READ_PARAMS, data.authCookie), data.startedAt);",
+        "const p = withStage(\n  withAuth(READ_PARAMS, data.authCookie),\n  data.startedAt,\n);",
+      ].forEach((form) =>
+        expect(stageAuthParamsOf(form)).toEqual(["READ_PARAMS"]),
+      );
+    });
+
+    it("두 helper 의 실패 분기가 조용한 PASS 대신 TypeError · throw 로 드러난다", () => {
+      [undefined, 42, null, {}, []].forEach((bad) =>
+        expect(() => stageAuthParamsOf(bad as unknown as string)).toThrow(
+          TypeError,
+        ),
+      );
+      // withAuth 선언 부재 분기 — 빈 함수를 날조하지 않는다.
+      ["", "const withStage = () => 0;"].forEach((bad) =>
+        expect(() => mergedHeadersOf(bad)).toThrow(TypeError),
+      );
+      // 정본 경로 오탈자 read · 없는 블록 추출도 조용히 PASS 하지 않는다.
+      expect(() =>
+        readFileSync(path.join(REPO_ROOT, `${S3_SCRIPT_REL}.absent`)),
+      ).toThrow();
+    });
+  });
+
+  describe("negative cases 충분 cover — 결손 · 덮어쓰기 · mutate · 축 · 판정면 · 분기", () => {
+    it("(a) 3 왕복 중 하나라도 cookie 가 빠진 합성 본문이 red 가 된다(대조군 동반)", () => {
+      const body = s3Body("export default function");
+      S3_STAGE_AUTH_PARAMS.forEach((params) => {
+        const stripped = body.replace(
+          `withAuth(${params}, data.authCookie)`,
+          params,
+        );
+        expect(stripped).not.toBe(body);
+        expect(stageAuthParamsOf(stripped)).toHaveLength(2);
+        expect(stageAuthParamsOf(stripped)).not.toContain(params);
+      });
+      // 대조군 — 원본 3 왕복은 모두 정규형을 만족한다.
+      expect(stageAuthParamsOf(body)).toEqual(S3_STAGE_AUTH_PARAMS);
+    });
+
+    it("(b) Content-Type 을 Cookie 로 덮은 합성 본문이 red 가 된다(대조군 동반)", () => {
+      const script = s3Script();
+      const overwritten = script.replace(
+        "    headers: Object.assign({}, params.headers, { Cookie: authCookie }),",
+        "    headers: { Cookie: authCookie },",
+      );
+      expect(overwritten).not.toContain(S3_WITH_AUTH_DECL);
+      expect(mergedHeadersOf(overwritten)).toEqual({
+        Cookie: "access_token=t",
+      });
+      // 대조군 — 정본은 두 header 가 함께 산다(JSON body POST 가 415 로 죽지 않는다).
+      expect(mergedHeadersOf(script)).toEqual(S3_MERGED_HEADERS);
+    });
+
+    it("(c) 원본 params 를 직접 mutate 하는 합성 본문이 red 가 된다(대조군 동반)", () => {
+      const script = s3Script();
+      const mutating = script.replace(
+        "Object.assign({}, params, {\n    headers: Object.assign({}, params.headers",
+        "Object.assign(params, {\n    headers: Object.assign({}, params.headers",
+      );
+      expect(mutating).not.toContain(S3_WITH_AUTH_DECL);
+      const polluted = writeParamsFixture();
+      mergedHeadersOf(mutating, polluted);
+      // 변조본은 모듈 수준 원본을 오염시킨다 — VU 간 공유 상태가 깨지는 그 경로다.
+      expect(polluted.headers).toHaveProperty("Cookie");
+      // 대조군 — 정본은 사본만 만들고 원본을 문자 단위로 그대로 둔다.
+      const pristine = writeParamsFixture();
+      mergedHeadersOf(script, pristine);
+      expect(pristine).toEqual(writeParamsFixture());
+    });
+
+    it("(d) record 가 요청에 붙지 않은 tag 값을 쓰는 합성 본문이 red 가 된다(대조군 동반)", () => {
+      const body = s3Body("export default function");
+      const record = "STAGE_TRENDS[readParams.tags[STAGE_TAG_KEY]].add(";
+      const split = body.replace(
+        record,
+        "STAGE_TRENDS[stageTagOf(data.startedAt)].add(",
+      );
+      expect(split).not.toBe(body);
+      expect(split).not.toContain(record);
+      // 대조군 — 원본은 요청에 실제로 붙은 tag 를 재사용하고 재호출이 0 이다.
+      expect(body).toContain(record);
+      expect(body).not.toContain("stageTagOf(");
+    });
+
+    it("(e) 판정 tag · 임계가 변형된 합성 본문이 red 가 된다(대조군 동반)", () => {
+      const script = s3Script();
+      const retagged = script.replace(
+        'const READ_PARAMS = { tags: { route: "read" } };',
+        'const READ_PARAMS = { tags: { route: "auth" } };',
+      );
+      expect(routeTagsOf(retagged).sort()).not.toEqual(
+        [...S3_ROUTE_TAG_VALUES].sort(),
+      );
+      const reThresholded = script.replace("rate<0.01", "rate<0.05");
+      expect(reThresholded.match(/rate<0\.01/g)).toBeNull();
+      // 대조군 — 정본의 tag 4 종 · 임계 4 종은 cookie 선탑재 뒤에도 문자 단위 그대로다.
+      expect(routeTagsOf(script).sort()).toEqual(
+        [...S3_ROUTE_TAG_VALUES].sort(),
+      );
+      expect(thresholdKeys(script)).toEqual(S3_THRESHOLD_KEYS);
+      expect(trendStatsIntact(script)).toBe(true);
+    });
+
+    it("(f) 조건 분기를 끼운 합성 본문이 red 가 된다(머리 주석 규약 ⑤ · 대조군 동반)", () => {
+      const script = s3Script();
+      const branched = script.replace(
+        "    headers: Object.assign({}, params.headers, { Cookie: authCookie }),",
+        "    headers: params.headers ? params.headers : { Cookie: authCookie },",
+      );
+      expect(branched).not.toBe(script);
+      expect(branched).toContain(" ? ");
+      // 대조군 — 정본은 분기 토큰 0 이고 `||` 는 __ENV fallback 1 회뿐이다.
+      expect(script).not.toMatch(/if \(|\} else| \? | && |switch \(/);
+      expect(script.match(/\|\|/g)).toHaveLength(1);
     });
   });
 });

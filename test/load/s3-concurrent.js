@@ -3,9 +3,10 @@
 // 계획 docs/ops/load-resilience-test-plan.md §2 S3 — "평가 작성 진행 중 조회" 같은 read + write
 // 혼합 부하를 동시성 수준을 올려가며 인가 — 를 처음 실발화시킨다(§3 표 S3 행: error rate < 1%).
 // 규약(S2 승계): ① 측정 타격은 `/api/persons` 하나뿐 — setup 의 인증 부트스트랩 2 왕복
-// (signup · login) 만 예외이고 둘 다 guard 없는 public endpoint 다. persons 표본 왕복에는
+// (signup · login) 만 예외이고 둘 다 guard 없는 public endpoint 다. setup · teardown 표본 조회
+// 2 지점과 default function 의 판정 표본 3 왕복(생성 · 목록 · 삭제) 모두에
 // cookie 를 선탑재해, persons guard 실배선 뒤에도 401 이 http_req_failed 임계를 오염시키지
-// 않는다 (T-2025) ② 한 iteration 이 만든 row 는 같은 iteration 이 지운다(DB 무한 성장 차단)
+// 않는다 (T-2025 · T-2026) ② 한 iteration 이 만든 row 는 같은 iteration 이 지운다(무한 성장 차단)
 // ③ read / write 는 별도 route tag(지표 오염 차단) ④ 임계는 §3 표 그대로 재산정 0(ADR-0054)
 // ⑤ 조건 분기 로직 0.
 //
@@ -66,6 +67,14 @@ const withStage = (params, startedAt) =>
     tags: Object.assign({}, params.tags, {
       [STAGE_TAG_KEY]: stageTagOf(startedAt),
     }),
+  });
+// (T-2026) 판정 params 원본에 인증 cookie 만 더한 사본 — withStage 와 동형인 Object.assign 2 단
+// 병합이라 모듈 수준 WRITE_PARAMS · READ_PARAMS · DELETE_PARAMS 는 변형 0 이고 VU 별 공유 상태
+// 오염도 0 이다. headers 가 없던 params 는 Cookie 만 담긴 headers 를 새로 얻고, WRITE_PARAMS 의
+// Content-Type 은 덮이지 않고 함께 살아남는다(s1-batch.js `184 행` 동형 · 분기 0).
+const withAuth = (params, authCookie) =>
+  Object.assign({}, params, {
+    headers: Object.assign({}, params.headers, { Cookie: authCookie }),
   });
 // (T-1691) 단계 값 → 단계별 Trend lookup 표 — STAGE_TAG_VALUES 3 종과 1:1 대응하는 고정 접두형
 // 지표라 종료 요약에 `s3_stage_duration_<단계>` 행이 그대로 찍힌다(값의 생성 = 경로 β). 선택은
@@ -143,7 +152,12 @@ export default function (data) {
   const stamp = `${Date.now()}-${__VU}-${__ITER}`;
   // (T-1691) 요청에 실제로 붙은 단계 tag 를 그대로 재사용해 Trend 행을 고른다 — 요청 뒤에
   // stageTagOf 를 다시 부르면 단 경계를 넘는 왕복에서 tag 와 record 가 서로 다른 단계로 갈린다.
-  const writeParams = withStage(WRITE_PARAMS, data.startedAt);
+  // (T-2026) 판정 표본 3 왕복도 setup 이 넘긴 cookie 를 싣는다 — withAuth 사본을 withStage 로 감싼
+  // 중첩 사본 2 단이라 단계 축 배선은 그대로고 원본 params 는 변형되지 않는다.
+  const writeParams = withStage(
+    withAuth(WRITE_PARAMS, data.authCookie),
+    data.startedAt,
+  );
   const created = http.post(
     `${BASE_URL}/api/persons`,
     JSON.stringify({
@@ -154,10 +168,16 @@ export default function (data) {
   );
   STAGE_TRENDS[writeParams.tags[STAGE_TAG_KEY]].add(created.timings.duration);
   // 그 write 와 동시에 도는 목록 조회(혼합 부하의 read 절반) 후 자기 정리.
-  const readParams = withStage(READ_PARAMS, data.startedAt);
+  const readParams = withStage(
+    withAuth(READ_PARAMS, data.authCookie),
+    data.startedAt,
+  );
   const listed = http.get(`${BASE_URL}/api/persons`, readParams);
   STAGE_TRENDS[readParams.tags[STAGE_TAG_KEY]].add(listed.timings.duration);
-  const deleteParams = withStage(DELETE_PARAMS, data.startedAt);
+  const deleteParams = withStage(
+    withAuth(DELETE_PARAMS, data.authCookie),
+    data.startedAt,
+  );
   const removed = http.del(
     `${BASE_URL}/api/persons/${created.json("id")}`,
     null,
