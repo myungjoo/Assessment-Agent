@@ -2,7 +2,7 @@
 id: T-2026
 title: persons guard 배선 선행 7 — k6 s3-concurrent.js default function 의 persons 3 왕복에 cookie 선탑재
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-048, REQ-073]
 estimatedDiff: 200
