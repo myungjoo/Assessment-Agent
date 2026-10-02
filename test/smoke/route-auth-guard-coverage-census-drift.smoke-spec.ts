@@ -5,7 +5,7 @@
 // 본 spec 은 `src/` 를 재귀 순회해 `*.controller.ts` 를 **발견**하고 route 를 정적 추출한다.
 // 판정 비대칭 — 총 route · 보호 route 는 하한만 건다(정확 일치면 보호 route 를 정상 추가할 때마다
 // red 가 되어 소음). **미보호 집합만 정확 일치**라 신규 유입(초과)도 stale 잔존(미달)도 red 다.
-// `known-gap-REQ-043` 20 건은 blessing 이 아니라 카운트 가능한 부채이며, guard 실 배선(§5 오너
+// `known-gap-REQ-043` 18 건은 blessing 이 아니라 카운트 가능한 부채이며, guard 실 배선(§5 오너
 // 승인 대상) slice 가 이 목록을 함께 줄여야 한다.
 //      🔥 Nest 부팅 0 · DB 0 · 네트워크 0 · src 변경 0 — 파일 read + 합성 문자열 주입만.
 import { readFileSync, existsSync } from "fs";
@@ -27,7 +27,7 @@ const REPO_ROOT = path.resolve(__dirname, "../..");
 const SRC_ROOT = path.join(REPO_ROOT, "src").replace(/\\/g, "/");
 
 /** 본 fire 실측 하한 — 증가는 정상, 감소는 red. */
-const MIN = { controllers: 23, routes: 89, guarded: 64 };
+const MIN = { controllers: 23, routes: 89, guarded: 66 };
 
 /** 인증 진입 경로 · sanity root · 가입 — 설계상 public. */
 const PUBLIC_BY_DESIGN: readonly string[] = [
@@ -55,8 +55,8 @@ const KNOWN_GAP_REQ_043: readonly string[] = [
   "POST /api/parts",
   "PATCH /api/parts/:id",
   "DELETE /api/parts/:id",
-  "GET /api/persons",
-  "GET /api/persons/:id",
+  // persons read 축 2 route (`GET /api/persons` · `GET /api/persons/:id`) 는 T-2027 이
+  // User+ 게이트를 배선해 목록에서 빠졌다. 남은 write 축 3 항목은 Q-0056 ④b 대상이다.
   "POST /api/persons",
   "PATCH /api/persons/:id",
   "DELETE /api/persons/:id",
@@ -97,7 +97,7 @@ describe("전 route 인증 guard 적용률 census drift (REQ-043 · T-1983)", ()
       );
       expect(extractControllerPrefix(read("app.controller.ts"))).toBe("api");
     });
-    it("route/guard census: route 89+ · 보호 64+ (증가는 정상, 감소는 red)", () => {
+    it("route/guard census: route 89+ · 보호 66+ (증가는 정상, 감소는 red)", () => {
       const routes = repoRoutes();
       expect(routes.length).toBeGreaterThanOrEqual(MIN.routes);
       expect(routes.filter((r) => r.guarded).length).toBeGreaterThanOrEqual(
@@ -119,11 +119,11 @@ describe("전 route 인증 guard 적용률 census drift (REQ-043 · T-1983)", ()
       expect(allowed.filter((r) => !actual.includes(r))).toEqual([]);
       expect(actual).toEqual(allowed);
     });
-    it("allowlist 태그 건수 고정 — public-by-design 5 · known-gap-REQ-043 20", () => {
+    it("allowlist 태그 건수 고정 — public-by-design 5 · known-gap-REQ-043 18", () => {
       expect(PUBLIC_BY_DESIGN.length).toBe(5);
-      expect(KNOWN_GAP_REQ_043.length).toBe(20);
-      expect(UNPROTECTED_ALLOWLIST.length).toBe(25);
-      // 두 태그가 겹치면 합계 25 가 우연히 맞을 수 있어 교집합 0 도 함께 고정.
+      expect(KNOWN_GAP_REQ_043.length).toBe(18);
+      expect(UNPROTECTED_ALLOWLIST.length).toBe(23);
+      // 두 태그가 겹치면 합계 23 이 우연히 맞을 수 있어 교집합 0 도 함께 고정.
       expect(
         PUBLIC_BY_DESIGN.filter((r) => KNOWN_GAP_REQ_043.includes(r)),
       ).toEqual([]);
