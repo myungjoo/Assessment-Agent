@@ -1,9 +1,10 @@
 // person-measure-confirm-realdb.perf-spec.ts — S2 measure→confirm-or-compare loop 의 실 DB
 // round-trip **slice 29**. (T-1557, load-resilience-test-plan §5 item 5 / REQ-048 p95 < 3s)
-// 고유 축 ① **guard 미부착 × DB 접촉 조합의 첫 baseline 확정** — slice 25~27 은 guard 통과 + 실
-// Prisma 왕복, slice 28 은 guard 미부착 + **DB 미접촉** 이었다. `PersonController` 는 guard 가
-// 없으면서 `findActive()` 가 실 SELECT 를 발화하므로 본 baseline 은 **인증 layer 노이즈 0 인
-// 상태의 순수 DB 왕복 몫** 을 담아 slice 28 의 framework-only 하한과 대조된다. 고유 축 ②
+// 고유 축 ① **실 guard 통과 × DB 접촉 조합의 baseline 확정** — slice 28 은 guard 미부착 +
+// **DB 미접촉** 이었다. `GET /api/persons` 는 T-2027 (Q-0056 ④a) 이 User+ 게이트를 배선한 뒤로
+// 실 `JwtAuthGuard`/`RolesGuard` 를 태우면서 `findActive()` 가 실 SELECT 를 발화하므로, 본
+// baseline 은 **인증 layer + DB 왕복을 합친 몫** 을 담아 slice 28 의 framework-only 하한과
+// 대조된다. 측정 축 · errorRate 셈법은 배선 전과 동일하다 (판정면만 flip). 고유 축 ②
 // **soft-delete 필터가 결과 집합을 좁히는 route 위의 첫 measure→confirm** — active 와 inactive 를
 // **서로 다른 개수** 로 섞어 seed 하고 established · compared 두 국면 모두에서 응답 길이가
 // **active 수와 정확히 일치** 함으로 실 query 발화와 필터 분해력을 함께 입증한다. 고유 축 ③
@@ -21,9 +22,13 @@ import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
 import { PrismaService } from "../../src/persistence/prisma.service";
-import { buildAuthCookie } from "../helpers/auth-e2e-helper";
+import {
+  buildAuthCookie,
+  createAuthenticatedE2EApp,
+  reseedAuthenticatedActors,
+  type AuthenticatedE2EContext,
+} from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
-import { createE2EApp } from "../helpers/e2e-app-factory";
 
 import { registerCheckinBaselineWiringSuite } from "./checkin-baseline-spec-suite";
 import {
@@ -54,11 +59,13 @@ const ITER = { iterations: 4 }; // 실 부트스트랩 반복이라 소규모(4 
 // 체크인 배선 국면용 반복수 — 국면 10 개가 각각 측정을 태우므로 실 SELECT 왕복 비용을 감안해 2 회로
 // 더 줄인다(표본은 주입 clock 으로 결정론화하므로 반복수는 비용 변수일 뿐이다).
 const WIRING_ITER = 2;
-// 서명이 깨진 변조 토큰 — guard 가 없어 검증 자체가 일어나지 않음을 보이는 negative 재료.
+// 서명이 깨진 변조 토큰 — 실 `JwtAuthGuard` 가 verify 에 실패해 401 로 끊는 negative 재료.
 const TAMPERED = buildAuthCookie("tampered.jwt.value");
 
-describe("S2 measure→confirm-or-compare perf-spec — 실 DB baseline 확정·비교 (GET /api/persons, guard 미부착 + soft-delete 필터, REQ-048)", () => {
+describe("S2 measure→confirm-or-compare perf-spec — 실 DB baseline 확정·비교 (GET /api/persons, User+ guard 통과 + soft-delete 필터, REQ-048)", () => {
   let app: INestApplication;
+  let ctx: AuthenticatedE2EContext;
+  let cookie: string; // User tier access_token cookie — 기본 요청 경로에 선탑재.
   let prisma: PrismaService;
   let lastBody: unknown;
   let lastStatus = 0;
@@ -66,12 +73,15 @@ describe("S2 measure→confirm-or-compare perf-spec — 실 DB baseline 확정·
   const env: BaselineEnvMeta = { label: "realdb-person-mc", concurrency: 1 };
 
   beforeAll(async () => {
-    // mock override 0 · guard override 0 — 실 AppModule 부트스트랩. 본 route 는 guard 가 없어
-    // 인증 helper 부트스트랩이 불요하다(slice 1 과 동일한 `createE2EApp` 경로).
-    const created = await createE2EApp();
-    app = created.app;
-    prisma = created.moduleRef.get<PrismaService>(PrismaService);
+    // mock override 0 · guard override 0 — 실 AppModule 부트스트랩. 본 route 는 T-2027 로
+    // User+ 게이트가 붙었으므로 실 cookie 를 발급하는 인증 harness 로 띄운다(T-2022 가 자매
+    // realdb perf 3 spec 에 선탑재한 패턴 동일).
+    ctx = await createAuthenticatedE2EApp([{ role: "User" }]);
+    app = ctx.app;
+    prisma = ctx.prisma;
+    cookie = buildAuthCookie(Object.values(ctx.tokens)[0]);
     await truncateAll(prisma);
+    await reseedAuthenticatedActors(ctx);
   });
   beforeEach(() => {
     tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "s2-person-mc-realdb-"));
@@ -79,6 +89,9 @@ describe("S2 measure→confirm-or-compare perf-spec — 실 DB baseline 확정·
   afterEach(async () => {
     fs.rmSync(tmpRoot, { recursive: true, force: true });
     await truncateAll(prisma);
+    // truncate 가 actor User row 까지 지우므로 재-seed 한다(JwtStrategy.validate 는 DB
+    // 무의존이지만 자매 spec 과 harness 사용법을 통일해 둔다).
+    await reseedAuthenticatedActors(ctx);
   });
   afterAll(async () => {
     await app.close();
@@ -104,9 +117,10 @@ describe("S2 measure→confirm-or-compare perf-spec — 실 DB baseline 확정·
     if (data.length > 0) await prisma.person.createMany({ data });
   };
 
-  // 조회 1 회. `jar` 가 null 이면 Cookie 미부착(guard 가 없어 결과가 같아야 한다).
+  // 조회 1 회. 기본값은 User tier cookie 부착이고, `jar` 에 null 을 **명시** 하면 Cookie
+  // 미부착 경로다(read 축 guard 배선 완료 — T-2027 — 이라 그때는 401 이다).
   const read =
-    (target = LIST, jar: string | null = null): RequestFn =>
+    (target = LIST, jar: string | null = cookie): RequestFn =>
     async () => {
       const r = request(app.getHttpServer()).get(target);
       const res = await (jar === null ? r : r.set("Cookie", jar));
@@ -197,26 +211,26 @@ describe("S2 measure→confirm-or-compare perf-spec — 실 DB baseline 확정·
   });
 
   describe("negative cases 충분 cover", () => {
-    // (a) slice 25~27 과 **정반대** — cookie 가 없어도 401 이 아니라 200 이다(guard 미부착).
-    //     단 slice 28 과 달리 요청 경로가 실 DB 를 탄다.
-    it("(a) cookie 미부착 → 401 이 아니라 200, 표본 정상 수집(errorRate=0·count=반복수)", async () => {
+    // (a) read 축 guard 배선 완료 (T-2027) — cookie 가 없으면 200 이 아니라 401 이다.
+    //     401 은 collector 가 실패 표본으로 세므로 errorRate=1 · count=0 이 함께 고정된다.
+    it("(a) cookie 미부착 → 200 이 아니라 401, 성공 표본 0(errorRate=1·count=0)", async () => {
       await seed();
       const dir = dirOf("baselines");
       const b = established(await run(read(LIST, null), dir), dir);
-      expect(lastStatus).toBe(200);
-      expect(lastStatus).not.toBe(401);
-      expect(b.errorRate).toBe(0);
-      expect(b.count).toBe(ITER.iterations);
-      expect(rows()).toHaveLength(ACTIVE_ROWS);
+      expect(lastStatus).toBe(401);
+      expect(lastStatus).not.toBe(200);
+      expect(b.errorRate).toBe(1);
+      expect(b.count).toBe(0);
+      expect(Array.isArray(rows())).toBe(false); // 목록 배열이 아니라 401 에러 본문.
     });
-    it("(b) 변조 토큰 쿠키 부착 → 401/403 이 아니라 200 + 응답 길이 불변", async () => {
+    it("(b) 변조 토큰 쿠키 부착 → 200 이 아니라 401(서명 verify 실패)", async () => {
       await seed();
       const dir = dirOf("tampered");
       const b = established(await run(read(LIST, TAMPERED), dir), dir);
-      expect(b.errorRate).toBe(0);
-      expect(lastStatus).toBe(200);
-      expect(lastStatus).not.toBe(403);
-      expect(rows()).toHaveLength(ACTIVE_ROWS); // 무-cookie 판본과 같은 길이.
+      expect(b.errorRate).toBe(1);
+      expect(lastStatus).toBe(401);
+      expect(lastStatus).not.toBe(200);
+      expect(Array.isArray(rows())).toBe(false); // 무-cookie 판본과 같은 거부 경로.
     });
     // (c) 경계값 — 전량 inactive 면 404 가 아니라 200 + 빈 배열(필터가 전량 배제).
     it("(c) 전량 inactive seed → 404 가 아니라 200 + 빈 배열, DB row 는 잔존", async () => {
@@ -263,8 +277,8 @@ describe("S2 measure→confirm-or-compare perf-spec — 실 DB baseline 확정·
 
   // 체크인(repo 안 commit) baseline 확인 배선 — ADR-0056 §Follow-ups (b) 의 실 DB **다섯 번째**
   // 소비자이자 measure→confirm 계열의 **마지막 미배선 spec**(T-1576 summary · T-1577 assessment ·
-  // T-1578 contribution · T-1579 app-root 에 이어 **guard 0 × 실 SELECT** 조합으로 확산 — 인증
-  // layer 없이 요청이 실 query 를 태우는 환경에서도 배선이 동일하게 동작함을 본 slice 가 처음
+  // T-1578 contribution · T-1579 app-root 에 이어 **User+ guard 통과 × 실 SELECT** 조합으로
+  // 확산 — 인증 layer 를 태운 요청이 실 query 로 이어지는 환경에서도 배선이 동일하게 동작함을
   // 관측한다). 배선 국면 10 개(happy 3 · error 2 · 분기 2 · negative 3)는 **공유 suite factory
   // 호출 1 회** 로 등록하고 spec 은 고유분(`envMeta` · 측정 조립 · 임시 디렉토리)만 주입한다 —
   // 지역 사본 0 이고 국면 본문 · 판정 · 경로 문자열 · 로그 형식 재구현도 0 이다(전량 helper
@@ -275,9 +289,9 @@ describe("S2 measure→confirm-or-compare perf-spec — 실 DB baseline 확정·
   // spec(`checkin-baseline-spec-suite.spec.ts`) 의 책임이라 여기서 중복 작성하지 않는다.
   registerCheckinBaselineWiringSuite({
     envMeta: env,
-    // 측정은 collector 위임(주입 clock 으로 결정론화) — 본 route 는 guard 0 이라 cookie 미부착
-    // `GET /api/persons` 를 그대로 태운다(seed 가 없어도 200 + 빈 배열 · errorRate 0). 배선
-    // 국면은 seed 무의존 · Cookie 미부착이라 기존 국면의 `prisma.person` 대조 단언과
+    // 측정은 collector 위임(주입 clock 으로 결정론화) — 본 route 는 User+ guard 가 붙었으므로
+    // cookie 선탑재 `GET /api/persons` 를 태운다(seed 가 없어도 200 + 빈 배열 · errorRate 0).
+    // 배선 국면은 seed 무의존이라 기존 국면의 `prisma.person` 대조 단언과
     // `truncateAll` 순서에 간섭하지 않는다.
     measure: (stepMs) =>
       measureBaselineCandidate(read(), env, {

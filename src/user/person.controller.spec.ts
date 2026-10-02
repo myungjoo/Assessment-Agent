@@ -28,11 +28,19 @@ jest.mock("../persistence/prisma.service", () => ({
 import {
   ConflictException,
   NotFoundException,
+  UnauthorizedException,
+  type ExecutionContext,
   type INestApplication,
 } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
 import { Test, type TestingModule } from "@nestjs/testing";
 import type { Person } from "@prisma/client";
+import type { Request } from "express";
 import request from "supertest";
+
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { ROLES_METADATA_KEY } from "../auth/roles.decorator";
+import { ROLE_HIERARCHY, RolesGuard } from "../auth/roles.guard";
 
 import { PersonController } from "./person.controller";
 import { PersonService } from "./person.service";
@@ -82,6 +90,10 @@ function buildServiceMock(): {
     serviceMock,
   };
 }
+
+// 통과 stub guard — canActivate 가 항상 true. guard 자체의 판정 로직은 jwt-auth.guard.spec
+// / roles.guard.spec 책임이고, 본 spec 은 controller 쪽 배선만 본다.
+const ALLOW_ALL = { canActivate: (): boolean => true };
 
 describe("PersonController (unit)", () => {
   // -----------------------------------------------------------------------
@@ -397,10 +409,19 @@ describe("PersonController (ValidationPipe integration)", () => {
       remove: jest.fn(),
     };
 
+    // read 축 2 route 에 guard 가 붙었으므로 (T-2027) 본 describe 의 관심축
+    // (ValidationPipe) 을 보존하려면 guard 2 개를 통과 stub 으로 치환한다 — 그러지 않으면
+    // passport strategy 미등록 상태의 GET 국면이 401 로 바뀐다. guard 자체의 판정은 아래
+    // "RBAC guard 배선" describe 책임.
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [PersonController],
       providers: [{ provide: PersonService, useValue: serviceMock }],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue(ALLOW_ALL)
+      .overrideGuard(RolesGuard)
+      .useValue(ALLOW_ALL)
+      .compile();
 
     app = moduleRef.createNestApplication();
     // Controller-scope @UsePipes 가 자동 활성화 — global wire 안 함 (T-0036.5 책임).
@@ -538,5 +559,196 @@ describe("PersonController (ValidationPipe integration)", () => {
     expect(response.body).toEqual([]);
     expect(serviceMock.findActive).toHaveBeenCalledTimes(1);
     expect(serviceMock.findAll).not.toHaveBeenCalled();
+  });
+});
+
+// -----------------------------------------------------------------------
+// RBAC guard 배선 (T-2027 — Q-0056 ④a). api.md `79 행` · `81 행` 의 User+ 등급을 read 축
+// 2 route 에만 enforce 한 배선을 검증한다. 본 slice 는 production 쪽에 **새 분기를 추가하지
+// 않는다** — decorator 부착뿐이라 controller 의 조건 분기 수는 배선 전과 동일하고, 아래
+// "분기" 국면은 guard 가 소비하는 role 등급 축 (ROLE_HIERARCHY) 을 stub guard + metadata 로
+// cover 한다. 실 RolesGuard instance escalation round-trip 은 roles.guard.spec / ④b·④c 책임.
+// -----------------------------------------------------------------------
+// Nest 가 @UseGuards 를 심는 metadata key — @nestjs/common 이 public export 하지 않아
+// route-census helper 와 같은 방식으로 리터럴 상수만 둔다.
+const GUARDS_METADATA_KEY = "__guards__";
+
+type RouteName = "findActive" | "findOne" | "create" | "update" | "remove";
+type Handler = (...args: never[]) => unknown;
+
+describe("PersonController (RBAC guard 배선 — T-2027)", () => {
+  const reflector = new Reflector();
+  const handlerOf = (name: RouteName): Handler =>
+    PersonController.prototype[name] as unknown as Handler;
+  const guardsOf = (name: RouteName): unknown[] | undefined =>
+    reflector.get<unknown[] | undefined>(GUARDS_METADATA_KEY, handlerOf(name));
+  const rolesOf = (name: RouteName): string[] | undefined =>
+    reflector.get<string[] | undefined>(ROLES_METADATA_KEY, handlerOf(name));
+
+  const READ_ROUTES: ReadonlyArray<[string, RouteName]> = [
+    ["GET /api/persons", "findActive"],
+    ["GET /api/persons/:id", "findOne"],
+  ];
+
+  let app: INestApplication | null = null;
+  let serviceMock: ReturnType<typeof buildServiceMock>["serviceMock"];
+
+  // 통과 JwtAuthGuard stub — req.user 박제 후 true (assessment.controller.spec 의
+  // makeAllowingJwtGuard mirror). 실 cookie → JWT verify 경로는 e2e 책임.
+  function makeAllowingJwtGuard(
+    sub: string,
+    role: string,
+  ): {
+    canActivate: (ctx: ExecutionContext) => boolean;
+  } {
+    return {
+      canActivate: (ctx: ExecutionContext): boolean => {
+        const req = ctx.switchToHttp().getRequest<Request>();
+        (req as Request & { user?: { sub: string; role: string } }).user = {
+          sub,
+          role,
+        };
+        return true;
+      },
+    };
+  }
+
+  async function buildApp(opts: {
+    jwt: { canActivate: (ctx: ExecutionContext) => boolean };
+    roles: { canActivate: (ctx: ExecutionContext) => boolean };
+  }): Promise<INestApplication> {
+    serviceMock = buildServiceMock().serviceMock;
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      controllers: [PersonController],
+      providers: [{ provide: PersonService, useValue: serviceMock }],
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue(opts.jwt)
+      .overrideGuard(RolesGuard)
+      .useValue(opts.roles)
+      .compile();
+    const created = moduleRef.createNestApplication();
+    await created.init();
+    return created;
+  }
+
+  afterEach(async () => {
+    if (app !== null) {
+      await app.close();
+      app = null;
+    }
+  });
+
+  describe("happy — read 축 2 route 에 User+ 게이트 부착", () => {
+    it.each(READ_ROUTES)(
+      "%s — guard 목록이 JwtAuthGuard · RolesGuard 이고 @Roles 는 'User' (Reflector read)",
+      (_label, name) => {
+        expect(guardsOf(name)).toEqual([JwtAuthGuard, RolesGuard]);
+        expect(rolesOf(name)).toEqual(["User"]);
+      },
+    );
+  });
+
+  describe("error path — guard 거부 시 handler body 미실행", () => {
+    const DENIALS: ReadonlyArray<
+      [string, number, { canActivate: (ctx: ExecutionContext) => boolean }]
+    > = [
+      ["canActivate=false", 403, { canActivate: (): boolean => false }],
+      [
+        "UnauthorizedException throw",
+        401,
+        {
+          canActivate: (): never => {
+            throw new UnauthorizedException("Unauthorized");
+          },
+        },
+      ],
+    ];
+    it.each(DENIALS)(
+      "JwtAuthGuard %s → %i 이고 PersonService 는 2 route 모두 0 회 호출",
+      async (_label, status, jwt) => {
+        app = await buildApp({ jwt, roles: ALLOW_ALL });
+        await request(app.getHttpServer()).get("/api/persons").expect(status);
+        await request(app.getHttpServer())
+          .get("/api/persons/p-1")
+          .expect(status);
+        expect(serviceMock.findActive).toHaveBeenCalledTimes(0);
+        expect(serviceMock.findById).toHaveBeenCalledTimes(0);
+      },
+    );
+  });
+
+  describe("분기 — @Roles('User') 가 소비하는 role 등급 축", () => {
+    const ESCALATED: ReadonlyArray<[string]> = [
+      ["User"],
+      ["Admin"],
+      ["SuperAdmin"],
+    ];
+    it.each(ESCALATED)(
+      "%s actor 는 read 축 2 route 를 통과한다 (ROLE_HIERARCHY escalation 정합)",
+      async (role) => {
+        app = await buildApp({
+          jwt: makeAllowingJwtGuard("a-1", role),
+          roles: ALLOW_ALL,
+        });
+        serviceMock.findActive.mockResolvedValueOnce([]);
+        serviceMock.findById.mockResolvedValueOnce(buildPersonFixture());
+        await request(app.getHttpServer()).get("/api/persons").expect(200);
+        await request(app.getHttpServer()).get("/api/persons/p-1").expect(200);
+        expect(serviceMock.findActive).toHaveBeenCalledTimes(1);
+        expect(serviceMock.findById).toHaveBeenCalledWith("p-1");
+        // 선언 등급 "User" 의 escalation 목록이 실제로 이 role 을 포함함을 함께 고정.
+        expect(ROLE_HIERARCHY.User).toContain(role);
+      },
+    );
+    it("role 미부여 (RolesGuard reject) → 403 + service 미호출", async () => {
+      app = await buildApp({
+        jwt: makeAllowingJwtGuard("n-1", ""),
+        roles: { canActivate: (): boolean => false },
+      });
+      await request(app.getHttpServer()).get("/api/persons").expect(403);
+      await request(app.getHttpServer()).get("/api/persons/p-1").expect(403);
+      expect(serviceMock.findActive).not.toHaveBeenCalled();
+      expect(serviceMock.findById).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("negative — 과잉 배선 · tier 오설정 탐지 (대조군)", () => {
+    it("(a) write 축 3 route 에는 guard · @Roles metadata 가 없다 (④b 미착수 대조군)", () => {
+      for (const name of ["create", "update", "remove"] as const) {
+        expect(guardsOf(name)).toBeUndefined();
+        expect(rolesOf(name)).toBeUndefined();
+      }
+    });
+    it.each(READ_ROUTES)(
+      "(b) %s 의 @Roles 는 정확히 ['User'] — 'Admin' 으로 바뀌면 red (tier 오설정 탐지)",
+      (_label, name) => {
+        expect(rolesOf(name)).toEqual(["User"]);
+        expect(rolesOf(name)).not.toContain("Admin");
+      },
+    );
+    it("(c) 클래스 레벨 @UseGuards · @Roles 부착 0 — 붙으면 census 가 5 route 전량 보호로 세어 red", () => {
+      expect(
+        reflector.get<unknown[] | undefined>(
+          GUARDS_METADATA_KEY,
+          PersonController,
+        ),
+      ).toBeUndefined();
+      expect(
+        reflector.get<string[] | undefined>(
+          ROLES_METADATA_KEY,
+          PersonController,
+        ),
+      ).toBeUndefined();
+    });
+    it.each(READ_ROUTES)(
+      "(d) %s 의 guard 목록에 RolesGuard 가 있다 — 빠지면 인증만 하고 인가를 빼먹은 형태로 red",
+      (_label, name) => {
+        const guards = guardsOf(name) ?? [];
+        expect(guards).toContain(JwtAuthGuard);
+        expect(guards).toContain(RolesGuard);
+        expect(guards).toHaveLength(2);
+      },
+    );
   });
 });

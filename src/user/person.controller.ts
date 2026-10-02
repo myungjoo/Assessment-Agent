@@ -16,8 +16,20 @@
 //   - transform: plain JSON 을 DTO instance 로 변환 (decorator 동작 보장).
 //   - main.ts global wire 는 T-0036.5 후속 책임 (다른 controller 도 cover 위해).
 //
+// RBAC 배선 현황 (T-2027 — Q-0056 ④a, read 축만):
+//   - read 축 2 route (`GET /api/persons` · `GET /api/persons/:id`) 는 **User+ 게이트
+//     완료** — `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles("User")`. api.md §3 의
+//     `79 행` · `81 행` 이 정본 등급이고, User / Admin / SuperAdmin 모두 통과한다
+//     (RolesGuard 의 ROLE_HIERARCHY escalation). 인증 부재 → 401, 등급 미달 → 403.
+//   - write 축 3 route (`POST` · `PATCH` · `DELETE`) 는 **아직 미배선** — api.md
+//     `80 행` · `82 행` · `83 행` 의 Admin+ 배선은 Q-0056 ④b 책임이다. 그래서 클래스
+//     레벨 `@UseGuards` 를 쓰지 않고 handler 단위로만 부착한다 (클래스 레벨이면 census
+//     가 5 route 전량 보호로 세어 ④a / ④b 경계가 무너진다).
+//   - 신규 auth 결정 0 — AssessmentController (T-0121) 가 production 적용한 guard
+//     stack 을 1:1 mirror 하며 새 guard class · 새 role 등급 신설은 없다.
+//
 // 책임 경계 (Out of Scope):
-//   - AuthGuard (Admin+ / User+) 적용 안 함 — T-0038+ 책임.
+//   - write 축 3 route 의 Admin+ guard — Q-0056 ④b 책임.
 //   - ServiceIdentity nested endpoint 미노출 — T-0036.5+ 책임.
 //   - GET list 의 pagination / sorting 미지원 (filtering 은 T-1803 이 includeInactive
 //     1 축만 개통 — 그 외 필터 축은 여전히 미지원).
@@ -32,10 +44,15 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
   UsePipes,
   ValidationPipe,
 } from "@nestjs/common";
 import type { Person } from "@prisma/client";
+
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { Roles } from "../auth/roles.decorator";
+import { RolesGuard } from "../auth/roles.guard";
 
 import { CreatePersonDto } from "./dto/create-person.dto";
 import { UpdatePersonDto } from "./dto/update-person.dto";
@@ -64,7 +81,12 @@ export class PersonController {
   // 별도 DTO class 를 두지 않는 이유: assessment.controller 의 `@Query("period") p?: string`
   // 선례와 동형인 optional string 1 개라, class-validator decorator 로 얻을 이득이 없다
   // (controller-scope ValidationPipe 의 whitelist / forbidNonWhitelisted 는 @Body 대상).
+  //
+  // RBAC — User+ tier (api.md `79 행` 의 의도값). @Roles("User") → User / Admin /
+  // SuperAdmin 모두 통과 (RolesGuard escalation). 인증 부재 시 JwtAuthGuard 가 401.
   @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("User")
   async findActive(
     @Query("includeInactive") includeInactive?: string,
   ): Promise<Person[]> {
@@ -75,7 +97,12 @@ export class PersonController {
 
   // GET /api/persons/:id — 단일 인원 상세. row 부재 시 service 가 NotFoundException
   // throw → 404 Not Found 자동 mapping.
+  //
+  // RBAC — User+ tier (api.md `81 행`, findActive 동일). guard 는 handler 진입 전
+  // layer 라 service 위임 · 예외 propagation 분기는 배선 전과 동일하다.
   @Get(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("User")
   async findOne(@Param("id") id: string): Promise<Person> {
     return this.service.findById(id);
   }
