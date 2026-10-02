@@ -2,7 +2,7 @@
 id: T-2027
 title: persons guard 실배선 ④a — PersonController read 축 2 route (User+) 인증 게이트 + census · perf 판정면 flip
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-073]
 estimatedDiff: 280
