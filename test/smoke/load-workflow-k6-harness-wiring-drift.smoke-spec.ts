@@ -1872,14 +1872,14 @@ describe("test/load/s1-batch.js S1 평가 배치 부하 골격 drift smoke (T-16
       // 파생임을 고정해 run 마다 달라지는 더미임을 못박는다(T-1631 의 /apiKey/ 부재 단언 대체).
       expect(script).toMatch(/apiKey: `load-s1-dummy-\$\{stamp\}`/);
       expect(script).toMatch(/endpointUrl: `[^`"]*\$\{stamp\}`/);
-      // 실 secret 리터럴 · 암호화 키 env 이름 · Bearer 헤더 · 평문 password 리터럴은 전부 0.
-      [
-        /password:\s*"/,
-        /Bearer /,
-        /LLM_APIKEY/,
-        /apiKey: "/,
-        /sk-[A-Za-z0-9]/,
-      ].forEach((p) => expect(script).not.toMatch(p));
+      // (T-2028) 인증 자격증명만 s3 와 공유하는 bootstrap 상수로 올라가, 평문 password 금지를
+      // "선언 1 곳 + 그 값이 부하 전용 더미 1 쌍" 으로 좁힌다(실 secret · 토큰 리터럴 여전히 0).
+      expect(script.match(/password: "/g)).toHaveLength(1);
+      expect(script).toContain(BOOTSTRAP_CREDENTIALS_DECL);
+      // 실 secret 리터럴 · 암호화 키 env 이름 · Bearer 헤더는 전부 0.
+      [/Bearer /, /LLM_APIKEY/, /apiKey: "/, /sk-[A-Za-z0-9]/].forEach((p) =>
+        expect(script).not.toMatch(p),
+      );
     });
 
     it("(5) 조건 분기 로직이 0 이다(카운트 기반 반복문만)", () => {
@@ -4720,6 +4720,13 @@ const S3_PERSONS_TEARDOWN_COOKIE_CALL =
   /http\s*\.get\(`\$\{BASE_URL\}\/api\/persons`, \{\s*headers: \{ Cookie: data\.authCookie \},\s*tags: \{ route: "teardown" \},\s*\}\)/;
 /** (T-2025) persons 표본 조회 호출 머리 — 순서 좌표와 호출 횟수를 함께 센다. */
 const S3_PERSONS_GET_HEAD = /http\s*\.get\(`\$\{BASE_URL\}\/api\/persons`/;
+/**
+ * (T-2028) s1 · s3 가 공유하는 부하 전용 bootstrap 자격증명 선언 원문. 두 파일에서 문자 단위로
+ * 같아야 S1 의 첫 signup(= 이 run 의 SuperAdmin) 세션을 S3 가 그대로 다시 얻는다 — 어긋나면
+ * S3 의 persons write 2 왕복이 User tier cookie 로 떨어져 Admin+ gate 에서 403 이 된다.
+ */
+const BOOTSTRAP_CREDENTIALS_DECL =
+  'const BOOTSTRAP_CREDENTIALS = {\n  email: "load-bootstrap@example.com",\n  password: "load-bootstrap-pw",\n};';
 
 describe("test/load/s3-concurrent.js 인증 부트스트랩 · persons cookie 선탑재 drift smoke (T-2025)", () => {
   describe("Happy-path: 부트스트랩 선행 순서 · cookie 부착 2 지점 · return 전달", () => {
@@ -4734,10 +4741,11 @@ describe("test/load/s3-concurrent.js 인증 부트스트랩 · persons cookie �
       expect(cookieAt).toBeGreaterThan(loginAt);
       // 순서가 역전되면 표본 조회가 TDZ 의 authCookie 를 읽어 run 이 통째로 깨진다.
       expect(queryAt).toBeGreaterThan(cookieAt);
-      // 자격증명은 stamp 파생 — 고정 리터럴 · secret 은 0 이다.
-      expect(setup).toContain("const stamp = Date.now();");
-      expect(setup).toMatch(/email: `load-s3-auth-\$\{stamp\}@example\.com`/);
-      expect(setup).toMatch(/password: `load-s3-pass-\$\{stamp\}`/);
+      // (T-2028) 자격증명 축이 stamp 파생 → s1 공유 bootstrap 계정으로 바뀌어 3 핀을 1:1 치환.
+      expect(setup).toContain("const credentials = BOOTSTRAP_CREDENTIALS;");
+      expect(s3Script()).toContain(BOOTSTRAP_CREDENTIALS_DECL);
+      // s1 ↔ s3 리터럴 parity — 두 파일의 선언이 어긋나면 S3 가 User tier cookie 로 떨어진다.
+      expect(s1Script()).toContain(BOOTSTRAP_CREDENTIALS_DECL);
       // cookie 문자열 조립은 login 직후 1 곳뿐이다(재조립 0).
       expect(
         setup.match(new RegExp(`\`${COOKIE_NAME}=\\$\\{`, "g")),

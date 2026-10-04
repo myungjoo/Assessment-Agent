@@ -62,6 +62,17 @@ const DEVSET_EMAIL_DOMAIN = "load.devset.test";
 const JSON_HEADERS = { "Content-Type": "application/json" };
 const AUTH_PARAMS = { headers: JSON_HEADERS, tags: { route: "auth" } };
 
+// (T-2028) 부하 job 전용 일회성 bootstrap 계정 — s3-concurrent.js 가 문자 단위로 같은 1 쌍을
+// 선언해, 한 run 안에서 두 시나리오가 같은 계정으로 로그인한다. 이 계정은 run 의 첫 signup
+// (workflow step 순서 smoke → S1 → S2 → S3)이라 SuperAdmin 이 되고, 그래서 S3 의 persons write
+// 왕복이 Admin+ gate 를 통과한다. 실 자격증명 · 외부 secret 0 이고 password 는 8 자 이상이다.
+// 재실행 DB 에서 signup 이 내는 409 1 건은 run 당 1 회뿐이라 전역 http_req_failed 임계 대비
+// 무시 가능하고, 그 왕복은 auth tag 라 판정 tag batch 로의 누수는 0 이다.
+const BOOTSTRAP_CREDENTIALS = {
+  email: "load-bootstrap@example.com",
+  password: "load-bootstrap-pw",
+};
+
 export const options = {
   // (T-1688) 종료 요약 percentile 열 — k6 기본 6 종을 전부 보존한 위에 p(99) 만 더해
   // 계획 §3 "집계" 셋째 항의 미확보(설계 문제 (a))를 run log 에서 회수한다. 관찰 전용이라
@@ -86,16 +97,16 @@ export const options = {
 };
 
 export function setup() {
-  // run 마다 유일한 접미사 — @unique 충돌(409)이 전역 http_req_failed 임계를 오염시키지 않게
-  // 한다(stamp 규약 승계). (a) 인증 부트스트랩을 person seed 보다 먼저 끝낸다 — 뒤따르는 D5
-  // provider seed 3 왕복이 전부 Admin+ gate 라 cookie 가 선행돼야 한다. signup(이 run 의 첫
-  // user = SuperAdmin) → login → cookie. 자격증명은 stamp 로 매 run 새로 만든다(고정 리터럴 0).
-  // user row 는 삭제 endpoint 자체가 없어 남긴다.
+  // run 마다 유일한 접미사 — provider 더미 3 필드 · periodStart 의 @unique 충돌(409)이 전역
+  // http_req_failed 임계를 오염시키지 않게 한다(stamp 규약 승계). (a) 인증 부트스트랩을 person
+  // seed 보다 먼저 끝낸다 — 뒤따르는 D5 provider seed 3 왕복이 전부 Admin+ gate 라 cookie 가
+  // 선행돼야 한다. signup(이 run 의 첫 user = SuperAdmin) → login → cookie.
+  // (T-2028) 자격증명은 stamp 파생 1 회성 값이 아니라 s3 와 공유하는 결정적 bootstrap 계정이다
+  // — S1 이 여전히 run 의 첫 signup 이라 이 계정이 SuperAdmin 이 되고, 뒤따르는 S3 가 같은
+  // 자격증명으로 로그인해 persons write 왕복을 Admin+ 로 돈다. 재실행 DB 에서 나는 409 는
+  // 분기 없이 버린다. user row 는 삭제 endpoint 자체가 없어 남긴다.
   const stamp = Date.now();
-  const credentials = {
-    email: `load-s1-auth-${stamp}@example.com`,
-    password: `load-s1-pass-${stamp}`,
-  };
+  const credentials = BOOTSTRAP_CREDENTIALS;
   http.post(`${BASE_URL}/api/users`, JSON.stringify(credentials), AUTH_PARAMS);
   const login = http.post(
     `${BASE_URL}/api/auth/login`,
