@@ -2,7 +2,7 @@
 id: T-2028
 title: persons guard 배선 선행 8 — k6 s1·s3 공유 bootstrap SuperAdmin 자격으로 s3 write 왕복 Admin+ 선확보
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-048, REQ-073]
 estimatedDiff: 130
