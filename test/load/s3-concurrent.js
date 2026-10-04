@@ -44,6 +44,17 @@ const SEED_PARAMS = {
   tags: { route: "seed" },
 };
 
+// (T-2028) 부하 job 전용 일회성 bootstrap 계정 — s1-batch.js 가 문자 단위로 같은 1 쌍을
+// 선언해, 한 run 안에서 두 시나리오가 같은 계정으로 로그인한다. 이 계정은 run 의 첫 signup
+// (workflow step 순서 smoke → S1 → S2 → S3)이라 SuperAdmin 이 되고, 그래서 아래 persons write
+// 왕복이 Admin+ gate 를 통과한다. 실 자격증명 · 외부 secret 0 이고 password 는 8 자 이상이다.
+// 재실행 DB 에서 signup 이 내는 409 1 건은 run 당 1 회뿐이라 전역 http_req_failed 임계 대비
+// 무시 가능하고, 그 왕복은 seed tag 라 판정 tag read / write 로의 누수는 0 이다.
+const BOOTSTRAP_CREDENTIALS = {
+  email: "load-bootstrap@example.com",
+  password: "load-bootstrap-pw",
+};
+
 // (T-1689) 단계 식별 전용 tag key — 판정 축(route)과 직교한 새 key 하나로 stages 3 단을 가른다
 // (계획 §3 설계 조항 ③). route 값 집합(read · write · seed · teardown)에는 단계 값을 섞지
 // 않으므로 `http_req_duration{route:read}` · `{route:write}` 의 판정 표본은 문자 단위 그대로다.
@@ -111,15 +122,14 @@ export const options = {
 export function setup() {
   // (T-2025) 인증 부트스트랩 — persons guard 가 실배선되는 순간 cookie 없는 표본 조회는 401 이
   // 되고 `.json().length` 가 통째로 깨진다. signup 은 guard 없는 public endpoint 라 별도 admin
-  // 준비 없이 계정 1 개를 만들 수 있고, 자격증명은 stamp 로 매 run 새로 만든다(고정 리터럴 ·
-  // secret 0 — @unique 충돌 회피 겸). user row 는 삭제 endpoint 자체가 없어 남긴다(s1 · s2 동형).
+  // 준비 없이 계정 1 개를 확보할 수 있다. user row 는 삭제 endpoint 자체가 없어 남긴다(s1 동형).
   // 두 왕복 모두 seed tag 라 판정 tag read / write 의 p95 표본은 오염 0 이다. 이 블록은 아래 표본
   // 조회보다 **앞** 이어야 한다 — 역전되면 조회가 TDZ 의 authCookie 를 읽어 run 이 통째로 깨진다.
-  const stamp = Date.now();
-  const credentials = {
-    email: `load-s3-auth-${stamp}@example.com`,
-    password: `load-s3-pass-${stamp}`,
-  };
+  // (T-2028) 자격증명은 stamp 파생 1 회성 값이 아니라 s1 과 공유하는 결정적 bootstrap 계정이다
+  // — S1 이 run 의 첫 signup 으로 이미 만든 SuperAdmin 세션을 그대로 다시 얻어야 아래 default
+  // function 의 persons write 2 왕복(POST · DELETE)이 Admin+ gate 에서 403 이 되지 않는다.
+  // 여기 signup 은 그 계정이 이미 있으면 409 를 내는데, 응답을 분기 없이 버린다(분기 0 규약).
+  const credentials = BOOTSTRAP_CREDENTIALS;
   http.post(`${BASE_URL}/api/users`, JSON.stringify(credentials), SEED_PARAMS);
   const login = http.post(
     `${BASE_URL}/api/auth/login`,
