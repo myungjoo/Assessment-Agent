@@ -2,7 +2,7 @@
 id: T-2029
 title: persons guard 실배선 ④b — PersonController write 축 3 route (Admin+) 인증·인가 게이트 + census 판정면 flip
 phase: P5
-status: TODO
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-073]
 estimatedDiff: 250
