@@ -563,11 +563,12 @@ describe("PersonController (ValidationPipe integration)", () => {
 });
 
 // -----------------------------------------------------------------------
-// RBAC guard 배선 (T-2027 — Q-0056 ④a). api.md `79 행` · `81 행` 의 User+ 등급을 read 축
-// 2 route 에만 enforce 한 배선을 검증한다. 본 slice 는 production 쪽에 **새 분기를 추가하지
+// RBAC guard 배선 (T-2027 ④a read / T-2029 ④b write — Q-0056). api.md `79 행` · `81 행` 의
+// User+ 등급을 read 축 2 route 에, `80 행` · `82 행` · `83 행` 의 Admin+ 등급을 write 축
+// 3 route 에 enforce 한 배선을 검증한다. 두 slice 모두 production 쪽에 **새 분기를 추가하지
 // 않는다** — decorator 부착뿐이라 controller 의 조건 분기 수는 배선 전과 동일하고, 아래
 // "분기" 국면은 guard 가 소비하는 role 등급 축 (ROLE_HIERARCHY) 을 stub guard + metadata 로
-// cover 한다. 실 RolesGuard instance escalation round-trip 은 roles.guard.spec / ④b·④c 책임.
+// cover 한다. 실 RolesGuard instance escalation round-trip 은 roles.guard.spec / ④c 책임.
 // -----------------------------------------------------------------------
 // Nest 가 @UseGuards 를 심는 metadata key — @nestjs/common 이 public export 하지 않아
 // route-census helper 와 같은 방식으로 리터럴 상수만 둔다.
@@ -576,7 +577,7 @@ const GUARDS_METADATA_KEY = "__guards__";
 type RouteName = "findActive" | "findOne" | "create" | "update" | "remove";
 type Handler = (...args: never[]) => unknown;
 
-describe("PersonController (RBAC guard 배선 — T-2027)", () => {
+describe("PersonController (RBAC guard 배선 — T-2027 read / T-2029 write)", () => {
   const reflector = new Reflector();
   const handlerOf = (name: RouteName): Handler =>
     PersonController.prototype[name] as unknown as Handler;
@@ -589,6 +590,29 @@ describe("PersonController (RBAC guard 배선 — T-2027)", () => {
     ["GET /api/persons", "findActive"],
     ["GET /api/persons/:id", "findOne"],
   ];
+
+  // write 축 3 route — api.md `80 행` · `82 행` · `83 행` 의 Admin+ 등급 (T-2029 ④b).
+  const WRITE_ROUTES: ReadonlyArray<[string, RouteName]> = [
+    ["POST /api/persons", "create"],
+    ["PATCH /api/persons/:id", "update"],
+    ["DELETE /api/persons/:id", "remove"],
+  ];
+
+  // write 축 거부 단언용 요청 — handler 미실행만 보므로 body 는 DTO 통과 shape 1 개면 된다.
+  const sendWrites = async (
+    server: ReturnType<INestApplication["getHttpServer"]>,
+    status: number,
+  ): Promise<void> => {
+    await request(server)
+      .post("/api/persons")
+      .send({ fullName: "홍길동", email: "hong@example.com" })
+      .expect(status);
+    await request(server)
+      .patch("/api/persons/p-1")
+      .send({ fullName: "김철수" })
+      .expect(status);
+    await request(server).delete("/api/persons/p-1").expect(status);
+  };
 
   let app: INestApplication | null = null;
   let serviceMock: ReturnType<typeof buildServiceMock>["serviceMock"];
@@ -649,6 +673,16 @@ describe("PersonController (RBAC guard 배선 — T-2027)", () => {
     );
   });
 
+  describe("happy — write 축 3 route 에 Admin+ 게이트 부착 (T-2029)", () => {
+    it.each(WRITE_ROUTES)(
+      "%s — guard 목록이 JwtAuthGuard · RolesGuard 이고 @Roles 는 'Admin' (Reflector read)",
+      (_label, name) => {
+        expect(guardsOf(name)).toEqual([JwtAuthGuard, RolesGuard]);
+        expect(rolesOf(name)).toEqual(["Admin"]);
+      },
+    );
+  });
+
   describe("error path — guard 거부 시 handler body 미실행", () => {
     const DENIALS: ReadonlyArray<
       [string, number, { canActivate: (ctx: ExecutionContext) => boolean }]
@@ -674,6 +708,16 @@ describe("PersonController (RBAC guard 배선 — T-2027)", () => {
           .expect(status);
         expect(serviceMock.findActive).toHaveBeenCalledTimes(0);
         expect(serviceMock.findById).toHaveBeenCalledTimes(0);
+      },
+    );
+    it.each(DENIALS)(
+      "JwtAuthGuard %s → %i 이고 PersonService 는 write 축 3 route 모두 0 회 호출 (T-2029)",
+      async (_label, status, jwt) => {
+        app = await buildApp({ jwt, roles: ALLOW_ALL });
+        await sendWrites(app.getHttpServer(), status);
+        expect(serviceMock.create).toHaveBeenCalledTimes(0);
+        expect(serviceMock.update).toHaveBeenCalledTimes(0);
+        expect(serviceMock.remove).toHaveBeenCalledTimes(0);
       },
     );
   });
@@ -713,11 +757,89 @@ describe("PersonController (RBAC guard 배선 — T-2027)", () => {
     });
   });
 
+  // write 축 분기 (T-2029). production 쪽에 새 조건 분기는 없고 decorator 부착뿐이라,
+  // 여기서 보는 "분기" 는 @Roles("Admin") 이 소비하는 role 등급 축이다.
+  describe("분기 — @Roles('Admin') 이 소비하는 role 등급 축 (T-2029)", () => {
+    const ADMIN_ESCALATED: ReadonlyArray<[string]> = [
+      ["Admin"],
+      ["SuperAdmin"],
+    ];
+    it.each(ADMIN_ESCALATED)(
+      "%s actor 는 write 축 3 route 를 통과한다 (ROLE_HIERARCHY escalation 정합)",
+      async (role) => {
+        app = await buildApp({
+          jwt: makeAllowingJwtGuard("a-1", role),
+          roles: ALLOW_ALL,
+        });
+        serviceMock.create.mockResolvedValueOnce(buildPersonFixture());
+        serviceMock.update.mockResolvedValueOnce(buildPersonFixture());
+        serviceMock.remove.mockResolvedValueOnce(undefined);
+        const server = app.getHttpServer();
+        await request(server)
+          .post("/api/persons")
+          .send({ fullName: "홍길동", email: "hong@example.com" })
+          .expect(201);
+        await request(server)
+          .patch("/api/persons/p-1")
+          .send({ fullName: "김철수" })
+          .expect(200);
+        await request(server).delete("/api/persons/p-1").expect(204);
+        expect(serviceMock.create).toHaveBeenCalledTimes(1);
+        expect(serviceMock.update).toHaveBeenCalledWith("p-1", {
+          fullName: "김철수",
+        });
+        expect(serviceMock.remove).toHaveBeenCalledWith("p-1");
+        // 선언 등급 "Admin" 의 escalation 목록이 실제로 이 role 을 포함함을 함께 고정.
+        expect(ROLE_HIERARCHY.Admin).toContain(role);
+      },
+    );
+    it("User 등급 actor 는 write 축 3 route 에서 403 + service 미호출 (tier 미달)", async () => {
+      app = await buildApp({
+        jwt: makeAllowingJwtGuard("u-1", "User"),
+        roles: { canActivate: (): boolean => false },
+      });
+      await sendWrites(app.getHttpServer(), 403);
+      expect(serviceMock.create).not.toHaveBeenCalled();
+      expect(serviceMock.update).not.toHaveBeenCalled();
+      expect(serviceMock.remove).not.toHaveBeenCalled();
+      // 등급 매핑 자체도 고정 — "Admin" 선언은 User 를 escalation 대상으로 받지 않는다.
+      expect(ROLE_HIERARCHY.Admin).not.toContain("User");
+    });
+    it("role 미부여 / 미인증 actor 도 write 축을 통과하지 못한다 (401 · 403)", async () => {
+      app = await buildApp({
+        jwt: makeAllowingJwtGuard("n-1", ""),
+        roles: { canActivate: (): boolean => false },
+      });
+      await sendWrites(app.getHttpServer(), 403);
+      expect(serviceMock.create).not.toHaveBeenCalled();
+      await app.close();
+      app = await buildApp({
+        jwt: {
+          canActivate: (): never => {
+            throw new UnauthorizedException("Unauthorized");
+          },
+        },
+        roles: ALLOW_ALL,
+      });
+      await sendWrites(app.getHttpServer(), 401);
+      expect(serviceMock.create).not.toHaveBeenCalled();
+      expect(serviceMock.update).not.toHaveBeenCalled();
+      expect(serviceMock.remove).not.toHaveBeenCalled();
+    });
+  });
+
   describe("negative — 과잉 배선 · tier 오설정 탐지 (대조군)", () => {
-    it("(a) write 축 3 route 에는 guard · @Roles metadata 가 없다 (④b 미착수 대조군)", () => {
-      for (const name of ["create", "update", "remove"] as const) {
-        expect(guardsOf(name)).toBeUndefined();
-        expect(rolesOf(name)).toBeUndefined();
+    // (a) tier 대조군 (T-2029 로 교체 — 이전엔 "write 축 metadata 없음" 단언이었다).
+    // read 축은 정확히 ["User"], write 축은 정확히 ["Admin"] 이고 둘이 바뀌면 red —
+    // read 축이 Admin 으로 좁혀지거나 write 축이 User 로 느슨해지는 두 방향 모두 탐지.
+    it("(a) read 축은 ['User'] · write 축은 ['Admin'] — 서로 바뀌면 red (tier 대조군)", () => {
+      for (const [, name] of READ_ROUTES) {
+        expect(rolesOf(name)).toEqual(["User"]);
+        expect(rolesOf(name)).not.toEqual(["Admin"]);
+      }
+      for (const [, name] of WRITE_ROUTES) {
+        expect(rolesOf(name)).toEqual(["Admin"]);
+        expect(rolesOf(name)).not.toEqual(["User"]);
       }
     });
     it.each(READ_ROUTES)(
@@ -725,6 +847,14 @@ describe("PersonController (RBAC guard 배선 — T-2027)", () => {
       (_label, name) => {
         expect(rolesOf(name)).toEqual(["User"]);
         expect(rolesOf(name)).not.toContain("Admin");
+      },
+    );
+    it.each(WRITE_ROUTES)(
+      "(b) %s 의 @Roles 는 정확히 ['Admin'] — 'User' / 'SuperAdmin' 으로 바뀌면 red",
+      (_label, name) => {
+        expect(rolesOf(name)).toEqual(["Admin"]);
+        expect(rolesOf(name)).not.toContain("User");
+        expect(rolesOf(name)).not.toContain("SuperAdmin");
       },
     );
     it("(c) 클래스 레벨 @UseGuards · @Roles 부착 0 — 붙으면 census 가 5 route 전량 보호로 세어 red", () => {
@@ -741,7 +871,7 @@ describe("PersonController (RBAC guard 배선 — T-2027)", () => {
         ),
       ).toBeUndefined();
     });
-    it.each(READ_ROUTES)(
+    it.each([...READ_ROUTES, ...WRITE_ROUTES])(
       "(d) %s 의 guard 목록에 RolesGuard 가 있다 — 빠지면 인증만 하고 인가를 빼먹은 형태로 red",
       (_label, name) => {
         const guards = guardsOf(name) ?? [];

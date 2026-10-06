@@ -31,7 +31,8 @@
 //
 // 인증 cookie 선탑재 (T-2020, Q-0056 ① guard 배선 선행): `createAuthenticatedE2EApp` 로 부트해
 // persons 요청 전부에 tier cookie 를 싣는다 — GET 은 `userCookie`, 그 외는 `adminCookie`
-// (docs/architecture/api.md `79~83 행`). guard 미배선이라 기존 단언은 무변경.
+// (docs/architecture/api.md `79~83 행`). read 축은 User+ (T-2027) · write 축은 Admin+
+// (T-2029) 게이트가 모두 배선됐고, 기존 요청이 이미 tier cookie 를 선탑재라 단언은 무변경.
 //
 // 격리: 본 파일은 `.smoke-spec.ts` suffix 로 unit jest 의 testRegex (`.*\.spec\.ts$`)
 // 와 충돌하지 않으며, package.json 의 jest.testPathIgnorePatterns 에 `test/smoke/` 가

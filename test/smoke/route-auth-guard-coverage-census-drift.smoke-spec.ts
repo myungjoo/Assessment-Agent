@@ -27,7 +27,7 @@ const REPO_ROOT = path.resolve(__dirname, "../..");
 const SRC_ROOT = path.join(REPO_ROOT, "src").replace(/\\/g, "/");
 
 /** 본 fire 실측 하한 — 증가는 정상, 감소는 red. */
-const MIN = { controllers: 23, routes: 89, guarded: 66 };
+const MIN = { controllers: 23, routes: 89, guarded: 69 };
 
 /** 인증 진입 경로 · sanity root · 가입 — 설계상 public. */
 const PUBLIC_BY_DESIGN: readonly string[] = [
@@ -55,11 +55,8 @@ const KNOWN_GAP_REQ_043: readonly string[] = [
   "POST /api/parts",
   "PATCH /api/parts/:id",
   "DELETE /api/parts/:id",
-  // persons read 축 2 route (`GET /api/persons` · `GET /api/persons/:id`) 는 T-2027 이
-  // User+ 게이트를 배선해 목록에서 빠졌다. 남은 write 축 3 항목은 Q-0056 ④b 대상이다.
-  "POST /api/persons",
-  "PATCH /api/persons/:id",
-  "DELETE /api/persons/:id",
+  // persons 최상위 5 route 는 전량 배선 완료 (④a read T-2027 / ④b write T-2029) 라
+  // 목록에서 빠졌다. 남은 15 항목은 groups · parts 축이다.
 ];
 
 /** 미보호 허용 목록 = 두 reason 태그의 합. 실측 집합과 **정확히** 같아야 한다. */
@@ -97,7 +94,7 @@ describe("전 route 인증 guard 적용률 census drift (REQ-043 · T-1983)", ()
       );
       expect(extractControllerPrefix(read("app.controller.ts"))).toBe("api");
     });
-    it("route/guard census: route 89+ · 보호 66+ (증가는 정상, 감소는 red)", () => {
+    it("route/guard census: route 89+ · 보호 69+ (증가는 정상, 감소는 red)", () => {
       const routes = repoRoutes();
       expect(routes.length).toBeGreaterThanOrEqual(MIN.routes);
       expect(routes.filter((r) => r.guarded).length).toBeGreaterThanOrEqual(
@@ -119,11 +116,11 @@ describe("전 route 인증 guard 적용률 census drift (REQ-043 · T-1983)", ()
       expect(allowed.filter((r) => !actual.includes(r))).toEqual([]);
       expect(actual).toEqual(allowed);
     });
-    it("allowlist 태그 건수 고정 — public-by-design 5 · known-gap-REQ-043 18", () => {
+    it("allowlist 태그 건수 고정 — public-by-design 5 · known-gap-REQ-043 15", () => {
       expect(PUBLIC_BY_DESIGN.length).toBe(5);
-      expect(KNOWN_GAP_REQ_043.length).toBe(18);
-      expect(UNPROTECTED_ALLOWLIST.length).toBe(23);
-      // 두 태그가 겹치면 합계 23 이 우연히 맞을 수 있어 교집합 0 도 함께 고정.
+      expect(KNOWN_GAP_REQ_043.length).toBe(15);
+      expect(UNPROTECTED_ALLOWLIST.length).toBe(20);
+      // 두 태그가 겹치면 합계 20 이 우연히 맞을 수 있어 교집합 0 도 함께 고정.
       expect(
         PUBLIC_BY_DESIGN.filter((r) => KNOWN_GAP_REQ_043.includes(r)),
       ).toEqual([]);
