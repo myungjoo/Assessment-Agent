@@ -16,20 +16,23 @@
 //   - transform: plain JSON 을 DTO instance 로 변환 (decorator 동작 보장).
 //   - main.ts global wire 는 T-0036.5 후속 책임 (다른 controller 도 cover 위해).
 //
-// RBAC 배선 현황 (T-2027 — Q-0056 ④a, read 축만):
+// RBAC 배선 현황 (T-2027 ④a read / T-2029 ④b write — Q-0056, 최상위 5 route 전량):
 //   - read 축 2 route (`GET /api/persons` · `GET /api/persons/:id`) 는 **User+ 게이트
 //     완료** — `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles("User")`. api.md §3 의
 //     `79 행` · `81 행` 이 정본 등급이고, User / Admin / SuperAdmin 모두 통과한다
 //     (RolesGuard 의 ROLE_HIERARCHY escalation). 인증 부재 → 401, 등급 미달 → 403.
-//   - write 축 3 route (`POST` · `PATCH` · `DELETE`) 는 **아직 미배선** — api.md
-//     `80 행` · `82 행` · `83 행` 의 Admin+ 배선은 Q-0056 ④b 책임이다. 그래서 클래스
-//     레벨 `@UseGuards` 를 쓰지 않고 handler 단위로만 부착한다 (클래스 레벨이면 census
-//     가 5 route 전량 보호로 세어 ④a / ④b 경계가 무너진다).
-//   - 신규 auth 결정 0 — AssessmentController (T-0121) 가 production 적용한 guard
-//     stack 을 1:1 mirror 하며 새 guard class · 새 role 등급 신설은 없다.
+//   - write 축 3 route (`POST` · `PATCH` · `DELETE`) 는 **Admin+ 게이트 완료** (T-2029)
+//     — 동일 guard stack + `@Roles("Admin")`. api.md `80 행` · `82 행` · `83 행` 이 정본
+//     등급이고 Admin / SuperAdmin 만 통과, User actor 는 403 이다.
+//   - guard 는 여전히 **handler 단위** 로만 붙인다 — 클래스 레벨 `@UseGuards` · `@Roles`
+//     를 쓰면 census 가 5 route 를 한 등급으로 세어 read(User+) / write(Admin+) tier
+//     구분이 사라진다.
+//   - 남은 조각은 ④c (e2e 인가 단언 — 무 cookie 401 · User cookie mutation 403) 뿐이고
+//     production 배선 쪽에 남은 부채는 없다. 신규 auth 결정 0 — AssessmentController
+//     (T-0121) 가 production 적용한 guard stack 을 1:1 mirror 하며 새 guard class ·
+//     새 role 등급 신설은 없다.
 //
 // 책임 경계 (Out of Scope):
-//   - write 축 3 route 의 Admin+ guard — Q-0056 ④b 책임.
 //   - ServiceIdentity nested endpoint 미노출 — T-0036.5+ 책임.
 //   - GET list 의 pagination / sorting 미지원 (filtering 은 T-1803 이 includeInactive
 //     1 축만 개통 — 그 외 필터 축은 여전히 미지원).
@@ -110,8 +113,13 @@ export class PersonController {
   // POST /api/persons — 신규 인원 추가. 201 Created. email 중복 시 409 Conflict.
   // ValidationPipe 가 dto 의 4 decorator (IsString / IsEmail / IsNotEmpty / MaxLength)
   // 검증 — 위반 시 400 BadRequest.
+  //
+  // RBAC — Admin+ tier (api.md `80 행`). @Roles("Admin") → Admin / SuperAdmin 통과,
+  // User actor 는 RolesGuard 가 403. 인증 부재 시 JwtAuthGuard 가 401.
   @Post()
   @HttpCode(201)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
   async create(@Body() dto: CreatePersonDto): Promise<Person> {
     return this.service.create(dto);
   }
@@ -123,7 +131,12 @@ export class PersonController {
   // 전환 — 이전 keys 길이 검사 routing 은 active+other 동시 patch 에서 active 묵시 drop
   // 결함 (round 1/7 MAJOR-2) 의 원인이라 제거. deactivate / reactivate service 메서드
   // 자체는 향후 dedicated endpoint (예: POST /:id/deactivate) 또는 직접 호출용으로 보존.
+  //
+  // RBAC — Admin+ tier (api.md `82 행`, create 동일). guard 는 handler 진입 전 layer 라
+  // merge-patch forward 분기는 배선 전과 동일하다.
   @Patch(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
   async update(
     @Param("id") id: string,
     @Body() patch: UpdatePersonDto,
@@ -133,8 +146,13 @@ export class PersonController {
 
   // DELETE /api/persons/:id — hard delete. 204 No Content. row 부재 시 404.
   // schema 의 onDelete: Cascade 로 ServiceIdentity 동반 삭제.
+  //
+  // RBAC — Admin+ tier (api.md `83 행`, create 동일). 파괴적 조작이라 User actor 는
+  // 403 으로 막히고, 인증 부재는 401 이다.
   @Delete(":id")
   @HttpCode(204)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
   async remove(@Param("id") id: string): Promise<void> {
     await this.service.remove(id);
   }
