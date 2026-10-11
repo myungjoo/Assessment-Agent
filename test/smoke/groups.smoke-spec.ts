@@ -29,28 +29,41 @@
 // 격리: 본 파일은 `.smoke-spec.ts` suffix 로 unit jest 의 testRegex (`.*\.spec\.ts$`)
 // 와 충돌하지 않으며, package.json 의 jest.testPathIgnorePatterns 에 `test/smoke/` 가
 // 추가돼 있어 `pnpm test` / `pnpm test:cov` 실행 시에는 본 파일이 picking 되지 않는다.
+//
+// 인증 cookie 선탑재 (T-2031, Q-0056 ① groups guard 배선 선행): `createAuthenticatedE2EApp` 로
+// 부트해 groups 요청 11 곳 전부에 tier cookie 를 싣는다 — GET 은 `userCookie`, 그 외는
+// `adminCookie` (docs/architecture/api.md `89~93 행`). guard 는 아직 미배선이라 단언은 무변경.
 import type { INestApplication } from "@nestjs/common";
-import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
 
-import { AppModule } from "../../src/app.module";
 import { PrismaService } from "../../src/persistence/prisma.service";
+import {
+  buildAuthCookie,
+  createAuthenticatedE2EApp,
+  reseedAuthenticatedActors,
+  type AuthenticatedE2EContext,
+} from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
 
+const ADMIN_EMAIL = "groups-smoke-admin-actor@smoke.test";
+const USER_EMAIL = "groups-smoke-user-actor@smoke.test";
+
 describe("Smoke: /api/groups CRUD + N:M bootstrap", () => {
+  let ctx: AuthenticatedE2EContext;
   let app: INestApplication;
   let prisma: PrismaService;
+  let adminCookie: string;
+  let userCookie: string;
 
   beforeAll(async () => {
-    const moduleRef: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleRef.createNestApplication();
-    await app.init();
-
-    // 실 PrismaService 인스턴스를 DI container 에서 획득 — seed / truncate / disconnect 용.
-    prisma = moduleRef.get<PrismaService>(PrismaService);
+    ctx = await createAuthenticatedE2EApp([
+      { role: "Admin", email: ADMIN_EMAIL },
+      { role: "User", email: USER_EMAIL },
+    ]);
+    app = ctx.app;
+    prisma = ctx.prisma;
+    adminCookie = buildAuthCookie(ctx.tokens[ADMIN_EMAIL]);
+    userCookie = buildAuthCookie(ctx.tokens[USER_EMAIL]);
   });
 
   afterAll(async () => {
@@ -61,9 +74,11 @@ describe("Smoke: /api/groups CRUD + N:M bootstrap", () => {
   });
 
   // ADR-0004 §Cleanup 정책 박제 — 각 test 후 7 도메인 테이블 TRUNCATE ... RESTART
-  // IDENTITY CASCADE 로 초기화. test 간 state leak 0 보장.
+  // IDENTITY CASCADE 로 초기화. test 간 state leak 0 보장. truncate 가 "User" 까지 비우므로
+  // 원본 id 그대로 actor 를 복원한다 (순서 고정).
   afterEach(async () => {
     await truncateAll(prisma);
+    await reseedAuthenticatedActors(ctx);
   });
 
   // ---------------------------------------------------------------------------
@@ -80,7 +95,9 @@ describe("Smoke: /api/groups CRUD + N:M bootstrap", () => {
       data: { name: "그룹A" },
     });
 
-    const response = await request(app.getHttpServer()).get("/api/groups");
+    const response = await request(app.getHttpServer())
+      .get("/api/groups")
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(200);
     expect(Array.isArray(response.body)).toBe(true);
@@ -96,9 +113,9 @@ describe("Smoke: /api/groups CRUD + N:M bootstrap", () => {
       data: { name: "그룹B" },
     });
 
-    const response = await request(app.getHttpServer()).get(
-      `/api/groups/${seed.id}`,
-    );
+    const response = await request(app.getHttpServer())
+      .get(`/api/groups/${seed.id}`)
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(200);
     expect(response.body.id).toBe(seed.id);
@@ -127,9 +144,9 @@ describe("Smoke: /api/groups CRUD + N:M bootstrap", () => {
       data: { personId: personB.id, groupId: group.id },
     });
 
-    const response = await request(app.getHttpServer()).get(
-      `/api/groups/${group.id}/persons`,
-    );
+    const response = await request(app.getHttpServer())
+      .get(`/api/groups/${group.id}/persons`)
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(200);
     expect(Array.isArray(response.body)).toBe(true);
@@ -147,6 +164,7 @@ describe("Smoke: /api/groups CRUD + N:M bootstrap", () => {
   it("POST /api/groups returns 201 with created group", async () => {
     const response = await request(app.getHttpServer())
       .post("/api/groups")
+      .set("Cookie", adminCookie)
       .send({ name: "신규그룹" });
 
     expect(response.status).toBe(201);
@@ -174,6 +192,7 @@ describe("Smoke: /api/groups CRUD + N:M bootstrap", () => {
 
     const response = await request(app.getHttpServer())
       .post(`/api/groups/${group.id}/members`)
+      .set("Cookie", adminCookie)
       .send({ personId: person.id });
 
     expect(response.status).toBe(201);
@@ -198,9 +217,9 @@ describe("Smoke: /api/groups CRUD + N:M bootstrap", () => {
       data: { name: "삭제대상그룹" },
     });
 
-    const response = await request(app.getHttpServer()).delete(
-      `/api/groups/${seed.id}`,
-    );
+    const response = await request(app.getHttpServer())
+      .delete(`/api/groups/${seed.id}`)
+      .set("Cookie", adminCookie);
 
     expect(response.status).toBe(204);
     // 204 No Content 는 body 가 없어야 함 — supertest 는 빈 객체 {} 로 표현.
@@ -226,9 +245,9 @@ describe("Smoke: /api/groups CRUD + N:M bootstrap", () => {
       data: { personId: person.id, groupId: group.id },
     });
 
-    const response = await request(app.getHttpServer()).delete(
-      `/api/groups/${group.id}/members/${membership.id}`,
-    );
+    const response = await request(app.getHttpServer())
+      .delete(`/api/groups/${group.id}/members/${membership.id}`)
+      .set("Cookie", adminCookie);
 
     expect(response.status).toBe(204);
     expect(response.body).toEqual({});
@@ -258,9 +277,9 @@ describe("Smoke: /api/groups CRUD + N:M bootstrap", () => {
   // GET /api/groups/missing-id → 404. 실 DB 의 prisma.group.findUnique 가 null 반환 →
   // GroupService.findById() 가 NotFoundException throw → Nest 의 404 mapping.
   it("GET /api/groups/missing-id returns 404", async () => {
-    const response = await request(app.getHttpServer()).get(
-      "/api/groups/missing-id",
-    );
+    const response = await request(app.getHttpServer())
+      .get("/api/groups/missing-id")
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(404);
   });
@@ -271,6 +290,7 @@ describe("Smoke: /api/groups CRUD + N:M bootstrap", () => {
   it("POST /api/groups with empty body returns 400 (validation)", async () => {
     const response = await request(app.getHttpServer())
       .post("/api/groups")
+      .set("Cookie", adminCookie)
       .send({});
 
     expect(response.status).toBe(400);
@@ -291,6 +311,7 @@ describe("Smoke: /api/groups CRUD + N:M bootstrap", () => {
 
     const response = await request(app.getHttpServer())
       .post(`/api/groups/${group.id}/members`)
+      .set("Cookie", adminCookie)
       .send({});
 
     expect(response.status).toBe(400);
@@ -331,6 +352,7 @@ describe("Smoke: /api/groups CRUD + N:M bootstrap", () => {
 
     const response = await request(app.getHttpServer())
       .post(`/api/groups/${group.id}/members`)
+      .set("Cookie", adminCookie)
       .send({ personId: person.id });
 
     expect(response.status).toBe(409);

@@ -17,12 +17,24 @@
 //     (ADR-0004 §Cleanup) + afterAll(app.close + prisma.$disconnect) 박제.
 //   - test/jest-e2e.json 의 maxWorkers:1 (T-0060) 위에서 groups.e2e + persons.e2e
 //     + parts.e2e 직렬 실행 — cross-file afterEach race 차단.
+//
+// 인증 cookie 선탑재 (T-2031, Q-0056 ① groups guard 배선 선행): 요청 16 곳 전부에 tier cookie 를
+// 싣는다 — GET 은 `userCookie`, 그 외는 `adminCookie` (api.md `89~93 행`). guard 는 아직
+// 미배선이라 단언은 무변경이고, 401 · 403 단언은 groups 축 마지막 e2e slice 몫이다.
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
 import { PrismaService } from "../../src/persistence/prisma.service";
+import {
+  buildAuthCookie,
+  createAuthenticatedE2EApp,
+  reseedAuthenticatedActors,
+  type AuthenticatedE2EContext,
+} from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
-import { createE2EApp } from "../helpers/e2e-app-factory";
+
+const ADMIN_EMAIL = "groups-admin-actor@e2e.test";
+const USER_EMAIL = "groups-user-actor@e2e.test";
 
 // Group DTO 필수 2 field — happy endpoint (GET list / GET :id / POST) 공통.
 const GROUP_DTO_FIELDS = ["id", "name"] as const;
@@ -38,14 +50,23 @@ const expectDtoFields = (body: object): void => {
 };
 
 describe("E2E: /api/groups HTTP contract", () => {
+  let ctx: AuthenticatedE2EContext;
   let app: INestApplication;
   let prisma: PrismaService;
+  let adminCookie: string;
+  let userCookie: string;
 
   beforeAll(async () => {
-    // 부트스트랩 + applyGlobalMiddleware wire 는 createE2EApp 책임 (T-0090 박제).
-    const created = await createE2EApp();
-    app = created.app;
-    prisma = created.moduleRef.get<PrismaService>(PrismaService);
+    // 부트스트랩 + applyGlobalMiddleware wire 는 createE2EApp 책임 (T-0090 박제) —
+    // createAuthenticatedE2EApp 이 그 위에 actor seed + token 발급을 얹는다.
+    ctx = await createAuthenticatedE2EApp([
+      { role: "Admin", email: ADMIN_EMAIL },
+      { role: "User", email: USER_EMAIL },
+    ]);
+    app = ctx.app;
+    prisma = ctx.prisma;
+    adminCookie = buildAuthCookie(ctx.tokens[ADMIN_EMAIL]);
+    userCookie = buildAuthCookie(ctx.tokens[USER_EMAIL]);
   });
 
   afterAll(async () => {
@@ -53,9 +74,11 @@ describe("E2E: /api/groups HTTP contract", () => {
     await prisma.$disconnect();
   });
 
-  // ADR-0004 §Cleanup — afterEach truncate 로 test 간 state leak 0.
+  // ADR-0004 §Cleanup — afterEach truncate 로 test 간 state leak 0. truncate 가 "User"
+  // 까지 비우므로 원본 id 그대로 actor 를 복원한다 (순서 고정 — T-0520 선례).
   afterEach(async () => {
     await truncateAll(prisma);
+    await reseedAuthenticatedActors(ctx);
   });
 
   // -- B. Happy path (7 endpoint × status + header + body shape) -----------
@@ -63,6 +86,7 @@ describe("E2E: /api/groups HTTP contract", () => {
   it("POST /api/groups returns 201 with created Group and persists to DB", async () => {
     const response = await request(app.getHttpServer())
       .post("/api/groups")
+      .set("Cookie", adminCookie)
       .send({ name: "신규그룹" });
 
     expect(response.status).toBe(201);
@@ -84,7 +108,9 @@ describe("E2E: /api/groups HTTP contract", () => {
   it("GET /api/groups returns 200 with application/json array of Group DTOs", async () => {
     const seed = await prisma.group.create({ data: { name: "그룹A" } });
 
-    const response = await request(app.getHttpServer()).get("/api/groups");
+    const response = await request(app.getHttpServer())
+      .get("/api/groups")
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(200);
     expect(response.headers["content-type"]).toMatch(/application\/json/);
@@ -99,9 +125,9 @@ describe("E2E: /api/groups HTTP contract", () => {
   it("GET /api/groups/:id returns 200 with application/json single Group DTO", async () => {
     const seed = await prisma.group.create({ data: { name: "그룹B" } });
 
-    const response = await request(app.getHttpServer()).get(
-      `/api/groups/${seed.id}`,
-    );
+    const response = await request(app.getHttpServer())
+      .get(`/api/groups/${seed.id}`)
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(200);
     expect(response.headers["content-type"]).toMatch(/application\/json/);
@@ -116,9 +142,9 @@ describe("E2E: /api/groups HTTP contract", () => {
   it("DELETE /api/groups/:id returns 204 with empty body", async () => {
     const seed = await prisma.group.create({ data: { name: "삭제대상그룹" } });
 
-    const response = await request(app.getHttpServer()).delete(
-      `/api/groups/${seed.id}`,
-    );
+    const response = await request(app.getHttpServer())
+      .delete(`/api/groups/${seed.id}`)
+      .set("Cookie", adminCookie);
 
     expect(response.status).toBe(204);
     expect(response.body).toEqual({});
@@ -139,6 +165,7 @@ describe("E2E: /api/groups HTTP contract", () => {
 
     const response = await request(app.getHttpServer())
       .post(`/api/groups/${group.id}/members`)
+      .set("Cookie", adminCookie)
       .send({ personId: person.id });
 
     expect(response.status).toBe(201);
@@ -169,9 +196,9 @@ describe("E2E: /api/groups HTTP contract", () => {
       data: { personId: person.id, groupId: group.id },
     });
 
-    const response = await request(app.getHttpServer()).delete(
-      `/api/groups/${group.id}/members/${membership.id}`,
-    );
+    const response = await request(app.getHttpServer())
+      .delete(`/api/groups/${group.id}/members/${membership.id}`)
+      .set("Cookie", adminCookie);
 
     expect(response.status).toBe(204);
     expect(response.body).toEqual({});
@@ -209,9 +236,9 @@ describe("E2E: /api/groups HTTP contract", () => {
       data: { personId: personB.id, groupId: group.id },
     });
 
-    const response = await request(app.getHttpServer()).get(
-      `/api/groups/${group.id}/persons`,
-    );
+    const response = await request(app.getHttpServer())
+      .get(`/api/groups/${group.id}/persons`)
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(200);
     expect(response.headers["content-type"]).toMatch(/application\/json/);
@@ -247,12 +274,12 @@ describe("E2E: /api/groups HTTP contract", () => {
       data: { personId: person.id, groupId: groupB.id },
     });
 
-    const responseA = await request(app.getHttpServer()).get(
-      `/api/groups/${groupA.id}/persons`,
-    );
-    const responseB = await request(app.getHttpServer()).get(
-      `/api/groups/${groupB.id}/persons`,
-    );
+    const responseA = await request(app.getHttpServer())
+      .get(`/api/groups/${groupA.id}/persons`)
+      .set("Cookie", userCookie);
+    const responseB = await request(app.getHttpServer())
+      .get(`/api/groups/${groupB.id}/persons`)
+      .set("Cookie", userCookie);
 
     expect(responseA.status).toBe(200);
     expect(responseB.status).toBe(200);
@@ -268,9 +295,9 @@ describe("E2E: /api/groups HTTP contract", () => {
   // -- C. 4xx error envelope (status + statusCode + message + error) -------
   // C.1 GET /api/groups/missing-id → 404 envelope (findUnique null → NFE).
   it("GET /api/groups/:id with missing id returns 404 with envelope", async () => {
-    const response = await request(app.getHttpServer()).get(
-      "/api/groups/missing-id",
-    );
+    const response = await request(app.getHttpServer())
+      .get("/api/groups/missing-id")
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(404);
     expect(response.body).toMatchObject({
@@ -284,6 +311,7 @@ describe("E2E: /api/groups HTTP contract", () => {
   it("POST /api/groups with empty body returns 400 with envelope and validation message", async () => {
     const response = await request(app.getHttpServer())
       .post("/api/groups")
+      .set("Cookie", adminCookie)
       .send({});
 
     expect(response.status).toBe(400);
@@ -305,6 +333,7 @@ describe("E2E: /api/groups HTTP contract", () => {
 
     const response = await request(app.getHttpServer())
       .post(`/api/groups/${group.id}/members`)
+      .set("Cookie", adminCookie)
       .send({});
 
     expect(response.status).toBe(400);
@@ -322,6 +351,7 @@ describe("E2E: /api/groups HTTP contract", () => {
   it("POST /api/groups with non-whitelisted field returns 400 with envelope and whitelist message", async () => {
     const response = await request(app.getHttpServer())
       .post("/api/groups")
+      .set("Cookie", adminCookie)
       .send({ name: "그룹X", extra: "forbidden" });
 
     expect(response.status).toBe(400);
@@ -351,6 +381,7 @@ describe("E2E: /api/groups HTTP contract", () => {
 
     const response = await request(app.getHttpServer())
       .post(`/api/groups/${group.id}/members`)
+      .set("Cookie", adminCookie)
       .send({ personId: person.id });
 
     expect(response.status).toBe(409);
@@ -369,6 +400,7 @@ describe("E2E: /api/groups HTTP contract", () => {
 
     const response = await request(app.getHttpServer())
       .post(`/api/groups/${group.id}/members`)
+      .set("Cookie", adminCookie)
       .send({ personId: "cuid-e2e-missing-person" });
 
     expect(response.status).toBe(404);
@@ -387,9 +419,9 @@ describe("E2E: /api/groups HTTP contract", () => {
       data: { name: "삭제검증대상그룹" },
     });
 
-    const response = await request(app.getHttpServer()).delete(
-      `/api/groups/${group.id}/members/cuid-e2e-missing-membership`,
-    );
+    const response = await request(app.getHttpServer())
+      .delete(`/api/groups/${group.id}/members/cuid-e2e-missing-membership`)
+      .set("Cookie", adminCookie);
 
     expect(response.status).toBe(404);
     expect(response.body).toMatchObject({
