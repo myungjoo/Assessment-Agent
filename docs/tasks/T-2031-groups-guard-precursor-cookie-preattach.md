@@ -2,7 +2,7 @@
 id: T-2031
 title: groups guard 배선 선행 1 — 무-cookie backend 소비처 2 spec (groups e2e · smoke) 에 인증 cookie 선탑재
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-046, REQ-073]
 estimatedDiff: 190
