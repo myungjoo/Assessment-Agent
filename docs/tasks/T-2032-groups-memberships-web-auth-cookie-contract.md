@@ -2,7 +2,7 @@
 id: T-2032
 title: groups guard 배선 선행 2 — 멤버십 축 web 인증 cookie 전송 계약 test (useAdminMemberships 3 발사)
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-046, REQ-073]
 estimatedDiff: 190
