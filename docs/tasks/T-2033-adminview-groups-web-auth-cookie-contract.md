@@ -2,7 +2,7 @@
 id: T-2033
 title: groups guard 배선 선행 3 — AdminView 컨테이너 groups 4 발사 web 인증 cookie 전송 계약 test
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-046, REQ-073]
 estimatedDiff: 210
