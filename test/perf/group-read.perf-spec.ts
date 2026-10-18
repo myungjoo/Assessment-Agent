@@ -12,17 +12,22 @@
 // 로만 실행되며(기본 `pnpm test` 는 `.spec.ts$` 만 매칭 → picking 0), summary-read /
 // assessment-read / contribution-read / person-read 와 함께 다섯 다 실행된다.
 //
-// 앞선 spec 과의 차이(본 spec 고유 특성): GroupController 는 `@UseGuards`/`@Roles`
-// 를 부착하지 않는다(group.controller.ts L51/L159 — auth credential 미박제 정책).
-// 따라서 본 spec 은 `overrideGuard` 없이 controller 를 순수 부트스트랩한다(적용해도
-// no-op — person-read 와 동일). 또한 `GET /api/groups` 는 query-param 필수 분기(400)가
-// 없는 단순 list read 라, non-2xx 분류 실증은 400 query 대신 **`GET /api/groups/:id`
-// 의 404 분기**(mocked `findById` 이 `NotFoundException` throw)로 이어간다.
+// 앞선 spec 과의 차이(본 spec 고유 특성): GroupController 는 **아직** `@UseGuards`/
+// `@Roles` 를 부착하지 않는다(group.controller.ts — auth credential 미박제 정책).
+// 그럼에도 본 spec 은 guard 배선 선행(T-2034, Q-0056 ① groups 축)으로
+// `JwtAuthGuard`/`RolesGuard` 의 `overrideGuard` 를 **선탑재**한다 — ⑤ 에서
+// `GroupController` 에 guard 가 붙어도 controller 1 개만 띄우는 이 mock 부트가 DI 실패나
+// 전 요청 401 로 깨지지 않게 하려는 것이고, guard 가 없는 현재는 no-op 이다. 또한
+// `GET /api/groups` 는 query-param 필수 분기(400)가 없는 단순 list read 라, non-2xx
+// 분류 실증은 400 query 대신 **`GET /api/groups/:id` 의 404 분기**(mocked `findById`
+// 이 `NotFoundException` throw)로 이어간다.
 //
 // 결정론 전략 (Acceptance — 실 DB·실 LLM·외부 I/O 무의존):
 //   - `GroupService` 는 mock(`useValue`) — DB round-trip 없이 controller ↔ collector
 //     배선만 측정. baseline 실측(실 Postgres round-trip)은 §5 item 5 별도 follow-up.
-//   - guard 미적용 controller 라 `overrideGuard` 불요 — 순수 부트스트랩.
+//   - `JwtAuthGuard`/`RolesGuard` 는 `overrideGuard(...).useValue({ canActivate: () =>
+//     true })` 로 통과 — guard 배선 선행 선탑재라 현재는 no-op 이고, ⑤ 배선 뒤에도 인증/
+//     인가 layer 를 벗겨 순수 harness 배선만 측정한다(latency 표본에 auth 비용 0).
 //   - latency 표본 자체는 wall-clock 이라 값은 비결정적이지만, mock service 는 즉시
 //     반환하므로 p95 는 항상 임계(3000ms) 훨씬 아래 → pass 분기 결정론적 도달.
 //     fail 분기는 mock 예외(500) 또는 상세 조회 404(NotFoundException)로 도달
@@ -40,6 +45,8 @@ import { NotFoundException } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
 
+import { JwtAuthGuard } from "../../src/auth/jwt-auth.guard";
+import { RolesGuard } from "../../src/auth/roles.guard";
 import { GroupController } from "../../src/user/group.controller";
 import { GroupService } from "../../src/user/group.service";
 
@@ -51,8 +58,8 @@ import {
 
 // mock GroupService — controller 가 주입받는 메서드 중 조회(findAll/findById)만
 // harness 에 필요. 각 test 가 mockResolvedValue / mockRejectedValue 로 응답을 제어해
-// endpoint status(200 / 500 / 404)를 결정론적으로 만든다. (GroupController 는 guard
-// 미적용이라 인증/인가 분기 노이즈가 없다.)
+// endpoint status(200 / 500 / 404)를 결정론적으로 만든다. (guard 는 선탑재한
+// override 가 인증/인가 layer 를 벗겨 항상 통과시킨다.)
 type MockGroupService = {
   findAll: jest.Mock;
   findById: jest.Mock;
@@ -62,17 +69,27 @@ describe("S2 조회 latency perf-spec — GroupController 배선 (REQ-048)", () 
   let app: INestApplication;
   let service: MockGroupService;
 
+  // 통과 guard — canActivate 가 항상 true. 인증/인가 layer 를 벗겨 harness 배선만 측정한다
+  // (`person-read.perf-spec.ts` 와 같은 형태, 분기 없는 상수).
+  const passGuard = { canActivate: () => true };
+
   beforeAll(async () => {
     service = {
       findAll: jest.fn(),
       findById: jest.fn(),
     };
 
-    // GroupController 는 guard 미적용 — overrideGuard 없이 순수 부트스트랩.
+    // guard override 선탑재 (T-2034) — GroupController 에 guard 가 붙는 Q-0056 ⑤ 시점에도
+    // 이 부트가 깨지지 않도록 미리 통과 guard 를 꽂는다. guard 미부착인 현재는 no-op.
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [GroupController],
       providers: [{ provide: GroupService, useValue: service }],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue(passGuard)
+      .overrideGuard(RolesGuard)
+      .useValue(passGuard)
+      .compile();
 
     app = moduleRef.createNestApplication();
     await app.init();
