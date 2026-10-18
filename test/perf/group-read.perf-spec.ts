@@ -19,7 +19,8 @@
 // `GroupController` 에 guard 가 붙어도 controller 1 개만 띄우는 이 mock 부트가 DI 실패나
 // 전 요청 401 로 깨지지 않게 하려는 것이고, guard 가 없는 현재는 no-op 이다. 또한
 // `GET /api/groups` 는 query-param 필수 분기(400)가 없는 단순 list read 라, non-2xx
-// 분류 실증은 400 query 대신 **`GET /api/groups/:id` 의 404 분기**(mocked `findById` 이 `NotFoundException` throw)로 이어간다.
+// 분류 실증은 400 query 대신 **`GET /api/groups/:id` 의 404 분기**(mocked `findById`
+// 이 `NotFoundException` throw)로 이어간다.
 //
 // 결정론 전략 (Acceptance — 실 DB·실 LLM·외부 I/O 무의존):
 //   - `GroupService` 는 mock(`useValue`) — DB round-trip 없이 controller ↔ collector
