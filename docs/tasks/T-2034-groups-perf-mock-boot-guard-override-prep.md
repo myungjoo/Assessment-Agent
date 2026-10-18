@@ -2,7 +2,7 @@
 id: T-2034
 title: groups guard 배선 선행 4 — mock 부트 perf 3 spec 에 guard override 선탑재
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-048, REQ-073]
 estimatedDiff: 130
