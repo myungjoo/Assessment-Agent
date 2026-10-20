@@ -9,8 +9,9 @@
 // ② mock 짝(`group-read.perf-spec.ts`)과의 경계 — mock 짝 = `GroupService` 를 `useValue` 로
 //    대체한 **배선 latency**(DB 왕복 0) 검증, 본 spec = mock override 0 의 **round-trip 포함**
 //    latency 실측(mock 짝은 **수정하지 않는다**). 검증도 호출 횟수 대신 **응답 body 가 seed 한
-//    row 값과 일치**함으로 실 query 발화를 입증한다. `GroupController` 는 guard 미부착이라
-//    인증·인가 노이즈 0(mock 짝의 `overrideGuard` 불요 서술이 실 DB 에서도 유효).
+//    row 값과 일치**함으로 실 query 발화를 입증한다. guard 배선 선행 (T-2035,
+//    Q-0056 ① groups 축) — ⑤ 에서 `GroupController` 에 guard 가 붙어도 401 로 깨지지 않도록 인증
+//    cookie 를 선탑재한다. 현재는 guard 미부착이라 cookie 는 no-op.
 // ③ T-1500 과의 차이 = **N+1 indirect navigation 경로 측정** — T-1500 은 flat 단일 SELECT 라 row
 //     가 늘어도 query 1 개지만, `GET /api/groups/:id/persons` 는 `findPersonsByGroupId` 가
 //    `PersonGroupMembership` 에서 personId[] 를 뽑은 뒤 `PersonRepository.findById` 를 loop
@@ -32,8 +33,13 @@ import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
 import { PrismaService } from "../../src/persistence/prisma.service";
+import {
+  buildAuthCookie,
+  createAuthenticatedE2EApp,
+  reseedAuthenticatedActors,
+  type AuthenticatedE2EContext,
+} from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
-import { createE2EApp } from "../helpers/e2e-app-factory";
 
 import { buildBaselineReport, formatBaselineLine } from "./latency-baseline";
 import {
@@ -55,24 +61,35 @@ const SEED_MEMBERS = 10;
 const ITERATIONS = 20;
 
 describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/groups · :id/persons, REQ-048)", () => {
+  let ctx: AuthenticatedE2EContext;
   let app: INestApplication;
   let prisma: PrismaService;
+  // guard 배선 선행 (T-2035, Q-0056 ① groups 축) — ⑤ 에서 `GroupController` 에 guard 가 붙어도
+  // 401 로 깨지지 않도록 인증 cookie 를 선탑재한다. 현재는 guard 미부착이라 cookie 는 no-op.
+  let cookie: string;
   // 마지막 응답 body 보관 — mock spec 의 `toHaveBeenCalledTimes(N)` 의 실 DB 등가 검증용.
   let lastBody: unknown;
 
   beforeAll(async () => {
     // mock override 0 — AppModule 실 부트스트랩(GroupService·PersonService·PrismaService
     // 어느 것도 useValue 로 대체하지 않는다) + applyGlobalMiddleware(T-0090 helper).
-    const created = await createE2EApp();
-    app = created.app;
-    prisma = created.moduleRef.get<PrismaService>(PrismaService);
+    // actor User seed + 실 JWT 발급도 한 번에 한다(guard 배선 선행 — T-2035).
+    ctx = await createAuthenticatedE2EApp([{ role: "User" }]);
+    app = ctx.app;
+    prisma = ctx.prisma;
+    cookie = buildAuthCookie(Object.values(ctx.tokens)[0]);
     // 앞선 스위트가 남긴 row 가 첫 test 의 seed 수 검증을 오염시키지 않도록 시작 시점에도 비운다.
+    // truncate 가 actor User 도 지우므로 곧바로 원본 id 그대로 재-seed 한다.
     await truncateAll(prisma);
+    await reseedAuthenticatedActors(ctx);
   });
 
   // ADR-0004 §Cleanup — Group · Person · PersonGroupMembership 전부 row leak 0.
+  // truncate 가 JWT `sub` 의 actor User 도 지우므로 직후 원본 id 그대로 재-seed 한다
+  // (User row 만 되살리므로 Group · Person · membership 수 단언에는 영향 0).
   afterEach(async () => {
     await truncateAll(prisma);
+    await reseedAuthenticatedActors(ctx);
   });
 
   // connection 누수 0 — app.close() 의 lifecycle hook + 명시적 $disconnect.
@@ -111,7 +128,9 @@ describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/groups · 
 
   // 목록 조회 1회 — collector 가 소비할 { status } 반환(supertest 는 non-2xx 도 resolve).
   const listRequest: RequestFn = async () => {
-    const res = await request(app.getHttpServer()).get("/api/groups");
+    const res = await request(app.getHttpServer())
+      .get("/api/groups")
+      .set("Cookie", cookie);
     lastBody = res.body;
     return { status: res.status };
   };
@@ -120,7 +139,9 @@ describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/groups · 
   const detailRequest =
     (id: string): RequestFn =>
     async () => {
-      const res = await request(app.getHttpServer()).get(`/api/groups/${id}`);
+      const res = await request(app.getHttpServer())
+        .get(`/api/groups/${id}`)
+        .set("Cookie", cookie);
       return { status: res.status };
     };
 
@@ -128,9 +149,9 @@ describe("S2 조회 latency perf-spec — 실 DB round-trip (GET /api/groups · 
   const personsRequest =
     (id: string): RequestFn =>
     async () => {
-      const res = await request(app.getHttpServer()).get(
-        `/api/groups/${id}/persons`,
-      );
+      const res = await request(app.getHttpServer())
+        .get(`/api/groups/${id}/persons`)
+        .set("Cookie", cookie);
       lastBody = res.body;
       return { status: res.status };
     };
