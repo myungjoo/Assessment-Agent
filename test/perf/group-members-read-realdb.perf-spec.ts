@@ -30,9 +30,10 @@
 //        는 그 **두 번째 컬럼** 이라 prefix 를 탈 수 없다. slice 5 는 composite unique 의 **prefix**,
 //        slice 6 은 unique·index 중복 tuple, slice 7 은 **선언 자체가 0** 인 컬럼이었다 — 선언된 unique
 //        index 가 있는데도 필터가 그 prefix 를 못 타는 경로는 본 slice 가 처음이다.
-// ④ 인증·인가 negative 부재(구조적) — `GroupController` 는 **guard 미부착** 이라(slice 2 헤더 ② 박제)
-//    401 / 403 분기가 **구조적으로 존재하지 않는다**. slice 4~17 의 cookie 미부착 401 · 서명 변조 401 ·
-//    tier 403 negative 를 본 spec 에 복사하면 **없는 분기를 가리키는 거짓 test** 가 된다. 대신 404 ·
+// ④ 인증·인가 negative 부재 — `GroupController` 는 현재 **guard 미부착** 이라 401 / 403 분기가 없고,
+//    그 negative 는 ⑤ guard 실배선 이후 e2e 몫이다. 요청에는 인증 cookie 를 선탑재해 두지만(T-2035,
+//    Q-0056 ① groups 축 — 현재는 no-op), slice 4~17 의 cookie 미부착 401 · 서명 변조 401 · tier 403
+//    negative 를 본 spec 에 복사하면 **아직 없는 분기를 가리키는 거짓 test** 가 된다. 대신 404 ·
 //    빈 배열 · 격리 · 다중 소속 · cascade · path 변형 · 임계 주입 축으로 negative 를 채운다.
 // ⑤ 결정론 전략 — seed 는 고정 행 수, `afterEach(truncateAll)`(ADR-0004 §Cleanup)가 매 test 후 도메인
 //    테이블을 비워 각 test 는 자기 seed 만 본다(`PersonGroupMembership` 은 `Person`/`Group` CASCADE 로
@@ -54,8 +55,13 @@ import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
 import { PrismaService } from "../../src/persistence/prisma.service";
+import {
+  buildAuthCookie,
+  createAuthenticatedE2EApp,
+  reseedAuthenticatedActors,
+  type AuthenticatedE2EContext,
+} from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
-import { createE2EApp } from "../helpers/e2e-app-factory";
 
 import {
   buildBaselineReport,
@@ -94,8 +100,12 @@ interface MembershipRow {
 }
 
 describe("S2 조회 latency perf-spec — 실 DB N:M membership row 조회 (GET /api/groups/:id/members, REQ-048/REQ-028)", () => {
+  let ctx: AuthenticatedE2EContext;
   let app: INestApplication;
   let prisma: PrismaService;
+  // guard 배선 선행 (T-2035, Q-0056 ① groups 축) — ⑤ 에서 `GroupController` 에 guard 가 붙어도
+  // 401 로 깨지지 않도록 인증 cookie 를 선탑재한다. 현재는 guard 미부착이라 cookie 는 no-op.
+  let cookie: string;
   // 마지막 응답 body 보관 — mock spec 의 `toHaveBeenCalledTimes(N)` 의 실 DB 등가 검증용.
   let lastBody: unknown;
   // Person.email 은 `@unique` — seed 호출마다 접미를 갈아 test 내·간 충돌을 원천 차단.
@@ -105,18 +115,24 @@ describe("S2 조회 latency perf-spec — 실 DB N:M membership row 조회 (GET 
 
   beforeAll(async () => {
     // mock override 0 — AppModule 실 부트스트랩(GroupService·PersonService·PrismaService 어느 것도
-    // useValue 로 대체하지 않는다) + applyGlobalMiddleware(T-0090 helper). guard 미부착 controller
-    // 라 `createAuthenticatedE2EApp` 불요(slice 2 와 동일).
-    const created = await createE2EApp();
-    app = created.app;
-    prisma = created.moduleRef.get<PrismaService>(PrismaService);
+    // useValue 로 대체하지 않는다) + applyGlobalMiddleware(T-0090 helper).
+    // actor User seed + 실 JWT 발급도 한 번에 한다(guard 배선 선행 — T-2035).
+    ctx = await createAuthenticatedE2EApp([{ role: "User" }]);
+    app = ctx.app;
+    prisma = ctx.prisma;
+    cookie = buildAuthCookie(Object.values(ctx.tokens)[0]);
     // 앞선 스위트가 남긴 row 가 첫 test 의 seed 수 검증을 오염시키지 않도록 시작 시점에도 비운다.
+    // truncate 가 actor User 도 지우므로 곧바로 원본 id 그대로 재-seed 한다.
     await truncateAll(prisma);
+    await reseedAuthenticatedActors(ctx);
   });
 
   // ADR-0004 §Cleanup — Group · Person · PersonGroupMembership 전부 row leak 0.
+  // truncate 가 JWT `sub` 의 actor User 도 지우므로 직후 원본 id 그대로 재-seed 한다
+  // (User row 만 되살리므로 Group · Person · membership 수 단언에는 영향 0).
   afterEach(async () => {
     await truncateAll(prisma);
+    await reseedAuthenticatedActors(ctx);
   });
 
   // connection 누수 0 — app.close() 의 lifecycle hook + 명시적 $disconnect.
@@ -162,9 +178,9 @@ describe("S2 조회 latency perf-spec — 실 DB N:M membership row 조회 (GET 
   const membersRequest =
     (id: string): RequestFn =>
     async () => {
-      const res = await request(app.getHttpServer()).get(
-        `/api/groups/${id}/members`,
-      );
+      const res = await request(app.getHttpServer())
+        .get(`/api/groups/${id}/members`)
+        .set("Cookie", cookie);
       lastBody = res.body;
       return { status: res.status };
     };
@@ -173,9 +189,9 @@ describe("S2 조회 latency perf-spec — 실 DB N:M membership row 조회 (GET 
   const personsRequest =
     (id: string): RequestFn =>
     async () => {
-      const res = await request(app.getHttpServer()).get(
-        `/api/groups/${id}/persons`,
-      );
+      const res = await request(app.getHttpServer())
+        .get(`/api/groups/${id}/persons`)
+        .set("Cookie", cookie);
       lastBody = res.body;
       return { status: res.status };
     };
@@ -379,9 +395,9 @@ describe("S2 조회 latency perf-spec — 실 DB N:M membership row 조회 (GET 
     ).toBe(true);
 
     // 404 body 에 raw stack / Prisma 내부 메시지가 새지 않는다(REQ-032 계열 확인).
-    const res = await request(app.getHttpServer()).get(
-      `/api/groups/${missingId}/members`,
-    );
+    const res = await request(app.getHttpServer())
+      .get(`/api/groups/${missingId}/members`)
+      .set("Cookie", cookie);
     expect(res.status).toBe(404);
     expect(res.body).not.toHaveProperty("stack");
     const serialized = JSON.stringify(res.body);
@@ -492,14 +508,16 @@ describe("S2 조회 latency perf-spec — 실 DB N:M membership row 조회 (GET 
         `/api/groups/${groupId}/members/extra`,
         `/api/groups/${groupId}/member`,
       ]) {
-        const res = await request(app.getHttpServer()).get(path);
+        const res = await request(app.getHttpServer())
+          .get(path)
+          .set("Cookie", cookie);
         expect(res.status).toBeGreaterThanOrEqual(400);
         expect(res.status).toBeLessThan(500);
       }
       // 정상 경로는 그대로 200 — 위 4xx 가 서버 고장이 아님의 대조군.
-      const ok = await request(app.getHttpServer()).get(
-        `/api/groups/${groupId}/members`,
-      );
+      const ok = await request(app.getHttpServer())
+        .get(`/api/groups/${groupId}/members`)
+        .set("Cookie", cookie);
       expect(ok.status).toBe(200);
     });
 
@@ -507,9 +525,9 @@ describe("S2 조회 latency perf-spec — 실 DB N:M membership row 조회 (GET 
     //     500 이 아니라 부모 존재 검증의 **404** 로 결정론적으로 갈린다.
     it("(e) 빈 문자열 대체 토큰 · 비-cuid 문자열 group id → 500 이 아니라 404", async () => {
       for (const token of ["%20", "not-a-cuid-9999", "0"]) {
-        const res = await request(app.getHttpServer()).get(
-          `/api/groups/${token}/members`,
-        );
+        const res = await request(app.getHttpServer())
+          .get(`/api/groups/${token}/members`)
+          .set("Cookie", cookie);
         expect(res.status).toBe(404);
         expect(res.body).not.toHaveProperty("stack");
       }
