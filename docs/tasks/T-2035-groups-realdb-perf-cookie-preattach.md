@@ -2,7 +2,7 @@
 id: T-2035
 title: groups guard 배선 선행 5 — realdb perf 3 spec 에 인증 cookie 선탑재
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-048, REQ-073]
 estimatedDiff: 180
