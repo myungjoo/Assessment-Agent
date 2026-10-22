@@ -2,7 +2,7 @@
 id: T-2036
 title: groups guard 배선 선행 6 — k6 s2-read.js groups 3 지점에 인증 cookie 선탑재
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-048, REQ-073]
 estimatedDiff: 110
