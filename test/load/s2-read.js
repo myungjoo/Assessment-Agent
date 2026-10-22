@@ -6,8 +6,8 @@
 // 타격 대상은 작성 시점에 `@UseGuards` 가 없던 목록 GET 3 종이다 — assessment / contribution /
 // summary / user 의 조회는 JwtAuthGuard 가 붙어 토큰 없이는 401 이고, 그 401 이
 // http_req_failed 임계를 오염시킨다(인증 획득 배선은 후속 slice). id 파라미터 경로도 빈 DB 에서
-// 404 가 되므로 타격하지 않는다. 그중 persons 는 Q-0056 ④ 로 guarded 가 될 예정이라 아래
-// T-2023 항목대로 인증 cookie 를 미리 싣는다(groups / parts 는 각자 축 몫이라 무변경).
+// 404 가 되므로 타격하지 않는다. 그중 persons · groups 는 Q-0056 으로 guarded 가 될 예정이라 아래
+// T-2023 · T-2036 항목대로 인증 cookie 를 미리 싣는다(parts 는 parts 축 몫이라 무변경).
 // 임계는 docs/ops/load-resilience-test-plan.md §3 표 그대로 — 재산정 0 (ADR-0054).
 // 조건 분기 로직 0 — 분기가 필요해지면 unit-testable helper 로 분리한다 (T-1620 규약 승계).
 //
@@ -35,6 +35,12 @@
 // 블록을 표본 조회 **앞** 으로 옮기고 cookie 문자열을 authCookie 지역 const 로 뽑아 표본 조회와
 // return 이 함께 쓴다. 새 __ENV 키 · 새 route tag · 임계 재산정 0 — cookie 획득 배선 자체는
 // T-1624 가 만든 것 그대로다.
+//
+// T-2036 — guard 배선 선행(Q-0056 ① groups 축 ④): groups 3 지점(seed POST · 측정 GET · 회수
+// DELETE)에 인증 cookie 를 선탑재한다. 현재 src/user/group.controller.ts 는 guard 미부착이라
+// cookie 는 no-op 이고, ⑤ 가 guard 를 붙이면 401 이 http_req_failed 와 groups route 의 p95 를
+// 오염시킨다(seed POST 실패는 group id 를 깨뜨려 teardown 까지 연쇄로 틀어진다). tag 는 세 지점
+// 모두 기존 그대로라 지표 분리는 무변경이고, 새 __ENV 키 · 새 route tag · 임계 재산정 0 이다.
 import http from "k6/http";
 
 // 대상 base URL. workflow 의 K6_BASE_URL 주입값과 동일한 기본값을 들고 있다 (smoke.js 와 동형).
@@ -136,10 +142,14 @@ export function setup() {
   console.log(
     `[s2-read] devset 표본 취득 ${personIds.length}명 / 필터 통과 ${devsetTotal}건 / 상한 ${SEED_PERSONS}명`,
   );
+  // (T-2036) groups seed POST 는 공용 seed params 대신 같은 seed tag 에 인증 cookie 를 더한 인라인 params.
   const group = http.post(
     `${BASE_URL}/api/groups`,
     JSON.stringify({ name: `부하 그룹 ${stamp}` }),
-    SEED_PARAMS,
+    {
+      headers: { Cookie: authCookie, "Content-Type": "application/json" },
+      tags: { route: "seed" },
+    },
   );
   const part = http.post(
     `${BASE_URL}/api/parts`,
@@ -158,13 +168,17 @@ export function setup() {
 
 export default function (data) {
   // 한 iteration = 목록 GET 3 종 + 인증 GET 1 종 각 1 회. route tag 로 지표를 분리 집계한다.
-  // (T-2023) persons 만 setup 이 만든 cookie 를 싣는다 — ④ 가 guard 를 붙여도 401 로 바뀌지
-  // 않도록 미리 배선한다. groups / parts 는 각자 축이 처리할 몫이라 무변경이다.
+  // (T-2023) persons 는 setup 이 만든 cookie 를 싣는다 — ④ 가 guard 를 붙여도 401 로 바뀌지
+  // 않도록 미리 배선한다. parts 는 parts 축 몫이라 무변경이다.
   http.get(`${BASE_URL}/api/persons`, {
     headers: { Cookie: data.authCookie },
     tags: { route: "persons" },
   });
-  http.get(`${BASE_URL}/api/groups`, { tags: { route: "groups" } });
+  // (T-2036) groups 측정 GET 도 같은 cookie 를 싣는다 — tag 는 groups 그대로.
+  http.get(`${BASE_URL}/api/groups`, {
+    headers: { Cookie: data.authCookie },
+    tags: { route: "groups" },
+  });
   http.get(`${BASE_URL}/api/parts`, { tags: { route: "parts" } });
   // 인증 조회 — jwt.strategy 가 cookie 를 유일한 토큰 source 로 읽으므로(헤더 토큰 방식은
   // cover 0) setup 이 만든 cookie 문자열을 header 로 직접 싣는다.
@@ -184,7 +198,8 @@ export function teardown(data) {
     http.del(
       `${BASE_URL}/api/groups/${data.groupIds[i]}`,
       null,
-      TEARDOWN_PARAMS,
+      // (T-2036) 공용 teardown params 대신 같은 teardown tag 에 인증 cookie 를 더한 인라인 params.
+      { headers: { Cookie: data.authCookie }, tags: { route: "teardown" } },
     );
   }
   for (let i = 0; i < data.partIds.length; i += 1) {
