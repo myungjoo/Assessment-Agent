@@ -1,4 +1,4 @@
-// GroupController — `/api/groups` 8 REST endpoint. T-0055 acceptance §A 박제
+// GroupController — `/api/groups` 9 REST endpoint. T-0055 acceptance §A 박제
 // (CRUD 4 endpoint) + T-0057 acceptance §A 확장 (N:M membership 3 endpoint) +
 // T-0068 acceptance §A 확장 (@Patch(":id") — Group.name partial update).
 //
@@ -47,8 +47,16 @@
 //   - forbidNonWhitelisted: 정의되지 않은 필드 포함 시 400 BadRequest.
 //   - transform: plain JSON 을 DTO instance 로 변환 (decorator 동작 보장).
 //
+// RBAC 배선 현황 (T-2037 — Q-0056 ⑤a, read 축만):
+//   - read 축 4 route (`GET /api/groups` · `:id` · `:id/persons` · `:id/members`) 는
+//     **User+ 게이트 완료** — `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles("User")`.
+//     정본 등급은 api.md `89 행` · `93 행`. api.md 에 tier 행이 없는 `:id` · `:id/persons`
+//     는 "모든 GET = User+" 관례로 판정했다 (T-2037 `## Why`). 인증 부재 → 401.
+//   - write 축 5 route (POST · PATCH · DELETE) 는 **아직 미배선** — Admin+ 배선은 Q-0056
+//     ⑤b 책임. 클래스 레벨 `@UseGuards` 는 쓰지 않는다 (census 경계 보존).
+//
 // 책임 경계 (Out of Scope — T-0068 시점):
-//   - AuthGuard (Admin+ / User+) 적용 안 함 — 후속 task 책임. PartController 동일 정책.
+//   - write 축 5 route 의 Admin+ guard — Q-0056 ⑤b 책임.
 //   - PATCH endpoint 추가 (T-0068 박제) — Group.name 부분 수정 + ValidationPipe wire.
 //     PartController PATCH 는 부재 유지 — Part 도메인 PATCH 4-layer 신설은 후속 task.
 //     N:M membership PATCH (예: `PATCH /api/groups/:id/members/:membershipId`) 는
@@ -66,10 +74,15 @@ import {
   Param,
   Patch,
   Post,
+  UseGuards,
   UsePipes,
   ValidationPipe,
 } from "@nestjs/common";
 import type { Group, Person, PersonGroupMembership } from "@prisma/client";
+
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { Roles } from "../auth/roles.decorator";
+import { RolesGuard } from "../auth/roles.guard";
 
 import { AddMemberDto } from "./dto/add-member.dto";
 import { CreateGroupDto } from "./dto/create-group.dto";
@@ -89,14 +102,23 @@ export class GroupController {
 
   // GET /api/groups — 전체 Group 목록. 200 OK + JSON 배열 (빈 배열 가능). 정렬은
   // service / repository 의 Prisma default 순서 유지 (후속 task 결정).
+  //
+  // RBAC — User+ tier (api.md `89 행`). @Roles("User") → User / Admin / SuperAdmin
+  // 모두 통과 (RolesGuard escalation). 인증 부재 시 JwtAuthGuard 가 401.
   @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("User")
   async findAll(): Promise<Group[]> {
     return this.service.findAll();
   }
 
   // GET /api/groups/:id — 단일 Group 상세. row 부재 시 service 가 NotFoundException
   // throw → 404 Not Found 자동 mapping.
+  //
+  // RBAC — User+ tier (api.md tier 행 부재, GET 관례 판정 — T-2037).
   @Get(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("User")
   async findById(@Param("id") id: string): Promise<Group> {
     return this.service.findById(id);
   }
@@ -105,7 +127,11 @@ export class GroupController {
   // Group 자체가 존재하지 않으면 service 가 404 강제. Group 은 있으나 membership
   // 0 이면 200 + 빈 배열 (404 변환 안 함). PartController.findPersons 와 동일 패턴.
   // service-layer 는 PersonGroupMembership middle table indirect navigation.
+  //
+  // RBAC — User+ tier (api.md tier 행 부재, GET 관례 판정 — T-2037).
   @Get(":id/persons")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("User")
   async findPersons(@Param("id") id: string): Promise<Person[]> {
     return this.service.findPersonsByGroupId(id);
   }
@@ -117,7 +143,11 @@ export class GroupController {
   // (= PersonGroupMembership.id) 를 노출하기 위한 endpoint — 기존 `:id/persons` 는
   // Person[] 만 반환해 membershipId 를 알 수 없던 API gap 을 메운다. Group 부재 시
   // service 가 404 강제, membership 0 이면 200 + 빈 배열 (404 변환 안 함).
+  //
+  // RBAC — User+ tier (api.md `93 행`).
   @Get(":id/members")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("User")
   async findMembers(@Param("id") id: string): Promise<PersonGroupMembership[]> {
     return this.service.findMembershipsByGroupId(id);
   }
