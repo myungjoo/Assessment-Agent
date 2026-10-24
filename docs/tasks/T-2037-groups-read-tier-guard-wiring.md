@@ -2,7 +2,7 @@
 id: T-2037
 title: groups guard 실배선 ⑤a — GroupController read 축 4 route (User+) 인증 게이트 + census 판정면 갱신
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-073]
 estimatedDiff: 250
