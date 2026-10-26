@@ -965,9 +965,10 @@ describe("test/load/s2-read.js 인증 조회 확장(signup → login → me) 배
       expect(setup).toMatch(
         new RegExp(`const authCookie = \`${COOKIE_NAME}=\\$\\{`),
       );
-      // 자격증명은 run 마다 stamp 로 생성(고정 리터럴 0) — password 는 8 자 이상.
-      expect(setup).toMatch(/email: `[^`]*\$\{stamp\}[^`]*@/);
-      expect(setup).toMatch(/password: `[^`]*\$\{stamp\}`/);
+      // (T-2038) 자격증명 축이 stamp 파생 → s1 · s3 공유 bootstrap 계정(SuperAdmin)으로 바뀌어
+      // 2 핀을 1:1 치환한다 — credentials 참조 + s2 ↔ s1 리터럴 parity (어긋나면 groups write 403).
+      expect(setup).toContain("const credentials = BOOTSTRAP_CREDENTIALS;");
+      expect(s2Script()).toContain(BOOTSTRAP_CREDENTIALS_DECL);
     });
 
     it("default(data) 가 Cookie header + route:me tag 로 인증 route 를 타격한다(기존 3 종 불변)", () => {
@@ -1223,9 +1224,11 @@ describe("test/load/s2-read.js persons 인증 cookie 선탑재 배선 drift smok
       const reverted = setup
         .replace(query[0], "")
         .replace(
-          "  const credentials = {",
-          `${query[0]}  const credentials = {`,
+          "  const credentials = BOOTSTRAP_CREDENTIALS;",
+          `${query[0]}  const credentials = BOOTSTRAP_CREDENTIALS;`,
         );
+      // (T-2038) anchor 가 실재하지 않으면 합성 소스가 원본과 같아져 조용히 통과하므로 차단한다.
+      expect(reverted).not.toBe(setup);
       expect(
         reverted.search(/http\.get\(`\$\{BASE_URL\}\/api\/persons`/),
       ).toBeLessThan(reverted.indexOf("const authCookie = "));
@@ -4738,9 +4741,10 @@ const S3_PERSONS_TEARDOWN_COOKIE_CALL =
 /** (T-2025) persons 표본 조회 호출 머리 — 순서 좌표와 호출 횟수를 함께 센다. */
 const S3_PERSONS_GET_HEAD = /http\s*\.get\(`\$\{BASE_URL\}\/api\/persons`/;
 /**
- * (T-2028) s1 · s3 가 공유하는 부하 전용 bootstrap 자격증명 선언 원문. 두 파일에서 문자 단위로
- * 같아야 S1 의 첫 signup(= 이 run 의 SuperAdmin) 세션을 S3 가 그대로 다시 얻는다 — 어긋나면
- * S3 의 persons write 2 왕복이 User tier cookie 로 떨어져 Admin+ gate 에서 403 이 된다.
+ * (T-2028 · T-2038) s1 · s2 · s3 가 공유하는 부하 전용 bootstrap 자격증명 선언 원문. 세 파일에서
+ * 문자 단위로 같아야 S1 의 첫 signup(= 이 run 의 SuperAdmin) 세션을 S2 · S3 가 그대로 다시
+ * 얻는다 — 어긋나면 S3 의 persons write 2 왕복 · S2 의 groups seed/teardown write 가 User tier
+ * cookie 로 떨어져 Admin+ gate 에서 403 이 된다.
  */
 const BOOTSTRAP_CREDENTIALS_DECL =
   'const BOOTSTRAP_CREDENTIALS = {\n  email: "load-bootstrap@example.com",\n  password: "load-bootstrap-pw",\n};';

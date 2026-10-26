@@ -41,6 +41,11 @@
 // cookie 는 no-op 이고, ⑤ 가 guard 를 붙이면 401 이 http_req_failed 와 groups route 의 p95 를
 // 오염시킨다(seed POST 실패는 group id 를 깨뜨려 teardown 까지 연쇄로 틀어진다). tag 는 세 지점
 // 모두 기존 그대로라 지표 분리는 무변경이고, 새 __ENV 키 · 새 route tag · 임계 재산정 0 이다.
+//
+// T-2038 — groups guard 배선 ⑤b 선행: setup 의 자격증명을 stamp 파생 1 회성 계정에서 s1 · s3 와
+// 공유하는 결정적 bootstrap 계정으로 올린다. stamp 계정은 run 의 첫 user 가 아니라 User 등급이고,
+// groups seed POST · 회수 DELETE 는 ⑤b 이후 Admin+ write tier 라 cookie 가 있어도 403 이 된다.
+// 지금은 group write 에 guard 가 없어 tier 상향은 no-op 이다. 새 __ENV 키 · route tag · 임계 0.
 import http from "k6/http";
 
 // 대상 base URL. workflow 의 K6_BASE_URL 주입값과 동일한 기본값을 들고 있다 (smoke.js 와 동형).
@@ -69,6 +74,16 @@ const SEED_PARAMS = {
 };
 const TEARDOWN_PARAMS = { tags: { route: "teardown" } };
 
+// (T-2038) 부하 job 전용 일회성 bootstrap 계정 — s1-batch.js · s3-concurrent.js 가 문자 단위로
+// 같은 1 쌍을 선언해, 한 run 안에서 세 시나리오가 같은 계정으로 로그인한다. 이 계정은 run 의 첫
+// signup 이라 SuperAdmin 이 되고, 그래서 setup 의 groups seed POST 와 teardown 의 회수 DELETE 가
+// Admin+ gate 를 통과한다. 실 자격증명 · 외부 secret 0 이고 password 는 8 자 이상이다. 재실행
+// DB 에서 signup 이 내는 409 1 건은 seed tag 라 판정 tag (조회 route 4 종) 로의 누수는 0 이다.
+const BOOTSTRAP_CREDENTIALS = {
+  email: "load-bootstrap@example.com",
+  password: "load-bootstrap-pw",
+};
+
 export const options = {
   // (T-1688) 종료 요약 percentile 열 — k6 기본 6 종을 전부 보존한 위에 p(99) 만 더해
   // 계획 §3 "집계" 셋째 항의 미확보(설계 문제 (a))를 run log 에서 회수한다. 관찰 전용이라
@@ -93,20 +108,17 @@ export const options = {
 };
 
 export function setup() {
-  // run 마다 유일한 접미사 — Part.name / 계정 email 의 @unique 충돌(409)이 전역
+  // run 마다 유일한 접미사 — Part.name / Group.name 의 @unique 충돌(409)이 전역
   // http_req_failed 임계를 오염시키지 않도록 한다 (로컬 반복 실행 포함).
   const stamp = Date.now();
   // 인증 부트스트랩 — signup 은 guard 없는 public endpoint 라 별도 admin 준비 없이 계정
-  // 1 개를 만들 수 있다. 자격증명은 stamp 로 run 마다 새로 만든다 (고정 리터럴 0 — @unique
-  // 충돌 회피 + secret 규율). 두 요청 모두 seed tag 라 조회 route 4 종의 p95 는 오염 0.
-  // 생성된 계정 row 는 지우지 않는다 — user 삭제 endpoint 자체가 존재하지 않기 때문이며,
-  // CI DB 는 run 마다 폐기되고 로컬 반복 실행은 stamp 접미사가 충돌을 피한다.
+  // 1 개를 만들 수 있다. (T-2038) 자격증명은 s1 · s3 와 공유하는 결정적 bootstrap 계정이다 —
+  // groups write (seed POST · 회수 DELETE) 가 ⑤b 이후 Admin+ gate 를 통과해야 한다. 계정이 이미
+  // 있으면 signup 은 409 를 내는데, 응답을 분기 없이 버린다 (분기 0 규약). 두 요청 모두 seed tag
+  // 라 조회 route 4 종의 p95 는 오염 0. 계정 row 는 지우지 않는다 — user 삭제 endpoint 가 없다.
   // (T-2023) 이 블록은 아래 표본 조회보다 **앞** 에 있어야 한다 — 표본 조회가 authCookie 를
   // 쓰므로 순서가 역전되면 TDZ 로 run 이 통째로 깨진다.
-  const credentials = {
-    email: `load-auth-${stamp}@example.com`,
-    password: `load-pass-${stamp}`,
-  };
+  const credentials = BOOTSTRAP_CREDENTIALS;
   http.post(`${BASE_URL}/api/users`, JSON.stringify(credentials), SEED_PARAMS);
   const login = http.post(
     `${BASE_URL}/api/auth/login`,
