@@ -2,7 +2,7 @@
 id: T-2038
 title: groups guard 배선 ⑤b 선행 — k6 s2 bootstrap 자격을 s1·s3 공유 SuperAdmin 계정으로 올려 groups write 왕복 Admin+ 선확보
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-048, REQ-073]
 estimatedDiff: 70
