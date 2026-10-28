@@ -2,7 +2,7 @@
 id: T-2039
 title: groups guard 실배선 ⑤b — GroupController write 축 5 route (Admin+) 인증·인가 게이트 + census 판정면 갱신
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-073]
 estimatedDiff: 230
