@@ -927,7 +927,7 @@ type Handler = (...args: never[]) => unknown;
 type StubGuard = { canActivate: (ctx: ExecutionContext) => boolean };
 type GroupServiceMock = ReturnType<typeof buildGroupServiceMock>["serviceMock"];
 
-describe("GroupController (RBAC guard 배선 — T-2037 read)", () => {
+describe("GroupController (RBAC guard 배선 — T-2037 read / T-2039 write)", () => {
   const reflector = new Reflector();
   const guardsOf = (name: GroupRoute): unknown[] | undefined =>
     reflector.get<unknown[] | undefined>(
@@ -959,12 +959,94 @@ describe("GroupController (RBAC guard 배선 — T-2037 read)", () => {
       "findMembershipsByGroupId",
     ],
   ];
-  const WRITE_ROUTES: ReadonlyArray<[GroupRoute]> = [
-    ["create"],
-    ["addMember"],
-    ["update"],
-    ["delete"],
-    ["removeMember"],
+  // [label, handler, 요청 path, 위임 service 메서드, HTTP verb, 유효 body, 성공 status]
+  const WRITE_ROUTES: ReadonlyArray<
+    [
+      string,
+      GroupRoute,
+      string,
+      keyof GroupServiceMock,
+      "post" | "patch" | "delete",
+      object | undefined,
+      number,
+    ]
+  > = [
+    [
+      "POST /api/groups",
+      "create",
+      "/api/groups",
+      "create",
+      "post",
+      { name: "g" },
+      201,
+    ],
+    [
+      "POST /api/groups/:id/members",
+      "addMember",
+      "/api/groups/g-1/members",
+      "addMember",
+      "post",
+      { personId: "p-1" },
+      201,
+    ],
+    [
+      "PATCH /api/groups/:id",
+      "update",
+      "/api/groups/g-1",
+      "update",
+      "patch",
+      { name: "h" },
+      200,
+    ],
+    [
+      "DELETE /api/groups/:id",
+      "delete",
+      "/api/groups/g-1",
+      "delete",
+      "delete",
+      undefined,
+      204,
+    ],
+    [
+      "DELETE /api/groups/:id/members/:membershipId",
+      "removeMember",
+      "/api/groups/g-1/members/m-1",
+      "removeMember",
+      "delete",
+      undefined,
+      204,
+    ],
+  ];
+  // write 1 route 호출 — body 가 있으면 send. guard 는 pipe 보다 먼저 돈다.
+  const callWrite = (
+    verb: "post" | "patch" | "delete",
+    path: string,
+    body: object | undefined,
+  ): request.Test => {
+    const req = request(server())[verb](path);
+    return body === undefined ? req : req.send(body);
+  };
+  // write 축 성공 응답 stub — 분기 국면의 통과 단언용.
+  const stubWriteSuccess = (): void => {
+    serviceMock.create.mockResolvedValueOnce(buildGroupFixture({ id: "g-1" }));
+    serviceMock.addMember.mockResolvedValueOnce(
+      buildPersonGroupMembershipFixture({ id: "m-1" }),
+    );
+    serviceMock.update.mockResolvedValueOnce(buildGroupFixture({ id: "g-1" }));
+    serviceMock.delete.mockResolvedValueOnce(undefined);
+    serviceMock.removeMember.mockResolvedValueOnce(undefined);
+  };
+  const DENIALS: ReadonlyArray<[string, number, StubGuard]> = [
+    ["canActivate=false", 403, { canActivate: (): boolean => false }],
+    [
+      "UnauthorizedException throw",
+      401,
+      {
+        canActivate: (): never => {
+          throw new UnauthorizedException("Unauthorized");
+        },
+      },
+    ],
   ];
 
   let app: INestApplication | null = null;
@@ -1021,25 +1103,33 @@ describe("GroupController (RBAC guard 배선 — T-2037 read)", () => {
     );
   });
 
+  describe("happy — write 축 5 route 에 Admin+ 게이트 부착 (T-2039)", () => {
+    it.each(WRITE_ROUTES)(
+      "%s — guard 목록이 JwtAuthGuard · RolesGuard 이고 @Roles 는 'Admin' (Reflector read)",
+      (_label, name) => {
+        expect(guardsOf(name)).toEqual([JwtAuthGuard, RolesGuard]);
+        expect(rolesOf(name)).toEqual(["Admin"]);
+      },
+    );
+  });
+
   describe("error path — guard 거부 시 handler body 미실행", () => {
-    const DENIALS: ReadonlyArray<[string, number, StubGuard]> = [
-      ["canActivate=false", 403, { canActivate: (): boolean => false }],
-      [
-        "UnauthorizedException throw",
-        401,
-        {
-          canActivate: (): never => {
-            throw new UnauthorizedException("Unauthorized");
-          },
-        },
-      ],
-    ];
     it.each(DENIALS)(
       "JwtAuthGuard %s → %i 이고 GroupService 는 read 4 route 모두 0 회 호출",
       async (_label, status, jwt) => {
         await buildApp(jwt, ALLOW_ALL);
         for (const [, , path, method] of READ_ROUTES) {
           await request(server()).get(path).expect(status);
+          expect(serviceMock[method]).toHaveBeenCalledTimes(0);
+        }
+      },
+    );
+    it.each(DENIALS)(
+      "JwtAuthGuard %s → %i 이고 GroupService 는 write 5 route 모두 0 회 호출",
+      async (_label, status, jwt) => {
+        await buildApp(jwt, ALLOW_ALL);
+        for (const [, , path, method, verb, body] of WRITE_ROUTES) {
+          await callWrite(verb, path, body).expect(status);
           expect(serviceMock[method]).toHaveBeenCalledTimes(0);
         }
       },
@@ -1076,12 +1166,57 @@ describe("GroupController (RBAC guard 배선 — T-2037 read)", () => {
     });
   });
 
+  // production 에 새 분기는 없다 (decorator 부착뿐) — 아래는 RolesGuard 가 소비하는 등급 축.
+  describe("분기 — @Roles('Admin') 가 소비하는 role 등급 축 (T-2039)", () => {
+    it.each([["Admin"], ["SuperAdmin"]])(
+      "%s actor 는 write 5 route 를 통과한다 (ROLE_HIERARCHY escalation 정합)",
+      async (role) => {
+        await buildApp(makeAllowingJwtGuard("a-1", role), ALLOW_ALL);
+        stubWriteSuccess();
+        for (const [, , path, method, verb, body, ok] of WRITE_ROUTES) {
+          await callWrite(verb, path, body).expect(ok);
+          expect(serviceMock[method]).toHaveBeenCalledTimes(1);
+        }
+        expect(ROLE_HIERARCHY.Admin).toContain(role);
+      },
+    );
+    it("User actor 는 Admin 등급 미달 — RolesGuard reject 시 write 5 route 모두 403 + service 미호출", async () => {
+      expect(ROLE_HIERARCHY.Admin).not.toContain("User");
+      await buildApp(makeAllowingJwtGuard("u-1", "User"), {
+        canActivate: (): boolean => false,
+      });
+      for (const [, , path, method, verb, body] of WRITE_ROUTES) {
+        await callWrite(verb, path, body).expect(403);
+        expect(serviceMock[method]).not.toHaveBeenCalled();
+      }
+    });
+    it("role 미부여 (RolesGuard reject) → write 5 route 403 + service 미호출", async () => {
+      await buildApp(makeAllowingJwtGuard("n-1", ""), {
+        canActivate: (): boolean => false,
+      });
+      for (const [, , path, method, verb, body] of WRITE_ROUTES) {
+        await callWrite(verb, path, body).expect(403);
+        expect(serviceMock[method]).not.toHaveBeenCalled();
+      }
+    });
+  });
+
   describe("negative — 과잉 배선 · tier 오설정 탐지 (대조군)", () => {
+    it.each([
+      ...READ_ROUTES.map(([label, name]) => [label, name, "User"] as const),
+      ...WRITE_ROUTES.map(([label, name]) => [label, name, "Admin"] as const),
+    ])(
+      "(a) tier 대조군 — %s (%s) 의 @Roles 는 정확히 ['%s'] — read↔write tier 가 뒤바뀌면 red",
+      (_label, name, tier) => {
+        expect(rolesOf(name)).toEqual([tier]);
+      },
+    );
     it.each(WRITE_ROUTES)(
-      "(a) write 축 %s 에는 guard · @Roles metadata 가 없다 (⑤b 미착수 대조군)",
-      (name) => {
-        expect(guardsOf(name)).toBeUndefined();
-        expect(rolesOf(name)).toBeUndefined();
+      "(b) write %s 의 @Roles 는 정확히 ['Admin'] — 'User' · 'SuperAdmin' 이면 red",
+      (_label, name) => {
+        expect(rolesOf(name)).toEqual(["Admin"]);
+        expect(rolesOf(name)).not.toContain("User");
+        expect(rolesOf(name)).not.toContain("SuperAdmin");
       },
     );
     it.each(READ_ROUTES)(
@@ -1105,7 +1240,11 @@ describe("GroupController (RBAC guard 배선 — T-2037 read)", () => {
         ),
       ).toBeUndefined();
     });
-    it.each(READ_ROUTES)(
+    it.each(
+      [...READ_ROUTES, ...WRITE_ROUTES].map(
+        ([label, name]) => [label, name] as const,
+      ),
+    )(
       "(d) %s 의 guard 목록에 RolesGuard 가 있다 — 빠지면 인증만 하고 인가를 빼먹은 형태로 red",
       (_label, name) => {
         const guards = guardsOf(name) ?? [];
