@@ -47,16 +47,19 @@
 //   - forbidNonWhitelisted: 정의되지 않은 필드 포함 시 400 BadRequest.
 //   - transform: plain JSON 을 DTO instance 로 변환 (decorator 동작 보장).
 //
-// RBAC 배선 현황 (T-2037 — Q-0056 ⑤a, read 축만):
+// RBAC 배선 현황 (T-2037 ⑤a read / T-2039 ⑤b write — Q-0056):
 //   - read 축 4 route (`GET /api/groups` · `:id` · `:id/persons` · `:id/members`) 는
 //     **User+ 게이트 완료** — `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles("User")`.
 //     정본 등급은 api.md `89 행` · `93 행`. api.md 에 tier 행이 없는 `:id` · `:id/persons`
 //     는 "모든 GET = User+" 관례로 판정했다 (T-2037 `## Why`). 인증 부재 → 401.
-//   - write 축 5 route (POST · PATCH · DELETE) 는 **아직 미배선** — Admin+ 배선은 Q-0056
-//     ⑤b 책임. 클래스 레벨 `@UseGuards` 는 쓰지 않는다 (census 경계 보존).
+//   - write 축 5 route (POST · PATCH · DELETE) 는 **Admin+ 게이트 완료** (T-2039) —
+//     `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles("Admin")`. 정본 등급은 api.md
+//     `90~92 행`. tier 행이 없는 `POST :id/members` · `DELETE :id/members/:membershipId`
+//     는 "모든 mutation = Admin+" 관례로 판정했다 (T-2039 `## Why`). User 등급 → 403.
+//   - 클래스 레벨 `@UseGuards` 는 쓰지 않는다 (census 경계 보존). 남은 조각은 e2e 인가
+//     단언 (Q-0056 ⑤c) 뿐이다.
 //
 // 책임 경계 (Out of Scope — T-0068 시점):
-//   - write 축 5 route 의 Admin+ guard — Q-0056 ⑤b 책임.
 //   - PATCH endpoint 추가 (T-0068 박제) — Group.name 부분 수정 + ValidationPipe wire.
 //     PartController PATCH 는 부재 유지 — Part 도메인 PATCH 4-layer 신설은 후속 task.
 //     N:M membership PATCH (예: `PATCH /api/groups/:id/members/:membershipId`) 는
@@ -155,8 +158,12 @@ export class GroupController {
   // POST /api/groups — 신규 Group 추가. 201 Created. ValidationPipe 가 dto 의 2
   // decorator (IsString / IsNotEmpty) 검증 — 위반 시 400 BadRequest 자동. P2002
   // (unique 위반) 변환 분기 부재 — Group.name 에 @unique 미정의, raw forward.
+  //
+  // RBAC — Admin+ tier (api.md `90 행`). User 등급은 RolesGuard 가 403.
   @Post()
   @HttpCode(201)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
   async create(@Body() dto: CreateGroupDto): Promise<Group> {
     return this.service.create(dto);
   }
@@ -167,8 +174,12 @@ export class GroupController {
   // 필드 시 400 자동. service-layer 분기 → 404 (Group/Person 없음) / 409 (이미 member)
   // / 404 (P2003 race window) automatic propagate. groupId 는 path param, personId 는
   // body — service.addMember(groupId, personId) 결합.
+  //
+  // RBAC — Admin+ tier (api.md tier 행 부재, mutation 관례 판정 — T-2039).
   @Post(":id/members")
   @HttpCode(201)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
   async addMember(
     @Param("id") groupId: string,
     @Body() dto: AddMemberDto,
@@ -198,12 +209,14 @@ export class GroupController {
   //     → service 그대로 propagate.
   //
   // 책임 경계 (Out of Scope):
-  //   - AuthGuard 적용 안 함 — ADR-0008 auth credential 미박제 상태 유지.
+  //   - RBAC 는 Admin+ tier (api.md `91 행`, T-2039) — 아래 decorator 2 줄.
   //   - N:M membership PATCH (예: `:id/members/:membershipId`) 미노출 — membership
   //     자체에 mutable field 부재 (schema.prisma L123-133 박제).
   //   - active toggle / 다른 도메인 필드 PATCH 미지원 — UpdateGroupDto 가 `name`
   //     단일 필드만 정의.
   @Patch(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
   async update(
     @Param("id") id: string,
     @Body() patch: UpdateGroupDto,
@@ -214,8 +227,12 @@ export class GroupController {
   // DELETE /api/groups/:id — Group 삭제. 204 No Content. row 부재 시 service 가
   // NotFoundException throw → 404 Not Found. P2003 (FK 위반) 변환 분기 부재 —
   // PersonGroupMembership cascade 가 schema 차원 처리.
+  //
+  // RBAC — Admin+ tier (api.md `92 행`). User 등급은 RolesGuard 가 403.
   @Delete(":id")
   @HttpCode(204)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
   async delete(@Param("id") id: string): Promise<void> {
     await this.service.delete(id);
   }
@@ -225,8 +242,12 @@ export class GroupController {
   // 미사용 — T-0056 service `removeMember(membershipId)` 시그니처 단일 인자). row 부재
   // 시 service 가 NotFoundException (P2025) → 404 automatic. driver 원안 `:personId`
   // 의 정정 — service 시그니처 정합 (헤더 주석 박제).
+  //
+  // RBAC — Admin+ tier (api.md tier 행 부재, mutation 관례 판정 — T-2039).
   @Delete(":id/members/:membershipId")
   @HttpCode(204)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
   async removeMember(
     @Param("id") _groupId: string,
     @Param("membershipId") membershipId: string,

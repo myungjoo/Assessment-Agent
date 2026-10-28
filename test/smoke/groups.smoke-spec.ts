@@ -32,7 +32,8 @@
 //
 // 인증 cookie 선탑재 (T-2031, Q-0056 ① groups guard 배선 선행): `createAuthenticatedE2EApp` 로
 // 부트해 groups 요청 11 곳 전부에 tier cookie 를 싣는다 — GET 은 `userCookie`, 그 외는
-// `adminCookie` (docs/architecture/api.md `89~93 행`). guard 는 아직 미배선이라 단언은 무변경.
+// `adminCookie` (docs/architecture/api.md `89~93 행`). read · write 전 축 guard 배선 완료 (T-2037 ·
+// T-2039). 기존 요청이 이미 tier cookie 를 선탑재해서 단언은 무변경.
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
