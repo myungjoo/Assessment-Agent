@@ -197,14 +197,9 @@ export class PeriodBridgeAdminPersistService {
   }
 
   /**
-   * 사람 없이 도는 자동 평가용 fill 경로. first-write-wins 라 수집 장애 중의 빈 평가는
-   * 이후 평가를 영구히 막으므로, 귀속 활동이 0 건인데 수집 호출이 하나라도 실패했거나
-   * 하나도 돌지 않았으면 영속화 없이 `null` 을 반환한다. Confluence 외 identity 가 있는데
-   * GitHub source 가 0 개인 경우(미설정 · org 열거 실패)도 같다. 모든 호출이 성공한 0 건은
-   * 실제 무활동이라 빈 평가로 저장한다. 활동이 있으면 일부 source 가 실패해도 저장한다
-   * (부분 가용성, ADR-0029 Decision §3).
-   *
-   * @returns 영속 결과. 수집이 실제로 돌지 못한 좌표면 `null`.
+   * 자동 평가용 fill 경로. 수집 장애 중의 빈 평가는 first-write-wins 로 이후 평가를 막으므로,
+   * 귀속 활동 0 건인데 호출 실패 · 호출 0 · GitHub source 0(Confluence 외 identity 보유)
+   * 이면 저장 없이 `null` 을 반환한다. 활동이 있으면 부분 실패에도 저장한다.
    */
   async generateAndPersistIfCollected(
     person: PeriodBridgePersonInput,
