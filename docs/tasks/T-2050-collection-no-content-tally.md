@@ -2,7 +2,11 @@
 id: T-2050
 title: 불완전 수집 저장 차단 ① — 빈 repo · issue 비활성 응답을 성공으로 세고 org 열거 실패를 tally 로 노출
 phase: P7
-status: PLANNED
+status: DONE
+completedAt: 2026-10-30
+mergedAs: 326c72a8
+prNumber: 1611
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-037, REQ-039]
 estimatedDiff: 110
