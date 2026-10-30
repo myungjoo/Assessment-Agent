@@ -39,6 +39,7 @@ import { ConfluenceSpaceTraversalService } from "../confluence/confluence-space-
 import { ConfluenceActivity } from "./domain/activity";
 import { mapConfluenceActivity } from "./domain/confluence-activity.mapper";
 import { dedupConfluenceActivities } from "./domain/page-dedup";
+import type { CollectionCallTally } from "./github-collection.service";
 
 // ConfluenceCollectionSpec — 한 Person 의 Confluence 수집 enumerate 입력. enumerate 된
 // instance config 배열을 받는다(enumerate 책임은 상위 orchestrator slice (v) — 본
@@ -59,6 +60,7 @@ export class ConfluenceCollectionService {
   // 그 instance 만 skip 한다.
   async collectConfluenceActivities(
     spec: ConfluenceCollectionSpec,
+    tally: CollectionCallTally = { succeeded: 0, failed: 0 },
   ): Promise<ConfluenceActivity[]> {
     const collected: ConfluenceActivity[] = [];
 
@@ -68,6 +70,9 @@ export class ConfluenceCollectionService {
       // 막지 않도록 skip-and-continue.
       try {
         const results = await this.traversal.traverseInstance(config);
+        // traversal 은 SPACE 단위 4xx 를 자체 skip 하므로 빠진 SPACE 수가 곧 실패 수다.
+        tally.succeeded += results.length;
+        tally.failed += config.spaceAllowlist.length - results.length;
         for (const { spaceKey, pages } of results) {
           // raw page item → mapper(instanceKey / spaceKey 주입) → null(malformed)
           // skip → 누적. SPACE 식별은 traversal loop context 가 보유한 spaceKey.
@@ -82,6 +87,7 @@ export class ConfluenceCollectionService {
         // skip-and-continue — SPACE 단위 4xx skip+emit 은 traversal service 내부에서
         // 이미 처리되므로 본 service 는 새 emit 경로를 만들지 않고 이 instance 만
         // 건너뛴다(부분 가용성 우선).
+        tally.failed += 1;
         continue;
       }
     }

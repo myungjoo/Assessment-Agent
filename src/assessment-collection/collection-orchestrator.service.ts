@@ -38,6 +38,7 @@ import {
 } from "./confluence-collection.service";
 import { Activity } from "./domain/activity";
 import {
+  type CollectionCallTally,
   GithubCollectionService,
   GithubCollectionSpec,
 } from "./github-collection.service";
@@ -77,14 +78,38 @@ export class CollectionOrchestratorService {
     return [...githubActivities, ...confluenceActivities];
   }
 
+  // collectActivitiesWithTally — collectActivities 와 같은 수집에 호출 성공 · 실패 건수를
+  // 더해 돌려준다. 빈 결과를 영구 저장하기 전에 수집이 실제로 돌았는지 판정하는 용도.
+  async collectActivitiesWithTally(
+    spec: CollectionSpec,
+  ): Promise<{ activities: Activity[]; tally: CollectionCallTally }> {
+    const tally: CollectionCallTally = { succeeded: 0, failed: 0 };
+    const onFailure = (): void => {
+      tally.failed += 1;
+    };
+    const github = await this.collectSafely(
+      () => this.github.collectGithubActivities(spec.github, tally),
+      onFailure,
+    );
+    const confluence = await this.collectSafely(
+      () => this.confluence.collectConfluenceActivities(spec.confluence, tally),
+      onFailure,
+    );
+    return { activities: [...github, ...confluence], tally };
+  }
+
   // collectSafely — 한 source 의 collection 호출을 독립 try/catch 로 감싸, throw 시
   // 빈 배열로 흡수한다(skip-and-continue). 한 source 의 service 레벨 throw 가 다른
   // source 결과 보존을 막지 않게 하는 부분 가용성 backbone 이다(ADR-0029 Decision §3).
-  private async collectSafely<T>(collect: () => Promise<T[]>): Promise<T[]> {
+  private async collectSafely<T>(
+    collect: () => Promise<T[]>,
+    onFailure?: () => void,
+  ): Promise<T[]> {
     try {
       return await collect();
     } catch {
       // service 레벨 throw 흡수 — 새 emit 경로 0, 이 source 만 빈 배열로 건너뛴다.
+      onFailure?.();
       return [];
     }
   }

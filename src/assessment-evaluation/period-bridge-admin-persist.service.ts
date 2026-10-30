@@ -52,7 +52,7 @@
 //     본 service 는 호출처가 넘긴 resolved `context`/`person` 입력을 받는다.
 //   - e2e / 실 PostgreSQL / 동시 호출 idempotency 실측은 slice 5(ADR-0004).
 //   - live LLM round-trip 은 §Decision5 credential 게이트 deferred — mocked-LLM unit 만.
-import { ConflictException, Injectable } from "@nestjs/common";
+import { ConflictException, Injectable, Logger } from "@nestjs/common";
 import type { Assessment } from "@prisma/client";
 
 import { CollectionOrchestratorService } from "../assessment-collection/collection-orchestrator.service";
@@ -82,6 +82,8 @@ export interface PeriodBridgeAdminPersistResult {
 
 @Injectable()
 export class PeriodBridgeAdminPersistService {
+  private readonly logger = new Logger(PeriodBridgeAdminPersistService.name);
+
   // 5 개 collaborator 주입 — (1~5)는 ephemeral sibling 과 동일한 persist-free compose
   // 3 종(spec/orchestrator/evaluation, 창 필터·author 필터는 순수 함수라 주입 0),
   // (6)은 Admin 한정 persist 도달 경로를 여는 2 종
@@ -192,6 +194,48 @@ export class PeriodBridgeAdminPersistService {
 
     // (6) 영속화 — reevaluate flag 분기(default fill read-through / true 시 reeval).
     return this.persistAndReadThrough(context, results, reevaluate);
+  }
+
+  /**
+   * 자동 평가용 fill 경로. 수집 장애 중의 빈 평가는 first-write-wins 로 이후 평가를 막으므로,
+   * 귀속 활동 0 건인데 호출 실패 · 호출 0 · GitHub source 0(Confluence 외 identity 보유)
+   * 이면 저장 없이 `null` 을 반환한다. 활동이 있으면 부분 실패에도 저장한다.
+   */
+  async generateAndPersistIfCollected(
+    person: PeriodBridgePersonInput,
+    period: { since: string; until: string },
+    options: ScoringOptions,
+    context: EvaluationPersistContext,
+  ): Promise<PeriodBridgeAdminPersistResult | null> {
+    const spec = await this.specService.buildCollectionSpec(
+      person,
+      period.since,
+    );
+    const { activities, tally } =
+      await this.orchestrator.collectActivitiesWithTally(spec);
+    const filtered = filterActivitiesByAuthor(
+      filterActivitiesByPeriodWindow(activities, period),
+      person.serviceIdentities,
+    );
+    const confluenceKeys = spec.confluence.instances.map((c) =>
+      c.key.trim().toUpperCase(),
+    );
+    const githubMissing =
+      spec.github.sources.length === 0 &&
+      person.serviceIdentities.some(
+        (i) => !confluenceKeys.includes(i.service.trim().toUpperCase()),
+      );
+    if (
+      filtered.length === 0 &&
+      (tally.failed > 0 || tally.succeeded === 0 || githubMissing)
+    ) {
+      this.logger.warn(
+        `수집 불가 좌표 저장 건너뜀: period=${context.period} succeeded=${tally.succeeded} failed=${tally.failed} githubMissing=${githubMissing}`,
+      );
+      return null;
+    }
+    const results = await this.evaluation.evaluateActivities(filtered, options);
+    return this.persistAndReadThrough(context, results);
   }
 
   /**
