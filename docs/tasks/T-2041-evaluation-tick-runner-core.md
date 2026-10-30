@@ -2,7 +2,11 @@
 id: T-2041
 title: 평가 tick runner ①  — 닫힌 기간 미평가 좌표를 기존 경로로 순차 평가하는 EvaluationTickRunnerService 신설
 phase: P7
-status: PLANNED
+status: DONE
+completedAt: 2026-10-30
+mergedAs: cc0ae97e
+prNumber: 1602
+reviewRounds: 3
 commitMode: pr
 coversReq: [REQ-037, REQ-039, REQ-040, REQ-042]
 estimatedDiff: 295
@@ -17,7 +21,7 @@ plannerNote: P7 · 오너 지시 — "지금 실행" · cron 이 stub 이라 아
 
 ## Why
 
-`CRON_TICK_HANDLER` (`src/scheduling/scheduling.module.ts` `35 행`) 가 logging stub 이라 "지금 실행" 과 등록 cron 이 아무 일도 하지 않는데 UI 는 "수동 실행을 시작했습니다" 라고 말한다. [ADR-0042](../decisions/ADR-0042-p7-scheduling.md) § Decision 2 는 cron · manual 이 단일 실행 함수를 공유하고 scheduler 는 기존 경로만 호출한다고 정했다. 본 slice 는 그 실행 함수를 만든다. 배선은 T-2042 몫이라 머지 후에도 동작 변화는 0 이다.
+`CRON_TICK_HANDLER` (`src/scheduling/scheduling.module.ts` `35 행`) 가 logging stub 이라 "지금 실행" 과 등록 cron 이 아무 일도 하지 않는데 UI 는 "수동 실행을 시작했습니다" 라고 말한다. [ADR-0042](../decisions/ADR-0042-nestjs-schedule-adoption.md) § Decision 2 는 cron · manual 이 단일 실행 함수를 공유하고 scheduler 는 기존 경로만 호출한다고 정했다. 본 slice 는 그 실행 함수를 만든다. 배선은 T-2042 몫이라 머지 후에도 동작 변화는 0 이다.
 
 `UnevaluatedFillRunOrchestratorService` 는 쓰지 않는다. 그 좌표 runner (`build-unevaluated-fill-coordinate-runner.ts` `149 행`) 가 `{ since }` 만 넘겨 창 이후 활동이 좌표에 영속되기 때문이다.
 
@@ -48,3 +52,6 @@ plannerNote: P7 · 오너 지시 — "지금 실행" · cron 이 stub 이라 아
 ## Follow-ups
 
 - (planner 판정, CLAUDE.md §3 소비처 동반 의무 예외) 소비처 포함 시 실측 약 +450 LOC · 5 파일로 300 LOC cap 을 넘는다 (runner 178 · spec 208 · module · controller · e2e 60+, 실 e2e 별도). 그래서 배선을 **T-2042** 로 분리한다: `src/scheduling/scheduling.module.ts` 의 `CRON_TICK_HANDLER` useFactory 를 runner 로 교체 + Evaluation · User · Llm · RunStatus import, `cron-schedule.controller.ts` stale 주석 갱신, service identity 0 · 수집 대상 0 인원 skip, `onModuleDestroy` 종료 대기, `test/e2e/schedules-cron.e2e-spec.ts` 실 e2e.
+- (리뷰 MAJOR 5 → 순서 확정) 수집 장애 tick 이 빈 row 를 영구 저장하지 않도록 **T-2042 (빈 row 차단) 를 먼저 머지하고, cron 배선은 그 다음 T-2043** 으로 한다. 위 항목의 "T-2042" 배선 범위는 T-2043 으로 옮긴다.
+- (리뷰 MAJOR 6 → 오너 판단 대상) 창이 일 7 개 · 주 1 개 · 월 1 개라 1 주 넘는 서버 중단이나 README `74 행` 의 "최근 30 일 삭제" 뒤 그 이전 좌표는 tick 으로 채워지지 않는다. 현재 recent-deletion 은 deleter 미바인딩이라 삭제 0 건이다. 창 확대 여부는 오너 판단이다.
+- README `58 행` (지난 1 주 재수집으로 늦은 commit 반영) 은 fill 모드로 충족되지 않는다. 별도 후속이다.
