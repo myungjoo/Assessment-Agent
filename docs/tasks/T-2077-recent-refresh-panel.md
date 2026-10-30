@@ -2,7 +2,11 @@
 id: T-2077
 title: 최근 N일 재수집 ⑨ — 패널이 실제 결과 · 재시도 · 참인 경고를 보여준다
 phase: P7
-status: READY
+status: DONE
+completedAt: 2026-10-30
+mergedAs: 81848dd9
+prNumber: 1638
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 170
