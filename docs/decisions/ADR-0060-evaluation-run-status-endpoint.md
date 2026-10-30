@@ -193,9 +193,10 @@ endpoint 를 두지 않는다(§Decision 1 의 "상태 수명 = 실행 수명" �
 | `.evaluatedCount` · `.skippedCount` · `.failedCount` | `number` | 좌표 건수. `UnevaluatedFillRunResult` 와 같은 이름이다 |
 | `.incompleteCount` | `number` | 수집 불완전으로 저장하지 않은 좌표 전체 수. `skippedCount` 에 포함된다 |
 | `.incompletePersonCount` | `number` | 그 좌표를 가진 인원 수 |
-| `.incompleteCoordinates` | 배열 | `period` · `scope` · `periodStart` (ISO-8601 문자열) 의 중복 제거 목록. 첫 등장 순서로 50 개까지 |
+| `.incompleteCoordinates` | 배열 | `period` · `scope` (`string`) · `periodStart` (ISO-8601 `string`) 의 중복 제거 목록. 첫 등장 순서로 50 개까지 |
 
-- **기록 시점** — 실행이 끝날 때 1 회 직전 값을 덮어쓴다. 중단된 실행도 그때까지의 건수로 기록한다. 경로가 달라도 값은 하나다.
+- **기록 시점** — 실행이 끝날 때 1 회 직전 값을 덮어쓴다. 중단된 실행도 그때까지의 건수로 기록한다. 경로가 달라도 값은 하나라, 다음 실행이 끝나면 이전 불완전 기록은 사라진다. 그 좌표가 여전히 미평가면 다음 실행의 기록에 다시 나타난다.
+- **기록 대상** — 위 두 경로만 기록한다. 수동 `POST /evaluate` · `/period` 는 응답으로 결과를 받으므로 기록하지 않는다.
 - **`personId` 제외** — 조회 tier 는 §Decision 3 의 `User+` 다. "어느 인원의 수집이 불완전한가" 를 모든 사용자에게 공개할 이유가 없다. 인원은 Admin+ 의 `POST /unevaluated-fill-plan` 이 미평가 좌표로 알려 주고, 사유 (쓸 수 없는 instance · 호출 실패 수) 는 서버 로그에 있다.
 - **다중 인스턴스** — §Decision 5 와 같은 한계다. 다른 인스턴스의 실행 요약은 보이지 않는다.
 
