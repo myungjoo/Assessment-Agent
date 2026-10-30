@@ -39,11 +39,10 @@ describe("E2E: 최근 N일 재수집 row 교체 (REQ-041)", () => {
   const jsonResponse = (body: unknown, status = 200): Response =>
     Response.json(body, { status });
 
-  const yesterday = (): Date =>
-    new Date(startOfKstDay(new Date()).getTime() - DAY_MS);
   const today = (): Date => startOfKstDay(new Date());
   const daysAgo = (days: number): Date =>
     new Date(today().getTime() - days * DAY_MS);
+  const yesterday = (): Date => daysAgo(1);
 
   const commit = (date: Date): unknown => ({
     sha: `sha-${date.getTime()}`,
@@ -104,7 +103,7 @@ describe("E2E: 최근 N일 재수집 row 교체 (REQ-041)", () => {
   async function waitForResult(
     personId: string,
   ): Promise<Record<string, unknown>> {
-    const deadline = Date.now() + 8_000;
+    const deadline = Date.now() + 4_000;
     while (Date.now() < deadline) {
       const status = await request(app.getHttpServer())
         .get(url(personId))
@@ -115,7 +114,7 @@ describe("E2E: 최근 N일 재수집 row 교체 (REQ-041)", () => {
       }
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
-    throw new Error("재수집이 8 초 안에 끝나지 않았다");
+    throw new Error("재수집이 4 초 안에 끝나지 않았다");
   }
 
   const unchanged = async (row: { id: string; narrative: string }) => {
@@ -161,6 +160,7 @@ describe("E2E: 최근 N일 재수집 row 교체 (REQ-041)", () => {
     githubCommits = [];
     llmStatus = 200;
     holdGithub = null;
+    await ctx.prisma.llmProviderConfig.deleteMany();
     process.env.LLM_APIKEY_ENC_KEY = randomBytes(32).toString("base64");
     Object.assign(process.env, GITHUB_ENV, {
       GITHUB_E2EREFRESH_TOKEN_ENC: app
@@ -210,9 +210,7 @@ describe("E2E: 최근 N일 재수집 row 교체 (REQ-041)", () => {
       },
     });
     githubCommits = [commit(new Date(yesterday().getTime() + 1_000))];
-
     const result = await runToEnd(target.id, 1);
-
     expect(result).toMatchObject({
       deletedCount: 1,
       refreshedCount: 1,
@@ -242,15 +240,16 @@ describe("E2E: 최근 N일 재수집 row 교체 (REQ-041)", () => {
     const target = await createPerson("refresh-gap@e2e.test");
     const result = await runToEnd(target.id, 1);
     expect(result).toMatchObject({ deletedCount: 0, refreshedCount: 1 });
-    expect(await ctx.prisma.assessment.count()).toBe(1);
+    const rows = await ctx.prisma.assessment.findMany();
+    expect(rows.map((r) => [r.period, r.periodStart])).toEqual([
+      ["day", yesterday()],
+    ]);
   });
 
   it("식별자가 없으면 이전 row 를 빈 평가로 덮지 않는다_n", async () => {
     const target = await createPerson("refresh-none@e2e.test", 0);
     const row = await seedRow(target.id, yesterday());
-
     const result = await runToEnd(target.id, 1);
-
     expect(result).toMatchObject({ deletedCount: 0, notRefreshedCount: 1 });
     await unchanged(row);
   });
@@ -259,9 +258,7 @@ describe("E2E: 최근 N일 재수집 row 교체 (REQ-041)", () => {
     const target = await createPerson("refresh-down@e2e.test");
     const row = await seedRow(target.id, yesterday());
     githubStatus = 500;
-
     const result = await runToEnd(target.id, 1);
-
     expect(result).toMatchObject({ deletedCount: 0, notRefreshedCount: 1 });
     await unchanged(row);
     expect(await ctx.prisma.assessment.count()).toBe(1);
@@ -272,9 +269,7 @@ describe("E2E: 최근 N일 재수집 row 교체 (REQ-041)", () => {
     const row = await seedRow(target.id, yesterday());
     githubCommits = [commit(new Date(yesterday().getTime() + 1_000))];
     llmStatus = 500;
-
     const result = await runToEnd(target.id, 1);
-
     expect(result).toMatchObject({ deletedCount: 0, notRefreshedCount: 1 });
     await unchanged(row);
   });
@@ -287,14 +282,17 @@ describe("E2E: 최근 N일 재수집 row 교체 (REQ-041)", () => {
       release = resolve;
     });
     githubStatus = 500;
-
-    expect((await post(target.id, 1)).status).toBe(202);
-    const during = await request(app.getHttpServer())
-      .get(url(target.id))
-      .set("Cookie", adminCookie);
-    expect(during.body).toMatchObject({ running: true, result: null });
-    expect((await post(target.id, 1)).status).toBe(409);
+    const [started, during, again] = [
+      await post(target.id, 1),
+      await request(app.getHttpServer())
+        .get(url(target.id))
+        .set("Cookie", adminCookie),
+      await post(target.id, 1),
+    ];
     release();
+    expect(started.status).toBe(202);
+    expect(during.body).toMatchObject({ running: true, result: null });
+    expect(again.status).toBe(409);
     await waitForResult(target.id);
     await unchanged(row);
   });
