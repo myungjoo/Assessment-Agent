@@ -244,7 +244,19 @@ describe("assessCollectionCoverage — 등록 대상 (ADR-0059 §Decision 3)", (
     active: true,
     createdAt: new Date("2026-01-01T00:00:00Z"),
   };
-  const DB_TOKEN = { GITHUB_DB_TOKEN_ENC: "t" };
+  const DB_TOKEN = {
+    GITHUB_DB_TOKEN_ENC: "t",
+    GITHUB_DB_ALLOWED_HOST: "db.example.test",
+  };
+  const CONFLUENCE_DB = {
+    CONFLUENCE_DB_TOKEN_ENC: "t",
+    CONFLUENCE_DB_ALLOWED_HOST: "db.example.test",
+  };
+  const CONFLUENCE_ROW: CollectionTargetRow = {
+    ...ROW,
+    type: "CONFLUENCE",
+    endpoint: "https://db.example.test/rest/api",
+  };
   const OK = { complete: true, unavailableKeys: [] };
   const assess = (
     env: NodeJS.ProcessEnv,
@@ -262,8 +274,8 @@ describe("assessCollectionCoverage — 등록 대상 (ADR-0059 §Decision 3)", (
   });
 
   it("DB Confluence 대상도 쓸 수 있다", () => {
-    const row = { ...ROW, type: "CONFLUENCE", spaces: ["A"] };
-    expect(assess({ CONFLUENCE_DB_TOKEN_ENC: "t" }, [row], "db")).toEqual(OK);
+    const row = { ...CONFLUENCE_ROW, spaces: ["A"] };
+    expect(assess(CONFLUENCE_DB, [row], "db")).toEqual(OK);
   });
 
   it("DB GitHub 대상이 있으면 목록에 없는 key 가 저장을 막지 않는다", () => {
@@ -289,11 +301,12 @@ describe("assessCollectionCoverage — 등록 대상 (ADR-0059 §Decision 3)", (
   });
 
   it("SPACE 0 인 DB Confluence 대상의 식별자는 실패다_n", () => {
-    const row = { ...ROW, type: "CONFLUENCE", spaces: [] };
+    const row = { ...CONFLUENCE_ROW, spaces: [] };
 
-    expect(
-      assess({ ...COM, CONFLUENCE_DB_TOKEN_ENC: "t" }, [row], "com", "db"),
-    ).toEqual({ complete: false, unavailableKeys: ["DB"] });
+    expect(assess({ ...COM, ...CONFLUENCE_DB }, [row], "com", "db")).toEqual({
+      complete: false,
+      unavailableKeys: ["DB"],
+    });
   });
 
   it("비활성 대상의 식별자는 운영자가 제외한 것이므로 다른 대상을 막지 않는다", () => {
@@ -406,14 +419,17 @@ describe("CollectionSpecService.buildCollectionSpecWithCoverage", () => {
   const WIKI_ROW: CollectionTargetRow = {
     type: "CONFLUENCE",
     instanceKey: "wiki",
-    endpoint: "http://w",
+    endpoint: "https://w",
     orgs: [],
     repos: [],
     spaces: ["A"],
     active: true,
     createdAt: new Date("2026-01-01T00:00:00Z"),
   };
-  const WIKI_TOKEN = { CONFLUENCE_WIKI_TOKEN_ENC: "t" };
+  const WIKI_TOKEN = {
+    CONFLUENCE_WIKI_TOKEN_ENC: "t",
+    CONFLUENCE_WIKI_ALLOWED_HOST: "w",
+  };
   const WIKI_PERSON = { serviceIdentities: identities("wiki") };
 
   it("DB 에만 있는 Confluence 대상도 spec 과 판정에 들어간다", async () => {
@@ -463,7 +479,7 @@ describe("CollectionSpecService.buildCollectionSpecWithCoverage", () => {
 
   it("spec 과 판정은 한 번 읽은 같은 row 를 본다", async () => {
     const row = { ...WIKI_ROW, type: "GITHUB", repos: ["o/r"], spaces: [] };
-    const env = { GITHUB_WIKI_TOKEN_ENC: "t" };
+    const env = { GITHUB_WIKI_TOKEN_ENC: "t", GITHUB_WIKI_ALLOWED_HOST: "w" };
     const findAll = jest
       .fn()
       .mockResolvedValueOnce([])

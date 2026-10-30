@@ -396,7 +396,10 @@ describe("GithubInstanceClient — 등록 대상 key 해석 (ADR-0059 §Decision
     active: true,
     createdAt: new Date("2026-01-01T00:00:00Z"),
   };
-  const DB_ENV = { GITHUB_DB_TOKEN_ENC: FAKE_TOKEN_ENC };
+  const DB_ENV = {
+    GITHUB_DB_TOKEN_ENC: FAKE_TOKEN_ENC,
+    GITHUB_DB_ALLOWED_HOST: "db.example.test",
+  };
 
   function make(env: NodeJS.ProcessEnv, rows: CollectionTargetRow[]) {
     const adapter = makeAdapterMock();
