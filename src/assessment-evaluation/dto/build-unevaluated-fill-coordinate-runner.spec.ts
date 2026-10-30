@@ -72,7 +72,7 @@ describe("buildUnevaluatedFillCoordinateRunner", () => {
       expect(typeof runner).toBe("function");
     });
 
-    it("(b) thunk 를 await 하면 persist 가 (person, { since: periodStart }, options, context, reevaluate) 로 1 회 호출되고 resolve 값을 그대로 반환한다", async () => {
+    it("(b) thunk 를 await 하면 persist 가 (person, { since: periodStart, until: 기간 끝 }, options, context, reevaluate) 로 1 회 호출되고 resolve 값을 그대로 반환한다", async () => {
       const bridge = makeBridge({
         periodStart: "2026-06-10T00:00:00+09:00",
         reevaluate: true,
@@ -93,7 +93,10 @@ describe("buildUnevaluatedFillCoordinateRunner", () => {
       expect(persist).toHaveBeenCalledTimes(1);
       expect(persist).toHaveBeenCalledWith(
         person,
-        { since: "2026-06-10T00:00:00+09:00" },
+        {
+          since: "2026-06-10T00:00:00+09:00",
+          until: "2026-06-14T15:00:00.000Z",
+        },
         options,
         toEvaluationPersistContext(bridge),
         true,
@@ -160,9 +163,48 @@ describe("buildUnevaluatedFillCoordinateRunner", () => {
       );
       await runner();
 
-      expect(persist.mock.calls[0][1]).toEqual({
+      expect(persist.mock.calls[0][1]).toMatchObject({
         since: "2026-01-15T00:00:00Z",
       });
+    });
+
+    it.each([
+      ["day", "2026-06-10T00:00:00+09:00", "2026-06-10T15:00:00.000Z"],
+      ["week", "2026-06-08T00:00:00+09:00", "2026-06-14T15:00:00.000Z"],
+      ["month", "2026-06-01T00:00:00+09:00", "2026-06-30T15:00:00.000Z"],
+      // 기간 중간 시각도 그 기간의 끝을 쓴다.
+      ["day", "2026-06-10T13:30:00+09:00", "2026-06-10T15:00:00.000Z"],
+    ])(
+      "period.until 은 %s 기간의 KST exclusive 끝이다",
+      async (period, periodStart, until) => {
+        const persist = makePersistMock();
+
+        await buildUnevaluatedFillCoordinateRunner(
+          makeBridge({ period, periodStart }),
+          makePerson(),
+          makeOptions(),
+          persist,
+        )();
+
+        expect(persist.mock.calls[0][1]).toEqual({
+          since: periodStart,
+          until,
+        });
+      },
+    );
+
+    it("미지원 period 는 persist 호출 없이 reject 된다_n", async () => {
+      const persist = makePersistMock();
+
+      await expect(
+        buildUnevaluatedFillCoordinateRunner(
+          makeBridge({ period: "quarter" }),
+          makePerson(),
+          makeOptions(),
+          persist,
+        )(),
+      ).rejects.toThrow(RangeError);
+      expect(persist).not.toHaveBeenCalled();
     });
   });
 
@@ -488,7 +530,7 @@ describe("buildUnevaluatedFillCoordinateRunner", () => {
       await runner();
 
       // since 가 좌표 periodStart 와 정확히 일치해야 한다 — 어긋나면 이 단언이 fail.
-      expect(persist.mock.calls[0][1]).toEqual({
+      expect(persist.mock.calls[0][1]).toMatchObject({
         since: bridge.periodStart,
       });
     });

@@ -9,15 +9,14 @@
 //
 // 책임:
 //   좌표 1 개(`PeriodBridgeDto`) + 이미 resolved 된 person(`PeriodBridgePersonInput`) +
-//   scoring 옵션(`ScoringOptions`) + `generateAndPersist`-shape callable(`persist`)을 받아,
-//   `PeriodBridgeAdminPersistService.generateAndPersist(person, period, options, context,
+//   scoring 옵션(`ScoringOptions`) + `generateAndPersistIfCollected`-shape callable(`persist`)을 받아,
+//   `PeriodBridgeAdminPersistService.generateAndPersistIfCollected(person, period, options, context,
 //   reevaluate)` 의 5 인자를 좌표에서 결정적으로 도출해 그 호출을 캡슐화한 **runner
 //   thunk**(`UnevaluatedFillCoordinateRunner`, T-0558 정의 재사용 — 새 타입 발명 0)를
 //   반환하는 dependency-free 순수 factory.
 //     - `context` 인자: T-0556 `toEvaluationPersistContext(bridge)` 에 **위임**(좌표 →
 //       `EvaluationPersistContext`, periodStart string→Date + Invalid Date 거부 — 재구현 0).
-//     - `period.since` 인자: `bridge.periodStart` 를 echo(도출/변형 0 — Admin service 가
-//       since 를 pass-through 하므로 좌표 시작 시각을 그대로 넘긴다).
+//     - `period` 인자: `since` 는 `bridge.periodStart` echo, `until` 은 그 기간의 끝.
 //     - `reevaluate` 인자: `bridge.reevaluate` 를 그대로 전달(undefined 면 undefined —
 //       Admin service 가 default false 로 처리).
 //     - `person` / `options` 인자: 호출자가 넘긴 값을 thunk 로 pass-through.
@@ -36,9 +35,9 @@
 // build-time dependency-free 보장:
 //   본 factory 는 `@Injectable` 이 아니며 `PeriodBridgeAdminPersistService` 인스턴스를
 //   import 하지 않는다. 영속 호출을 callable 인자(`GenerateAndPersistFn` — service 의
-//   `generateAndPersist` 시그니처 재사용)로 받으므로 service DI / person 해석(DB) / module
+//   `generateAndPersistIfCollected` 시그니처 재사용)로 받으므로 service DI / person 해석(DB) / module
 //   등록은 전부 호출자 책임으로 남고, 본 factory 의 빌드/unit 은 mock callable 로 완결된다
-//   — `generateAndPersist` 가 내부적으로 LLM/DB 를 쓰더라도 본 factory 의 unit test 는
+//   — `generateAndPersistIfCollected` 가 내부적으로 LLM/DB 를 쓰더라도 본 factory 의 unit test 는
 //   mock callable 을 호출하므로 LLM 네트워크 0 이다(live-LLM standing 게이트 ADR-0045 무관).
 //
 // 패턴 mirror: run-unevaluated-fill-coordinate.ts / period-bridge-to-persist-context
@@ -47,6 +46,7 @@
 // NestJS/Prisma/LLM/class-validator/repository import 0 — 타입들만 `import type`,
 // `toEvaluationPersistContext` 만 value import. 새 외부 dependency 0.
 
+import { getKstPeriodRangeByPeriod } from "../../common/period-boundary";
 import type { EvaluationPersistContext } from "../domain/evaluation-result.persist.mapper";
 import type { ScoringOptions } from "../evaluation-scoring.service";
 import type { PeriodBridgeAdminPersistResult } from "../period-bridge-admin-persist.service";
@@ -64,7 +64,7 @@ import type { UnevaluatedFillCoordinateRunner } from "./run-unevaluated-fill-coo
  */
 export type GenerateAndPersistFn = (
   person: PeriodBridgePersonInput,
-  period: { since: string; until?: string },
+  period: { since: string; until: string },
   options: ScoringOptions,
   context: EvaluationPersistContext,
   reevaluate?: boolean,
@@ -72,14 +72,15 @@ export type GenerateAndPersistFn = (
 
 /**
  * 좌표 1 개(`PeriodBridgeDto`) + resolved person + scoring 옵션 + 영속 callable 을 받아,
- * `generateAndPersist` 의 5 인자를 좌표에서 결정적으로 도출·바인딩한 **runner thunk**
+ * `generateAndPersistIfCollected` 의 5 인자를 좌표에서 결정적으로 도출·바인딩한 **runner thunk**
  * (`UnevaluatedFillCoordinateRunner`, T-0558 정의 재사용)를 조립해 반환하는 순수 factory
  * (P5 bullet 106 / R-64 / REQ-037 run-side 사슬 조각, Q-0045 옵션1).
  *
  * 인자 도출 규칙(반환 thunk 가 await 될 때 적용):
  *   - `person`   : 호출자가 넘긴 값 그대로 pass-through.
- *   - `period`   : `{ since: bridge.periodStart }` — 좌표 시작 시각을 since 로 echo(도출/
- *     변형 0). Admin service 가 since 를 pass-through 하므로 좌표 값을 그대로 넘긴다.
+ *   - `period`   : `since` 는 `bridge.periodStart` echo, `until` 은 그 기간의 exclusive 끝
+ *     (`getKstPeriodRangeByPeriod`). 끝이 없으면 기간 뒤 활동이 좌표에 영속된다. 미지원
+ *     period 의 `RangeError` 도 thunk 실행 시점에 reject 된다.
  *   - `options`  : 호출자가 넘긴 값 그대로 pass-through(modelId 결정은 호출자 책임).
  *   - `context`  : `toEvaluationPersistContext(bridge)`(T-0556) 위임 — periodStart
  *     string→Date 변환 + Invalid Date 거부. 재구현 0.
@@ -107,11 +108,11 @@ export type GenerateAndPersistFn = (
  * @param bridge 실행 대상 좌표 1 개. 변형하지 않는다. null/undefined 시 한국어 `TypeError`.
  * @param person 이미 resolved 된 person 입력(serviceIdentities). thunk 로 pass-through.
  * @param options scoring 옵션(modelId). thunk 로 pass-through.
- * @param persist 호출자가 바인딩한 `generateAndPersist`-shape callable. 비-function 시
+ * @param persist 호출자가 바인딩한 `generateAndPersistIfCollected`-shape callable. 비-function 시
  *   한국어 `TypeError`. factory 는 호출하지 않고 thunk 안에 캡슐화만 한다.
- * @returns `UnevaluatedFillCoordinateRunner` — await 시 `persist(person, { since:
- *   bridge.periodStart }, options, toEvaluationPersistContext(bridge), bridge.reevaluate)`
- *   를 호출해 그 `Promise<PeriodBridgeAdminPersistResult>` 를 반환하는 thunk.
+ * @returns `UnevaluatedFillCoordinateRunner` — await 시 `persist(person, { since, until },
+ *   options, toEvaluationPersistContext(bridge), bridge.reevaluate)` 를 호출해 그 결과를
+ *   반환하는 thunk.
  * @throws {TypeError} `bridge` 가 null/undefined 이거나 `persist` 가 비-function 일 때
  *   (한국어 메시지, factory 조립 시점). Invalid periodStart 는 thunk 실행 시점에 reject.
  */
@@ -143,12 +144,18 @@ export function buildUnevaluatedFillCoordinateRunner(
   // throw 가 아니라 **reject** 로 전파되도록 한다 — T-0558 helper 가 `await runner()` 의
   // reject 를 try/catch 로 잡아 failed outcome 으로 흡수할 수 있게(좌표 배열 순회 자체는
   // 중단되지 않음, REQ-037 부분 실패 흡수). factory 조립 시점에는 throw 되지 않는다(lazy).
-  return async () =>
-    persist(
+  return async () => {
+    const context = toEvaluationPersistContext(bridge);
+    const { end } = getKstPeriodRangeByPeriod(
+      context.period,
+      context.periodStart,
+    );
+    return persist(
       person,
-      { since: bridge.periodStart },
+      { since: bridge.periodStart, until: end.toISOString() },
       options,
-      toEvaluationPersistContext(bridge),
+      context,
       bridge.reevaluate,
     );
+  };
 }

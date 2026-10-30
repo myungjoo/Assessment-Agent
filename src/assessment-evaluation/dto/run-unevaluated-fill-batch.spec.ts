@@ -143,14 +143,18 @@ describe("runUnevaluatedFillBatch — 좌표 배열 순수 loop driver", () => {
       expect(resolvePerson).toHaveBeenCalledTimes(2);
       expect(resolvePerson).toHaveBeenNthCalledWith(1, bridges[0]);
       expect(resolvePerson).toHaveBeenNthCalledWith(2, bridges[1]);
-      // persist — 좌표마다 5 인자(person, { since }, options, context, reevaluate).
+      // persist — 좌표마다 5 인자(person, { since, until }, options, context, reevaluate).
       expect(persist).toHaveBeenCalledTimes(2);
       const firstCall = persist.mock.calls[0];
-      expect(firstCall[1]).toEqual({ since: "2026-06-01T00:00:00+09:00" });
+      expect(firstCall[1]).toMatchObject({
+        since: "2026-06-01T00:00:00+09:00",
+      });
       expect(firstCall[2]).toEqual({ modelId: "model-x" });
       expect(firstCall[4]).toBeUndefined();
       const secondCall = persist.mock.calls[1];
-      expect(secondCall[1]).toEqual({ since: "2026-06-08T00:00:00+09:00" });
+      expect(secondCall[1]).toMatchObject({
+        since: "2026-06-08T00:00:00+09:00",
+      });
       expect(secondCall[4]).toBe(true);
     });
 
