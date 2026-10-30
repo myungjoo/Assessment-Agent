@@ -1,13 +1,5 @@
-// REQ-041 (R-74) Admin 재평가(최근 N일 delete→재수집) 트리거 패널 — Admin 패널
-// (인원·그룹·재평가·import/export·스케줄) 의 "재평가" building block (ADR-0040 §1).
-// backend 의 재수집/N일 delete API 는 별도 phase(P7)에서 완결될 예정이라, 본 컴포넌트는
-// 그 위에 올라가는 순수 presentational controlled component 다 — 선택 가능한 N일 window
-// 목록·선택값·진행 상태·에러를 props 로만 받아 렌더하고, 트리거 버튼 클릭 시 콜백만
-// 호출한다. 실제 /api/* fetch·재수집/삭제 요청·낙관적 업데이트·전역 상태·라우팅 배선·
-// confirm 모달 흐름은 후속 container slice 책임 (Out of Scope). 직전 6개 P6 컴포넌트
-// (EvaluationGuardBanner, LoginForm, EvaluationResultTable, DifficultyModelSelector,
-// SuperAdminSetupForm, GroupMemberList) 와 동일한 props/분기/named·default export
-// convention 을 차용한다.
+// REQ-041 (R-74) Admin 최근 N일 재수집 패널 (ADR-0040 §1). controlled presentational 컴포넌트라
+// window · 진행 · 오류 · 결과를 props 로만 받고 콜백만 호출한다. 요청은 상위 컨테이너가 수행한다.
 
 // N일 재수집 window 옵션 — 선택 가능한 기간 단위(예: 최근 1일/1주/30일).
 interface ReEvaluationWindow {
@@ -21,11 +13,21 @@ interface ReEvaluationWindow {
 const SUBMITTING_TEXT = '재수집 진행 중…';
 // windows 가 빈 배열일 때 노출할 기본 한국어 문구 — 선택할 window 가 없어 트리거 불가.
 const EMPTY_WINDOWS_TEXT = '선택 가능한 재수집 기간이 없습니다';
-// 파괴적(delete→재수집) 동작 경고의 기본 한국어 문구 (confirmText 미전달/빈 문자열 시 fallback).
+// 파괴적 동작 경고의 기본 한국어 문구 (confirmText 미전달/빈 문자열 시 fallback).
 const DEFAULT_CONFIRM_TEXT =
-  '주의: 선택한 기간의 기존 결과를 삭제한 뒤 재수집합니다. 되돌릴 수 없습니다.';
+  '주의: 선택한 기간(어제까지)의 저장 결과를 다시 수집·평가해 교체합니다. 교체된 이전 결과는 되돌릴 수 없습니다. 수집이나 평가에 실패한 기간의 결과는 그대로 남고, 아직 끝나지 않은 오늘은 제외합니다.';
+const ABORTED_TEXT =
+  '실행이 끝까지 진행되지 못했습니다. 처리하지 못한 기간의 이전 결과는 그대로이니 다시 시도해 주세요.';
 // 재수집 트리거 버튼 라벨.
 const TRIGGER_LABEL = '재수집 시작';
+
+// 서버가 돌려준 끝난 재수집의 실제 결과 (GET /api/schedules/recent-deletion/:personId).
+interface RecentRefreshResult {
+  deletedCount: number;
+  refreshedCount: number;
+  notRefreshedCount: number;
+  aborted: boolean;
+}
 
 interface ReEvaluationTriggerPanelProps {
   // 선택 가능한 N일 window 목록 — controlled component 라 상위가 보유한다(빈 배열이면 빈 상태).
@@ -38,8 +40,12 @@ interface ReEvaluationTriggerPanelProps {
   onTrigger: (days: number) => void;
   // 재수집 진행 중 플래그 — true 면 windows·error 유무와 무관하게 진행 표시 우선(submitting 우선 정책).
   submitting?: boolean;
-  // 에러 문구(선택) — submitting 이 아니고 truthy 면 role="alert" 영역에 렌더, 없으면 미렌더.
+  // 에러 문구(선택) — truthy 면 role="alert" 로 알리고, 재시도할 수 있게 선택 UI 도 함께 렌더한다.
   error?: string;
+  // 마지막 실행 결과(선택) — 삭제 · 저장 · 미교체 건수를 표시한다.
+  result?: RecentRefreshResult;
+  // true 면 트리거 버튼을 비활성화한다(예: 인원 미선택).
+  triggerDisabled?: boolean;
   // 파괴적 동작 경고 문구(선택). 빈 문자열이면 기본 문구로 fallback(빈 경고 방지).
   confirmText?: string;
 }
@@ -54,6 +60,8 @@ function ReEvaluationTriggerPanel({
   onTrigger,
   submitting,
   error,
+  result,
+  triggerDisabled,
   confirmText,
 }: ReEvaluationTriggerPanelProps) {
   // submitting 우선 정책 — 진행 중이면 error·windows 유무와 무관하게 진행 표시만 렌더한다.
@@ -61,16 +69,16 @@ function ReEvaluationTriggerPanel({
     return <div role="status">{SUBMITTING_TEXT}</div>;
   }
 
-  // 에러 분기 — submitting 이 아니고 error 가 truthy 면 선택 UI 대신 alert 영역만 렌더한다.
-  // (빈 문자열 error 는 falsy 라 본 분기로 진입하지 않는다 — 경계값.)
-  if (error) {
-    return <div role="alert">{error}</div>;
-  }
+  const errorAlert = error ? <div role="alert">{error}</div> : null;
 
   // 빈 목록 분기 — 선택할 window 가 없으므로 트리거 폼 대신 빈 상태 메시지를 렌더한다.
-  // (의미 없는 빈 트리거 방지 — 트리거 버튼 자체를 렌더하지 않는다.)
   if (windows.length === 0) {
-    return <div role="status">{EMPTY_WINDOWS_TEXT}</div>;
+    return (
+      <div>
+        {errorAlert}
+        <div role="status">{EMPTY_WINDOWS_TEXT}</div>
+      </div>
+    );
   }
 
   // 경고 문구 — confirmText 미전달/빈 문자열이면 기본 문구로 fallback(빈 경고 방지 정책).
@@ -90,6 +98,16 @@ function ReEvaluationTriggerPanel({
 
   return (
     <div>
+      {errorAlert}
+      {result ? (
+        <div role="status">
+          <p>
+            이전 결과 삭제 {result.deletedCount}건 · 새로 저장 {result.refreshedCount}건 · 갱신 안 됨{' '}
+            {result.notRefreshedCount}건
+          </p>
+          {result.aborted ? <p>{ABORTED_TEXT}</p> : null}
+        </div>
+      ) : null}
       {/* 파괴적 동작 경고 — 항상 표시해 사용자가 delete→재수집 임을 인지하게 한다. */}
       <p>{warning}</p>
 
@@ -114,7 +132,7 @@ function ReEvaluationTriggerPanel({
       {/* 트리거 버튼 — 진행 중이 아닐 때만 도달하며, 유효 선택이 없으면 비활성화한다. */}
       <button
         type="button"
-        disabled={!hasSelection}
+        disabled={!hasSelection || triggerDisabled === true}
         onClick={() => onTrigger(selectedDays)}
       >
         {TRIGGER_LABEL}
@@ -123,5 +141,5 @@ function ReEvaluationTriggerPanel({
   );
 }
 
-export type { ReEvaluationWindow, ReEvaluationTriggerPanelProps };
+export type { ReEvaluationWindow, ReEvaluationTriggerPanelProps, RecentRefreshResult };
 export default ReEvaluationTriggerPanel;
