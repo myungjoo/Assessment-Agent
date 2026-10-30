@@ -2,7 +2,11 @@
 id: T-2066
 title: 등록 수집 대상 허용 host ② — 수집 경로 배선
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-10-30
+mergedAs: a591af77
+prNumber: 1627
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-037, REQ-072]
 estimatedDiff: 270
