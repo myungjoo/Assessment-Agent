@@ -35,7 +35,8 @@
 
 // UnevaluatedFillRunStatus — per-좌표 일괄 평가 실행 결과의 결정적 status union.
 //   `"evaluated"` : 좌표를 실제로 평가해 평가문을 생성·영속했다.
-//   `"skipped"`   : 평가하지 않고 건너뛰었다(예: first-write-wins 로 이미 존재).
+//   `"skipped"`   : 평가하지 않고 건너뛰었다(first-write-wins 로 이미 존재, 또는 수집 불완전 —
+//                   후자는 `reason` 이 `collection-incomplete` 다).
 //   `"failed"`    : 평가 시도가 실패했다(예: 수집 0 / LLM 오류).
 export type UnevaluatedFillRunStatus = "evaluated" | "skipped" | "failed";
 
