@@ -8,9 +8,13 @@
 // 주입받는다(중복 forRoot 는 registry 중복 인스턴스 risk). 본 module 의 AppModule
 // import 배선(런타임 활성화)은 5 파일 cap 보호 위해 별도 micro-task 로 분리한다
 // (T-0414 §Out of Scope — AppModule import).
-import { Logger, Module } from "@nestjs/common";
+import { Module } from "@nestjs/common";
 
 import { AssessmentCollectionModule } from "../assessment-collection/assessment-collection.module";
+import { AssessmentEvaluationModule } from "../assessment-evaluation/assessment-evaluation.module";
+import { LlmModule } from "../llm/llm.module";
+import { RunStatusModule } from "../run-status/run-status.module";
+import { UserModule } from "../user/user.module";
 
 import { AssessmentBackfillChecker } from "./assessment-backfill-checker.service";
 import {
@@ -22,34 +26,34 @@ import {
   CRON_TICK_HANDLER,
   CronScheduleController,
 } from "./cron-schedule.controller";
+import { CronScheduleService } from "./cron-schedule.service";
 import {
-  CronScheduleService,
-  type CronTickHandler,
-} from "./cron-schedule.service";
+  createCronTickHandler,
+  EvaluationTickRunnerService,
+} from "./evaluation-tick-runner.service";
 import { RecentDeletionRunnerService } from "./recent-deletion-runner.service";
 import { RecentDeletionController } from "./recent-deletion.controller";
 
-// 기본 tick handler provider — 실 평가 pipeline 결선은 Out of Scope(④/⑤ 후속 task)
-// 이므로 발화 시점만 logging 하는 no-op stub 을 바인딩한다. ④ manual trigger 가
-// 실 핸들러를 주입(override)할 수 있도록 token 기반 provider 로 분리한다.
-const defaultCronTickHandlerProvider = {
+// cron tick · manual trigger 공용 handler (기다리지 않음 — createCronTickHandler 참조).
+const cronTickHandlerProvider = {
   provide: CRON_TICK_HANDLER,
-  useFactory: (): CronTickHandler => {
-    const logger = new Logger("CronTickHandler");
-    return (): void => {
-      logger.log(
-        "cron tick 발화 — 실 평가 pipeline 미결선(stub, Out of Scope)",
-      );
-    };
-  },
+  useFactory: createCronTickHandler,
+  inject: [EvaluationTickRunnerService],
 };
 
 @Module({
   // AssessmentCollectionModule import — BackfillRunnerService 의 생성자 의존
   // CollectionTriggerService 를 DI 로 resolve 한다(해당 module 이 export, T-0419).
-  // scheduling → collection 단방향(collection 은 scheduling 미참조)이라 forwardRef 불요.
+  // Evaluation · User · Llm · RunStatus 는 EvaluationTickRunnerService 의 의존이다.
+  // 모두 scheduling 을 참조하지 않는 단방향이라 forwardRef 불요.
   // ScheduleModule.forRoot()(전역, app.module.ts)는 그대로 재import 하지 않는다.
-  imports: [AssessmentCollectionModule],
+  imports: [
+    AssessmentCollectionModule,
+    AssessmentEvaluationModule,
+    UserModule,
+    LlmModule,
+    RunStatusModule,
+  ],
   // BackfillController(T-0421, P7 ⑤ slice 2 후속 b) — manual backfill REST 진입점.
   // 이미 providers/exports 에 있는 BackfillRunnerService 를 inject 받아 runBackfill 을
   // 호출한다(새 provider 0 — controller 등록만). cron endpoint 와 별도 controller 로
@@ -69,7 +73,8 @@ const defaultCronTickHandlerProvider = {
   // (AssessmentBackfilledChecker)로 바인딩 — 미주입(기본 false) 대신 실 판정을 resolve.
   providers: [
     CronScheduleService,
-    defaultCronTickHandlerProvider,
+    EvaluationTickRunnerService,
+    cronTickHandlerProvider,
     BackfillRunnerService,
     // AssessmentBackfillChecker(T-0420, P7 ⑤ slice 2 후속 a-1) — SinceDerivationService
     // (AssessmentCollectionModule export, 이미 import)를 주입받아 "직전 Assessment 존재

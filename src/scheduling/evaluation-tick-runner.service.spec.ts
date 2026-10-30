@@ -1,6 +1,9 @@
 import { Logger } from "@nestjs/common";
 
-import { EvaluationTickRunnerService } from "./evaluation-tick-runner.service";
+import {
+  createCronTickHandler,
+  EvaluationTickRunnerService,
+} from "./evaluation-tick-runner.service";
 
 const utc = (monthDay: string) => new Date(`2026-${monthDay}T15:00:00.000Z`);
 const NOW = new Date("2026-10-30T03:00:00Z"); // KST 2026-10-30(금) 12:00
@@ -17,12 +20,14 @@ function setup() {
     resolver: { resolveDefaultModelId: jest.fn().mockResolvedValue("m") },
     persons: {
       findActive: jest.fn().mockResolvedValue([{ id: "p1" }, { id: "p2" }]),
-      findByIdWithIdentities: jest.fn().mockResolvedValue({ id: "person" }),
+      findByIdWithIdentities: jest
+        .fn()
+        .mockResolvedValue({ id: "person", serviceIdentities: [{}] }),
     },
     planner: {
       planUnevaluatedFill: jest.fn().mockResolvedValue({ batches: [] }),
     },
-    persist: { generateAndPersist: jest.fn().mockResolvedValue({}) },
+    persist: { generateAndPersistIfCollected: jest.fn().mockResolvedValue({}) },
     status: { begin: jest.fn(), end: jest.fn() },
   };
   const runner = new EvaluationTickRunnerService(
@@ -44,9 +49,9 @@ describe("EvaluationTickRunnerService", () => {
   let log: jest.SpyInstance;
   let warn: jest.SpyInstance;
   let error: jest.SpyInstance;
-  const summary = (e: number, f: number): void =>
+  const summary = (e: number, f: number, s = 0): void =>
     expect(log).toHaveBeenCalledWith(
-      `평가 실행 완료: evaluated=${e} failed=${f}`,
+      `평가 실행 완료: evaluated=${e} skipped=${s} failed=${f}`,
     );
 
   beforeEach(() => {
@@ -66,7 +71,7 @@ describe("EvaluationTickRunnerService", () => {
     const coordinates = [gap(DAY), gap(WEEK, "week"), gap(MONTH, "month")];
     coordinates.forEach((coordinate) => planOnce("p1", coordinate));
     await runner.run();
-    const calls = persist.generateAndPersist.mock.calls;
+    const calls = persist.generateAndPersistIfCollected.mock.calls;
     expect(calls.map(([, period]) => period)).toEqual([
       { since: DAY.toJSON(), until: utc("10-23").toJSON() },
       { since: WEEK.toJSON(), until: utc("10-25").toJSON() },
@@ -124,9 +129,9 @@ describe("EvaluationTickRunnerService", () => {
   it("좌표 실패는 나머지 좌표를 막지 않고 집계된다_n", async () => {
     const { runner, planOnce, persist } = setup();
     planOnce("p1", gap(DAY), gap(utc("10-23")));
-    persist.generateAndPersist.mockRejectedValueOnce("llm down");
+    persist.generateAndPersistIfCollected.mockRejectedValueOnce("llm down");
     await runner.run();
-    expect(persist.generateAndPersist).toHaveBeenCalledTimes(2);
+    expect(persist.generateAndPersistIfCollected).toHaveBeenCalledTimes(2);
     expect(error).toHaveBeenCalledWith(expect.stringContaining("llm down"));
     summary(1, 1);
   });
@@ -143,7 +148,68 @@ describe("EvaluationTickRunnerService", () => {
       });
     persons.findByIdWithIdentities.mockRejectedValueOnce(new Error("gone"));
     await expect(runner.run()).resolves.toBeUndefined();
-    expect(persist.generateAndPersist).toHaveBeenCalledTimes(1);
+    expect(persist.generateAndPersistIfCollected).toHaveBeenCalledTimes(1);
     summary(1, 3);
+  });
+
+  it("service identity 가 없는 인원은 수집 없이 건너뛴다_n", async () => {
+    const { runner, planOnce, persons, persist } = setup();
+    planOnce("p1", gap(DAY));
+    persons.findByIdWithIdentities.mockResolvedValue({ serviceIdentities: [] });
+    await runner.run();
+    expect(persist.generateAndPersistIfCollected).not.toHaveBeenCalled();
+    summary(0, 0, 1);
+  });
+
+  it("수집 불가(null) 좌표는 평가가 아닌 건너뜀으로 집계된다_n", async () => {
+    const { runner, planOnce, persist } = setup();
+    planOnce("p1", gap(DAY), gap(utc("10-23")));
+    persist.generateAndPersistIfCollected.mockResolvedValueOnce(null);
+    await runner.run();
+    summary(1, 0, 1);
+  });
+
+  it("종료 hook 은 진행 중 좌표를 기다리고 남은 좌표에 진입하지 않는다", async () => {
+    const { runner, planOnce, persist } = setup();
+    planOnce("p1", gap(DAY), gap(utc("10-23")));
+    let release: (value: unknown) => void = () => undefined;
+    persist.generateAndPersistIfCollected.mockReturnValueOnce(
+      new Promise((resolve) => (release = resolve)),
+    );
+    const running = runner.run();
+    await new Promise((resolve) => setImmediate(resolve));
+    let destroyedDone = false;
+    const destroyed = runner.onModuleDestroy().then(() => {
+      destroyedDone = true;
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(destroyedDone).toBe(false);
+    release({});
+    await Promise.all([running, destroyed]);
+    expect(persist.generateAndPersistIfCollected).toHaveBeenCalledTimes(1);
+  });
+
+  it("종료 중에는 새 tick 과 남은 인원을 시작하지 않는다_n", async () => {
+    const { runner, planner, persons, persist } = setup();
+    planner.planUnevaluatedFill.mockResolvedValueOnce({
+      batches: [
+        { personId: "p1", periods: [gap(DAY)] },
+        { personId: "p2", periods: [gap(DAY, "day", "p2")] },
+      ],
+    });
+    persist.generateAndPersistIfCollected.mockImplementationOnce(() => {
+      void runner.onModuleDestroy();
+      return Promise.resolve({});
+    });
+    await runner.run();
+    await runner.run();
+    expect(persons.findByIdWithIdentities).toHaveBeenCalledTimes(1);
+    expect(persons.findActive).toHaveBeenCalledTimes(1);
+  });
+
+  it("tick handler 는 실행을 기다리지 않고 undefined 를 반환한다", () => {
+    const run = jest.fn(() => new Promise<void>(() => undefined));
+    expect(createCronTickHandler({ run })()).toBeUndefined();
+    expect(run).toHaveBeenCalledTimes(1);
   });
 });
