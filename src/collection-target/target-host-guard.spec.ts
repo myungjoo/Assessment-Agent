@@ -142,6 +142,10 @@ describe("checkConfluenceEndpoint", () => {
       "https://allowed.test/wiki/rest/api",
     ],
     ["https://allowed.test", "https://allowed.test"],
+    // 파서가 같은 host 로 정규화하는 표기.
+    ["https:allowed.test/x", "https://allowed.test/x"],
+    ["https://@allowed.test/x", "https://allowed.test/x"],
+    ["https://allowed.test/x?", "https://allowed.test/x"],
   ])("%j 는 정규화한 URL 로 통과한다", (endpoint, expected) => {
     expect(confluence(endpoint)).toEqual({ ok: true, endpoint: expected });
   });
