@@ -2,7 +2,11 @@
 id: T-2067
 title: 등록 수집 대상 허용 host ③ — 실 경로 e2e
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-10-30
+mergedAs: 8bc6d1fa
+prNumber: 1628
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-037, REQ-072]
 estimatedDiff: 270
