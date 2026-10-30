@@ -146,7 +146,11 @@ export class RecentDeletionRunnerService implements OnModuleDestroy {
   ): Promise<RecentRefreshStatus> {
     buildClosedDaysWindow(new Date(), days);
     const person = await this.persons.findByIdWithIdentities(personId);
-    if (this.current !== null || this.runStatus.snapshot().evaluation.active) {
+    if (
+      this.stopping ||
+      this.current !== null ||
+      this.runStatus.snapshot().evaluation.active
+    ) {
       throw new ConflictException(
         "다른 평가 실행이 진행 중입니다. 끝난 뒤 다시 시도해 주세요.",
       );
