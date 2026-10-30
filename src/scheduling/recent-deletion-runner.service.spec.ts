@@ -30,12 +30,12 @@ describe("RecentDeletionRunnerService — 최근 N일 재수집", () => {
   function setup(rows: unknown[] = []) {
     const runStatus = new RunStatusService();
     const persist = jest.fn().mockResolvedValue({ created: true });
-    const resolve = jest.fn().mockResolvedValue("model-1");
+    const resolve = jest.fn().mockResolvedValue("config-1");
     const findPerson = jest.fn().mockResolvedValue(person);
     const read = jest.fn().mockResolvedValue(rows);
     const service = new RecentDeletionRunnerService(
       {
-        resolveDefaultModelId: resolve,
+        resolveDefaultConfigId: resolve,
       } as unknown as LlmProviderConfigResolver,
       { findByIdWithIdentities: findPerson } as unknown as PersonService,
       { readForPersons: read } as unknown as EvaluationPersistedRecordsReader,
@@ -53,7 +53,7 @@ describe("RecentDeletionRunnerService — 최근 N일 재수집", () => {
       let release = (): void => undefined;
       resolve.mockReturnValueOnce(
         new Promise((done) => {
-          release = () => done("model-1");
+          release = () => done("config-1");
         }),
       );
       return () => release();
@@ -102,7 +102,7 @@ describe("RecentDeletionRunnerService — 최근 N일 재수집", () => {
     expect(persist).toHaveBeenCalledWith(
       person,
       { since: YESTERDAY.toISOString(), until: TODAY.toISOString() },
-      { modelId: "model-1" },
+      { modelId: "config-1" },
       {
         personId: "p1",
         period: "day",

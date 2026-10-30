@@ -68,6 +68,50 @@ function buildResolver(): {
 }
 
 describe("LlmProviderConfigResolver", () => {
+  describe("resolveDefaultConfigId()", () => {
+    it("슬롯이 가리키는 config 의 id 를 반환한다", async () => {
+      const { resolver, repo, defaultRepo } = buildResolver();
+      defaultRepo.findSlot.mockResolvedValue(buildSlotFixture("cfg-slot"));
+      repo.findById.mockResolvedValue(
+        buildConfigFixture({ id: "cfg-slot", modelId: "gpt-x" }),
+      );
+
+      await expect(resolver.resolveDefaultConfigId()).resolves.toBe("cfg-slot");
+    });
+
+    it("슬롯이 없고 row 가 1 개면 그 row 의 id 를 반환한다", async () => {
+      const { resolver, repo, defaultRepo } = buildResolver();
+      defaultRepo.findSlot.mockResolvedValue(null);
+      repo.findMany.mockResolvedValue([
+        buildConfigFixture({ id: "cfg-only", modelId: "gpt-x" }),
+      ]);
+
+      await expect(resolver.resolveDefaultConfigId()).resolves.toBe("cfg-only");
+    });
+
+    it("row 가 없으면 resolveDefaultModelId 와 같은 오류다_n", async () => {
+      const { resolver, repo, defaultRepo } = buildResolver();
+      defaultRepo.findSlot.mockResolvedValue(null);
+      repo.findMany.mockResolvedValue([]);
+
+      await expect(resolver.resolveDefaultConfigId()).rejects.toThrow(
+        "LLM provider 가 설정되지 않았다",
+      );
+    });
+
+    it("modelId 가 비어 있으면 TypeError 다_n", async () => {
+      const { resolver, repo, defaultRepo } = buildResolver();
+      defaultRepo.findSlot.mockResolvedValue(null);
+      repo.findMany.mockResolvedValue([
+        buildConfigFixture({ id: "cfg-only", modelId: " " }),
+      ]);
+
+      await expect(resolver.resolveDefaultConfigId()).rejects.toBeInstanceOf(
+        TypeError,
+      );
+    });
+  });
+
   describe("resolveDefaultModelId() — ADR-0062 §Decision 4 의 4 분기 (슬롯 최우선 + row 수 fallback)", () => {
     // ==================================================================
     // (0) 명시 슬롯 존재 — row 수와 무관하게 슬롯이 이긴다 (ADR-0062 제약 1).

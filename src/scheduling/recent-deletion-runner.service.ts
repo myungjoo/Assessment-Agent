@@ -118,7 +118,7 @@ export class RecentDeletionRunnerService implements OnModuleDestroy {
     const tally = { deleted: 0, refreshed: 0, notRefreshed: 0 };
     let aborted = false;
     try {
-      const modelId = await this.resolver.resolveDefaultModelId();
+      const configId = await this.resolver.resolveDefaultConfigId();
       const now = new Date();
       const stored = await this.records.readForPersons([person.id]);
       const { coordinates, openRowCount } = planRecentRefresh(
@@ -139,7 +139,7 @@ export class RecentDeletionRunnerService implements OnModuleDestroy {
           aborted = true;
           return;
         }
-        if (await this.refreshCoordinate(person, coordinate, modelId)) {
+        if (await this.refreshCoordinate(person, coordinate, configId)) {
           tally.refreshed += 1;
           tally.deleted += coordinate.hadRow ? 1 : 0;
         } else {
@@ -167,7 +167,7 @@ export class RecentDeletionRunnerService implements OnModuleDestroy {
   private async refreshCoordinate(
     person: PersonWithIdentities,
     { personId, period, scope, periodStart }: RefreshCoordinate,
-    modelId: string,
+    configId: string,
   ): Promise<boolean> {
     const context = { personId, period, scope, periodStart };
     try {
@@ -178,7 +178,8 @@ export class RecentDeletionRunnerService implements OnModuleDestroy {
       const persisted = await this.persist.generateAndPersistIfCollected(
         person,
         { since: start.toISOString(), until: end.toISOString() },
-        { modelId },
+        // gateway 는 difficulty 가 없으면 modelId 자리의 값을 config id 로 조회한다.
+        { modelId: configId },
         context,
         true,
       );
