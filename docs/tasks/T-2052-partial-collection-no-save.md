@@ -2,7 +2,11 @@
 id: T-2052
 title: 불완전 수집 저장 차단 ③ — 수집이 불완전한 좌표는 활동이 있어도 저장하지 않는다
 phase: P7
-status: PLANNED
+status: DONE
+completedAt: 2026-10-30
+mergedAs: 96a43c58
+prNumber: 1613
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-037, REQ-039]
 estimatedDiff: 140
