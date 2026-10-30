@@ -10,6 +10,7 @@ import type { PeriodBridgeAdminPersistResult } from "../period-bridge-admin-pers
 
 import { PeriodBridgeDto } from "./period-bridge.dto";
 import {
+  COLLECTION_INCOMPLETE_REASON,
   runUnevaluatedFillCoordinate,
   type UnevaluatedFillCoordinateRunner,
 } from "./run-unevaluated-fill-coordinate";
@@ -100,6 +101,28 @@ describe("runUnevaluatedFillCoordinate", () => {
       );
       expect(outcome.evaluatedCount).toBeUndefined();
       expect(outcome.reason).toBeUndefined();
+    });
+  });
+
+  describe("수집 불완전 — runner 가 null 로 resolve", () => {
+    it("skipped + 불완전 사유 + 좌표 echo 를 합성하고 evaluated 건수를 싣지 않는다_n", async () => {
+      const bridge = makeBridge({
+        personId: "person-9",
+        period: "day",
+        scope: "aggregate",
+        periodStart: "2026-06-01T00:00:00+09:00",
+      });
+
+      await expect(
+        runUnevaluatedFillCoordinate(bridge, jest.fn().mockResolvedValue(null)),
+      ).resolves.toEqual({
+        personId: "person-9",
+        period: "day",
+        scope: "aggregate",
+        periodStart: "2026-06-01T00:00:00+09:00",
+        status: "skipped",
+        reason: COLLECTION_INCOMPLETE_REASON,
+      });
     });
   });
 
