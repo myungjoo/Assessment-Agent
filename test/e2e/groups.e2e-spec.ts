@@ -18,9 +18,12 @@
 //   - test/jest-e2e.json 의 maxWorkers:1 (T-0060) 위에서 groups.e2e + persons.e2e
 //     + parts.e2e 직렬 실행 — cross-file afterEach race 차단.
 //
-// 인증 cookie 선탑재 (T-2031, Q-0056 ① groups guard 배선 선행): 요청 16 곳 전부에 tier cookie 를
-// 싣는다 — GET 은 `userCookie`, 그 외는 `adminCookie` (api.md `89~93 행`). guard 는 아직
-// 미배선이라 단언은 무변경이고, 401 · 403 단언은 groups 축 마지막 e2e slice 몫이다.
+// 인증 cookie 선탑재 (T-2031, Q-0056 ① groups guard 배선 선행): B~D 요청 16 곳 전부에 tier
+// cookie 를 싣는다 — GET 은 `userCookie`, 그 외는 `adminCookie` (api.md `89~93 행`).
+//
+// 인가 단언 (T-2040, Q-0056 ⑤c): E 절이 실 `JwtAuthGuard` · `RolesGuard` 의 거부 경로를
+// 닫는다 — 무 cookie 401 × 9 · User mutation 403 × 5 · invalid JWT 401 × 2 · guard 가
+// pipe / handler 보다 먼저 끊는 순서 2 건 · 상위 role escalation 허용 2 건 (E 절 20 test).
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
@@ -35,6 +38,66 @@ import { truncateAll } from "../helpers/db-truncate";
 
 const ADMIN_EMAIL = "groups-admin-actor@e2e.test";
 const USER_EMAIL = "groups-user-actor@e2e.test";
+const SUPERADMIN_EMAIL = "groups-superadmin-actor@e2e.test";
+
+// 인가 단언 (E 절) 의 seed — group 1 · person 2 (member 1 + 비-member 1) · membership 1.
+type AuthzSeed = {
+  groupId: string;
+  groupName: string;
+  membershipId: string;
+  outsiderId: string;
+};
+
+// E 절 route 표 — [제목, method, seed → path, seed → body]. body 는 guard 를 통과했다면
+// handler 가 실제로 반영했을 유효 payload 다 (validation 400 이 아니라 guard 거부임을 보인다).
+type RouteMethod = "get" | "post" | "patch" | "delete";
+type RouteCase = [
+  string,
+  RouteMethod,
+  (s: AuthzSeed) => string,
+  ((s: AuthzSeed) => object)?,
+];
+
+const READ_ROUTES: RouteCase[] = [
+  ["GET /api/groups", "get", () => "/api/groups"],
+  ["GET /api/groups/:id", "get", (s) => `/api/groups/${s.groupId}`],
+  [
+    "GET /api/groups/:id/persons",
+    "get",
+    (s) => `/api/groups/${s.groupId}/persons`,
+  ],
+  [
+    "GET /api/groups/:id/members",
+    "get",
+    (s) => `/api/groups/${s.groupId}/members`,
+  ],
+];
+const WRITE_ROUTES: RouteCase[] = [
+  [
+    "POST /api/groups",
+    "post",
+    () => "/api/groups",
+    () => ({ name: "거부대상" }),
+  ],
+  [
+    "POST /api/groups/:id/members",
+    "post",
+    (s) => `/api/groups/${s.groupId}/members`,
+    (s) => ({ personId: s.outsiderId }),
+  ],
+  [
+    "PATCH /api/groups/:id",
+    "patch",
+    (s) => `/api/groups/${s.groupId}`,
+    () => ({ name: "변경시도" }),
+  ],
+  ["DELETE /api/groups/:id", "delete", (s) => `/api/groups/${s.groupId}`],
+  [
+    "DELETE /api/groups/:id/members/:membershipId",
+    "delete",
+    (s) => `/api/groups/${s.groupId}/members/${s.membershipId}`,
+  ],
+];
 
 // Group DTO 필수 2 field — happy endpoint (GET list / GET :id / POST) 공통.
 const GROUP_DTO_FIELDS = ["id", "name"] as const;
@@ -55,6 +118,7 @@ describe("E2E: /api/groups HTTP contract", () => {
   let prisma: PrismaService;
   let adminCookie: string;
   let userCookie: string;
+  let superAdminCookie: string;
 
   beforeAll(async () => {
     // 부트스트랩 + applyGlobalMiddleware wire 는 createE2EApp 책임 (T-0090 박제) —
@@ -62,11 +126,13 @@ describe("E2E: /api/groups HTTP contract", () => {
     ctx = await createAuthenticatedE2EApp([
       { role: "Admin", email: ADMIN_EMAIL },
       { role: "User", email: USER_EMAIL },
+      { role: "SuperAdmin", email: SUPERADMIN_EMAIL },
     ]);
     app = ctx.app;
     prisma = ctx.prisma;
     adminCookie = buildAuthCookie(ctx.tokens[ADMIN_EMAIL]);
     userCookie = buildAuthCookie(ctx.tokens[USER_EMAIL]);
+    superAdminCookie = buildAuthCookie(ctx.tokens[SUPERADMIN_EMAIL]);
   });
 
   afterAll(async () => {
@@ -429,5 +495,150 @@ describe("E2E: /api/groups HTTP contract", () => {
       error: "Not Found",
     });
     expect(response.body.message).toBeTruthy();
+  });
+
+  // -- E. 인증·인가 (T-2040, Q-0056 ⑤c) — 실 JwtAuthGuard · RolesGuard 거부 / 허용 경로 --
+  // `GroupController` 의 `@UseGuards` 를 떼거나 write 축 `@Roles` 를 "User" 로 느슨하게
+  // 바꾸면 E.1 · E.2 가 red 가 된다 (regression 가드). persons.e2e-spec E 절 mirror.
+  const seedAuthz = async (): Promise<AuthzSeed> => {
+    const group = await prisma.group.create({ data: { name: "인가대상그룹" } });
+    const member = await prisma.person.create({
+      data: { fullName: "인가멤버", email: "authz-member@example.test" },
+    });
+    const outsider = await prisma.person.create({
+      data: { fullName: "인가외부", email: "authz-outsider@example.test" },
+    });
+    const membership = await prisma.personGroupMembership.create({
+      data: { personId: member.id, groupId: group.id },
+    });
+    return {
+      groupId: group.id,
+      groupName: group.name,
+      membershipId: membership.id,
+      outsiderId: outsider.id,
+    };
+  };
+
+  // cookie 가 undefined 면 `Cookie` header 자체를 싣지 않는다 (무 cookie 요청).
+  const send = (
+    [, method, pathOf, bodyOf]: RouteCase,
+    seed: AuthzSeed,
+    cookie?: string,
+  ) => {
+    const req = request(app.getHttpServer())[method](pathOf(seed));
+    if (cookie !== undefined) req.set("Cookie", cookie);
+    return bodyOf === undefined ? req : req.send(bodyOf(seed));
+  };
+
+  // 거부 시 부수효과 0 — group 은 seed 1 건 그대로 (POST 미생성 · DELETE 미삭제 · PATCH
+  // 미반영), membership 도 seed 1 건 그대로 (POST :id/members 미생성 · DELETE 미삭제).
+  const expectUntouched = async (seed: AuthzSeed): Promise<void> => {
+    expect(await prisma.group.count()).toBe(1);
+    const group = await prisma.group.findUnique({
+      where: { id: seed.groupId },
+    });
+    expect(group?.name).toBe(seed.groupName);
+    expect(await prisma.personGroupMembership.count()).toBe(1);
+    const membership = await prisma.personGroupMembership.findUnique({
+      where: { id: seed.membershipId },
+    });
+    expect(membership).not.toBeNull();
+  };
+
+  // E.1 무 cookie 401 × 9 route. `:id` · `:membershipId` 는 실존 id — 404 가 아니라 guard
+  // 거부임을 보인다.
+  it.each([...READ_ROUTES, ...WRITE_ROUTES])(
+    "Q-0056 %s — cookie 부재 시 401 (negative — 인증 부재, JwtAuthGuard)",
+    async (...route) => {
+      const seed = await seedAuthz();
+
+      const response = await send(route, seed);
+
+      expect(response.status).toBe(401);
+      await expectUntouched(seed);
+    },
+  );
+
+  // E.2 User token 의 write 축 403 × 5 route. 반대 분기 (같은 `userCookie` 의 read 축 200)
+  // 는 B 절의 GET happy test 4 건이 이미 cover 한다.
+  it.each(WRITE_ROUTES)(
+    "Q-0056 %s — User role token 시 403 (negative — Admin+ tier 미달, RolesGuard)",
+    async (...route) => {
+      const seed = await seedAuthz();
+
+      const response = await send(route, seed, userCookie);
+
+      expect(response.status).toBe(403);
+      await expectUntouched(seed);
+    },
+  );
+
+  // E.3 invalid JWT cookie 401 — read 1 + write 1 (JwtAuthGuard verify fail).
+  it("Q-0056 GET /api/groups — invalid JWT cookie 시 401 (negative — JWT verify fail)", async () => {
+    const response = await request(app.getHttpServer())
+      .get("/api/groups")
+      .set("Cookie", buildAuthCookie("garbage.token.invalid"));
+
+    expect(response.status).toBe(401);
+  });
+
+  it("Q-0056 POST /api/groups — invalid JWT cookie 시 401 (negative — JWT verify fail)", async () => {
+    const response = await request(app.getHttpServer())
+      .post("/api/groups")
+      .set("Cookie", buildAuthCookie("garbage.token.invalid"))
+      .send({ name: "invalid-jwt" });
+
+    expect(response.status).toBe(401);
+    // 유효 body 였지만 인증 차단으로 row 0.
+    expect(await prisma.group.count()).toBe(0);
+  });
+
+  // E.4 403 이 validation 보다 먼저 — C 절과 같은 빈 body 가 User token 이면 400 이 아니다
+  // (RolesGuard 가 ValidationPipe 앞에서 끊는다).
+  it("Q-0056 POST /api/groups — User role token + 빈 body 는 400 이 아니라 403 (negative — guard 가 ValidationPipe 보다 먼저)", async () => {
+    const response = await request(app.getHttpServer())
+      .post("/api/groups")
+      .set("Cookie", userCookie)
+      .send({});
+
+    expect(response.status).toBe(403);
+    expect(await prisma.group.count()).toBe(0);
+  });
+
+  // E.5 401 이 404 보다 먼저 — C 절과 같은 부재 id 가 무 cookie 면 404 가 아니다
+  // (미인증 요청에 존재 여부를 노출하지 않는다).
+  it("Q-0056 GET /api/groups/:id — cookie 부재 + 부재 id 는 404 가 아니라 401 (negative — 존재 여부 비노출)", async () => {
+    const response = await request(app.getHttpServer()).get(
+      "/api/groups/cuid-e2e-missing-group",
+    );
+
+    expect(response.status).toBe(401);
+  });
+
+  // E.6 escalation 허용 — SuperAdmin 이 Admin+ tier (write 축) 를 통과한다.
+  it("Q-0056 POST /api/groups — SuperAdmin token 은 Admin+ tier 를 통과해 201 (happy — role escalation)", async () => {
+    const response = await request(app.getHttpServer())
+      .post("/api/groups")
+      .set("Cookie", superAdminCookie)
+      .send({ name: "상위권한그룹" });
+
+    expect(response.status).toBe(201);
+    const created = await prisma.group.findUnique({
+      where: { id: response.body.id },
+    });
+    expect(created?.name).toBe("상위권한그룹");
+  });
+
+  // E.7 escalation 허용 — Admin 이 User+ tier (read 축) 를 통과한다.
+  it("Q-0056 GET /api/groups — Admin token 은 User+ tier 를 통과해 200 (happy — role escalation)", async () => {
+    const seed = await seedAuthz();
+
+    const response = await request(app.getHttpServer())
+      .get("/api/groups")
+      .set("Cookie", adminCookie);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveLength(1);
+    expect(response.body[0].id).toBe(seed.groupId);
   });
 });
