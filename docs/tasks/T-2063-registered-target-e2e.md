@@ -2,7 +2,11 @@
 id: T-2063
 title: 등록 수집 대상 실효화 ⑤ — API 등록 대상의 수집 반영 e2e
 phase: P7
-status: PLANNED
+status: DONE
+completedAt: 2026-10-30
+mergedAs: 0e90f8f4
+prNumber: 1624
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-037, REQ-039, REQ-070, REQ-072]
 estimatedDiff: 300
