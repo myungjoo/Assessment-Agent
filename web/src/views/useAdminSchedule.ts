@@ -12,7 +12,7 @@
 // AdminView 의 props destructure 가 계속 소유한다(hook 안 분기 · 기본값 신설 0).
 //
 // 반환은 JSX 소비처 두 덩어리(SchedulePanel props · 재평가 인원 <select> + 재평가 패널 props)가
-// 실제로 쓰는 15 심볼만 공개하고 내부 setter(`setScheduleBusy` · `setSelectedDays` 등)와 조회 원본
+// 실제로 쓰는 16 심볼만 공개하고 내부 setter(`setScheduleBusy` · `setSelectedDays` 등)와 조회 원본
 // (`scheduleData` · `scheduleLoading` · `scheduleGetError`)은 노출하지 않는다(캡슐화 —
 // T-1884/T-1886/T-1887/T-1888 선례 승계).
 //
@@ -28,6 +28,7 @@ import {
   runTrigger,
 } from './adminScheduleRunners';
 import type { Member } from '../components/GroupMemberList';
+import type { RecentRefreshResult } from '../components/ReEvaluationTriggerPanel';
 
 export interface UseAdminScheduleParams {
   // AdminView props 유래 초기값 5 개 — 기본값 자체는 AdminView 의 destructure 가 소유한다.
@@ -156,6 +157,11 @@ export function useAdminSchedule({
   // 표시한다(throw 없음). 재발화 시작 시 비운다(scheduleError 동형). 성공 시 error 는 undefined 유지.
   const [reevalError, setReevalError] = useState<string | undefined>(undefined);
 
+  // 마지막 재수집의 실제 결과. 재발화 시작 시 비운다.
+  const [reevalResult, setReevalResult] = useState<
+    RecentRefreshResult | undefined
+  >(undefined);
+
   // person 선택 옵션 — 선택 그룹의 파생 members 를 재사용한다(deriveMembers 결과). 그룹 미선택/멤버
   // 0 이면 빈 옵션(placeholder 만) — 재평가 트리거는 person 미선택 가드로 안전하게 억제된다.
   const personOptions = members;
@@ -169,10 +175,13 @@ export function useAdminSchedule({
     (days: number) =>
       runReEvaluate(selectedPersonId, days, {
         post: request,
+        get: (path) => request(path),
+        wait: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
         describeError: toErrorMessage,
         submitting: reevalSubmitting,
         setSubmitting: setReevalSubmitting,
         setError: setReevalError,
+        setResult: setReevalResult,
       }),
     [selectedPersonId, reevalSubmitting],
   );
@@ -191,7 +200,7 @@ export function useAdminSchedule({
   // === /재평가 트리거 패널 배선(T-0886) ================================================
 
   // 반환 표면 — JSX 소비처 두 덩어리(SchedulePanel props · 재평가 인원 <select> + 재평가 패널
-  // props)가 실제로 소비하는 15 심볼만 공개한다. 내부 전용(조회 원본 3 종 · mutation 문구 상태 ·
+  // props)가 실제로 소비하는 16 심볼만 공개한다. 내부 전용(조회 원본 3 종 · mutation 문구 상태 ·
   // 나머지 setter)은 의도적으로 빼 축 밖에서 이 축의 내부 상태를 건드릴 경로를 만들지 않는다.
   return {
     cronExpression,
@@ -205,6 +214,7 @@ export function useAdminSchedule({
     selectedDays,
     reevalSubmitting,
     reevalError,
+    reevalResult,
     personOptions,
     handleReevalTrigger,
     handleReevalSelect,
