@@ -2,7 +2,11 @@
 id: T-2065
 title: 등록 수집 대상 허용 host ① — 판정 함수 신설
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-10-30
+mergedAs: bbe61867
+prNumber: 1626
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-072]
 estimatedDiff: 285
