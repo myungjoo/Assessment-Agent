@@ -2,7 +2,11 @@
 id: T-2049
 title: parts guard 실배선 후속 — parts.e2e-spec 인증·인가 단언 (무 cookie 401 · User mutation 403 · 변조 JWT · escalation)
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-10-30
+mergedAs: bc734a55
+prNumber: 1610
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-073]
 estimatedDiff: 187
@@ -29,14 +33,14 @@ T-2048 까지의 증거는 unit metadata 와 census 뿐이다. 실 `JwtAuthGuard
 
 ## Acceptance Criteria
 
-- [ ] 변경 파일은 `test/e2e/parts.e2e-spec.ts` 1 개
-- [ ] 무 cookie 401 × 6 route (실존 id, 부수효과 0)
-- [ ] User token write 축 403 × 3 route (부수효과 0)
-- [ ] 변조 JWT 401 × 2 (실 Admin token 변조)
-- [ ] User + 빈 body POST → 403, 무 cookie + 부재 id → 401
-- [ ] escalation: SuperAdmin POST 201 · Admin GET 200, 대조군 Admin PATCH 200
-- [ ] 기존 11 test 단언 무변경
-- [ ] `pnpm test:e2e` green (CI)
+- [x] 변경 파일은 `test/e2e/parts.e2e-spec.ts` 1 개
+- [x] 무 cookie 401 × 6 route (실존 id, 부수효과 0)
+- [x] User token write 축 403 × 3 route (부수효과 0)
+- [x] 변조 JWT 401 × 2 (실 Admin token 변조)
+- [x] User + 빈 body POST → 403, 무 cookie + 부재 id → 401
+- [x] escalation: SuperAdmin POST 201 · Admin GET 200, 대조군 Admin PATCH 200
+- [x] 기존 11 test 단언 무변경
+- [x] `pnpm test:e2e` green (CI)
 
 ## Out of Scope
 
