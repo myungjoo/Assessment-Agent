@@ -185,12 +185,21 @@ describe("RecentDeletionController (HTTP integration)", () => {
     expect(runnerMock.startRefresh).not.toHaveBeenCalled();
   });
 
-  it("POST recent-deletion — instants 누락 시 400 + runner 미호출 (negative)", async () => {
+  it("POST recent-deletion — 본문이 없어도 202 다", async () => {
+    runnerMock.startRefresh.mockResolvedValueOnce(RUN_RESULT);
+    await request(app.getHttpServer())
+      .post(`/api/schedules/recent-deletion/${PERSON_ID}`)
+      .expect(202);
+    expect(runnerMock.startRefresh).toHaveBeenCalledWith(PERSON_ID, undefined);
+  });
+
+  it("POST recent-deletion — instants 없이 days 만으로 202 다", async () => {
+    runnerMock.startRefresh.mockResolvedValueOnce(RUN_RESULT);
     await request(app.getHttpServer())
       .post(`/api/schedules/recent-deletion/${PERSON_ID}`)
       .send({ days: 7 })
-      .expect(400);
-    expect(runnerMock.startRefresh).not.toHaveBeenCalled();
+      .expect(202);
+    expect(runnerMock.startRefresh).toHaveBeenCalledWith(PERSON_ID, 7);
   });
 
   it("POST recent-deletion — instants 원소가 비-ISO 시 400 + runner 미호출 (negative — @IsISO8601 each)", async () => {

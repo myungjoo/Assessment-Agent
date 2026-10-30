@@ -42,9 +42,9 @@ describe("RecentDeletionDto", () => {
   });
 
   // -- negative — instants 분기 ---------------------------------------------
-  it("instants 누락 시 검증 실패 (negative — missing instants branch)", async () => {
-    const errors = await validateDto({ days: 7 });
-    expect(errors).toContain("instants");
+  it("instants 누락도 검증 통과 — 서버가 대상을 찾으므로 필요 없다", async () => {
+    expect(await validateDto({ days: 7 })).toEqual([]);
+    expect(await validateDto({})).toEqual([]);
   });
 
   it("instants 가 비-배열(string) 시 검증 실패 (negative — @IsArray)", async () => {
@@ -83,8 +83,8 @@ describe("RecentDeletionDto", () => {
   });
 
   // -- negative — 복합 (instants 누락 + days 음수) ---------------------------
-  it("instants 누락 + days 음수 시 두 property 모두 실패 (negative — 복합)", async () => {
-    const errors = await validateDto({ days: -3 });
+  it("instants 비-배열 + days 음수 시 두 property 모두 실패 (negative — 복합)", async () => {
+    const errors = await validateDto({ instants: "x", days: -3 });
     expect(errors).toContain("instants");
     expect(errors).toContain("days");
   });
