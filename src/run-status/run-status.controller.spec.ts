@@ -35,6 +35,7 @@ function idleSnapshot(
     active: false,
     evaluation: { active: false, runningCount: 0, startedAt: null },
     collection: { active: false, runningCount: 0, startedAt: null },
+    lastEvaluationRun: null,
     observedAt,
   };
 }
@@ -106,7 +107,13 @@ describe("RunStatusController (위임 동작)", () => {
     const result = controller.status();
 
     expect(Object.keys(result).sort()).toEqual(
-      ["active", "collection", "evaluation", "observedAt"].sort(),
+      [
+        "active",
+        "collection",
+        "evaluation",
+        "lastEvaluationRun",
+        "observedAt",
+      ].sort(),
     );
     expect(Object.keys(result.evaluation).sort()).toEqual(
       ["active", "runningCount", "startedAt"].sort(),

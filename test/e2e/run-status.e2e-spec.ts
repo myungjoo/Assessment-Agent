@@ -46,8 +46,14 @@ import { truncateAll } from "../helpers/db-truncate";
 const RUN_STATUS = "/api/run-status";
 
 // ADR-0060 §Decision 2 응답 표의 top-level key 집합(정확히 이것뿐이어야 한다).
-const TOP_LEVEL_KEYS = ["active", "evaluation", "collection", "observedAt"];
-// 각 축 객체의 key 집합(정확히 이것뿐이어야 한다). top-level 4 + 축 2 × 3 = 8 필드.
+const TOP_LEVEL_KEYS = [
+  "active",
+  "evaluation",
+  "collection",
+  "lastEvaluationRun",
+  "observedAt",
+];
+// 각 축 객체의 key 집합(정확히 이것뿐이어야 한다). top-level 5 + 축 2 × 3 = 11 필드.
 const AXIS_KEYS = ["active", "runningCount", "startedAt"];
 
 const USER_EMAIL = "run-status-user-actor@e2e.test";

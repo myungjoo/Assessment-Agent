@@ -29,12 +29,42 @@ export interface RunAxisStatus {
   startedAt: string | null;
 }
 
+/** 응답에 싣는 불완전 좌표. 인원은 싣지 않는다 (ADR-0060 §Decision 6). */
+export interface IncompleteCoordinate {
+  period: string;
+  scope: string;
+  /** ISO-8601 문자열. */
+  periodStart: string;
+}
+
+/** 응답에 싣는 불완전 좌표 상한. polling 응답이 입력 크기에 비례해 커지지 않게 한다. */
+export const MAX_REPORTED_INCOMPLETE = 50;
+
+/** 마지막으로 끝난 평가 실행 요약 (ADR-0060 §Decision 6). */
+export interface EvaluationRunSummary {
+  source: "tick" | "fill-run";
+  /** 끝난 시각 (ISO-8601 UTC). */
+  finishedAt: string;
+  evaluatedCount: number;
+  /** `incompleteCount` 를 포함한다. */
+  skippedCount: number;
+  failedCount: number;
+  /** 수집 불완전으로 저장하지 않은 좌표 전체 수. */
+  incompleteCount: number;
+  /** 그 좌표를 가진 인원 수. */
+  incompletePersonCount: number;
+  /** 중복 제거한 좌표. 첫 등장 순서로 `MAX_REPORTED_INCOMPLETE` 개까지. */
+  incompleteCoordinates: IncompleteCoordinate[];
+}
+
 /** `GET /api/run-status` 응답 body shape (ADR-0060 §Decision 2). */
 export interface RunStatusSnapshot {
   /** 두 축 중 하나라도 실행 중이면 `true` — 배너 토글의 단일 축. */
   active: boolean;
   evaluation: RunAxisStatus;
   collection: RunAxisStatus;
+  /** 마지막으로 끝난 평가 실행. 프로세스 시작 후 없으면 `null`. */
+  lastEvaluationRun: EvaluationRunSummary | null;
   /** 서버가 이 snapshot 을 만든 시각 (ISO-8601 UTC). 클라이언트 stale 판정 근거. */
   observedAt: string;
 }
@@ -57,6 +87,8 @@ export class RunStatusService {
     evaluation: [],
     collection: [],
   };
+
+  private lastEvaluationRun: EvaluationRunSummary | null = null;
 
   /**
    * 실행 시작을 기록한다 — 해당 축의 `runningCount` 를 1 증가시키고 시작 시각을 남긴다.
@@ -94,6 +126,41 @@ export class RunStatusService {
     running.pop();
   }
 
+  /**
+   * 끝난 평가 실행의 요약을 남긴다. 직전 요약을 덮어쓰며 프로세스 재시작 시 사라진다
+   * (§Decision 1 in-memory 와 같은 수명).
+   */
+  recordEvaluationRun(run: {
+    source: EvaluationRunSummary["source"];
+    evaluatedCount: number;
+    skippedCount: number;
+    failedCount: number;
+    incomplete: (IncompleteCoordinate & { personId: string })[];
+  }): void {
+    const { incomplete } = run;
+    const coordinates = new Map<string, IncompleteCoordinate>();
+    for (const { period, scope, periodStart } of incomplete) {
+      coordinates.set(JSON.stringify([period, scope, periodStart]), {
+        period,
+        scope,
+        periodStart,
+      });
+    }
+    this.lastEvaluationRun = {
+      source: run.source,
+      evaluatedCount: run.evaluatedCount,
+      skippedCount: run.skippedCount,
+      failedCount: run.failedCount,
+      finishedAt: new Date().toISOString(),
+      incompleteCount: incomplete.length,
+      incompletePersonCount: new Set(incomplete.map((c) => c.personId)).size,
+      incompleteCoordinates: [...coordinates.values()].slice(
+        0,
+        MAX_REPORTED_INCOMPLETE,
+      ),
+    };
+  }
+
   /** 현재 실행 상태의 snapshot 을 만든다. 호출 시점마다 `observedAt` 이 갱신된다. */
   snapshot(): RunStatusSnapshot {
     const evaluation = this.axisStatus("evaluation");
@@ -102,6 +169,9 @@ export class RunStatusService {
       active: evaluation.active || collection.active,
       evaluation,
       collection,
+      lastEvaluationRun: this.lastEvaluationRun && {
+        ...this.lastEvaluationRun,
+      },
       observedAt: new Date().toISOString(),
     };
   }

@@ -6,6 +6,7 @@ import { Test, type TestingModule } from "@nestjs/testing";
 
 import {
   isRunAxis,
+  MAX_REPORTED_INCOMPLETE,
   RUN_AXES,
   RunStatusService,
   type RunAxis,
@@ -103,6 +104,7 @@ describe("RunStatusService", () => {
         "active",
         "collection",
         "evaluation",
+        "lastEvaluationRun",
         "observedAt",
       ]);
       expect(Object.keys(snapshot.evaluation).sort()).toEqual([
@@ -363,6 +365,135 @@ describe("RunStatusService", () => {
       const fresh = service.snapshot();
       expect(fresh.evaluation.runningCount).toBe(1);
       expect(fresh.active).toBe(true);
+    });
+  });
+
+  describe("recordEvaluationRun", () => {
+    const coordinate = (personId: string, day = 22) => ({
+      personId,
+      period: "day",
+      scope: "aggregate",
+      periodStart: `2026-10-${day}T15:00:00.000Z`,
+    });
+    const COUNTS = {
+      source: "tick" as const,
+      evaluatedCount: 2,
+      skippedCount: 1,
+      failedCount: 0,
+    };
+
+    it("실행 기록 전에는 lastEvaluationRun 이 null 이다", () => {
+      expect(service.snapshot().lastEvaluationRun).toBeNull();
+    });
+
+    it("끝난 실행의 건수 · 인원 수 · 좌표를 snapshot 에 싣는다", () => {
+      service.recordEvaluationRun({
+        ...COUNTS,
+        incomplete: [coordinate("p1"), coordinate("p1", 23), coordinate("p2")],
+      });
+
+      const run = service.snapshot().lastEvaluationRun;
+      expect(run).toMatchObject({
+        ...COUNTS,
+        incompleteCount: 3,
+        incompletePersonCount: 2,
+      });
+      expect(run?.incompleteCoordinates.map((c) => c.periodStart)).toEqual([
+        "2026-10-22T15:00:00.000Z",
+        "2026-10-23T15:00:00.000Z",
+      ]);
+      expect(Number.isNaN(Date.parse(run?.finishedAt ?? ""))).toBe(false);
+    });
+
+    it("다음 실행의 요약이 직전 요약을 덮어쓴다", () => {
+      service.recordEvaluationRun({
+        ...COUNTS,
+        incomplete: [coordinate("p1")],
+      });
+      service.recordEvaluationRun({
+        ...COUNTS,
+        source: "fill-run",
+        incomplete: [],
+      });
+
+      expect(service.snapshot().lastEvaluationRun).toMatchObject({
+        source: "fill-run",
+        incompleteCount: 0,
+        incompletePersonCount: 0,
+        incompleteCoordinates: [],
+      });
+    });
+
+    it("응답에 personId 를 싣지 않는다_n", () => {
+      service.recordEvaluationRun({
+        ...COUNTS,
+        incomplete: [coordinate("p1")],
+      });
+
+      expect(JSON.stringify(service.snapshot())).not.toContain("p1");
+    });
+
+    it("좌표 목록은 상한까지만 싣고 전체 수는 그대로 알린다_n", () => {
+      const total = MAX_REPORTED_INCOMPLETE + 1;
+      const incomplete = Array.from({ length: total }, (_, i) => ({
+        ...coordinate("p1"),
+        periodStart: new Date(i * 86_400_000).toISOString(),
+      }));
+      service.recordEvaluationRun({ ...COUNTS, incomplete });
+
+      const run = service.snapshot().lastEvaluationRun;
+      expect(run?.incompleteCount).toBe(total);
+      expect(run?.incompleteCoordinates).toHaveLength(MAX_REPORTED_INCOMPLETE);
+    });
+
+    it("상한과 같은 수의 좌표는 모두 싣는다", () => {
+      const incomplete = Array.from(
+        { length: MAX_REPORTED_INCOMPLETE },
+        (_, i) => ({
+          ...coordinate("p1"),
+          periodStart: new Date(i * 86_400_000).toISOString(),
+        }),
+      );
+      service.recordEvaluationRun({ ...COUNTS, incomplete });
+
+      expect(
+        service.snapshot().lastEvaluationRun?.incompleteCoordinates,
+      ).toHaveLength(MAX_REPORTED_INCOMPLETE);
+    });
+
+    it("period · scope 만 달라도 다른 좌표로 싣는다", () => {
+      service.recordEvaluationRun({
+        ...COUNTS,
+        incomplete: [
+          coordinate("p1"),
+          { ...coordinate("p1"), period: "week" },
+          { ...coordinate("p1"), scope: "commit" },
+        ],
+      });
+
+      expect(
+        service.snapshot().lastEvaluationRun?.incompleteCoordinates,
+      ).toHaveLength(3);
+    });
+
+    it("입력의 여분 프로퍼티와 snapshot 변경이 내부 상태로 새지 않는다_n", () => {
+      service.recordEvaluationRun({
+        ...COUNTS,
+        personId: "secret",
+        incomplete: [],
+      } as never);
+
+      const first = service.snapshot().lastEvaluationRun;
+      expect(JSON.stringify(first)).not.toContain("secret");
+      if (first) first.failedCount = 99;
+      expect(service.snapshot().lastEvaluationRun?.failedCount).toBe(0);
+    });
+
+    it("실행 상태 카운터를 건드리지 않는다_n", () => {
+      service.recordEvaluationRun({ ...COUNTS, incomplete: [] });
+
+      expect(service.snapshot().active).toBe(false);
+      expect(service.snapshot().evaluation.runningCount).toBe(0);
     });
   });
 });

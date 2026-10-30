@@ -216,7 +216,13 @@ describe("AppModule (T-1846 RunStatusModule wiring)", () => {
     const snapshot = controller.status();
 
     expect(Object.keys(snapshot).sort()).toEqual(
-      ["active", "collection", "evaluation", "observedAt"].sort(),
+      [
+        "active",
+        "collection",
+        "evaluation",
+        "lastEvaluationRun",
+        "observedAt",
+      ].sort(),
     );
     expect(snapshot.active).toBe(false);
     expect(snapshot.evaluation).toEqual({
