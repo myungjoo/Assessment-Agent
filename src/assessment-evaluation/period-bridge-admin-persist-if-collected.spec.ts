@@ -78,6 +78,20 @@ describe("PeriodBridgeAdminPersistService.generateAndPersistIfCollected", () => 
     expect(persist.persist).toHaveBeenCalledWith(CONTEXT, [], "fill");
   });
 
+  it("Confluence 만 쓰는 인원의 전 SPACE 성공 0 건은 빈 평가를 저장한다", async () => {
+    const { run, traversal, persist } = setup({
+      sources: [],
+      instances: [{ ...SPACES, key: "com" }],
+    });
+    traversal.traverseInstance.mockResolvedValue([
+      { spaceKey: "A", pages: [] },
+      { spaceKey: "B", pages: [] },
+    ]);
+
+    await expect(run()).resolves.not.toBeNull();
+    expect(persist.persist).toHaveBeenCalledTimes(1);
+  });
+
   it("활동이 있으면 일부 호출이 실패해도 창 · 귀속 필터 결과를 저장한다", async () => {
     const { run, client, evaluation, persist } = setup();
     client.requestAllPagesForInstance
@@ -120,7 +134,29 @@ describe("PeriodBridgeAdminPersistService.generateAndPersistIfCollected", () => 
         ),
       undefined,
     ],
-    ["수집 대상 없음(미설정 · org 열거 실패)", () => null, { sources: [] }],
+    ["GitHub · Confluence 모두 수집 대상 없음", () => null, { sources: [] }],
+    [
+      "GitHub source 0(미설정 · org 열거 실패) + Confluence 정상",
+      (m) =>
+        m.traversal.traverseInstance.mockResolvedValue([
+          { spaceKey: "A", pages: [] },
+          { spaceKey: "B", pages: [] },
+        ]),
+      ONLY_CONFLUENCE,
+    ],
+    [
+      "GitHub 전 호출 성공 + Confluence instance 실패",
+      (m) => m.traversal.traverseInstance.mockRejectedValue(new Error("key")),
+      { instances: [SPACES] },
+    ],
+    [
+      "GitHub 전 호출 성공 + Confluence SPACE 일부 skip",
+      (m) =>
+        m.traversal.traverseInstance.mockResolvedValue([
+          { spaceKey: "A", pages: [] },
+        ]),
+      { instances: [SPACES] },
+    ],
     [
       "Confluence instance 실패",
       (m) => m.traversal.traverseInstance.mockRejectedValue(new Error("key")),
@@ -167,20 +203,5 @@ describe("PeriodBridgeAdminPersistService.generateAndPersistIfCollected", () => 
     await expect(run()).rejects.toThrow("llm");
 
     expect(persist.persist).not.toHaveBeenCalled();
-  });
-
-  it("tally 없는 기존 수집 호출은 실패를 그대로 흡수한다", async () => {
-    const { client, traversal, github, confluence } = setup();
-    client.requestAllPagesForInstance.mockRejectedValue(new Error("401"));
-    traversal.traverseInstance.mockRejectedValue(new Error("x"));
-
-    await expect(
-      github.collectGithubActivities({ sources: [SOURCE] }),
-    ).resolves.toEqual([]);
-    await expect(
-      confluence.collectConfluenceActivities({
-        instances: [SPACES as never],
-      }),
-    ).resolves.toEqual([]);
   });
 });

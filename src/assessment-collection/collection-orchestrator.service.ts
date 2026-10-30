@@ -84,19 +84,16 @@ export class CollectionOrchestratorService {
     spec: CollectionSpec,
   ): Promise<{ activities: Activity[]; tally: CollectionCallTally }> {
     const tally: CollectionCallTally = { succeeded: 0, failed: 0 };
-    const guarded = async <T>(collect: () => Promise<T[]>): Promise<T[]> => {
-      try {
-        return await collect();
-      } catch {
-        tally.failed += 1;
-        return [];
-      }
+    const onFailure = (): void => {
+      tally.failed += 1;
     };
-    const github = await guarded(() =>
-      this.github.collectGithubActivities(spec.github, tally),
+    const github = await this.collectSafely(
+      () => this.github.collectGithubActivities(spec.github, tally),
+      onFailure,
     );
-    const confluence = await guarded(() =>
-      this.confluence.collectConfluenceActivities(spec.confluence, tally),
+    const confluence = await this.collectSafely(
+      () => this.confluence.collectConfluenceActivities(spec.confluence, tally),
+      onFailure,
     );
     return { activities: [...github, ...confluence], tally };
   }
@@ -104,11 +101,15 @@ export class CollectionOrchestratorService {
   // collectSafely — 한 source 의 collection 호출을 독립 try/catch 로 감싸, throw 시
   // 빈 배열로 흡수한다(skip-and-continue). 한 source 의 service 레벨 throw 가 다른
   // source 결과 보존을 막지 않게 하는 부분 가용성 backbone 이다(ADR-0029 Decision §3).
-  private async collectSafely<T>(collect: () => Promise<T[]>): Promise<T[]> {
+  private async collectSafely<T>(
+    collect: () => Promise<T[]>,
+    onFailure?: () => void,
+  ): Promise<T[]> {
     try {
       return await collect();
     } catch {
       // service 레벨 throw 흡수 — 새 emit 경로 0, 이 source 만 빈 배열로 건너뛴다.
+      onFailure?.();
       return [];
     }
   }

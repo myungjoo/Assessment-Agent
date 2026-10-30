@@ -52,7 +52,7 @@
 //     본 service 는 호출처가 넘긴 resolved `context`/`person` 입력을 받는다.
 //   - e2e / 실 PostgreSQL / 동시 호출 idempotency 실측은 slice 5(ADR-0004).
 //   - live LLM round-trip 은 §Decision5 credential 게이트 deferred — mocked-LLM unit 만.
-import { ConflictException, Injectable } from "@nestjs/common";
+import { ConflictException, Injectable, Logger } from "@nestjs/common";
 import type { Assessment } from "@prisma/client";
 
 import { CollectionOrchestratorService } from "../assessment-collection/collection-orchestrator.service";
@@ -82,6 +82,8 @@ export interface PeriodBridgeAdminPersistResult {
 
 @Injectable()
 export class PeriodBridgeAdminPersistService {
+  private readonly logger = new Logger(PeriodBridgeAdminPersistService.name);
+
   // 5 개 collaborator 주입 — (1~5)는 ephemeral sibling 과 동일한 persist-free compose
   // 3 종(spec/orchestrator/evaluation, 창 필터·author 필터는 순수 함수라 주입 0),
   // (6)은 Admin 한정 persist 도달 경로를 여는 2 종
@@ -197,8 +199,9 @@ export class PeriodBridgeAdminPersistService {
   /**
    * 사람 없이 도는 자동 평가용 fill 경로. first-write-wins 라 수집 장애 중의 빈 평가는
    * 이후 평가를 영구히 막으므로, 귀속 활동이 0 건인데 수집 호출이 하나라도 실패했거나
-   * 하나도 돌지 않았으면 영속화 없이 `null` 을 반환한다. 모든 호출이 성공한 0 건은 실제
-   * 무활동이라 빈 평가로 저장한다. 활동이 있으면 일부 source 가 실패해도 저장한다
+   * 하나도 돌지 않았으면 영속화 없이 `null` 을 반환한다. Confluence 외 identity 가 있는데
+   * GitHub source 가 0 개인 경우(미설정 · org 열거 실패)도 같다. 모든 호출이 성공한 0 건은
+   * 실제 무활동이라 빈 평가로 저장한다. 활동이 있으면 일부 source 가 실패해도 저장한다
    * (부분 가용성, ADR-0029 Decision §3).
    *
    * @returns 영속 결과. 수집이 실제로 돌지 못한 좌표면 `null`.
@@ -219,7 +222,21 @@ export class PeriodBridgeAdminPersistService {
       filterActivitiesByPeriodWindow(activities, period),
       person.serviceIdentities,
     );
-    if (filtered.length === 0 && (tally.failed > 0 || tally.succeeded === 0)) {
+    const confluenceKeys = spec.confluence.instances.map((c) =>
+      c.key.trim().toUpperCase(),
+    );
+    const githubMissing =
+      spec.github.sources.length === 0 &&
+      person.serviceIdentities.some(
+        (i) => !confluenceKeys.includes(i.service.trim().toUpperCase()),
+      );
+    if (
+      filtered.length === 0 &&
+      (tally.failed > 0 || tally.succeeded === 0 || githubMissing)
+    ) {
+      this.logger.warn(
+        `수집 불가 좌표 저장 건너뜀: period=${context.period} succeeded=${tally.succeeded} failed=${tally.failed} githubMissing=${githubMissing}`,
+      );
       return null;
     }
     const results = await this.evaluation.evaluateActivities(filtered, options);
