@@ -31,6 +31,7 @@
 // 코드 변경 0(port 재사용, ADR-0022 §6.1) — module wiring 으로 자기충족(app.module 무변경).
 import { Module } from "@nestjs/common";
 
+import { CollectionTargetReader } from "../collection-target/collection-target-reader.service";
 import { LlmApiKeyCipher } from "../llm/llm-apikey-cipher.service";
 import { PermissionDeniedRecordModule } from "../permission-denied/permission-denied-record.module";
 import { PersistingPermissionDeniedEmitter } from "../permission-denied/persisting-permission-denied-emitter";
@@ -55,6 +56,8 @@ import { GithubInstanceClient } from "./github-instance-client.service";
   providers: [
     GithubAdapter,
     GithubInstanceClient,
+    // 등록 대상의 key 도 해석하기 위한 읽기 포트. 의존은 @Global PrismaService 뿐이다.
+    CollectionTargetReader,
     LlmApiKeyCipher,
     PersistingPermissionDeniedEmitter,
     {
