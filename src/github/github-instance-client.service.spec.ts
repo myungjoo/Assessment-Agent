@@ -477,21 +477,28 @@ describe("GithubInstanceClient — 등록 대상 key 해석 (ADR-0059 §Decision
     expect(adapter.request).not.toHaveBeenCalled();
   });
 
-  it("복호 실패는 전파하고 token 을 노출하지 않는다_n", async () => {
+  it("복호 실패는 전파한다_n", async () => {
     const { client, cipher } = make(DB_ENV, [ROW]);
     cipher.decrypt.mockImplementation(() => {
       throw new Error("decrypt failed");
     });
 
-    const error: Error = await client
-      .requestForInstance("db", "p")
-      .then(() => {
-        throw new Error("unreachable");
-      })
-      .catch((e: Error) => e);
+    await expect(client.requestForInstance("db", "p")).rejects.toThrow(
+      "decrypt failed",
+    );
+  });
 
-    expect(error.message).toBe("decrypt failed");
+  it("비활성 row 의 key 오류에 token 값이 실리지 않는다_n", async () => {
+    const { client } = make(DB_ENV, [{ ...ROW, active: false }]);
+
+    const error: Error = await client.requestForInstance("db", "p").then(
+      () => new Error("unreachable"),
+      (e: Error) => e,
+    );
+
+    expect(error.message).toContain("활성 instance");
     expect(error.message).not.toContain(FAKE_TOKEN_ENC);
+    expect(error.message).not.toContain(FAKE_PLAINTEXT_TOKEN);
   });
 
   it("DB 조회 실패는 삼키지 않는다_n", async () => {
