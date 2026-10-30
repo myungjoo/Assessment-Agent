@@ -1,4 +1,4 @@
-// schedules-recent-deletion.e2e-spec.ts — POST /api/schedules/recent-deletion/:personId 의 HTTP 계약
+// schedules-recent-deletion.e2e-spec.ts — POST · GET /api/schedules/recent-deletion/:personId 의 HTTP 계약
 // · RBAC · ValidationPipe e2e (REQ-041). 식별자 없는 인원을 seed 하므로 외부 호출이 없다.
 // 실 수집 · 교체는 별도 spec 이 검증한다. 실 DB 를 쓰며 CI 의 pnpm test:e2e 에서 실행된다.
 import type { INestApplication } from "@nestjs/common";
@@ -30,7 +30,7 @@ const STARTED = { running: true, result: null };
 
 const anyInstant = (): string => new Date().toISOString();
 
-describe("E2E: POST /api/schedules/recent-deletion/:personId (T-1963, REQ-041)", () => {
+describe("E2E: POST · GET /api/schedules/recent-deletion/:personId (T-1963, REQ-041)", () => {
   let ctx: AuthenticatedE2EContext;
   let app: INestApplication;
   let prisma: PrismaService;
@@ -269,6 +269,33 @@ describe("E2E: POST /api/schedules/recent-deletion/:personId (T-1963, REQ-041)",
       personId: "never-ran",
       running: false,
       result: null,
+    });
+  });
+
+  it("POST 뒤 GET 으로 끝난 실행의 결과를 본다 (SuperAdmin 도 조회 가능)", async () => {
+    const person = await seedPerson();
+    const started = await request(app.getHttpServer())
+      .post(recentDeletionUrl(person.id))
+      .set("Cookie", adminCookie)
+      .send({ instants: [], days: 1 });
+    expect(started.status).toBe(202);
+    await waitIdle();
+
+    const response = await request(app.getHttpServer())
+      .get(recentDeletionUrl(person.id))
+      .set("Cookie", superAdminCookie);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      personId: person.id,
+      running: false,
+      result: {
+        deletedCount: 0,
+        refreshedCount: 0,
+        notRefreshedCount: expect.any(Number),
+        aborted: expect.any(Boolean),
+        finishedAt: expect.any(String),
+      },
     });
   });
 
