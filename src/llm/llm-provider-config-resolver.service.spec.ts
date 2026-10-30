@@ -68,6 +68,81 @@ function buildResolver(): {
 }
 
 describe("LlmProviderConfigResolver", () => {
+  describe("resolveDefaultConfigId()", () => {
+    it("슬롯이 가리키는 config 의 id 를 반환한다", async () => {
+      const { resolver, repo, defaultRepo } = buildResolver();
+      defaultRepo.findSlot.mockResolvedValue(buildSlotFixture("cfg-slot"));
+      repo.findById.mockResolvedValue(
+        buildConfigFixture({ id: "cfg-slot", modelId: "gpt-x" }),
+      );
+
+      await expect(resolver.resolveDefaultConfigId()).resolves.toBe("cfg-slot");
+    });
+
+    it("슬롯이 없고 row 가 1 개면 그 row 의 id 를 반환한다", async () => {
+      const { resolver, repo, defaultRepo } = buildResolver();
+      defaultRepo.findSlot.mockResolvedValue(null);
+      repo.findMany.mockResolvedValue([
+        buildConfigFixture({ id: "cfg-only", modelId: "gpt-x" }),
+      ]);
+
+      await expect(resolver.resolveDefaultConfigId()).resolves.toBe("cfg-only");
+    });
+
+    it("슬롯 없이 row 가 2 개면 기본 지정을 요구하는 오류다_n", async () => {
+      const { resolver, repo, defaultRepo } = buildResolver();
+      defaultRepo.findSlot.mockResolvedValue(null);
+      repo.findMany.mockResolvedValue([
+        buildConfigFixture({ id: "cfg-a" }),
+        buildConfigFixture({ id: "cfg-b" }),
+      ]);
+
+      await expect(resolver.resolveDefaultConfigId()).rejects.toThrow(
+        "기본 provider 가 지정되지 않았다",
+      );
+    });
+
+    it("슬롯이 가리키는 config 가 없으면 오류다_n", async () => {
+      const { resolver, repo, defaultRepo } = buildResolver();
+      defaultRepo.findSlot.mockResolvedValue(buildSlotFixture("cfg-gone"));
+      repo.findById.mockResolvedValue(null);
+
+      await expect(resolver.resolveDefaultConfigId()).rejects.toThrow(
+        "cfg-gone",
+      );
+    });
+
+    it("repository reject 를 그대로 전파한다_n", async () => {
+      const { resolver, defaultRepo } = buildResolver();
+      const failure = new Error("DB 장애");
+      defaultRepo.findSlot.mockRejectedValue(failure);
+
+      await expect(resolver.resolveDefaultConfigId()).rejects.toBe(failure);
+    });
+
+    it("row 가 없으면 resolveDefaultModelId 와 같은 오류다_n", async () => {
+      const { resolver, repo, defaultRepo } = buildResolver();
+      defaultRepo.findSlot.mockResolvedValue(null);
+      repo.findMany.mockResolvedValue([]);
+
+      await expect(resolver.resolveDefaultConfigId()).rejects.toThrow(
+        "LLM provider 가 설정되지 않았다",
+      );
+    });
+
+    it("modelId 가 비어 있으면 TypeError 다_n", async () => {
+      const { resolver, repo, defaultRepo } = buildResolver();
+      defaultRepo.findSlot.mockResolvedValue(null);
+      repo.findMany.mockResolvedValue([
+        buildConfigFixture({ id: "cfg-only", modelId: " " }),
+      ]);
+
+      await expect(resolver.resolveDefaultConfigId()).rejects.toBeInstanceOf(
+        TypeError,
+      );
+    });
+  });
+
   describe("resolveDefaultModelId() — ADR-0062 §Decision 4 의 4 분기 (슬롯 최우선 + row 수 fallback)", () => {
     // ==================================================================
     // (0) 명시 슬롯 존재 — row 수와 무관하게 슬롯이 이긴다 (ADR-0062 제약 1).

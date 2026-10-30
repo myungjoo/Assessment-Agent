@@ -1,7 +1,7 @@
 // LlmProviderConfigResolver — `defaultModelId` 의 source 를 `LlmProviderConfig`
 // DB row 로 단일화하는 thin `@Injectable` resolver (ADR-0048 §Decision 1 박제).
 // controller 진입 시 1 회 호출되어 **명시 기본 provider 슬롯 → row 수 fallback**
-// 순서로 판정한 뒤 그 row 의 `modelId` 를 반환한다 (ADR-0062 §Decision 4, T-1864).
+// 순서로 판정한 뒤 그 row 의 `modelId` 또는 config `id` 를 반환한다 (ADR-0062 §Decision 4, T-1864).
 //
 // 우선순위 (ADR-0062 §Decision 4 — 오너 지시 2026-09-03 "명시 선택이 언제나 우선"):
 //   (0) 슬롯 존재 → 그 슬롯이 가리키는 config 의 modelId. **row 총수를 보지 않는다**
@@ -43,6 +43,22 @@ export class LlmProviderConfigResolver {
   // @throws {TypeError} 채택된 row 의 modelId 가 빈/whitespace / non-string 일 때
   //                 (어느 분기로 도달했든 동일 적용).
   async resolveDefaultModelId(): Promise<string> {
+    return this.normalizeModelId((await this.resolveDefaultRow()).modelId);
+  }
+
+  /**
+   * 같은 판정으로 고른 row 의 `id` 를 반환한다. `LlmHttpGateway.generate` 는 difficulty 가 없으면
+   * `options.modelId` 를 config id 로 조회하므로, gateway 로 넘길 값은 이것이다.
+   *
+   * @throws resolveDefaultModelId 와 같은 오류. modelId 형식 위반 포함.
+   */
+  async resolveDefaultConfigId(): Promise<string> {
+    const row = await this.resolveDefaultRow();
+    this.normalizeModelId(row.modelId);
+    return row.id;
+  }
+
+  private async resolveDefaultRow() {
     // (0) 명시 선택 최우선 — 슬롯이 있으면 row 수와 무관하게 슬롯이 이긴다.
     const slot = await this.defaultProviderRepository.findSlot();
     if (slot !== null) {
@@ -52,7 +68,7 @@ export class LlmProviderConfigResolver {
           `LlmProviderConfigResolver: 기본 provider 슬롯이 가리키는 LlmProviderConfig 가 없다 (llmProviderConfigId=${slot.llmProviderConfigId} — onDelete: Restrict 상 정상 경로로는 발생 불가, DB 직접 조작 의심).`,
         );
       }
-      return this.normalizeModelId(row.modelId);
+      return row;
     }
 
     const rows = await this.repository.findMany();
@@ -74,11 +90,11 @@ export class LlmProviderConfigResolver {
       );
     }
 
-    // (a) length === 1 — 그 row 의 modelId 를 형식 검증 후 반환 (하위 호환).
-    return this.normalizeModelId(rows[0].modelId);
+    // (a) length === 1 — 그 row (하위 호환).
+    return rows[0];
   }
 
-  // normalizeModelId — 채택된 row 의 modelId 형식 검증 + trim. (0)/(a) 두 분기가
+  // normalizeModelId — 채택된 row 의 modelId 형식 검증 + trim. 두 public method 가
   // 공유하므로 helper 로 외화 (`buildFillRunScoringOptions` 패턴 mirror).
   private normalizeModelId(candidate: unknown): string {
     // type mismatch 차단 — silent coercion 으로 비-string modelId 가 gateway 로
