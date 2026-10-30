@@ -1,4 +1,4 @@
-// registered-target-redirect spec — 등록 대상 경로의 redirect 에서 token 이 다른 host 로 가지 않음을
+// registered-target-redirect spec — 등록 대상 경로의 redirect 에서 token 이 다른 origin 으로 가지 않음을
 // 실 fetch · 로컬 서버로 고정한다 (ADR-0059 §Consequences (e)).
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";

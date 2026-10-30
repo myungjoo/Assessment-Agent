@@ -105,8 +105,8 @@ REQ-073(RBAC) 세 row 뿐이다. 세 row 모두 `PLANNED` 이고 착수 slice �
   - **끝 점**: 정규화하지 않는다. `host.` 와 `host` 는 DNS 해석이 다를 수 있어 다른 host 다.
   - **scheme**: Confluence 는 `https://` URL, GitHub 는 `host[:port]` 또는 `https://host[:port]` 만 받는다.
     GitHub builder 는 `http://` 를 지우고 https 로 보내 평문 경로는 없었으나, 입력 의도와 달라 거부한다.
-    userinfo · query · fragment 와 GitHub 의 path 도 거부한다. 파서가 같은 host 로 정규화하는 표기 (`//host`, `@host`,
-    끝 slash) 는 통과하고 정규화 값만 쓴다.
+    userinfo · query · fragment 와 GitHub 의 path 도 거부한다. 파서가 같은 host 로 정규화하는 표기 (GitHub 의 `//host` · `@host`,
+    Confluence 의 `https:host/x` · `https://@host/x`, 끝 slash) 는 통과하고 정규화 값만 쓴다.
   - **정규화 값 사용**: 통과한 row 는 검사한 정규화 값으로 요청한다. 검사와 요청이 파서 차이로 갈라지지 않는다.
   - **거부는 "미설정" 이 아니다**: 등록된 대상이므로 §Decision 3 의 credential 부재와 같이 자동 평가의 저장
     판정에서 실패로 쳐 좌표를 비운다. 거부는 type · key · 사유로 warn 로그에 남고 token · endpoint 원문은 남지 않는다.

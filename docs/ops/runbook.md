@@ -138,10 +138,10 @@ FAIL step 은 JSON 요약의 `failedStep` 과 `logPath` 로 특정한다.
 - **등록 수집 대상 미수집**: 화면/API 로 등록한 대상이 수집되지 않고 그 인원의 좌표가 빈다. 먼저 그 key 의
   `_TOKEN_ENC` 가 env 에 있고 endpoint 가 비어 있지 않은지 확인한다. 이 둘은 로그를 남기지 않는다. 그다음 서버 로그의 warn
   `등록 수집 대상 거부 type=<종류> key=<key>: <사유>` 를 본다. 같은 거부가 이어지는 동안은 한 번만 남고, 사유가 바뀌거나
-  재기동 · 해소 후 재발하면 다시 남으므로 마지막 재기동 이후 로그까지 본다.
+  재기동 · 해소 후 재발하면 다시 남는다. 재기동 후 수집이 한 번 돌기 전에는 warn 이 없으므로 마지막 재기동 이후 로그를 본다.
   - `허용 host 미설정`: 사유에 적힌 `*_ALLOWED_HOST` 를 넣고 재배포한다.
-  - `허용 host 형식 오류`: env 값을 host 1 개 (`host` 또는 `host:port`) 로 고친다. scheme · path 를 넣으면 이 사유다.
-  - `endpoint host 불일치`: env 값부터 본다. 쉼표 목록 · wildcard 는 형식 오류가 아니라 이 사유로 나온다. env 가 맞으면 Admin 이
+  - `허용 host 형식 오류`: env 값을 host 1 개 (`host` 또는 `host:port`) 로 고친다. scheme · path · 공백을 넣으면 이 사유다.
+  - `endpoint host 불일치`: env 값부터 본다. 공백 없는 쉼표 목록 · wildcard 는 형식 오류가 아니라 이 사유로 나온다. env 가 맞으면 Admin 이
     바꾼 endpoint 일 수 있으므로 env 를 endpoint 에 맞춰 고치기 전에 변경 경위를 확인한다.
   - `endpoint 형식 거부`: endpoint 를 고친다 (Confluence 는 https URL, GitHub 는 host).
 - **Ollama LAN 미노출**: 배포 기기가 로컬 PC Ollama 에 못 닿음. PC 에서 `OLLAMA_HOST=0.0.0.0`
