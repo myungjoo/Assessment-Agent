@@ -128,6 +128,9 @@ describe("PeriodBridgeAdminPersistService.generateAndPersistIfCollected", () => 
     await expect(run()).resolves.toBeNull();
     expect(evaluation.evaluateActivities).not.toHaveBeenCalled();
     expect(persist.persist).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("succeeded=2 failed=1"),
+    );
     warn.mockRestore();
   });
 
@@ -141,7 +144,9 @@ describe("PeriodBridgeAdminPersistService.generateAndPersistIfCollected", () => 
     expect(evaluation.evaluateActivities).not.toHaveBeenCalled();
     expect(persist.persist).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalledWith(
-      expect.stringMatching(/personId=p1 .*unavailable=SEC$/),
+      expect.stringMatching(
+        /personId=p1 period=day periodStart=2026-10-22T15:00:00.000Z .*unavailable=SEC$/,
+      ),
     );
     warn.mockRestore();
   });

@@ -219,7 +219,7 @@ export class PeriodBridgeAdminPersistService {
       : { activities: [], tally: { succeeded: 0, failed: 0 } };
     if (!coverage.complete || tally.failed > 0) {
       this.logger.warn(
-        `수집 불완전 좌표 저장 건너뜀: personId=${context.personId} period=${context.period} succeeded=${tally.succeeded} failed=${tally.failed} coverage=${coverage.complete} unavailable=${coverage.unavailableKeys.join(",")}`,
+        `수집 불완전 좌표 저장 건너뜀: personId=${context.personId} period=${context.period} periodStart=${context.periodStart.toISOString()} succeeded=${tally.succeeded} failed=${tally.failed} coverage=${coverage.complete} unavailable=${coverage.unavailableKeys.join(",")}`,
       );
       return null;
     }
