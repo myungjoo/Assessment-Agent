@@ -2,7 +2,11 @@
 id: T-2045
 title: parts guard 선행 ② — useAdminParts 5 발사의 web 인증 cookie 전송 계약 test
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-10-30
+mergedAs: e60f47e9
+prNumber: 1606
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-073]
 estimatedDiff: 169
@@ -29,11 +33,11 @@ Q-0056 `decision` 의 조건이다 — 각 slice 는 web 측이 인증 cookie �
 
 ## Acceptance Criteria
 
-- [ ] 변경 파일은 `web/src/views/useAdminParts.auth-cookie.test.ts` 1 개
-- [ ] happy: 목록 GET · 소속 인원 GET · POST · PATCH · DELETE 전부 same-origin
-- [ ] 분기: 미선택 시 소속 인원 미조회, PATCH 401 → refresh → retry
-- [ ] error: GET 401 → refresh 401 이면 error 상태
-- [ ] negative: POST 403 · DELETE 네트워크 실패 · credentials 덮어쓰기 불가 · 빈 id 미발사
+- [x] 변경 파일은 `web/src/views/useAdminParts.auth-cookie.test.ts` 1 개
+- [x] happy: 목록 GET · 소속 인원 GET · POST · PATCH · DELETE 전부 same-origin
+- [x] 분기: 미선택 시 소속 인원 미조회, PATCH 401 → refresh → retry
+- [x] error: GET 401 → refresh 401 이면 error 상태
+- [x] negative: POST 403 · DELETE 네트워크 실패 · credentials 덮어쓰기 불가 · 빈 id 미발사
 
 ## Out of Scope
 
