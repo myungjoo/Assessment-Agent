@@ -2,7 +2,11 @@
 id: T-2070
 title: 최근 N일 재수집 ② — runner 실행부 startRefresh · refreshStatus
 phase: P7
-status: READY
+status: DONE
+completedAt: 2026-10-30
+mergedAs: 2ad253dd
+prNumber: 1631
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-041, REQ-031]
 estimatedDiff: 300
