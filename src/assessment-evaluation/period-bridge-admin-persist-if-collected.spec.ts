@@ -74,8 +74,13 @@ const ONLY_CONFLUENCE = { sources: [], instances: [SPACES] };
 describe("PeriodBridgeAdminPersistService.generateAndPersistIfCollected", () => {
   it("모든 호출이 성공한 0 건은 실제 무활동이라 빈 평가를 저장한다", async () => {
     const { run, evaluation, persist } = setup();
-    await expect(run()).resolves.not.toBeNull();
-    expect(evaluation.evaluateActivities.mock.calls[0][0]).toEqual([]);
+    await expect(run()).resolves.toEqual({
+      assessment: { id: "a" },
+      created: false,
+    });
+    expect(evaluation.evaluateActivities).toHaveBeenCalledWith([], {
+      modelId: "m",
+    });
     expect(persist.persist).toHaveBeenCalledWith(CONTEXT, [], "fill");
   });
 
