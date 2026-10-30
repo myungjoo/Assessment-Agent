@@ -5,7 +5,7 @@
 // 본 spec 은 `src/` 를 재귀 순회해 `*.controller.ts` 를 **발견**하고 route 를 정적 추출한다.
 // 판정 비대칭 — 총 route · 보호 route 는 하한만 건다(정확 일치면 보호 route 를 정상 추가할 때마다
 // red 가 되어 소음). **미보호 집합만 정확 일치**라 신규 유입(초과)도 stale 잔존(미달)도 red 다.
-// `known-gap-REQ-043` 6 건은 blessing 이 아니라 카운트 가능한 부채이며, guard 실 배선(§5 오너
+// `known-gap-REQ-043` 은 blessing 이 아니라 카운트 가능한 부채(T-2048 로 0 건)이며, guard 실 배선(§5 오너
 // 승인 대상) slice 가 이 목록을 함께 줄여야 한다.
 //      🔥 Nest 부팅 0 · DB 0 · 네트워크 0 · src 변경 0 — 파일 read + 합성 문자열 주입만.
 import { readFileSync, existsSync } from "fs";
@@ -27,7 +27,7 @@ const REPO_ROOT = path.resolve(__dirname, "../..");
 const SRC_ROOT = path.join(REPO_ROOT, "src").replace(/\\/g, "/");
 
 /** 본 fire 실측 하한 — 증가는 정상, 감소는 red. */
-const MIN = { controllers: 23, routes: 89, guarded: 78 };
+const MIN = { controllers: 23, routes: 89, guarded: 84 };
 
 /** 인증 진입 경로 · sanity root · 가입 — 설계상 public. */
 const PUBLIC_BY_DESIGN: readonly string[] = [
@@ -40,15 +40,8 @@ const PUBLIC_BY_DESIGN: readonly string[] = [
 
 /** guard 미배선 부채 — 배선은 §5 오너 승인 대상이라 본 spec 은 세기만 한다. */
 const KNOWN_GAP_REQ_043: readonly string[] = [
-  // groups 9 route 는 전량 배선 완료 (⑤a read T-2037 / ⑤b write T-2039) 라 목록에서 빠졌다.
-  "GET /api/parts",
-  "GET /api/parts/:id",
-  "GET /api/parts/:id/persons",
-  "POST /api/parts",
-  "PATCH /api/parts/:id",
-  "DELETE /api/parts/:id",
-  // persons 최상위 5 route 는 전량 배선 완료 (④a read T-2027 / ④b write T-2029) 라
-  // 목록에서 빠졌다. 남은 6 항목은 parts 축이다.
+  // Q-0056 으로 persons (T-2027 · T-2029) · groups (T-2037 · T-2039) · parts (T-2048) 전량
+  // 배선 완료라 비었다. 새 항목은 §5 오너 승인 없이 넣지 않는다.
 ];
 
 /** 미보호 허용 목록 = 두 reason 태그의 합. 실측 집합과 **정확히** 같아야 한다. */
@@ -86,7 +79,7 @@ describe("전 route 인증 guard 적용률 census drift (REQ-043 · T-1983)", ()
       );
       expect(extractControllerPrefix(read("app.controller.ts"))).toBe("api");
     });
-    it("route/guard census: route 89+ · 보호 73+ (증가는 정상, 감소는 red)", () => {
+    it("route/guard census: route 89+ · 보호 84+ (증가는 정상, 감소는 red)", () => {
       const routes = repoRoutes();
       expect(routes.length).toBeGreaterThanOrEqual(MIN.routes);
       expect(routes.filter((r) => r.guarded).length).toBeGreaterThanOrEqual(
@@ -108,11 +101,11 @@ describe("전 route 인증 guard 적용률 census drift (REQ-043 · T-1983)", ()
       expect(allowed.filter((r) => !actual.includes(r))).toEqual([]);
       expect(actual).toEqual(allowed);
     });
-    it("allowlist 태그 건수 고정 — public-by-design 5 · known-gap-REQ-043 6", () => {
+    it("allowlist 태그 건수 고정 — public-by-design 5 · known-gap-REQ-043 0", () => {
       expect(PUBLIC_BY_DESIGN.length).toBe(5);
-      expect(KNOWN_GAP_REQ_043.length).toBe(6);
-      expect(UNPROTECTED_ALLOWLIST.length).toBe(11);
-      // 두 태그가 겹치면 합계 11 이 우연히 맞을 수 있어 교집합 0 도 함께 고정.
+      expect(KNOWN_GAP_REQ_043.length).toBe(0);
+      expect(UNPROTECTED_ALLOWLIST.length).toBe(5);
+      // 두 태그가 겹치면 합계가 우연히 맞을 수 있어 교집합 0 도 함께 고정.
       expect(
         PUBLIC_BY_DESIGN.filter((r) => KNOWN_GAP_REQ_043.includes(r)),
       ).toEqual([]);
