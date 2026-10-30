@@ -5,6 +5,11 @@
 // 검증한다. buildRecentDeletionPlan 자체의 경계/필터 정확성은 recent-deletion-plan.spec.ts
 // 가 cover — 본 spec 은 runner 의 결선만.
 import type { CollectionTriggerService } from "../assessment-collection/collection-trigger.service";
+import type { EvaluationPersistedRecordsReader } from "../assessment-evaluation/evaluation-persisted-records-reader.service";
+import type { PeriodBridgeAdminPersistService } from "../assessment-evaluation/period-bridge-admin-persist.service";
+import type { LlmProviderConfigResolver } from "../llm/llm-provider-config-resolver.service";
+import { RunStatusService } from "../run-status/run-status.service";
+import type { PersonService } from "../user/person.service";
 
 import { buildRecentDeletionPlan } from "./recent-deletion-plan";
 import {
@@ -46,7 +51,15 @@ function makeService(
   const triggerService = {
     triggerCollection: triggerSpy,
   } as unknown as CollectionTriggerService;
-  const service = new RecentDeletionRunnerService(triggerService, opts.deleter);
+  const service = new RecentDeletionRunnerService(
+    triggerService,
+    {} as LlmProviderConfigResolver,
+    {} as PersonService,
+    {} as EvaluationPersistedRecordsReader,
+    {} as PeriodBridgeAdminPersistService,
+    {} as RunStatusService,
+    opts.deleter,
+  );
   return { service, triggerSpy };
 }
 
@@ -381,5 +394,112 @@ describe("RecentDeletionRunnerService.runRecentDeletion — negative 충분 cove
       "person-1",
       plan.toDelete,
     );
+  });
+});
+
+// startRefresh 는 기다리지 않는 실행을 남기므로 끝날 때까지 이벤트 루프를 돌린다.
+async function settle(service: RecentDeletionRunnerService): Promise<void> {
+  for (let i = 0; i < 100 && service.refreshStatus("p1").running; i += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+}
+
+describe("RecentDeletionRunnerService — 최근 N일 재수집", () => {
+  // 2026-06-11(목) 12:00 KST. days=1 창은 06-10 하루다.
+  const NOW = new Date("2026-06-11T03:00:00Z");
+  const YESTERDAY = new Date("2026-06-10T00:00:00+09:00");
+  const TODAY = new Date("2026-06-11T00:00:00+09:00");
+  const person = {
+    id: "p1",
+    serviceIdentities: [{ service: "github", externalId: "kim" }],
+  };
+
+  function setup(rows: unknown[] = []) {
+    const runStatus = new RunStatusService();
+    const persist = jest.fn().mockResolvedValue({ created: true });
+    const resolve = jest.fn().mockResolvedValue("model-1");
+    const findPerson = jest.fn().mockResolvedValue(person);
+    const read = jest.fn().mockResolvedValue(rows);
+    const service = new RecentDeletionRunnerService(
+      {} as CollectionTriggerService,
+      {
+        resolveDefaultModelId: resolve,
+      } as unknown as LlmProviderConfigResolver,
+      { findByIdWithIdentities: findPerson } as unknown as PersonService,
+      { readForPersons: read } as unknown as EvaluationPersistedRecordsReader,
+      {
+        generateAndPersistIfCollected: persist,
+      } as unknown as PeriodBridgeAdminPersistService,
+      runStatus,
+    );
+    const finish = async () => {
+      await settle(service);
+      return service.refreshStatus("p1").result;
+    };
+    return {
+      service,
+      runStatus,
+      persist,
+      resolve,
+      findPerson,
+      read,
+      finish,
+    };
+  }
+
+  beforeEach(() => {
+    jest.useFakeTimers({ now: NOW, doNotFake: ["nextTick", "setImmediate"] });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  const row = (periodStart: Date, period = "day", scope = "aggregate") => ({
+    personId: "p1",
+    period,
+    scope,
+    periodStart,
+  });
+
+  it("좌표를 reeval 로 다시 평가하고 삭제 · 교체 건수를 알린다", async () => {
+    const { service, persist, runStatus, read, finish } = setup([
+      row(YESTERDAY),
+    ]);
+    const started = await service.startRefresh("p1", 1);
+    expect(started).toMatchObject({ personId: "p1", running: true });
+    expect(await finish()).toMatchObject({
+      deletedCount: 1,
+      refreshedCount: 1,
+      notRefreshedCount: 0,
+      aborted: false,
+    });
+    expect(read).toHaveBeenCalledWith(["p1"]);
+    expect(persist).toHaveBeenCalledTimes(1);
+    expect(persist).toHaveBeenCalledWith(
+      person,
+      { since: YESTERDAY.toISOString(), until: TODAY.toISOString() },
+      { modelId: "model-1" },
+      {
+        personId: "p1",
+        period: "day",
+        scope: "aggregate",
+        periodStart: YESTERDAY,
+      },
+      true,
+    );
+    expect(runStatus.snapshot().evaluation.active).toBe(false);
+  });
+
+  it("수집이 불완전한 좌표는 not refreshed 이고 삭제로 세지 않는다_n", async () => {
+    const { service, persist, finish } = setup([row(YESTERDAY)]);
+    persist.mockResolvedValue(null);
+    await service.startRefresh("p1", 1);
+    expect(await finish()).toMatchObject({
+      deletedCount: 0,
+      refreshedCount: 0,
+      notRefreshedCount: 1,
+      aborted: false,
+    });
   });
 });
