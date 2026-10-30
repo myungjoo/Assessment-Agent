@@ -13,10 +13,16 @@
 //   - negative: 빈/공백 key, 빈 GITHUB_INSTANCES, tokenEnc 부재로 reject 된 key,
 //     decrypt 실패, adapter 도메인 error 위상 — 예외 분기마다 1+.
 //   - never-read-back: 복호된 평문 token 이 throw error message / 반환 객체에 미노출.
+import type { CollectionTargetReader } from "../collection-target/collection-target-reader.service";
+import type { CollectionTargetRow } from "../collection-target/effective-instances";
 import { LlmApiKeyCipher } from "../llm/llm-apikey-cipher.service";
 
 import { GithubAdapter, GithubDomainError } from "./github-adapter.service";
 import { GithubInstanceClient } from "./github-instance-client.service";
+
+const NO_TARGETS = {
+  findAll: async () => [],
+} as unknown as CollectionTargetReader;
 
 // 명백히 가짜인 test 전용 값 — 실 GitHub token / 실 암호문 아님(CLAUDE.md §9).
 const FAKE_TOKEN_ENC = "fake-encrypted-envelope-base64==";
@@ -69,6 +75,7 @@ describe("GithubInstanceClient.requestForInstance", () => {
       const client = new GithubInstanceClient(
         adapter,
         cipher,
+        NO_TARGETS,
         envWithPublicInstance(),
       );
       const result = await client.requestForInstance(
@@ -100,6 +107,7 @@ describe("GithubInstanceClient.requestForInstance", () => {
       const client = new GithubInstanceClient(
         adapter,
         cipher,
+        NO_TARGETS,
         envWithPublicInstance(),
       );
       await client.requestForInstance("PUBLIC", "/user");
@@ -115,6 +123,7 @@ describe("GithubInstanceClient.requestForInstance", () => {
       const client = new GithubInstanceClient(
         adapter,
         cipher,
+        NO_TARGETS,
         envWithPublicInstance(),
       );
       await client.requestForInstance("public", "/user");
@@ -136,6 +145,7 @@ describe("GithubInstanceClient.requestForInstance", () => {
       const client = new GithubInstanceClient(
         adapter,
         cipher,
+        NO_TARGETS,
         envWithPublicInstance(),
       );
 
@@ -153,6 +163,7 @@ describe("GithubInstanceClient.requestForInstance", () => {
       const client = new GithubInstanceClient(
         adapter,
         cipher,
+        NO_TARGETS,
         envWithPublicInstance(),
       );
 
@@ -167,6 +178,7 @@ describe("GithubInstanceClient.requestForInstance", () => {
       const client = new GithubInstanceClient(
         adapter,
         cipher,
+        NO_TARGETS,
         envWithPublicInstance(),
       );
 
@@ -180,7 +192,7 @@ describe("GithubInstanceClient.requestForInstance", () => {
       const adapter = makeAdapterMock();
       const cipher = makeCipherMock();
 
-      const client = new GithubInstanceClient(adapter, cipher, {
+      const client = new GithubInstanceClient(adapter, cipher, NO_TARGETS, {
         GITHUB_INSTANCES: "",
       });
 
@@ -195,7 +207,7 @@ describe("GithubInstanceClient.requestForInstance", () => {
 
       // GITHUB_PUBLIC_TOKEN_ENC 부재 → resolveGithubInstances 가 public 을 reject →
       // 활성 instances 에서 빠지므로 client 는 미존재 key 로 본다.
-      const client = new GithubInstanceClient(adapter, cipher, {
+      const client = new GithubInstanceClient(adapter, cipher, NO_TARGETS, {
         GITHUB_INSTANCES: "public",
         GITHUB_PUBLIC_HOST: "github.com",
       });
@@ -215,6 +227,7 @@ describe("GithubInstanceClient.requestForInstance", () => {
       const client = new GithubInstanceClient(
         adapter,
         cipher,
+        NO_TARGETS,
         envWithPublicInstance(),
       );
 
@@ -238,6 +251,7 @@ describe("GithubInstanceClient.requestForInstance", () => {
       const client = new GithubInstanceClient(
         adapter,
         cipher,
+        NO_TARGETS,
         envWithPublicInstance(),
       );
 
@@ -255,6 +269,7 @@ describe("GithubInstanceClient.requestForInstance", () => {
       const client = new GithubInstanceClient(
         adapter,
         cipher,
+        NO_TARGETS,
         envWithPublicInstance(),
       );
 
@@ -284,6 +299,7 @@ describe("GithubInstanceClient.requestAllPagesForInstance", () => {
     const client = new GithubInstanceClient(
       adapter,
       cipher,
+      NO_TARGETS,
       envWithPublicInstance(),
     );
     const result = await client.requestAllPagesForInstance(
@@ -310,6 +326,7 @@ describe("GithubInstanceClient.requestAllPagesForInstance", () => {
     const client = new GithubInstanceClient(
       adapter,
       cipher,
+      NO_TARGETS,
       envWithPublicInstance(),
     );
     await client.requestAllPagesForInstance(
@@ -335,6 +352,7 @@ describe("GithubInstanceClient.requestAllPagesForInstance", () => {
     const client = new GithubInstanceClient(
       adapter,
       cipher,
+      NO_TARGETS,
       envWithPublicInstance(),
     );
 
@@ -357,11 +375,149 @@ describe("GithubInstanceClient.requestAllPagesForInstance", () => {
     const client = new GithubInstanceClient(
       adapter,
       cipher,
+      NO_TARGETS,
       envWithPublicInstance(),
     );
 
     await expect(
       client.requestAllPagesForInstance("public", "/user"),
     ).rejects.toBe(domainError);
+  });
+});
+
+describe("GithubInstanceClient — 등록 대상 key 해석 (ADR-0059 §Decision 3)", () => {
+  const ROW: CollectionTargetRow = {
+    type: "GITHUB",
+    instanceKey: "db",
+    endpoint: "db.example.test",
+    orgs: [],
+    repos: ["o/r"],
+    spaces: [],
+    active: true,
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+  };
+  const DB_ENV = { GITHUB_DB_TOKEN_ENC: FAKE_TOKEN_ENC };
+
+  function make(env: NodeJS.ProcessEnv, rows: CollectionTargetRow[]) {
+    const adapter = makeAdapterMock();
+    adapter.requestAllPages.mockResolvedValue([]);
+    const cipher = makeCipherMock();
+    const findAll = jest.fn(async () => rows);
+    const client = new GithubInstanceClient(
+      adapter,
+      cipher,
+      { findAll } as unknown as CollectionTargetReader,
+      env,
+    );
+    return { client, adapter, cipher, findAll };
+  }
+
+  it("DB 에만 있는 key 는 row 의 host 와 env credential 로 호출한다", async () => {
+    const { client, adapter, cipher } = make(DB_ENV, [ROW]);
+
+    await client.requestAllPagesForInstance("DB", "repos/o/r/commits");
+
+    expect(cipher.decrypt).toHaveBeenCalledWith(FAKE_TOKEN_ENC);
+    expect(adapter.requestAllPages).toHaveBeenCalledWith({
+      host: "db.example.test",
+      token: FAKE_PLAINTEXT_TOKEN,
+      path: "repos/o/r/commits",
+      query: undefined,
+    });
+  });
+
+  it("단건 요청도 DB key 를 해석한다", async () => {
+    const { client, adapter } = make(DB_ENV, [ROW]);
+    adapter.request.mockResolvedValue({});
+
+    await client.requestForInstance("db", "user");
+
+    expect(adapter.request.mock.calls[0][0].host).toBe("db.example.test");
+  });
+
+  it("env 에서 찾으면 DB 를 읽지 않는다", async () => {
+    const { client, findAll } = make(envWithPublicInstance(), [ROW]);
+
+    await client.requestAllPagesForInstance("public", "p");
+
+    expect(findAll).not.toHaveBeenCalled();
+  });
+
+  it("같은 key 면 env host 를 쓴다_n", async () => {
+    const { client, adapter } = make(envWithPublicInstance(), [
+      { ...ROW, instanceKey: "public", endpoint: "evil.example.test" },
+    ]);
+
+    await client.requestAllPagesForInstance("public", "p");
+
+    expect(adapter.requestAllPages.mock.calls[0][0].host).toBe("github.com");
+  });
+
+  it("env 목록에 있으나 reject 된 key 는 row 로 복구되지 않는다_n", async () => {
+    const { client, cipher } = make({ ...DB_ENV, GITHUB_INSTANCES: "db" }, [
+      ROW,
+    ]);
+
+    await expect(client.requestForInstance("db", "p")).rejects.toThrow(
+      "활성 instance 가 아니거나 미존재하는 key",
+    );
+    expect(cipher.decrypt).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["비활성 row", DB_ENV, [{ ...ROW, active: false }]],
+    ["credential 없는 row", {}, [ROW]],
+    ["row 없음", DB_ENV, []],
+  ])("%s 의 key 는 throw 한다_n", async (_label, env, rows) => {
+    const { client, adapter } = make(env, rows);
+
+    await expect(client.requestForInstance("db", "p")).rejects.toThrow(
+      "활성 instance 가 아니거나 미존재하는 key",
+    );
+    expect(adapter.request).not.toHaveBeenCalled();
+  });
+
+  it("복호 실패는 전파한다_n", async () => {
+    const { client, cipher } = make(DB_ENV, [ROW]);
+    cipher.decrypt.mockImplementation(() => {
+      throw new Error("decrypt failed");
+    });
+
+    await expect(client.requestForInstance("db", "p")).rejects.toThrow(
+      "decrypt failed",
+    );
+  });
+
+  it("비활성 row 의 key 오류에 token 값이 실리지 않는다_n", async () => {
+    const { client } = make(DB_ENV, [{ ...ROW, active: false }]);
+
+    const error: Error = await client.requestForInstance("db", "p").then(
+      () => new Error("unreachable"),
+      (e: Error) => e,
+    );
+
+    expect(error.message).toContain("활성 instance");
+    expect(error.message).not.toContain(FAKE_TOKEN_ENC);
+    expect(error.message).not.toContain(FAKE_PLAINTEXT_TOKEN);
+  });
+
+  it("DB 조회 실패는 삼키지 않는다_n", async () => {
+    const { client, findAll } = make(DB_ENV, [ROW]);
+    findAll.mockRejectedValue(new Error("db down"));
+
+    await expect(client.requestForInstance("db", "p")).rejects.toThrow(
+      "db down",
+    );
+  });
+
+  it("row 변경이 다음 요청에 바로 반영된다", async () => {
+    const { client, findAll } = make(DB_ENV, [ROW]);
+
+    await client.requestForInstance("db", "p");
+    findAll.mockResolvedValue([{ ...ROW, active: false }]);
+
+    await expect(client.requestForInstance("db", "p")).rejects.toThrow(
+      "활성 instance",
+    );
   });
 });

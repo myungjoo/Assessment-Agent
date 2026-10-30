@@ -8,8 +8,8 @@
 // 실어 단일/다중 page 요청을 보낼 수 있게 한다.
 //
 // 흐름: requestForInstance(key, path, query?)
-//   (1) resolveGithubInstances(env) 결과에서 key 에 해당하는 GithubInstanceConfig 탐색
-//       (미존재/비활성 key → 평문 미포함 도메인 Error throw).
+//   (1) resolveGithubInstances(env) 결과, 없으면 등록 row 병합 결과에서 key 에 해당하는
+//       GithubInstanceConfig 탐색 (미존재/비활성 key → 평문 미포함 도메인 Error throw).
 //   (2) 그 config 의 tokenEnc 를 decryptGithubInstanceConfigToken 으로 호출 직전 JIT
 //       복호화 (eager 전체 복호화 금지 — never-read-back, ADR-0014 §3).
 //   (3) GithubRequestInput { host, token, path, query } 조립 → GithubAdapter 위임.
@@ -33,6 +33,8 @@
 //     본 client 는 단일 instance key 의 단일 endpoint 요청까지만.
 import { Injectable, Optional } from "@nestjs/common";
 
+import { CollectionTargetReader } from "../collection-target/collection-target-reader.service";
+import { mergeGithubInstances } from "../collection-target/effective-instances";
 import { LlmApiKeyCipher } from "../llm/llm-apikey-cipher.service";
 
 import { GithubAdapter } from "./github-adapter.service";
@@ -54,6 +56,7 @@ export class GithubInstanceClient {
   constructor(
     private readonly adapter: GithubAdapter,
     private readonly cipher: LlmApiKeyCipher,
+    private readonly targets: CollectionTargetReader,
     @Optional()
     private readonly env: NodeJS.ProcessEnv = process.env,
   ) {}
@@ -66,7 +69,7 @@ export class GithubInstanceClient {
     path: string,
     query?: Record<string, string>,
   ): Promise<unknown> {
-    const input = this.buildInput(key, path, query);
+    const input = await this.buildInput(key, path, query);
     return this.adapter.request(input);
   }
 
@@ -78,7 +81,7 @@ export class GithubInstanceClient {
     path: string,
     query?: Record<string, string>,
   ): Promise<unknown[]> {
-    const input = this.buildInput(key, path, query);
+    const input = await this.buildInput(key, path, query);
     return this.adapter.requestAllPages(input);
   }
 
@@ -86,12 +89,12 @@ export class GithubInstanceClient {
   // 조립을 한 곳에 모은 private helper. request / requestAllPages 가 공유한다.
   // 복호된 평문 token 은 반환되는 input.token 으로만 흘려보내며, 이 메서드는 token 을
   // 로그 / 직렬화 / error message 에 노출하지 않는다 (never-read-back).
-  private buildInput(
+  private async buildInput(
     key: string,
     path: string,
     query?: Record<string, string>,
-  ): GithubRequestInput {
-    const config = this.resolveConfig(key);
+  ): Promise<GithubRequestInput> {
+    const config = await this.resolveConfig(key);
 
     // JIT decrypt — 호출 직전에만 복호화한다 (eager 전체 복호화 금지). cipher.decrypt
     // 의 throw (깨진 envelope / 키 부재·길이 미달 / 변조) 는 swallow 없이 전파된다.
@@ -107,13 +110,14 @@ export class GithubInstanceClient {
     };
   }
 
-  // resolveConfig — env 를 읽어 활성 instance config 배열을 계산한 뒤 주어진 key 에
-  // 해당하는 GithubInstanceConfig 를 찾는다. key 매칭은 resolveGithubInstances 의
-  // 대소문자 정규화 (dedupe 시 toUpperCase) 와 정합하게 case-insensitive 로 한다.
+  // resolveConfig — 주어진 key 의 GithubInstanceConfig 를 env, 그다음 등록 row 순으로 찾는다
+  // (ADR-0059 §Decision 3). env 에서 찾으면 DB 를 읽지 않는다. key 매칭은
+  // resolveGithubInstances 의 대소문자 정규화 (dedupe 시 toUpperCase) 와 정합하게
+  // case-insensitive 로 한다.
   //   - 빈/공백-only key → fail-fast throw (token 평문 미포함 진단).
-  //   - 미존재/비활성 key (GITHUB_INSTANCES 미열거 / 필수 env 부재로 reject) → throw.
+  //   - 미존재/비활성 key (어디에도 없음 / 필수 env 부재로 reject / 비활성 row) → throw.
   // 진단 메시지에는 key 이름만 담고 token 평문은 절대 싣지 않는다 (§9).
-  private resolveConfig(key: string): GithubInstanceConfig {
+  private async resolveConfig(key: string): Promise<GithubInstanceConfig> {
     // 빈/공백-only key 방어 — 애초에 매칭 불가하므로 명확한 진단으로 fail-fast.
     if (typeof key !== "string" || key.trim().length === 0) {
       throw new Error(
@@ -123,9 +127,14 @@ export class GithubInstanceClient {
 
     const normalized = key.trim().toUpperCase();
     const { instances } = resolveGithubInstances(this.env);
-    const config = instances.find((i) => i.key.toUpperCase() === normalized);
+    const config =
+      instances.find((i) => i.key.toUpperCase() === normalized) ??
+      mergeGithubInstances(
+        this.env,
+        await this.targets.findAll(),
+      ).instances.find((i) => i.key.toUpperCase() === normalized);
 
-    // 미존재/비활성 key — GITHUB_INSTANCES 에 미열거됐거나 필수 env 부재로 reject 됨.
+    // 미존재/비활성 key — env · 등록 row 어디에도 없거나 필수 env 부재로 reject 됨.
     // 활성 instance 0 (빈 GITHUB_INSTANCES) 케이스도 여기서 throw 로 흡수한다.
     if (config === undefined) {
       throw new Error(
