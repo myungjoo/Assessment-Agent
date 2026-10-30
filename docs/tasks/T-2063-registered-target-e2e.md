@@ -44,3 +44,7 @@ plannerNote: P7 · 등록 수집 대상 실효화 arc ⑤ — 실 HTTP · 실 DB
 ## Suggested Sub-agents
 
 `tester`
+
+## Follow-ups
+
+- (리뷰 MINOR, 파일 300 행 cap) 충돌 시나리오에 row repo · token 미혼입 단언, credential 시나리오에 `incompleteCount` 단언을 더하면 실패 원인까지 고정된다. 지금은 같은 파일의 다른 test 와 T-2060 unit 이 보호한다.
