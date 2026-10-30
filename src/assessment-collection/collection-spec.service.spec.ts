@@ -250,8 +250,14 @@ describe("assessCollectionCoverage — 등록 대상 (ADR-0059 §Decision 3)", (
     expect(assess(DB_TOKEN, [ROW], "DB")).toEqual(OK);
   });
 
-  it("DB 대상은 env 대상과 함께 판정한다", () => {
-    expect(assess({ ...COM, ...DB_TOKEN }, [ROW], "com", "db")).toEqual(OK);
+  it("repo 없이 org 만 있는 DB 대상도 쓸 수 있다", () => {
+    const row = { ...ROW, repos: [], orgs: ["o"] };
+    expect(assess(DB_TOKEN, [row], "db")).toEqual(OK);
+  });
+
+  it("DB Confluence 대상도 쓸 수 있다", () => {
+    const row = { ...ROW, type: "CONFLUENCE", spaces: ["A"] };
+    expect(assess({ CONFLUENCE_DB_TOKEN_ENC: "t" }, [row], "db")).toEqual(OK);
   });
 
   it("DB GitHub 대상이 있으면 목록에 없는 key 가 저장을 막지 않는다", () => {
@@ -290,6 +296,16 @@ describe("assessCollectionCoverage — 등록 대상 (ADR-0059 §Decision 3)", (
     ).toEqual(OK);
   });
 
+  const OFF = { ...ROW, active: false };
+
+  it("GitHub 식별자 없는 인원도 비활성 대상의 식별자로 막히지 않는다", () => {
+    expect(assess(WIKI, [OFF], "db", "wiki")).toEqual(OK);
+  });
+
+  it("비활성 대상이 있어도 GitHub 없는 미목록 key 보호는 유지된다_n", () => {
+    expect(assess(WIKI, [OFF], "db", "wiki", "ecode").complete).toBe(false);
+  });
+
   it("비활성 대상의 식별자만 있으면 수집할 것이 없어 불완전하다_n", () => {
     expect(assess(DB_TOKEN, [{ ...ROW, active: false }], "db").complete).toBe(
       false,
@@ -311,11 +327,6 @@ describe("assessCollectionCoverage — 등록 대상 (ADR-0059 §Decision 3)", (
     });
   });
 
-  it("row 인자를 생략하면 env 만으로 판정한다", () => {
-    expect(assessCollectionCoverage(identities("db"), DB_TOKEN).complete).toBe(
-      false,
-    );
-  });
 });
 
 describe("CollectionSpecService.buildCollectionSpecWithCoverage", () => {

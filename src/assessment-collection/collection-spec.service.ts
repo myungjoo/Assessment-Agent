@@ -59,6 +59,11 @@ export function assessCollectionCoverage(
 ): CollectionCoverage {
   const github = mergeGithubInstances(env, targets);
   const confluence = mergeConfluenceInstances(env, targets);
+  const excluded = new Set(
+    targets
+      .filter((t) => !t.active)
+      .map((t) => normalizeInstanceKey(t.instanceKey)),
+  );
 
   const unavailableKeys: string[] = [];
   let usable = 0;
@@ -70,7 +75,8 @@ export function assessCollectionCoverage(
     const inGithub = github.listedKeys.has(key);
     const inConfluence = confluence.listedKeys.has(key);
     if (!inGithub && !inConfluence) {
-      unlisted += 1;
+      // 비활성 row 는 운영자의 제외 결정이라 GitHub 설정 유실 신호가 아니다.
+      unlisted += excluded.has(key) ? 0 : 1;
       continue;
     }
     const instance = github.instances.find(

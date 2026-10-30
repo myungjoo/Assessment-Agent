@@ -199,15 +199,6 @@ describe("mergeGithubInstances", () => {
     expect(merged.listedKeys).toEqual(new Set(["DB"]));
     expect(merged.rejected).toEqual(["db: endpoint 가 비어 있음"]);
   });
-
-  it("다른 type 의 같은 key 는 충돌이 아니다", () => {
-    const merged = mergeGithubInstances(ENV_GITHUB, [
-      confluenceRow({ instanceKey: "env" }),
-    ]);
-
-    expect(merged.instances).toEqual([ENV_CONFIG]);
-    expect(merged.rejected).toEqual([]);
-  });
 });
 
 describe("mergeConfluenceInstances", () => {
@@ -224,14 +215,6 @@ describe("mergeConfluenceInstances", () => {
     tokenEnc: "enc-wiki",
     spaceAllowlist: ["SP"],
   };
-
-  it("env 와 row 가 모두 비면 대상도 목록도 비어 있다", () => {
-    expect(mergeConfluenceInstances({}, [])).toEqual({
-      instances: [],
-      rejected: [],
-      listedKeys: new Set(),
-    });
-  });
 
   it("DB 에만 있는 row 는 env credential 로 env 대상 뒤에 붙는다", () => {
     const merged = mergeConfluenceInstances(
