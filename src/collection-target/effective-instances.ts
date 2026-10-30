@@ -2,6 +2,9 @@
 // 대상을 계산하는 순수 함수 (ADR-0059 §Decision 3). 규칙 표는 T-2059 task 파일이 정본이다.
 // 찾지 못한 credential 의 active row 는 instances 에서 빠지지만 listedKeys 에 남는다.
 // rejected 진단에는 key 와 env 이름만 적고 값은 적지 않는다.
+// 등록 row 는 허용 host 검사 (target-host-guard) 를 통과해야 대상이 된다. 거부된 row 는 token 복호
+// 없이 빠지고 listedKeys 에 남아 저장 판정에서 실패로 친다. env 정의 대상은 검사하지 않는다.
+import { Logger } from "@nestjs/common";
 import type { CollectionTarget } from "@prisma/client";
 
 import {
@@ -19,6 +22,13 @@ import {
   type GithubInstanceConfig,
   resolveGithubInstances,
 } from "../github/github-instance-config";
+
+import {
+  ALLOWED_HOST_SUFFIX,
+  checkConfluenceEndpoint,
+  checkGithubEndpoint,
+  type EndpointCheck,
+} from "./target-host-guard";
 
 export type CollectionTargetRow = Omit<CollectionTarget, "id" | "updatedAt">;
 
@@ -44,6 +54,18 @@ const parseListedKeys = (raw: string | undefined): Set<string> =>
 const cleanList = (values: string[]): string[] =>
   values.map((value) => value.trim()).filter((value) => value.length > 0);
 
+const logger = new Logger("CollectionTargetHostGuard");
+// merge 는 인원 · 요청마다 불리므로 같은 사유는 바뀔 때만 한 번 남긴다.
+const loggedHostRejections = new Map<string, string>();
+
+function logHostRejection(type: string, key: string, reason: string): void {
+  const id = `${type}:${normalizeInstanceKey(key)}`;
+  if (loggedHostRejections.get(id) !== reason) {
+    loggedHostRejections.set(id, reason);
+    logger.warn(`등록 수집 대상 거부 type=${type} key=${key}: ${reason}`);
+  }
+}
+
 function mergeRegistered<T>(
   type: string,
   base: { instances: T[]; rejected: string[] },
@@ -51,7 +73,13 @@ function mergeRegistered<T>(
   rows: CollectionTargetRow[],
   tokenEnvName: (key: string) => string,
   env: NodeJS.ProcessEnv,
-  toConfig: (key: string, row: CollectionTargetRow, tokenEnc: string) => T,
+  checkEndpoint: (key: string, endpoint: string) => EndpointCheck,
+  toConfig: (
+    key: string,
+    row: CollectionTargetRow,
+    tokenEnc: string,
+    endpoint: string,
+  ) => T,
 ): EffectiveInstances<T> {
   const envListed = parseListedKeys(listRaw);
   const listedKeys = new Set(envListed);
@@ -93,7 +121,14 @@ function mergeRegistered<T>(
       rejected.push(`${key}: endpoint 가 비어 있음`);
       continue;
     }
-    instances.push(toConfig(key, row, tokenEnc));
+    const check = checkEndpoint(key, row.endpoint);
+    if (!check.ok) {
+      rejected.push(`${key}: ${check.reason}`);
+      logHostRejection(type, key, check.reason);
+      continue;
+    }
+    loggedHostRejections.delete(`${type}:${normalized}`);
+    instances.push(toConfig(key, row, tokenEnc, check.endpoint));
   }
   return { instances, rejected, listedKeys };
 }
@@ -110,9 +145,15 @@ export function mergeGithubInstances(
     rows,
     (key) => githubEnvName(key, GITHUB_TOKEN_ENC_SUFFIX),
     env,
-    (key, row, tokenEnc) => ({
+    (key, endpoint) =>
+      checkGithubEndpoint(
+        endpoint,
+        env,
+        githubEnvName(key, ALLOWED_HOST_SUFFIX),
+      ),
+    (key, row, tokenEnc, endpoint) => ({
       key,
-      host: row.endpoint.trim(),
+      host: endpoint,
       orgs: cleanList(row.orgs),
       repos: cleanList(row.repos),
       tokenEnc,
@@ -132,9 +173,15 @@ export function mergeConfluenceInstances(
     rows,
     (key) => confluenceEnvName(key, CONFLUENCE_TOKEN_ENC_SUFFIX),
     env,
-    (key, row, tokenEnc) => ({
+    (key, endpoint) =>
+      checkConfluenceEndpoint(
+        endpoint,
+        env,
+        confluenceEnvName(key, ALLOWED_HOST_SUFFIX),
+      ),
+    (key, row, tokenEnc, endpoint) => ({
       key,
-      baseUrl: row.endpoint.trim(),
+      baseUrl: endpoint,
       authUser:
         env[confluenceEnvName(key, CONFLUENCE_AUTH_USER_SUFFIX)]?.trim() ||
         null,

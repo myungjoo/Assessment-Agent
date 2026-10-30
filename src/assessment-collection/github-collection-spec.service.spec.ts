@@ -254,7 +254,10 @@ describe("GithubCollectionSpecService — 등록 대상 병합 (ADR-0059 §Decis
     active: true,
     createdAt: new Date("2026-01-01T00:00:00Z"),
   };
-  const DB_ENV = { GITHUB_DB_TOKEN_ENC: "enc-db" };
+  const DB_ENV = {
+    GITHUB_DB_TOKEN_ENC: "enc-db",
+    GITHUB_DB_ALLOWED_HOST: "db.example.test",
+  };
   const person = { serviceIdentities: [{ service: "db" }] };
   const withFindAll = (findAll: jest.Mock) =>
     new GithubCollectionSpecService(

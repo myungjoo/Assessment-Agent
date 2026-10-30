@@ -1,3 +1,11 @@
+import { Logger } from "@nestjs/common";
+
+import { assessCollectionCoverage } from "../assessment-collection/collection-spec.service";
+import type { GithubAdapter } from "../github/github-adapter.service";
+import { GithubInstanceClient } from "../github/github-instance-client.service";
+import type { LlmApiKeyCipher } from "../llm/llm-apikey-cipher.service";
+
+import type { CollectionTargetReader } from "./collection-target-reader.service";
 import {
   type CollectionTargetRow,
   mergeConfluenceInstances,
@@ -37,7 +45,10 @@ const ENV_GITHUB: NodeJS.ProcessEnv = {
   GITHUB_ENV_REPOS: "o/r",
   GITHUB_ENV_TOKEN_ENC: "enc-env",
 };
-const DB_TOKEN = { GITHUB_DB_TOKEN_ENC: " enc-db " };
+const DB_TOKEN = {
+  GITHUB_DB_TOKEN_ENC: " enc-db ",
+  GITHUB_DB_ALLOWED_HOST: "db.example.test",
+};
 const ENV_CONFIG = {
   key: "env",
   host: "env.example.test",
@@ -207,7 +218,10 @@ describe("mergeConfluenceInstances", () => {
     CONFLUENCE_CLOUD_BASE_URL: "https://cloud.example.test/rest/api",
     CONFLUENCE_CLOUD_TOKEN_ENC: "enc-cloud",
   };
-  const WIKI_TOKEN = { CONFLUENCE_WIKI_TOKEN_ENC: "enc-wiki" };
+  const WIKI_TOKEN = {
+    CONFLUENCE_WIKI_TOKEN_ENC: "enc-wiki",
+    CONFLUENCE_WIKI_ALLOWED_HOST: "wiki.example.test",
+  };
   const WIKI_CONFIG = {
     key: "wiki",
     baseUrl: "https://wiki.example.test/rest/api",
@@ -275,5 +289,171 @@ describe("mergeConfluenceInstances", () => {
     ]);
 
     expect(merged.instances).toEqual([]);
+  });
+});
+
+describe("등록 row 의 허용 host 검사 (ADR-0059 §Consequences (e))", () => {
+  const TOKEN_ONLY = { GITHUB_DB_TOKEN_ENC: "enc-db" };
+  const WIKI_TOKEN_ONLY = { CONFLUENCE_WIKI_TOKEN_ENC: "enc-wiki" };
+  const WIKI_ALLOWED = {
+    ...WIKI_TOKEN_ONLY,
+    CONFLUENCE_WIKI_ALLOWED_HOST: "wiki.example.test",
+  };
+  let warn: jest.SpyInstance;
+
+  beforeEach(() => {
+    warn = jest.spyOn(Logger.prototype, "warn").mockImplementation();
+  });
+
+  afterEach(() => {
+    warn.mockRestore();
+  });
+
+  it.each([
+    ["미설정", {}, "허용 host 미설정"],
+    [
+      "불일치",
+      { GITHUB_DB_ALLOWED_HOST: "other.example.test" },
+      "endpoint host 불일치",
+    ],
+  ])(
+    "허용 host 가 %s 면 대상이 아니지만 목록에 남는다_n",
+    (_label, allowed, reason) => {
+      const merged = mergeGithubInstances({ ...TOKEN_ONLY, ...allowed }, [
+        row(),
+      ]);
+
+      expect(merged.instances).toEqual([]);
+      expect(merged.listedKeys).toEqual(new Set(["DB"]));
+      expect(merged.rejected).toEqual([
+        `db: ${reason} — GITHUB_DB_ALLOWED_HOST`,
+      ]);
+      expect(merged.rejected.join()).not.toContain("enc-");
+    },
+  );
+
+  it("검사한 정규화 값으로 GitHub 대상을 만든다", () => {
+    const merged = mergeGithubInstances(DB_TOKEN, [
+      row({ endpoint: "https://DB.Example.Test:443/" }),
+    ]);
+
+    expect(merged.instances[0].host).toBe("db.example.test");
+  });
+
+  it("검사한 정규화 값으로 Confluence 대상을 만든다", () => {
+    const merged = mergeConfluenceInstances(WIKI_ALLOWED, [
+      confluenceRow({ endpoint: "HTTPS://Wiki.Example.Test/rest/api/" }),
+    ]);
+
+    expect(merged.instances[0].baseUrl).toBe(
+      "https://wiki.example.test/rest/api",
+    );
+  });
+
+  it("http Confluence 는 허용 host 가 맞아도 거부한다_n", () => {
+    const merged = mergeConfluenceInstances(WIKI_ALLOWED, [
+      confluenceRow({ endpoint: "http://wiki.example.test/rest/api" }),
+    ]);
+
+    expect(merged.instances).toEqual([]);
+    expect(merged.listedKeys).toEqual(new Set(["WIKI"]));
+    expect(merged.rejected).toEqual([
+      "wiki: endpoint 형식 거부 (https URL 만 허용)",
+    ]);
+  });
+
+  it("http GitHub endpoint 는 허용 host 가 맞아도 거부한다_n", () => {
+    const merged = mergeGithubInstances(DB_TOKEN, [
+      row({ endpoint: "http://db.example.test" }),
+    ]);
+
+    expect(merged.instances).toEqual([]);
+    expect(merged.rejected).toEqual([
+      "db: endpoint 형식 거부 (https host 만 허용)",
+    ]);
+  });
+
+  it("같은 key 의 다른 종류 허용 값은 row 를 풀지 않는다_n", () => {
+    const merged = mergeConfluenceInstances(
+      { ...WIKI_TOKEN_ONLY, GITHUB_WIKI_ALLOWED_HOST: "wiki.example.test" },
+      [confluenceRow()],
+    );
+
+    expect(merged.instances).toEqual([]);
+  });
+
+  it("env 정의 대상은 허용 host 없이 그대로 동작한다", () => {
+    const env = {
+      CONFLUENCE_INSTANCES: "plain",
+      CONFLUENCE_PLAIN_BASE_URL: "http://plain.example.test/rest/api",
+      CONFLUENCE_PLAIN_TOKEN_ENC: "enc-plain",
+    };
+
+    expect(mergeConfluenceInstances(env, []).instances[0].baseUrl).toBe(
+      "http://plain.example.test/rest/api",
+    );
+    expect(mergeGithubInstances(ENV_GITHUB, []).instances).toEqual([
+      ENV_CONFIG,
+    ]);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("거부된 row 의 식별자는 미설정이 아니라 실패다_n", () => {
+    const identities = [{ service: "env" }, { service: "db" }];
+
+    expect(
+      assessCollectionCoverage(identities, { ...ENV_GITHUB, ...TOKEN_ONLY }, [
+        row(),
+      ]),
+    ).toEqual({ complete: false, unavailableKeys: ["DB"] });
+  });
+
+  it("거부된 key 는 client 에서 복호 없이 실패한다_n", async () => {
+    const adapter = { request: jest.fn(), requestAllPages: jest.fn() };
+    const cipher = { decrypt: jest.fn() };
+    const client = new GithubInstanceClient(
+      adapter as unknown as GithubAdapter,
+      cipher as unknown as LlmApiKeyCipher,
+      { findAll: async () => [row()] } as unknown as CollectionTargetReader,
+      TOKEN_ONLY,
+    );
+
+    await expect(client.requestForInstance("db", "user")).rejects.toThrow(
+      "활성 instance 가 아니거나 미존재하는 key",
+    );
+    expect(cipher.decrypt).not.toHaveBeenCalled();
+    expect(adapter.request).not.toHaveBeenCalled();
+  });
+
+  it("거부는 key 와 사유만 로그에 남긴다_n", () => {
+    mergeGithubInstances({ GITHUB_LOGA_TOKEN_ENC: "enc-secret-value" }, [
+      row({ instanceKey: "loga", endpoint: "user:s3cret@evil.test" }),
+    ]);
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    const line = String(warn.mock.calls[0][0]);
+    expect(line).toContain("type=GITHUB key=loga");
+    expect(line).toContain("endpoint 형식 거부");
+    expect(line).not.toContain("enc-secret-value");
+    expect(line).not.toContain("s3cret");
+    expect(line).not.toContain("evil.test");
+  });
+
+  it("같은 사유는 한 번만 남기고, 사유가 바뀌거나 복구 후 재발하면 다시 남긴다", () => {
+    const token = { GITHUB_LOGB_TOKEN_ENC: "enc" };
+    const target = row({ instanceKey: "logb" });
+    const allowed = { ...token, GITHUB_LOGB_ALLOWED_HOST: "db.example.test" };
+    const other = { ...token, GITHUB_LOGB_ALLOWED_HOST: "other.example.test" };
+
+    mergeGithubInstances(token, [target]);
+    mergeGithubInstances(token, [target]);
+    expect(warn).toHaveBeenCalledTimes(1);
+
+    mergeGithubInstances(other, [target]);
+    expect(warn).toHaveBeenCalledTimes(2);
+
+    mergeGithubInstances(allowed, [target]);
+    mergeGithubInstances(other, [target]);
+    expect(warn).toHaveBeenCalledTimes(3);
   });
 });
