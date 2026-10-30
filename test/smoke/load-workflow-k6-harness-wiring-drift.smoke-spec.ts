@@ -1197,7 +1197,7 @@ describe("test/load/s2-read.js persons 인증 cookie 선탑재 배선 drift smok
     });
   });
 
-  describe("negative cases 충분 cover — 축 경계 · 토큰 리터럴 · 합성 mutation 대조군", () => {
+  describe("negative cases 충분 cover — cookie 부착 · 토큰 리터럴 · 합성 mutation 대조군", () => {
     // (T-2047) parts 도 cookie 를 싣게 되어 무 cookie 측정 GET 은 0 이다. 옛 형태 잔존도 red.
     it("(1) groups · parts GET 은 cookie 부착 — 무 cookie 옛 형태 잔존 0, teardown parts 도 cookie 부착", () => {
       const read = s2Body("export default function");

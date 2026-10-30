@@ -81,7 +81,7 @@ const SEED_PARAMS = {
 
 // (T-2038) 부하 job 전용 일회성 bootstrap 계정 — s1-batch.js · s3-concurrent.js 가 문자 단위로
 // 같은 1 쌍을 선언해, 한 run 안에서 세 시나리오가 같은 계정으로 로그인한다. 이 계정은 run 의 첫
-// signup 이라 SuperAdmin 이 되고, 그래서 setup 의 groups seed POST 와 teardown 의 회수 DELETE 가
+// signup 이라 SuperAdmin 이 되고, 그래서 setup 의 groups · parts seed POST 와 teardown 의 회수 DELETE 가
 // Admin+ gate 를 통과한다. 실 자격증명 · 외부 secret 0 이고 password 는 8 자 이상이다. 재실행
 // DB 에서 signup 이 내는 409 1 건은 seed tag 라 판정 tag (조회 route 4 종) 로의 누수는 0 이다.
 const BOOTSTRAP_CREDENTIALS = {
@@ -118,7 +118,7 @@ export function setup() {
   const stamp = Date.now();
   // 인증 부트스트랩 — signup 은 guard 없는 public endpoint 라 별도 admin 준비 없이 계정
   // 1 개를 만들 수 있다. (T-2038) 자격증명은 s1 · s3 와 공유하는 결정적 bootstrap 계정이다 —
-  // groups write (seed POST · 회수 DELETE) 가 ⑤b 이후 Admin+ gate 를 통과해야 한다. 계정이 이미
+  // groups · parts write (seed POST · 회수 DELETE) 가 ⑤b 이후 Admin+ gate 를 통과해야 한다. 계정이 이미
   // 있으면 signup 은 409 를 내는데, 응답을 분기 없이 버린다 (분기 0 규약). 두 요청 모두 seed tag
   // 라 조회 route 4 종의 p95 는 오염 0. 계정 row 는 지우지 않는다 — user 삭제 endpoint 가 없다.
   // (T-2023) 이 블록은 아래 표본 조회보다 **앞** 에 있어야 한다 — 표본 조회가 authCookie 를
