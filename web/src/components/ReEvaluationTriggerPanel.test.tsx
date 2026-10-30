@@ -136,6 +136,25 @@ describe('ReEvaluationTriggerPanel', () => {
     expect(html).toContain(TRIGGER_LABEL);
   });
 
+  it('windows 가 비어도 result 건수를 표시한다_n', () => {
+    const html = renderToStaticMarkup(
+      <ReEvaluationTriggerPanel
+        windows={[]}
+        selectedDays={7}
+        onSelect={noop}
+        onTrigger={noop}
+        result={{
+          deletedCount: 1,
+          refreshedCount: 2,
+          notRefreshedCount: 3,
+          aborted: false,
+        }}
+      />,
+    );
+    expect(html).toContain('갱신 안 됨 3건');
+    expect(html).toContain(EMPTY_WINDOWS);
+  });
+
   it('aborted 결과는 중단 안내를 함께 표시한다_n', () => {
     const html = renderToStaticMarkup(
       <ReEvaluationTriggerPanel
@@ -195,6 +214,7 @@ describe('ReEvaluationTriggerPanel', () => {
         onTrigger={noop}
       />,
     );
+    expect(html).toContain('교체합니다');
     expect(html).toContain('그대로 남고');
     expect(html).toContain('오늘은 제외');
   });

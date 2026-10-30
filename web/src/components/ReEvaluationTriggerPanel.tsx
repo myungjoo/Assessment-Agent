@@ -50,9 +50,6 @@ interface ReEvaluationTriggerPanelProps {
   confirmText?: string;
 }
 
-// 재평가 트리거 패널. 실제 재수집/삭제 요청은 수행하지 않고 props 의 windows·selectedDays 를
-// 표시하며 onSelect/onTrigger 콜백만 호출하는 presentational 책임만 진다 — 실제 요청·낙관적
-// 업데이트·confirm 흐름은 상위 컨테이너가 수행한다.
 function ReEvaluationTriggerPanel({
   windows,
   selectedDays,
@@ -69,13 +66,27 @@ function ReEvaluationTriggerPanel({
     return <div role="status">{SUBMITTING_TEXT}</div>;
   }
 
-  const errorAlert = error ? <div role="alert">{error}</div> : null;
+  // 오류 · 결과 안내는 선택 UI 유무와 무관하게 항상 보인다.
+  const notices = (
+    <>
+      {error ? <div role="alert">{error}</div> : null}
+      {result ? (
+        <div role="status">
+          <p>
+            이전 결과 삭제 {result.deletedCount}건 · 새로 저장 {result.refreshedCount}건 · 갱신 안 됨{' '}
+            {result.notRefreshedCount}건
+          </p>
+          {result.aborted ? <p>{ABORTED_TEXT}</p> : null}
+        </div>
+      ) : null}
+    </>
+  );
 
   // 빈 목록 분기 — 선택할 window 가 없으므로 트리거 폼 대신 빈 상태 메시지를 렌더한다.
   if (windows.length === 0) {
     return (
       <div>
-        {errorAlert}
+        {notices}
         <div role="status">{EMPTY_WINDOWS_TEXT}</div>
       </div>
     );
@@ -98,16 +109,7 @@ function ReEvaluationTriggerPanel({
 
   return (
     <div>
-      {errorAlert}
-      {result ? (
-        <div role="status">
-          <p>
-            이전 결과 삭제 {result.deletedCount}건 · 새로 저장 {result.refreshedCount}건 · 갱신 안 됨{' '}
-            {result.notRefreshedCount}건
-          </p>
-          {result.aborted ? <p>{ABORTED_TEXT}</p> : null}
-        </div>
-      ) : null}
+      {notices}
       {/* 파괴적 동작 경고 — 항상 표시해 사용자가 delete→재수집 임을 인지하게 한다. */}
       <p>{warning}</p>
 
