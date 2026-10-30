@@ -2,7 +2,11 @@
 id: T-2044
 title: parts guard 선행 ① — parts e2e · smoke 요청 전부에 tier 인증 cookie 선탑재
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-10-30
+mergedAs: 3d4dac44
+prNumber: 1605
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-073]
 estimatedDiff: 153
@@ -30,11 +34,11 @@ Q-0056 마지막 축인 parts 의 guard 를 붙이면 cookie 없는 기존 e2e 1
 
 ## Acceptance Criteria
 
-- [ ] 변경 파일은 `test/e2e/parts.e2e-spec.ts` · `test/smoke/parts.smoke-spec.ts` 2 개
-- [ ] e2e 11 곳 · smoke 10 곳 전부 tier cookie 부착 (GET = User, 그 외 = Admin)
-- [ ] `afterEach` truncate → `reseedAuthenticatedActors` 순서 고정
-- [ ] 기존 test 단언 무변경
-- [ ] `pnpm test:e2e` · `pnpm test:smoke` green (CI)
+- [x] 변경 파일은 `test/e2e/parts.e2e-spec.ts` · `test/smoke/parts.smoke-spec.ts` 2 개
+- [x] e2e 11 곳 · smoke 10 곳 전부 tier cookie 부착 (GET = User, 그 외 = Admin)
+- [x] `afterEach` truncate → `reseedAuthenticatedActors` 순서 고정
+- [x] 기존 test 단언 무변경
+- [x] `pnpm test:e2e` · `pnpm test:smoke` green (CI)
 
 ## Out of Scope
 
