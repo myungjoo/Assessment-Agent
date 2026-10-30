@@ -13,8 +13,8 @@
 //     e2e (T-0060 책임 — test/e2e/parts.e2e-spec.ts) 의 책임.
 //
 // 실 DB 전략 (ADR-0004 §Decision):
-//   - mock override 제거 — Test.createTestingModule({imports: [AppModule]}).compile()
-//     만으로 부트스트랩, PrismaService 가 services.postgres 의 localhost:5432 로 실
+//   - mock override 제거 — createAuthenticatedE2EApp 이 AppModule 을 그대로 부트스트랩하고
+//     PrismaService 가 services.postgres 의 localhost:5432 로 실
 //     connection 발화. ADR-0004 §Decision 근거 1 (REQ-029 평가 자료 non-volatile
 //     durability path 발화 — Part 도메인 확장) + 근거 2 (Prisma adapter / pg connection
 //     pool / unique constraint / FK constraint 실 동작 검증) cover.
@@ -38,7 +38,7 @@
 //
 // 인증 cookie 선탑재 (T-2044, Q-0056 parts 축 guard 배선 선행): `createAuthenticatedE2EApp` 로
 // 부트해 parts 요청 10 곳 전부에 tier cookie 를 싣는다 — GET 은 `userCookie`, 그 외는
-// `adminCookie` (api.md parts 행). guard 배선보다 먼저 싣는 선행이라 단언은 무변경이다.
+// `adminCookie` (api.md parts 행의 등급, tier 행이 없는 `:id` · `:id/persons` 는 GET 관례). guard 배선보다 먼저 싣는 선행이라 단언은 무변경이다.
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 

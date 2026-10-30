@@ -25,7 +25,7 @@
 //     cross-file race 차단. app.e2e 는 DB 미사용이라 영향 0.
 //
 // 인증 cookie 선탑재 (T-2044, Q-0056 parts 축 guard 배선 선행): B~D 요청 11 곳 전부에 tier
-// cookie 를 싣는다 — GET 은 `userCookie`, 그 외는 `adminCookie` (api.md parts 행). guard 배선보다
+// cookie 를 싣는다 — GET 은 `userCookie`, 그 외는 `adminCookie` (api.md parts 행의 등급, tier 행이 없는 `:id` · `:id/persons` 는 GET 관례). guard 배선보다
 // 먼저 싣는 선행이라 단언은 무변경이다.
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
