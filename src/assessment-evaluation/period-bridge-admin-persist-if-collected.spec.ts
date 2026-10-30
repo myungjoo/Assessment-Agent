@@ -33,6 +33,7 @@ function setup(
     sources?: unknown[];
     instances?: unknown[];
     person?: typeof PERSON;
+    coverage?: { complete: boolean; unavailableKeys: string[] };
   } = {},
 ) {
   const client = {
@@ -49,9 +50,12 @@ function setup(
   };
   const service = new PeriodBridgeAdminPersistService(
     {
-      buildCollectionSpec: jest.fn().mockResolvedValue({
-        github: { sources: spec.sources ?? [SOURCE] },
-        confluence: { instances: spec.instances ?? [] },
+      buildCollectionSpecWithCoverage: jest.fn().mockResolvedValue({
+        spec: {
+          github: { sources: spec.sources ?? [SOURCE] },
+          confluence: { instances: spec.instances ?? [] },
+        },
+        coverage: spec.coverage ?? { complete: true, unavailableKeys: [] },
       }),
     } as never,
     new CollectionOrchestratorService(github, confluence),
@@ -59,17 +63,17 @@ function setup(
     persist as never,
     { findById: jest.fn().mockResolvedValue({ id: "a" }) } as never,
   );
-  const run = () =>
+  const run = (reevaluate?: boolean) =>
     service.generateAndPersistIfCollected(
       spec.person ?? PERSON,
       PERIOD,
       { modelId: "m" },
       CONTEXT,
+      reevaluate,
     );
   return { run, client, traversal, github, confluence, evaluation, persist };
 }
 type Mocks = ReturnType<typeof setup>;
-const ONLY_CONFLUENCE = { sources: [], instances: [SPACES] };
 
 describe("PeriodBridgeAdminPersistService.generateAndPersistIfCollected", () => {
   it("모든 호출이 성공한 0 건은 실제 무활동이라 빈 평가를 저장한다", async () => {
@@ -97,18 +101,58 @@ describe("PeriodBridgeAdminPersistService.generateAndPersistIfCollected", () => 
     expect(persist.persist).toHaveBeenCalledTimes(1);
   });
 
-  it("활동이 있으면 일부 호출이 실패해도 창 · 귀속 필터 결과를 저장한다", async () => {
+  it("모든 호출이 성공하면 창 · 귀속 필터 결과만 평가해 저장한다", async () => {
     const { run, client, evaluation, persist } = setup();
-    client.requestAllPagesForInstance
-      .mockRejectedValueOnce(new Error("403"))
-      .mockResolvedValueOnce([
-        commit("2026-10-23T00:00:00Z"),
-        commit("2026-10-23T00:00:00Z", "someone-else"),
-        commit(PERIOD.until),
-      ]);
+    client.requestAllPagesForInstance.mockResolvedValueOnce([
+      commit("2026-10-23T00:00:00Z"),
+      commit("2026-10-23T00:00:00Z", "someone-else"),
+      commit(PERIOD.until),
+    ]);
     await run();
     expect(evaluation.evaluateActivities.mock.calls[0][0]).toHaveLength(1);
     expect(persist.persist).toHaveBeenCalledTimes(1);
+  });
+
+  it("reevaluate 는 수집이 완전할 때 reeval 로 저장한다", async () => {
+    const { run, persist } = setup();
+    await run(true);
+    expect(persist.persist).toHaveBeenCalledWith(CONTEXT, [], "reeval");
+  });
+
+  it("활동이 있어도 호출 하나가 실패하면 저장하지 않는다_n", async () => {
+    const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation();
+    const { run, client, evaluation, persist } = setup();
+    client.requestAllPagesForInstance
+      .mockResolvedValueOnce([commit("2026-10-23T00:00:00Z")])
+      .mockRejectedValueOnce(new Error("403"));
+    await expect(run()).resolves.toBeNull();
+    expect(evaluation.evaluateActivities).not.toHaveBeenCalled();
+    expect(persist.persist).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("범위 미달이면 수집 호출 없이 건너뛰고 사유를 경고한다_n", async () => {
+    const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation();
+    const { run, client, evaluation, persist } = setup({
+      coverage: { complete: false, unavailableKeys: ["SEC"] },
+    });
+    await expect(run()).resolves.toBeNull();
+    expect(client.requestAllPagesForInstance).not.toHaveBeenCalled();
+    expect(evaluation.evaluateActivities).not.toHaveBeenCalled();
+    expect(persist.persist).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringMatching(/personId=p1 .*unavailable=SEC$/),
+    );
+    warn.mockRestore();
+  });
+
+  it("불완전하면 reevaluate 여도 기존 평가를 건드리지 않는다_n", async () => {
+    const warn = jest.spyOn(Logger.prototype, "warn").mockImplementation();
+    const { run, client, persist } = setup();
+    client.requestAllPagesForInstance.mockRejectedValueOnce(new Error("500"));
+    await expect(run(true)).resolves.toBeNull();
+    expect(persist.persist).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it("창 밖 활동만 있고 호출이 실패했으면 수집 불가로 본다_n", async () => {
@@ -139,28 +183,6 @@ describe("PeriodBridgeAdminPersistService.generateAndPersistIfCollected", () => 
           new Error("403"),
         ),
       undefined,
-    ],
-    [
-      "GitHub source 0 + Confluence SPACE 미설정",
-      () => null,
-      { sources: [], instances: [{ key: "com", spaceAllowlist: [] }] },
-    ],
-    [
-      "GitHub · Confluence identity 보유 + GitHub source 0 + 전 SPACE 성공",
-      (m) =>
-        m.traversal.traverseInstance.mockResolvedValue([
-          { spaceKey: "A", pages: [] },
-          { spaceKey: "B", pages: [] },
-        ]),
-      {
-        ...ONLY_CONFLUENCE,
-        person: {
-          serviceIdentities: [
-            { service: "com", externalId: "gildong" },
-            { service: "wiki", externalId: "gildong" },
-          ],
-        },
-      },
     ],
     [
       "GitHub 전 호출 성공 + Confluence instance 실패",
