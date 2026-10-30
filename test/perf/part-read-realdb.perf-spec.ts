@@ -8,7 +8,7 @@
 //    후 자식 조회(`findByPartId`)라 slice 2 의 membership 비례 N+1 과도 다르다.
 //    (c) **soft-delete 필터** — `activeOnly` 기본값이 `where: { partId, active: true }`(REQ-026).
 // ② 실행 경로 — `jest-perf.json` 매칭이라 `pnpm test:perf` 로만 실행된다(기본 `pnpm test` 미picking).
-// ③ mock 0 · override 0 — `PartController` 는 guard 미부착이라 인증 노이즈 0 이고, 검증은
+// ③ mock 0 · override 0 — guard 는 실제로 통과한다(요청마다 User 인증 cookie, T-2046). 검증은
 //    `toHaveBeenCalledTimes` 대신 **응답 body 가 seed row 값과 일치** 함으로 실 query 발화를
 //    입증한다(fail 분기는 404 · `p95MaxMs: 0` 라 측정 시간 무의존). production code · mock 짝 ·
 //    임계값 · baseline write 불변이며 REQ-047 실 scale 부하가 아니다.
@@ -16,8 +16,13 @@ import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
 import { PrismaService } from "../../src/persistence/prisma.service";
+import {
+  buildAuthCookie,
+  createAuthenticatedE2EApp,
+  reseedAuthenticatedActors,
+  type AuthenticatedE2EContext,
+} from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
-import { createE2EApp } from "../helpers/e2e-app-factory";
 
 import {
   assertS2Threshold,
@@ -46,24 +51,30 @@ interface Seeded {
 }
 
 describe("S2 조회 latency perf-spec — 실 DB 비-index FK 역방향 Part 소속 조회 (GET /api/parts · :id/persons, REQ-048)", () => {
+  let ctx: AuthenticatedE2EContext;
   let app: INestApplication;
   let prisma: PrismaService;
+  // guard 배선 선행 (T-2046, Q-0056 parts 축) — User+ tier read 요청에 싣는 인증 cookie.
+  let cookie: string;
   // 마지막 응답 — mock spec 의 `toHaveBeenCalledTimes(N)` 의 실 DB 등가 검증용.
   let lastBody: unknown;
   let lastStatus = 0;
 
   beforeAll(async () => {
     // mock override 0 — AppModule 실 부트스트랩 + applyGlobalMiddleware(T-0090 helper).
-    const created = await createE2EApp();
-    app = created.app;
-    prisma = created.moduleRef.get<PrismaService>(PrismaService);
+    ctx = await createAuthenticatedE2EApp([{ role: "User" }]);
+    app = ctx.app;
+    prisma = ctx.prisma;
+    cookie = buildAuthCookie(Object.values(ctx.tokens)[0]);
     // 앞선 스위트 잔여 row 가 첫 test 의 seed 수 검증을 오염시키지 않도록 시작 시점에도 비운다.
     await truncateAll(prisma);
+    await reseedAuthenticatedActors(ctx);
   });
 
   // ADR-0004 §Cleanup — Part · Person 전부 row leak 0.
   afterEach(async () => {
     await truncateAll(prisma);
+    await reseedAuthenticatedActors(ctx);
   });
 
   // connection 누수 0 — app.close() 의 lifecycle hook + 명시적 $disconnect.
@@ -116,7 +127,9 @@ describe("S2 조회 latency perf-spec — 실 DB 비-index FK 역방향 Part 소
   const getRequest =
     (path: string): RequestFn =>
     async () => {
-      const res = await request(app.getHttpServer()).get(`/api/parts${path}`);
+      const res = await request(app.getHttpServer())
+        .get(`/api/parts${path}`)
+        .set("Cookie", cookie);
       lastBody = res.body;
       lastStatus = res.status;
       return { status: res.status };
