@@ -197,45 +197,38 @@ export class PeriodBridgeAdminPersistService {
   }
 
   /**
-   * 자동 평가용 fill 경로. 수집 장애 중의 빈 평가는 first-write-wins 로 이후 평가를 막으므로,
-   * 귀속 활동 0 건인데 호출 실패 · 호출 0 · GitHub source 0(Confluence 외 identity 보유)
-   * 이면 저장 없이 `null` 을 반환한다. 활동이 있으면 부분 실패에도 저장한다.
+   * 자동 평가용 경로. 저장본은 first-write-wins 로 남아 다시 채워지지 않으므로, 수집의 완전성을
+   * 확인하지 못하면 활동 유무와 무관하게 저장 없이 `null` 을 반환하고 좌표를 미평가로 둔다.
+   * 판정: `assessCollectionCoverage` 의 범위 규칙 + org 열거 · 수집 호출 실패 0 건.
+   * `reevaluate` 도 같은 판정을 거친다 — 불완전한 수집으로 기존 평가를 교체하지 않는다.
    */
   async generateAndPersistIfCollected(
     person: PeriodBridgePersonInput,
-    period: { since: string; until: string },
+    period: { since: string; until?: string },
     options: ScoringOptions,
     context: EvaluationPersistContext,
+    reevaluate?: boolean,
   ): Promise<PeriodBridgeAdminPersistResult | null> {
-    const spec = await this.specService.buildCollectionSpec(
-      person,
-      period.since,
-    );
-    const { activities, tally } =
-      await this.orchestrator.collectActivitiesWithTally(spec);
+    const { spec, coverage } =
+      await this.specService.buildCollectionSpecWithCoverage(
+        person,
+        period.since,
+      );
+    const { activities, tally } = coverage.complete
+      ? await this.orchestrator.collectActivitiesWithTally(spec)
+      : { activities: [], tally: { succeeded: 0, failed: 0 } };
+    if (!coverage.complete || tally.failed > 0) {
+      this.logger.warn(
+        `수집 불완전 좌표 저장 건너뜀: personId=${context.personId} period=${context.period} periodStart=${context.periodStart.toISOString()} succeeded=${tally.succeeded} failed=${tally.failed} coverage=${coverage.complete} unavailable=${coverage.unavailableKeys.join(",")}`,
+      );
+      return null;
+    }
     const filtered = filterActivitiesByAuthor(
       filterActivitiesByPeriodWindow(activities, period),
       person.serviceIdentities,
     );
-    const confluenceKeys = spec.confluence.instances.map((c) =>
-      c.key.trim().toUpperCase(),
-    );
-    const githubMissing =
-      spec.github.sources.length === 0 &&
-      person.serviceIdentities.some(
-        (i) => !confluenceKeys.includes(i.service.trim().toUpperCase()),
-      );
-    if (
-      filtered.length === 0 &&
-      (tally.failed > 0 || tally.succeeded === 0 || githubMissing)
-    ) {
-      this.logger.warn(
-        `수집 불가 좌표 저장 건너뜀: period=${context.period} succeeded=${tally.succeeded} failed=${tally.failed} githubMissing=${githubMissing}`,
-      );
-      return null;
-    }
     const results = await this.evaluation.evaluateActivities(filtered, options);
-    return this.persistAndReadThrough(context, results);
+    return this.persistAndReadThrough(context, results, reevaluate);
   }
 
   /**
