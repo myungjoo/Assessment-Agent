@@ -3,13 +3,11 @@
 //
 // 수집 대상 = env 결과 ∪ active row. 판정 규칙:
 //   - 충돌은 같은 (type, key) 가 env 목록과 DB 에 모두 있는 경우다. key 는 대소문자 · 앞뒤 공백을
-//     무시한다. env 목록에 올랐으면 필수 env 부재로 reject 된 key 여도 env 가 이긴다. row 로
-//     복구하면 env 의 fail-fast reject 계약이 우회되기 때문이다 (ADR-0059 §Alternatives).
-//   - active=false row 는 env 를 끄지 않는다. 합집합에서 row 쪽만 빠지므로 같은 key 가 env 에
-//     있으면 그대로 수집된다.
+//     무시한다. env 목록에 오른 key 는 reject 됐어도 env 가 이긴다 (ADR-0059 §Alternatives).
+//   - active=false row 는 env 를 끄지 않는다. 합집합에서 row 쪽만 빠진다.
 //   - credential 은 §Decision 2 대로 env 에서만 읽는다. 찾지 못한 active row 는 instances 에서
 //     빠지지만 listedKeys 에는 남는다. 그래서 그 key 의 식별자는 "미설정" 이 아니라 실패다.
-//   - 무시된 row 는 rejected 진단에 남는다. 진단에는 key 와 env 이름만 적고 값은 적지 않는다.
+//   - rejected 진단에는 key 와 env 이름만 적고 값은 적지 않는다.
 import type { CollectionTarget } from "@prisma/client";
 
 import {
@@ -33,16 +31,14 @@ export type CollectionTargetRow = Pick<
 >;
 
 export interface EffectiveInstances<T> {
-  /** 수집할 수 있는 instance. env 정의가 먼저, 그 뒤 등록 row 순서다. */
+  /** env 정의가 먼저, 그 뒤 등록 row 순서다. */
   instances: T[];
-  /** 수집에서 빠진 env key · row 의 사유. */
   rejected: string[];
   /** env 목록 ∪ active row 의 정규화 key. 수집할 수 없는 key 도 포함한다. */
   listedKeys: Set<string>;
 }
 
-export const normalizeInstanceKey = (key: string): string =>
-  key.trim().toUpperCase();
+const normalizeInstanceKey = (key: string): string => key.trim().toUpperCase();
 
 const parseListedKeys = (raw: string | undefined): Set<string> =>
   new Set(
@@ -71,11 +67,11 @@ function mergeRegistered<T>(
 
   // @@unique 는 대소문자를 구분하므로 같은 key 의 row 가 둘일 수 있다. 먼저 등록된 쪽이 이긴다.
   const ordered = rows
-    .filter((row) => row.type === type)
+    .filter((row) => row.type === type && row.instanceKey.trim().length > 0)
     .sort(
       (a, b) =>
         a.createdAt.getTime() - b.createdAt.getTime() ||
-        a.instanceKey.localeCompare(b.instanceKey),
+        (a.instanceKey < b.instanceKey ? -1 : 1),
     );
   const registered = new Set<string>();
   for (const row of ordered) {
