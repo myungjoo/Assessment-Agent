@@ -264,16 +264,12 @@ describe('AdminView — 재평가 트리거 web↔backend 계약 drift guard (T-
     // base(api/schedules)만 같고 literal 없는 형제(cron/backfill bare handler) 계약이면 path 불일치.
     expect(diffContract(fired as WebFire, { ...RD_CONTRACT, subPath: '' }, PERSON_ID)).toEqual([expect.stringContaining('path 불일치')]);
   });
-  it.each<[string, (fired: WebFire) => WebFire | BackendContract, string]>([
-    ['backend DTO 에서 days 소실', () => ({ ...RD_CONTRACT, required: new Set<string>(), optional: new Set(['scope']) }), 'body 초과 키'],
-    ['backend DTO 가 새 필수 필드를 요구', () => ({ ...RD_CONTRACT, required: new Set(['scope']) }), 'body 필수 누락'],
-  ])('%s 하면 body 필드 대조가 불일치로 잡힌다 (negative (f) — body 필드 drift)', async (_label, mutate, expected) => {
+  it.each<[string, BackendContract, string]>([
+    ['backend DTO 에서 days 소실', { ...RD_CONTRACT, required: new Set<string>(), optional: new Set(['scope']) }, 'body 초과 키'],
+    ['backend DTO 가 새 필수 필드를 요구', { ...RD_CONTRACT, required: new Set(['scope']) }, 'body 필수 누락'],
+  ])('%s 하면 body 필드 대조가 불일치로 잡힌다 (negative (f) — body 필드 drift)', async (_label, contract, expected) => {
     const fired = await fireReEvaluate(PERSON_ID, 7);
-    const mutated = mutate(fired as WebFire);
-    const result = 'route' in mutated
-      ? diffContract(fired as WebFire, mutated as BackendContract, PERSON_ID)
-      : diffContract(mutated as WebFire, RD_CONTRACT, PERSON_ID);
-    expect(result).toEqual([expect.stringContaining(expected)]);
+    expect(diffContract(fired as WebFire, contract, PERSON_ID)).toEqual([expect.stringContaining(expected)]);
   });
   it('주석 줄의 "@Post(...)"/"@Controller(...)"/"POST /api/schedules/..." 를 실 decorator 로 오인하지 않는다 (negative (g) — 주석 false-positive)', () => {
     const fakeController = ['  // @Controller("api/schedules") — 주석뿐', 'export class X {}'].join('\n');
