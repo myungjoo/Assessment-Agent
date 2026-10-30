@@ -99,20 +99,23 @@ REQ-073(RBAC) 세 row 뿐이다. 세 row 모두 `PLANNED` 이고 착수 slice �
   같다 (정본 [target-host-guard.ts](../../src/collection-target/target-host-guard.ts)).
   - **fail closed**: 미설정 · 형식 오류 · 불일치면 token 을 복호하지 않고 아무 요청도 보내지 않는다.
   - **비교**: 문자열이 아니라 URL 파서의 host 를 비교한다. 값은 host 1 개이며 목록 · wildcard 가 아니다.
-    subdomain · suffix 는 불일치다. 대소문자는 무시한다.
+    subdomain · suffix 는 불일치다. 대소문자는 무시한다. 등록 endpoint 가 `github.com` 이면 허용 값도 `github.com` 이며,
+    token 은 builder 규칙대로 `api.github.com` 으로 나간다.
   - **port**: https 기본 443 만 생략과 같다. `host` 는 443 만, `host:8443` 은 그 port 만 허용한다.
   - **끝 점**: 정규화하지 않는다. `host.` 와 `host` 는 DNS 해석이 다를 수 있어 다른 host 다.
   - **scheme**: Confluence 는 `https://` URL, GitHub 는 `host[:port]` 또는 `https://host[:port]` 만 받는다.
     GitHub builder 는 `http://` 를 지우고 https 로 보내 평문 경로는 없었으나, 입력 의도와 달라 거부한다.
-    userinfo · query · fragment 와 GitHub 의 path 도 거부한다.
+    userinfo · query · fragment 와 GitHub 의 path 도 거부한다. 파서가 같은 host 로 정규화하는 표기 (`//host`, `@host`,
+    끝 slash) 는 통과하고 정규화 값만 쓴다.
   - **정규화 값 사용**: 통과한 row 는 검사한 정규화 값으로 요청한다. 검사와 요청이 파서 차이로 갈라지지 않는다.
   - **거부는 "미설정" 이 아니다**: 등록된 대상이므로 §Decision 3 의 credential 부재와 같이 자동 평가의 저장
     판정에서 실패로 쳐 좌표를 비운다. 거부는 type · key · 사유로 warn 로그에 남고 token · endpoint 원문은 남지 않는다.
   - **env 정의 대상은 검사하지 않는다.** 좌표와 token 을 배포가 함께 소유해 이 위험이 없고 기존 동작을 바꾸지 않는다.
   - **redirect**: adapter 는 실 fetch 의 기본 redirect 를 쓴다. fetch 는 다른 origin 으로 갈 때 Authorization 을
     지우므로 코드를 바꾸지 않고 [registered-target-redirect.spec.ts](../../src/collection-target/registered-target-redirect.spec.ts)
-    로 고정한다. `redirect: "error"` 는 같은 host 의 저장소 이름 변경 301 까지 끊는다. 다만 다른 host 로 redirect 된
-    응답은 인증 없이 받은 그대로 수집 결과가 된다 (token 유출은 아니다).
+    로 고정한다. https 에서 같은 host 의 http 로 가는 redirect 도 다른 origin 이다. 같은 origin redirect 는 token 을 유지하며
+    허용 host 경계 안이다. `redirect: "error"` 는 같은 host 의 저장소 이름 변경 301 까지 끊는다. 다만 다른 origin 으로
+    redirect 된 응답은 평문 http 포함 인증 없이 받은 그대로 수집 결과가 된다 (token 유출은 아니다).
   - **등록 · 수정 시점 검증은 두지 않는다.** 일치 여부를 응답에 내면 env 설정을 알리는 oracle 이 된다. 수집 시점 검사가
     enforcement 다. 그래서 일치하지 않는 등록도 201 / 200 으로 성공한다.
 - **API 응답에 노출되는 것은 `instanceKey` 이름뿐**이며 이는 실값이 아니라 식별자다. token
@@ -144,7 +147,7 @@ REQ-073(RBAC) 세 row 뿐이다. 세 row 모두 `PLANNED` 이고 착수 slice �
     제외 결정으로 보고 무시한다. 판정이 없는 수동 경로 (`POST /collect` · `POST /period`) 는 그 대상을 빼고 진행한다.
   - 수집은 매번 DB 를 읽어 재기동 없이 반영된다. spec 조립의 DB 조회 실패는 전파하고, 호출 단계의 실패는
     source 단위 호출 실패로 센다.
-  - `rejected` 진단은 계산만 되고 아직 API · 로그로 나가지 않는다 (§Follow-ups (e) 의 출처 표시와 함께 다룬다).
+  - `rejected` 진단은 계산만 되고 아직 API 로 나가지 않는다 (§Follow-ups (e) 의 출처 표시와 함께 다룬다). 로그로 나가는 것은 §Decision 2 의 허용 host 거부뿐이다.
 
 ### 4. 대상 종류 모델링 — 단일 model + `type` discriminator
 
