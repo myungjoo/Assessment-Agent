@@ -2,7 +2,11 @@
 id: T-2060
 title: 등록 수집 대상 실효화 ② — Confluence 병합과 범위 판정에 등록 대상 반영
 phase: P7
-status: PLANNED
+status: DONE
+completedAt: 2026-10-30
+mergedAs: 8df7d2be
+prNumber: 1621
+reviewRounds: 3
 commitMode: pr
 coversReq: [REQ-037, REQ-039, REQ-070, REQ-072]
 estimatedDiff: 296
