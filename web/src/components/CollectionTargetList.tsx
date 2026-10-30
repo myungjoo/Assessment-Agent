@@ -32,7 +32,8 @@ interface CollectionTargetRow {
   repos?: string[];
   // CONFLUENCE 대상의 space 목록(선택) — GITHUB 대상은 빈 배열이다.
   spaces?: string[];
-  // 활성 여부 — false 면 수집에서 제외된 등록 해제 대기 행이다(schema 기본값 true).
+  // 활성 여부(schema 기본값 true) — false 면 이 행은 수집에 쓰이지 않는다. 같은 instanceKey 가
+  // env 에 있으면 env 정의로 계속 수집된다(ADR-0059 §Decision 3).
   active?: boolean;
   // 생성/수정 시각(ISO 문자열, 선택) — 본 slice 는 표시하지 않지만 응답 계약 정합을 위해 둔다.
   createdAt?: string;
