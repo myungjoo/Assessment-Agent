@@ -106,6 +106,7 @@ export class EvaluationTickRunnerService implements OnModuleDestroy {
       this.tally.failed += 1;
       this.logger.error(`평가 실행 중단: ${errorMessage(error)}`);
     } finally {
+      this.runStatus.end("evaluation");
       this.runStatus.recordEvaluationRun({
         source: "tick",
         evaluatedCount: this.tally.evaluated,
@@ -113,7 +114,6 @@ export class EvaluationTickRunnerService implements OnModuleDestroy {
         failedCount: this.tally.failed,
         incomplete: this.tally.incomplete,
       });
-      this.runStatus.end("evaluation");
     }
   }
 

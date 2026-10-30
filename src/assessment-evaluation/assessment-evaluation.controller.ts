@@ -754,6 +754,7 @@ export class AssessmentEvaluationController {
     // 가지므로, 그 fail-fast 구간이 바깥 try 밖이면 운영자 LLM provider 미설정마다 end 가
     // 안 돌아 카운터가 stuck 되고 배너가 영구히 "평가 중" 으로 굳는다. 마지막 위임은
     // **return await** 로 받아 finally 가 위임 해소 **이후**에만 돌게 한다.
+    //
     // 끝난 뒤에만 건수를 안다. 그 전에 빠져나가면 중단 1 건으로 기록한다 (ADR-0060 §Decision 6).
     let runRecord: ReturnType<typeof toFillRunRecord> = {
       evaluatedCount: 0,
@@ -813,8 +814,8 @@ export class AssessmentEvaluationController {
       runRecord = toFillRunRecord(result);
       return result;
     } finally {
-      this.runStatus.recordEvaluationRun({ source: "fill-run", ...runRecord });
       this.runStatus.end("evaluation");
+      this.runStatus.recordEvaluationRun({ source: "fill-run", ...runRecord });
     }
   }
 

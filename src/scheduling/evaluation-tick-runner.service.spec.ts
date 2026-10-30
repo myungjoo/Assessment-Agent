@@ -207,6 +207,31 @@ describe("EvaluationTickRunnerService", () => {
     );
   });
 
+  it("다음 실행은 직전 불완전 좌표를 이어받지 않는다_n", async () => {
+    const { runner, planOnce, persist, status } = setup();
+    planOnce("p1", gap(DAY));
+    persist.generateAndPersistIfCollected.mockResolvedValueOnce(null);
+    await runner.run();
+    await runner.run();
+    expect(status.recordEvaluationRun).toHaveBeenCalledTimes(2);
+    expect(status.recordEvaluationRun.mock.calls[1][0].incomplete).toEqual([]);
+  });
+
+  it("진행 중 재호출은 기록을 이중으로 남기지 않는다_n", async () => {
+    const { runner, status } = setup();
+    await Promise.all([runner.run(), runner.run()]);
+    expect(status.recordEvaluationRun).toHaveBeenCalledTimes(1);
+  });
+
+  it("기록이 실패해도 실행 상태 카운터는 풀린다_n", async () => {
+    const { runner, status } = setup();
+    status.recordEvaluationRun.mockImplementationOnce(() => {
+      throw new Error("record");
+    });
+    await runner.run().catch(() => undefined);
+    expect(status.end).toHaveBeenCalledWith("evaluation");
+  });
+
   it("시작 직후 중단되면 직전 실행 건수가 아니라 실패 1 건으로 기록한다_n", async () => {
     const { runner, planOnce, resolver, status } = setup();
     planOnce("p1", gap(DAY));
