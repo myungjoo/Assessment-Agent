@@ -2,7 +2,11 @@
 id: T-2075
 title: 최근 N일 재수집 ⑦ — DTO 의 instants 를 선택으로 바꿔 web 이 보내지 않게 준비
 phase: P7
-status: READY
+status: DONE
+completedAt: 2026-10-30
+mergedAs: 2c71dada
+prNumber: 1636
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 40
