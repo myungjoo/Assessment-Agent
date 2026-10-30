@@ -32,13 +32,12 @@
 //        Part 의 두 p95 를 모두 임계 미만으로 단언하되 **대소·증가율은 단언하지 않는다**.
 // ④ 새 축으로 **주장하지 않는** 항목(중복 주장 금지 검산) — PK 직행 `findUnique` 자체는 slice 11·14·19 와
 //    동일, repository 의 null 분기를 service 가 `NotFoundException` 으로 변환하는 404 는 slice 11·19 와
-//    동일, `include` 0 의 미조인 SELECT 는 slice 11·19 와 동일, `PartController` 의 guard 부재로 인한
-//    **401 / 403 분기의 구조적 부재** 는 slice 1·2·7·19 와 동일하다. 한 controller 의 조회 route 전량
+//    동일, `include` 0 의 미조인 SELECT 는 slice 11·19 와 동일하다. 한 controller 의 조회 route 전량
 //    실측 도달도 Group slice 18 · Person slice 19 선례가 있어 새 축이 아니다. 본 slice 의 신규성은
 //    ③ 의 3 개뿐이다.
-// ⑤ 인증·인가 negative 부재(구조적) — `PartController` 는 **guard 미부착** 이라 401 / 403 분기가
-//    구조적으로 존재하지 않는다. 다른 slice 의 cookie 미부착 401 · tier 403 negative 를 복사하면
-//    **없는 분기를 가리키는 거짓 test** 가 된다. 대신 404 수렴 · 격리(혼입 0) · 삭제 후 전이 · 비노출
+// ⑤ 인증·인가 negative 는 본 spec 소관이 아니다 — 무 cookie 401 · tier 403 은 `parts.e2e-spec` 소관이고,
+//    본 spec 은 요청마다 User 인증 cookie 를 싣는다(T-2046, Q-0056 parts 축). 대신 404 수렴 · 격리(혼입 0) ·
+//    삭제 후 전이 · 비노출
 //    관계 키 · path 토큰 변형 · 임계 주입 축으로 negative 를 채운다.
 // ⑥ 결정론 전략 — seed 는 고정 행 수, `afterEach(truncateAll)`(ADR-0004 §Cleanup)가 매 test 후 도메인
 //    테이블을 비워 각 test 는 자기 seed 만 본다(`Part.name` 과 `Person.email` 이 모두 `@unique` 라 seed
@@ -48,8 +47,8 @@
 //    404** 또는 비현실적 임계 주입(`p95MaxMs: 0`)이라 실 측정 시간에 무의존이다. 본 파일은
 //    `jest-perf.json`(`testRegex: test/perf/.*\.perf-spec\.ts$`)에만 매칭돼 `pnpm test:perf` 로만 실행되고
 //    기본 `pnpm test`(`.*\.spec\.ts$`)에는 **picking 되지 않는다**(실 Postgres + migrate 전제는 CI 충족).
-// ⑦ Out of Scope — production code 변경 0(특히 `PartService.findById` 에 필터 · `include` 추가 · guard
-//    부착 · 404 메시지 변경 금지) / `prisma/schema.prisma` 수정 · migration(`Part` index 추가 판단은 실측
+// ⑦ Out of Scope — production code 변경 0(특히 `PartService.findById` 에 필터 · `include` 추가 ·
+//    404 메시지 변경 금지) / `prisma/schema.prisma` 수정 · migration(`Part` index 추가 판단은 실측
 //    근거 후 별도 task) / slice 7 spec 수정(자식 목록 route 는 본 spec 안에서 **페어 대조군으로만** 호출) /
 //    mock 짝 수정·retire / write route(`POST`·`PATCH`·`DELETE`)의 latency 측정(seed·삭제는 Prisma 직접
 //    write) / 임계값 변경 · baseline 파일 확정(`DEFAULT_P95_MAX_MS = 3000` 불변, `writeBaselineFile` ·
@@ -59,8 +58,13 @@ import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
 import { PrismaService } from "../../src/persistence/prisma.service";
+import {
+  buildAuthCookie,
+  createAuthenticatedE2EApp,
+  reseedAuthenticatedActors,
+  type AuthenticatedE2EContext,
+} from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
-import { createE2EApp } from "../helpers/e2e-app-factory";
 
 import {
   buildBaselineReport,
@@ -97,8 +101,11 @@ interface PartRow {
 }
 
 describe("S2 조회 latency perf-spec — 실 DB 단건 상세 조회 (GET /api/parts/:id, REQ-048)", () => {
+  let ctx: AuthenticatedE2EContext;
   let app: INestApplication;
   let prisma: PrismaService;
+  // guard 배선 선행 (T-2046, Q-0056 parts 축) — User+ tier read 요청에 싣는 인증 cookie.
+  let cookie: string;
   // 마지막 응답 body/status 보관 — mock spec 의 `toHaveBeenCalledTimes(N)` 의 실 DB 등가 검증용.
   let lastBody: unknown;
   let lastStatus = 0;
@@ -109,18 +116,21 @@ describe("S2 조회 latency perf-spec — 실 DB 단건 상세 조회 (GET /api/
 
   beforeAll(async () => {
     // mock override 0 — AppModule 실 부트스트랩(PartService·PrismaService 어느 것도 useValue 로
-    // 대체하지 않는다) + applyGlobalMiddleware(T-0090 helper). guard 미부착 controller 라
-    // `createAuthenticatedE2EApp` 불요(slice 7 과 동일).
-    const created = await createE2EApp();
-    app = created.app;
-    prisma = created.moduleRef.get<PrismaService>(PrismaService);
+    // 대체하지 않는다) + applyGlobalMiddleware(T-0090 helper). actor User seed + 실 JWT 발급도
+    // 한 번에 한다(T-2046).
+    ctx = await createAuthenticatedE2EApp([{ role: "User" }]);
+    app = ctx.app;
+    prisma = ctx.prisma;
+    cookie = buildAuthCookie(Object.values(ctx.tokens)[0]);
     // 앞선 스위트가 남긴 row 가 첫 test 의 seed 수 검증을 오염시키지 않도록 시작 시점에도 비운다.
     await truncateAll(prisma);
+    await reseedAuthenticatedActors(ctx);
   });
 
   // ADR-0004 §Cleanup — 매 test 후 도메인 테이블 TRUNCATE 로 row leak 0.
   afterEach(async () => {
     await truncateAll(prisma);
+    await reseedAuthenticatedActors(ctx);
   });
 
   // connection 누수 0 — app.close() 의 lifecycle hook + 명시적 $disconnect.
@@ -155,7 +165,9 @@ describe("S2 조회 latency perf-spec — 실 DB 단건 상세 조회 (GET /api/
   const detailRequest =
     (id: string): RequestFn =>
     async () => {
-      const res = await request(app.getHttpServer()).get(`/api/parts/${id}`);
+      const res = await request(app.getHttpServer())
+        .get(`/api/parts/${id}`)
+        .set("Cookie", cookie);
       lastBody = res.body;
       lastStatus = res.status;
       return { status: res.status };
@@ -165,9 +177,9 @@ describe("S2 조회 latency perf-spec — 실 DB 단건 상세 조회 (GET /api/
   const childrenRequest =
     (id: string): RequestFn =>
     async () => {
-      const res = await request(app.getHttpServer()).get(
-        `/api/parts/${id}/persons`,
-      );
+      const res = await request(app.getHttpServer())
+        .get(`/api/parts/${id}/persons`)
+        .set("Cookie", cookie);
       lastBody = res.body;
       lastStatus = res.status;
       return { status: res.status };
@@ -297,9 +309,9 @@ describe("S2 조회 latency perf-spec — 실 DB 단건 상세 조회 (GET /api/
     // 같은 스위트의 정상 id 는 여전히 200 — 404 가 국소 분기임의 대조군.
     const alive = await prisma.part.findFirst();
     expect(alive).not.toBeNull();
-    const ok = await request(app.getHttpServer()).get(
-      `/api/parts/${alive?.id ?? ""}`,
-    );
+    const ok = await request(app.getHttpServer())
+      .get(`/api/parts/${alive?.id ?? ""}`)
+      .set("Cookie", cookie);
     expect(ok.status).toBe(200);
   });
 
@@ -380,9 +392,9 @@ describe("S2 조회 latency perf-spec — 실 DB 단건 상세 조회 (GET /api/
     ).toBe(true);
 
     // 404 이지 500 이 아니고, body 에 raw stack / Prisma 내부 메시지가 새지 않는다(REQ-032 계열).
-    const res = await request(app.getHttpServer()).get(
-      `/api/parts/${missingId}`,
-    );
+    const res = await request(app.getHttpServer())
+      .get(`/api/parts/${missingId}`)
+      .set("Cookie", cookie);
     expect(res.status).toBe(404);
     expect(res.status).not.toBe(500);
     expect(res.body).not.toHaveProperty("stack");
@@ -458,9 +470,9 @@ describe("S2 조회 latency perf-spec — 실 DB 단건 상세 조회 (GET /api/
     it("(d) 빈 대체 토큰 · 비-cuid 문자열 id → 500 이 아니라 404", async () => {
       await seedPart();
       for (const token of ["%20", "not-a-cuid-9999", "0"]) {
-        const res = await request(app.getHttpServer()).get(
-          `/api/parts/${token}`,
-        );
+        const res = await request(app.getHttpServer())
+          .get(`/api/parts/${token}`)
+          .set("Cookie", cookie);
         expect(res.status).toBe(404);
         expect(res.body).not.toHaveProperty("stack");
       }

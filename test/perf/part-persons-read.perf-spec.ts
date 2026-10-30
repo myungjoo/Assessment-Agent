@@ -23,10 +23,9 @@
 // 로, 단건 상세(:id) read 에서 sub-resource 목록(:id/persons) read 로 바뀐다. (2) 반환
 // 형태가 단건 object 가 아니라 **Person[] 목록**이라 정상 응답이 배열이며, Part 는 있으나
 // 소속 Person 0 이면 200 + 빈 배열(404 아님)이라 이 empty-list 성공 분기를 별도로 커버한다.
-// (3) `PartController` 는 `@UseGuards`/`@Roles` 를 부착하지 않으므로(part.controller.ts —
-// auth credential 미박제 정책, ADR-0008), part-detail(T-0854 sibling)·part-read(list) 와
-// 동일하게 `overrideGuard` 없이 controller 를 순수 부트스트랩한다(group-persons T-0854
-// mirror). `PartController.findPersons` 는 `@Param("id")` 로 받은 id 를
+// (3) part-detail(T-0854 sibling)·part-read(list) 와 동일하게 `overrideGuard` 로 guard 를
+// 통과시켜 controller 를 부트스트랩한다(group-persons T-0854 mirror).
+// `PartController.findPersons` 는 `@Param("id")` 로 받은 id 를
 // `service.findPersonsByPartId(id)` 로 raw forward 하고(controller 자체 분기 없음), Part
 // 존재 시 200(Person[]), Part 부재 시 service 가 사전 검증(`findById(partId)` 재호출)에서
 // `NotFoundException`(404)을 던진다. non-2xx 분류 실증은 mocked `findPersonsByPartId`
@@ -37,7 +36,9 @@
 //   - `PartService` 는 mock(`useValue`) — DB round-trip(PersonPartMembership navigation
 //     포함) 없이 controller ↔ collector 배선만 측정. baseline 실측(실 Postgres
 //     round-trip)은 §5 item 5 별도 follow-up.
-//   - guard 미적용 controller 라 `overrideGuard` 불요 — 순수 부트스트랩.
+//   - `JwtAuthGuard`/`RolesGuard` 는 `overrideGuard(...).useValue({ canActivate: () =>
+//     true })` 로 통과 — 인증/인가 layer 를 벗겨 순수 harness 배선만 측정한다(latency 표본에
+//     auth 비용 0, Q-0056 parts 축 guard 배선 선행 T-2046).
 //   - latency 표본 자체는 wall-clock 이라 값은 비결정적이지만, mock service 는 즉시
 //     반환하므로 p95 는 항상 임계(3000ms) 훨씬 아래 → pass 분기 결정론적 도달.
 //     fail 분기는 mock 이 `NotFoundException`(404) 또는 일반 예외(500)를 던져 endpoint
@@ -61,6 +62,8 @@ import { NotFoundException } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
 
+import { JwtAuthGuard } from "../../src/auth/jwt-auth.guard";
+import { RolesGuard } from "../../src/auth/roles.guard";
 import { PartController } from "../../src/user/part.controller";
 import { PartService } from "../../src/user/part.service";
 
@@ -73,7 +76,7 @@ import {
 // mock PartService — controller 가 주입받는 메서드 중 sub-resource(:id/persons) 경로가
 // 실제로 호출하는 것은 `findPersonsByPartId` 뿐. 각 test 가 mockResolvedValue /
 // mockRejectedValue 로 응답을 제어해 endpoint status(200 / 404 / 500)를 결정론적으로
-// 만든다. (PartController 는 guard 미적용이라 인증/인가 분기 노이즈가 없다.)
+// 만든다. (guard 는 override 가 인증/인가 layer 를 벗겨 항상 통과시킨다.)
 type MockPartService = {
   findPersonsByPartId: jest.Mock;
 };
@@ -82,16 +85,26 @@ describe("S2 조회 latency perf-spec — PartController sub-resource(:id/person
   let app: INestApplication;
   let service: MockPartService;
 
+  // 통과 guard — canActivate 가 항상 true. 인증/인가 layer 를 벗겨 harness 배선만 측정한다
+  // (`group-read.perf-spec.ts` 와 같은 형태, 분기 없는 상수).
+  const passGuard = { canActivate: () => true };
+
   beforeAll(async () => {
     service = {
       findPersonsByPartId: jest.fn(),
     };
 
-    // PartController 는 guard 미적용 — overrideGuard 없이 순수 부트스트랩.
+    // guard override (T-2046) — controller 1 개만 띄우는 mock 부트가 guard DI 실패나 전 요청
+    // 401 로 깨지지 않도록 통과 guard 를 꽂는다.
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [PartController],
       providers: [{ provide: PartService, useValue: service }],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue(passGuard)
+      .overrideGuard(RolesGuard)
+      .useValue(passGuard)
+      .compile();
 
     app = moduleRef.createNestApplication();
     await app.init();
