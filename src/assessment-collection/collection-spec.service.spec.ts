@@ -4,6 +4,7 @@
 // GithubCollectionSpecService(async)만 jest mock 으로 주입한다(Q-0025 deferred 정합 —
 // 실 GitHub/Confluence 호출 0 / 실 token 0). env 는 임의 map literal 로 주입.
 
+import type { CollectionTargetReader } from "../collection-target/collection-target-reader.service";
 import type { CollectionTargetRow } from "../collection-target/effective-instances";
 
 import {
@@ -15,6 +16,10 @@ import {
   GithubCollectionSpecService,
 } from "./github-collection-spec.service";
 import { GithubCollectionSpec } from "./github-collection.service";
+
+const targetsOf = (rows: CollectionTargetRow[]): CollectionTargetReader =>
+  ({ findAll: async () => rows }) as unknown as CollectionTargetReader;
+const NO_TARGETS = targetsOf([]);
 
 // ENV_CONF — 활성 Confluence instance 1 개(cloud)를 산출하는 env map. _BASE_URL +
 // _TOKEN_ENC 가 필수(authUser/spaceAllowlist 는 선택 → null/빈 배열).
@@ -60,8 +65,8 @@ function makeService(
   } as unknown as GithubCollectionSpecService;
   const service =
     env === undefined
-      ? new CollectionSpecService(githubSpecService)
-      : new CollectionSpecService(githubSpecService, env);
+      ? new CollectionSpecService(githubSpecService, NO_TARGETS)
+      : new CollectionSpecService(githubSpecService, NO_TARGETS, env);
   return { service, spy };
 }
 
@@ -334,6 +339,7 @@ describe("CollectionSpecService.buildCollectionSpecWithCoverage", () => {
   function make(
     env: NodeJS.ProcessEnv,
     enumerateFailures = 0,
+    rows: CollectionTargetRow[] = [],
   ): { service: CollectionSpecService; spy: jest.Mock } {
     const spy = jest.fn(
       async (
@@ -348,7 +354,10 @@ describe("CollectionSpecService.buildCollectionSpecWithCoverage", () => {
     const github = {
       buildGithubCollectionSpec: spy,
     } as unknown as GithubCollectionSpecService;
-    return { service: new CollectionSpecService(github, env), spy };
+    return {
+      service: new CollectionSpecService(github, targetsOf(rows), env),
+      spy,
+    };
   }
   const SINCE = "2026-01-01T00:00:00Z";
 
@@ -383,6 +392,87 @@ describe("CollectionSpecService.buildCollectionSpecWithCoverage", () => {
     });
 
     expect(coverage).toEqual({ complete: false, unavailableKeys: [] });
+  });
+
+  const WIKI_ROW: CollectionTargetRow = {
+    type: "CONFLUENCE",
+    instanceKey: "wiki",
+    endpoint: "http://w",
+    orgs: [],
+    repos: [],
+    spaces: ["A"],
+    active: true,
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+  };
+  const WIKI_TOKEN = { CONFLUENCE_WIKI_TOKEN_ENC: "t" };
+  const WIKI_PERSON = { serviceIdentities: identities("wiki") };
+
+  it("DB 에만 있는 Confluence 대상도 spec 과 판정에 들어간다", async () => {
+    const { service } = make(WIKI_TOKEN, 0, [WIKI_ROW]);
+
+    const { spec, coverage } =
+      await service.buildCollectionSpecWithCoverage(WIKI_PERSON);
+
+    expect(spec.confluence.instances.map((c) => c.key)).toEqual(["wiki"]);
+    expect(coverage.complete).toBe(true);
+  });
+
+  it("credential 없는 DB 대상의 식별자는 실패로 판정한다_n", async () => {
+    const { service } = make({}, 0, [WIKI_ROW]);
+
+    const { spec, coverage } =
+      await service.buildCollectionSpecWithCoverage(WIKI_PERSON);
+
+    expect(spec.confluence.instances).toEqual([]);
+    expect(coverage).toEqual({ complete: false, unavailableKeys: ["WIKI"] });
+  });
+
+  it("비활성 대상의 식별자는 판정에서 빠지고 spec 에도 없다_n", async () => {
+    const off = { ...WIKI_ROW, active: false };
+    const { service } = make({ ...COM, ...WIKI_TOKEN }, 0, [off]);
+
+    const { spec, coverage } = await service.buildCollectionSpecWithCoverage({
+      serviceIdentities: identities("com", "wiki"),
+    });
+
+    expect(spec.confluence.instances).toEqual([]);
+    expect(coverage.complete).toBe(true);
+  });
+
+  it("DB 조회 실패는 삼키지 않는다_n", async () => {
+    const service = new CollectionSpecService(
+      {
+        buildGithubCollectionSpec: async () => GITHUB_SPEC,
+      } as unknown as GithubCollectionSpecService,
+      {
+        findAll: jest.fn().mockRejectedValue(new Error("db down")),
+      } as unknown as CollectionTargetReader,
+      {},
+    );
+
+    await expect(
+      service.buildCollectionSpecWithCoverage(WIKI_PERSON),
+    ).rejects.toThrow("db down");
+    await expect(service.buildCollectionSpec(WIKI_PERSON)).rejects.toThrow(
+      "db down",
+    );
+  });
+
+  it("buildCollectionSpec 은 env 와 활성 DB 대상을 합치고 비활성은 뺀다", async () => {
+    const service = new CollectionSpecService(
+      {
+        buildGithubCollectionSpec: async () => GITHUB_SPEC,
+      } as unknown as GithubCollectionSpecService,
+      targetsOf([WIKI_ROW, { ...WIKI_ROW, instanceKey: "off", active: false }]),
+      { ...ENV_CONF, ...WIKI_TOKEN },
+    );
+
+    const spec = await service.buildCollectionSpec(WIKI_PERSON);
+
+    expect(spec.confluence.instances.map((c) => c.key)).toEqual([
+      "cloud",
+      "wiki",
+    ]);
   });
 
   it("열거가 모두 성공해도 범위 규칙을 어기면 불완전하다_n", async () => {

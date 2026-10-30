@@ -1,7 +1,8 @@
 // GithubCollectionSpecService — 한 Person 으로부터 GitHub 수집 `GithubCollectionSpec` 을
 // 조립하는 service (ADR-0030 §1 결합 규칙 + §2 Person→instance 매핑, collection enumerate
 // slice ii-b2a). mode B(allowlist)와 mode A(org 전체 enumerate)의 두 산출을 결합한다:
-//   (a) resolveGithubInstances(env) 로 활성 GitHub instance config 를 env 에서 resolve,
+//   (a) mergeGithubInstances(env, 등록 row) 로 활성 GitHub instance config 를 resolve
+//       (ADR-0059 §Decision 3 env ∪ active row, 충돌 시 env 우선),
 //   (b) resolveGithubRepoSources(T-0258, sync) 로 mode B `sources` + mode A
 //       `orgEnumerateTargets` 동시 획득,
 //   (c) GithubOrgEnumerateService.enumerateRepoSources(T-0259, async) 로 mode A target →
@@ -18,7 +19,8 @@
 import { Injectable, Optional } from "@nestjs/common";
 import type { ServiceIdentity } from "@prisma/client";
 
-import { resolveGithubInstances } from "../github/github-instance-config";
+import { CollectionTargetReader } from "../collection-target/collection-target-reader.service";
+import { mergeGithubInstances } from "../collection-target/effective-instances";
 
 import { resolveGithubRepoSources } from "./domain/github-repo-source";
 import {
@@ -39,12 +41,13 @@ export interface GithubCollectionSpecInput {
 export class GithubCollectionSpecService {
   constructor(
     private readonly enumerateService: GithubOrgEnumerateService,
+    private readonly targets: CollectionTargetReader,
     // env 는 mock-injectable — spec 이 임의 env map 으로 instance 를 구성해 실 env 의존
     // 없이 테스트한다(GithubInstanceClient 의 @Optional env 패턴 mirror).
     @Optional() private readonly env: NodeJS.ProcessEnv = process.env,
   ) {}
 
-  // buildGithubCollectionSpec — Person 의 serviceIdentities 와 env 의 활성 GitHub instance
+  // buildGithubCollectionSpec — Person 의 serviceIdentities 와 env ∪ 등록 row 의 활성 instance
   // 로부터 mode B(allowlist) + mode A(org 전체 enumerate) source 를 결합한
   // `GithubCollectionSpec` 을 반환한다. 매칭 instance 가 없으면 빈 sources(throw 0).
   // org 열거의 성공 · 실패는 tally 로 알린다 — 빈 sources 만으로는 둘을 구분할 수 없다.
@@ -53,8 +56,12 @@ export class GithubCollectionSpecService {
     since?: string,
     tally: CollectionCallTally = { succeeded: 0, failed: 0 },
   ): Promise<GithubCollectionSpec> {
-    // (a) 활성 GitHub instance config 를 env 에서 resolve(reject 진단은 사용 안 함).
-    const { instances } = resolveGithubInstances(this.env);
+    // (a) 활성 GitHub instance config 를 resolve(reject 진단은 사용 안 함). 매 호출 DB 를
+    // 읽으므로 등록 변경은 다음 수집부터 반영된다.
+    const { instances } = mergeGithubInstances(
+      this.env,
+      await this.targets.findAll(),
+    );
 
     // (b) mode B `sources`(sync) + mode A 대상 `orgEnumerateTargets` 동시 획득.
     const { sources: modeBSources, orgEnumerateTargets } =

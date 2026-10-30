@@ -14,13 +14,13 @@
 // map(Confluence resolve) 위에서만 unit-test(실 fetch 0 / 실 token 0).
 import { Injectable, Optional } from "@nestjs/common";
 
+import { CollectionTargetReader } from "../collection-target/collection-target-reader.service";
 import {
   type CollectionTargetRow,
   mergeConfluenceInstances,
   mergeGithubInstances,
   normalizeInstanceKey,
 } from "../collection-target/effective-instances";
-import { resolveConfluenceInstances } from "../confluence/confluence-instance-config";
 
 import { CollectionSpec } from "./collection-orchestrator.service";
 import { resolveGithubRepoSources } from "./domain/github-repo-source";
@@ -115,6 +115,7 @@ export function assessCollectionCoverage(
 export class CollectionSpecService {
   constructor(
     private readonly githubSpecService: GithubCollectionSpecService,
+    private readonly targets: CollectionTargetReader,
     // env 는 Confluence instance resolve 용 — mock-injectable(T-0260 @Optional env 패턴).
     // GitHub 쪽 env 는 GithubCollectionSpecService 가 자체 보유하므로 본 service 는
     // Confluence resolve 용 env 만 주입받는다.
@@ -135,9 +136,12 @@ export class CollectionSpecService {
       since,
     );
 
-    // (b) Confluence 쪽 — 활성 instance 전체(ADR-0030 §3). rejected 진단은 사용 안 함.
-    // SPACE scope / since 는 enumerate 밖(traversal service / slice vi).
-    const { instances } = resolveConfluenceInstances(this.env);
+    // (b) Confluence 쪽 — env ∪ active row 전체(ADR-0030 §3, ADR-0059 §Decision 3). rejected
+    // 진단은 사용 안 함. SPACE scope / since 는 enumerate 밖(traversal service / slice vi).
+    const { instances } = mergeConfluenceInstances(
+      this.env,
+      await this.targets.findAll(),
+    );
 
     // (c) 두 산출을 CollectionSpec 으로 결합만 한다.
     return { github, confluence: { instances } };
@@ -161,12 +165,15 @@ export class CollectionSpecService {
     const keys = new Set(
       person.serviceIdentities.map((i) => normalizeInstanceKey(i.service)),
     );
-    const instances = resolveConfluenceInstances(this.env).instances.filter(
-      (c) => keys.has(normalizeInstanceKey(c.key)),
-    );
+    const targets = await this.targets.findAll();
+    const instances = mergeConfluenceInstances(
+      this.env,
+      targets,
+    ).instances.filter((c) => keys.has(normalizeInstanceKey(c.key)));
     const coverage = assessCollectionCoverage(
       person.serviceIdentities,
       this.env,
+      targets,
     );
     return {
       spec: { github, confluence: { instances } },
