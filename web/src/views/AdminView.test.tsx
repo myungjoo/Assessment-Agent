@@ -4652,8 +4652,20 @@ describe('AdminView — onTrigger 실 POST 재평가 (T-0886 runReEvaluate)', ()
       submitting: [] as boolean[],
       error: [] as (string | undefined)[],
     };
-    const deps: ReEvaluationDeps = {
+    // get · wait · setResult 는 결과 조회 slice(T-2079)의 deps 다.
+    const deps = {
       post: (...args: unknown[]) => requestMock(...args),
+      get: async () => ({
+        running: false,
+        result: {
+          deletedCount: 1,
+          refreshedCount: 1,
+          notRefreshedCount: 0,
+          aborted: false,
+        },
+      }),
+      wait: async () => undefined,
+      setResult: () => undefined,
       describeError: (e: unknown) => {
         if (e instanceof ApiError) {
           return e.status === 0
@@ -4663,9 +4675,9 @@ describe('AdminView — onTrigger 실 POST 재평가 (T-0886 runReEvaluate)', ()
         return '알 수 없는 오류';
       },
       submitting,
-      setSubmitting: (next) => calls.submitting.push(next),
-      setError: (next) => calls.error.push(next),
-    };
+      setSubmitting: (next: boolean) => calls.submitting.push(next),
+      setError: (next: string | undefined) => calls.error.push(next),
+    } as ReEvaluationDeps;
     return { deps, calls };
   }
 
@@ -4677,8 +4689,8 @@ describe('AdminView — onTrigger 실 POST 재평가 (T-0886 runReEvaluate)', ()
   });
 
   // happy-path — runReEvaluate 호출 시 request 가 POST /api/schedules/recent-deletion/:personId +
-  // body { instants: [], days } 로 정확히 호출되고, 성공 후 error 없음(시작 비움만) + submitting on→off.
-  it('POST recent-deletion 을 { instants: [], days } body 로 선택 personId path 로 호출한다 (happy-path)', async () => {
+  // body { days } 로 정확히 호출되고, 성공 후 error 없음(시작 비움만) + submitting on→off.
+  it('POST recent-deletion 을 { days } body 로 선택 personId path 로 호출한다 (happy-path)', async () => {
     requestMock.mockResolvedValue(undefined);
     const { deps, calls } = makeReevalDeps(false);
     await runReEvaluate('p1', 7, deps);
@@ -4686,7 +4698,7 @@ describe('AdminView — onTrigger 실 POST 재평가 (T-0886 runReEvaluate)', ()
     expect(requestMock).toHaveBeenCalledWith(RECENT_DELETION_P1, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ instants: [], days: 7 }),
+      body: JSON.stringify({ days: 7 }),
     });
     // 성공 → 시작 시 error 비움(undefined)만, 완료 error 미설정(성공은 error 없음).
     expect(calls.error).toEqual([undefined]);
@@ -4705,7 +4717,7 @@ describe('AdminView — onTrigger 실 POST 재평가 (T-0886 runReEvaluate)', ()
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ instants: [], days: 30 }),
+        body: JSON.stringify({ days: 30 }),
       },
     );
   });

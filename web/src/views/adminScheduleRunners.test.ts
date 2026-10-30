@@ -254,7 +254,7 @@ describe('adminScheduleRunners — buildRecentDeletionPath (T-1870 경계 spec)'
 });
 
 describe('adminScheduleRunners — runReEvaluate (T-1870 경계 spec)', () => {
-  it('직접 import 경로에서 POST /api/schedules/recent-deletion/:personId 를 1 회 발사하고 body 가 { instants: [], days } 다 (happy-path)', async () => {
+  it('직접 import 경로에서 POST /api/schedules/recent-deletion/:personId 를 1 회 발사하고 body 가 { days } 뿐이다 (happy-path — client 가 삭제 대상을 고르지 않음)', async () => {
     const h = reEvalHarness();
     await runReEvaluate(PERSON_ID, DAYS, h.deps);
     expect(h.post).toHaveBeenCalledTimes(1);
@@ -264,7 +264,7 @@ describe('adminScheduleRunners — runReEvaluate (T-1870 경계 spec)', () => {
     ];
     expect(path).toBe(buildRecentDeletionPath(PERSON_ID));
     expect(options.method).toBe('POST');
-    expect(JSON.parse(options.body)).toEqual({ instants: [], days: DAYS });
+    expect(JSON.parse(options.body)).toEqual({ days: DAYS });
   });
   it('발사 시작 시 진행 플래그를 켜고 직전 error 를 비운 뒤 finally 로 진행을 되돌린다 (분기 — 성공 경로 state 전이 순서)', async () => {
     const h = reEvalHarness();

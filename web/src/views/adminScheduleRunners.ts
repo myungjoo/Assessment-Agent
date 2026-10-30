@@ -210,10 +210,9 @@ export interface ReEvaluationDeps {
 // 선택 personId·window days·in-flight 여부(submitting)·상태 setter 를 주입해 호출만 한다. 동작:
 //  - 빈/falsy personId(인원 미선택) → 미발사(발사 억제 — path param 누락·잘못된 요청 방어, 택1 구현).
 //  - submitting(이전 재평가 미완) → 미발사(이중 POST·state 경합 차단 — runTrigger busy 가드 동형).
-//  - 발사 시 진행 on + 이전 error 비움 → POST { instants: [], days } → 성공(error 없음 유지) /
+//  - 발사 시 진행 on + 이전 error 비움 → POST { days } → 성공(error 없음 유지) /
 //    실패(error 문구 표면화 — throw 없이) → 진행 off(공통).
-// body 의 instants 는 빈 배열([])로 고정한다(RecentDeletionDto 가 빈 배열 허용 — no-op 정상 경로).
-// 선택 person 의 최근 N일 실제 instant 자동 도출은 Out of Scope(별도 GET 필요 — Follow-up).
+// 삭제 대상은 서버가 찾으므로 client 는 기간만 보낸다.
 export async function runReEvaluate(
   personId: string,
   days: number,
@@ -231,14 +230,11 @@ export async function runReEvaluate(
   // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리 — 새 재평가 진행만 남도록).
   deps.setError(undefined);
   try {
-    // POST /api/schedules/recent-deletion/:personId — 선택 window 의 days 를 body.days 로,
-    // instants 는 빈 배열([])로 공급한다(DTO 빈 배열 허용 no-op — instant 자동 도출은 후속). 202
-    // Accepted fire-and-forget. 응답 body(deletedCount/recollected)는 소비하지 않으므로(건수 표시
-    // 는 후속) 성공 사실만 확인한다.
+    // POST /api/schedules/recent-deletion/:personId — 202 로 시작만 한다. 결과 표시는 후속 task.
     await deps.post(buildRecentDeletionPath(personId), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ instants: [], days }),
+      body: JSON.stringify({ days }),
     });
     // 성공 — 방금 비운 error(undefined)를 유지한다(패널이 정상 트리거 폼을 렌더 — 완료 문구 소비
     // 상태). 성공 message props 는 panel 계약에 없어(submitting/error/confirmText 만) 별도 설정 불요.
