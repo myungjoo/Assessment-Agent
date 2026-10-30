@@ -135,6 +135,15 @@ FAIL step 은 JSON 요약의 `failedStep` 과 `logPath` 로 특정한다.
   `NODE_TLS_REJECT_UNAUTHORIZED=0` 은 사용 금지(MITM 위험).
 - **github PAT 만료 / scope 부족**: 4xx(특히 401/403) 응답. read-scope PAT(`public_repo`/read)
   가 만료되었거나 scope 가 부족. env 키 `GITHUB_<KEY>_TOKEN_ENC`(암호화 주입) 갱신 후 재배포.
+- **등록 수집 대상 미수집**: 화면/API 로 등록한 대상이 수집되지 않고 그 인원의 좌표가 빈다. 먼저 그 key 의
+  `_TOKEN_ENC` 가 env 에 있고 endpoint 가 비어 있지 않은지 확인한다. 이 둘은 로그를 남기지 않는다. 그다음 서버 로그의 warn
+  `등록 수집 대상 거부 type=<종류> key=<key>: <사유>` 를 본다. 같은 거부가 이어지는 동안은 한 번만 남고, 사유가 바뀌거나
+  재기동 · 해소 후 재발하면 다시 남는다. 재기동 후 수집이 한 번 돌기 전에는 warn 이 없으므로 마지막 재기동 이후 로그를 본다.
+  - `허용 host 미설정`: 사유에 적힌 `*_ALLOWED_HOST` 를 넣고 재배포한다.
+  - `허용 host 형식 오류`: env 값을 host 1 개 (`host` 또는 `host:port`) 로 고친다. scheme · path · 공백을 넣으면 이 사유다.
+  - `endpoint host 불일치`: env 값부터 본다. 공백 없는 쉼표 목록 · wildcard 는 형식 오류가 아니라 이 사유로 나온다. env 가 맞으면 Admin 이
+    바꾼 endpoint 일 수 있으므로 env 를 endpoint 에 맞춰 고치기 전에 변경 경위를 확인한다.
+  - `endpoint 형식 거부`: endpoint 를 고친다 (Confluence 는 https URL, GitHub 는 host).
 - **Ollama LAN 미노출**: 배포 기기가 로컬 PC Ollama 에 못 닿음. PC 에서 `OLLAMA_HOST=0.0.0.0`
   노출 + 방화벽 허용이 선행되어야 한다([deploy/README.md §5.2](../../deploy/README.md)).
 
@@ -154,6 +163,10 @@ FAIL step 은 JSON 요약의 `failedStep` 과 `logPath` 로 특정한다.
 - [ ] **github read-scope PAT**: 실 평가 e2e 는 github.com read PAT 를 요구한다.
       암호화 주입 env 키 `GITHUB_<KEY>_TOKEN_ENC`(`scripts/encrypt-token.ts`)만 사용,
       평문 토큰 금지(PLAN.md line 109 owner 승인 전제와 정합).
+- [ ] **등록 수집 대상**: `GITHUB_INSTANCES` · `CONFLUENCE_INSTANCES` 에 없는 key 를 화면/API 로 등록했다면 key 마다
+      `_TOKEN_ENC` 와 `_ALLOWED_HOST` 가 있는지 확인한다. 허용 host 는 배포가 소유하는 token 전송 경계이며 endpoint 값을
+      그대로 옮겨 적지 않는다([ADR-0059 §Decision 2](../decisions/ADR-0059-collection-target-registration.md),
+      [`deploy/env.prod.example`](../../deploy/env.prod.example)).
 - [ ] **LLM provider config**: `LLM_APIKEY_ENC_KEY`(apiKey 암호화 키) 설정. LAN endpoint seed 는
       `SEED_LLM_ENDPOINT_URL` 등으로([deploy/README.md §5.2](../../deploy/README.md)).
 - [ ] **Ollama LAN 노출**: 로컬 LLM 경로를 쓰면 PC 에서 Ollama LAN 노출이 선행되어야 한다
