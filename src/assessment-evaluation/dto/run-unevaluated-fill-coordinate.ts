@@ -53,9 +53,12 @@ import type { PeriodBridgeDto } from "./period-bridge.dto";
 import { toUnevaluatedFillRunOutcome } from "./persist-result-to-run-outcome.mapper";
 import type { UnevaluatedFillRunOutcome } from "./unevaluated-fill-run-result";
 
-/** 좌표 1 개의 영속 호출을 캡슐화한 thunk — person 해석/인자 조립은 호출자 책임. */
+/** 좌표 1 개의 영속 호출을 캡슐화한 thunk. `null` 은 수집 불완전으로 저장하지 않았다는 뜻이다. */
 export type UnevaluatedFillCoordinateRunner =
-  () => Promise<PeriodBridgeAdminPersistResult>;
+  () => Promise<PeriodBridgeAdminPersistResult | null>;
+
+/** 수집 불완전으로 건너뛴 좌표의 `reason`. 다음 실행이 다시 시도한다. */
+export const COLLECTION_INCOMPLETE_REASON = "collection-incomplete";
 
 /**
  * 좌표 1 개(`PeriodBridgeDto`)를 영속 `runner`(thunk)로 흘려보내고 그 결과(또는 reject)를
@@ -116,6 +119,16 @@ export async function runUnevaluatedFillCoordinate(
     // 성공 path — runner resolve 결과를 T-0557 매퍼에 위임(좌표 echo + created→status
     // 도출은 그 매퍼 책임, 재구현 0).
     const result = await runner();
+    if (result === null) {
+      return {
+        personId: bridge.personId,
+        period: bridge.period,
+        scope: bridge.scope,
+        periodStart: bridge.periodStart,
+        status: "skipped",
+        reason: COLLECTION_INCOMPLETE_REASON,
+      };
+    }
     return toUnevaluatedFillRunOutcome(bridge, result);
   } catch (error) {
     // 실패 path — 에러를 재던지지 않고 failed outcome 으로 흡수(좌표 1 개 실패가 batch-run

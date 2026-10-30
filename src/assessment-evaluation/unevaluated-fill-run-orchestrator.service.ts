@@ -12,7 +12,7 @@
 // 책임(DI callable 바인딩 + core 1 회 위임 + 등록 — inline 재구현 0):
 //   (a) `PersonService.findByIdWithIdentities` 를 person lookup adapter 로 감싸고(아래 glue
 //       참조), `buildResolvePersonFn`(T-0561)에 넘겨 `resolvePerson` resolver 를 조립,
-//   (b) `PeriodBridgeAdminPersistService.generateAndPersist` 를 `GenerateAndPersistFn`
+//   (b) `PeriodBridgeAdminPersistService.generateAndPersistIfCollected` 를 `GenerateAndPersistFn`
 //       shape 으로 바인딩해 `persist` 를 얻고,
 //   (c) `runUnevaluatedFillRunCore`(T-0563)에 raw 좌표 배열·resolver·persist·modelId 를
 //       넘겨 1 회 위임한다. dedup / options 도출 / 좌표 순차 순회 / 부분 실패 흡수는 전부
@@ -61,7 +61,7 @@ import { PeriodBridgeAdminPersistService } from "./period-bridge-admin-persist.s
 export class UnevaluatedFillRunOrchestratorService {
   // 2 collaborator 주입 — (1) PersonService: personId → ServiceIdentity DB 조회(부재 시
   // NotFoundException, lookup adapter 가 null 로 화해). (2) PeriodBridgeAdminPersistService:
-  // collect→filter→evaluate→persist 의 `generateAndPersist`(persist 로 바인딩). 둘 다
+  // collect→filter→evaluate→persist 의 `generateAndPersistIfCollected`(persist 로 바인딩). 둘 다
   // 같은 module 내(adminPersistService) 또는 UserModule export(personService)라 추가 module
   // import 0. test 는 이 2 자리에 mock 을 주입해 실 DB / 실 LLM / 실 네트워크 0 으로
   // 바인딩 + core 위임을 검증한다.
@@ -80,8 +80,8 @@ export class UnevaluatedFillRunOrchestratorService {
    *       adapter 는 `PersonService.findByIdWithIdentities(personId)` 를 호출하되 그
    *       `NotFoundException` 을 catch 해 `null` 로 변환한다(person 부재를 factory 가 기대하는
    *       null-row 신호로 화해). `NotFoundException` 외 error 는 catch 하지 않고 전파.
-   *   (b) `persist` 바인딩 — `this.adminPersistService.generateAndPersist` 를 service 에
-   *       bind 해 `GenerateAndPersistFn` shape 으로 만든다.
+   *   (b) `persist` 바인딩 — `this.adminPersistService.generateAndPersistIfCollected` 를
+   *       service 에 bind 해 `GenerateAndPersistFn` shape 으로 만든다.
    *   (c) `runUnevaluatedFillRunCore(rawBridges, resolvePerson, persist, requestModelId,
    *       defaultModelId)`(T-0563)에 위임한다 — dedup / options 도출 / 좌표 순차 순회 /
    *       좌표 단위 부분 실패 흡수는 전부 core 와 하위 helper 책임(재구현 0).
@@ -130,10 +130,10 @@ export class UnevaluatedFillRunOrchestratorService {
       }
     });
 
-    // (b) persist 바인딩 — generateAndPersist 를 service 인스턴스에 bind 해
-    // GenerateAndPersistFn shape(5 인자)으로 만든다. core 가 좌표마다 호출한다.
+    // (b) persist 바인딩 — tick runner 와 같은 저장 판정 경로(generateAndPersistIfCollected)를
+    // bind 한다. 불완전한 수집으로 좌표를 채우거나 기존 평가를 교체하지 않는다.
     const persist: GenerateAndPersistFn =
-      this.adminPersistService.generateAndPersist.bind(
+      this.adminPersistService.generateAndPersistIfCollected.bind(
         this.adminPersistService,
       );
 

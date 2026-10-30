@@ -57,18 +57,18 @@ import type { PeriodBridgeDto } from "./period-bridge.dto";
 import type { UnevaluatedFillCoordinateRunner } from "./run-unevaluated-fill-coordinate";
 
 /**
- * 호출자가 바인딩한 `PeriodBridgeAdminPersistService.generateAndPersist` 를 받기 위한
- * callable 타입 — 그 메서드의 5 인자 시그니처 재사용(service 인스턴스 import 0). 본
- * factory 는 이 callable 을 thunk 안에서 호출하므로, 호출자는 `service.generateAndPersist
- * .bind(service)` 또는 동등 wrapper 를 넘긴다. test 는 jest mock(`jest.fn()`)을 넘긴다.
+ * 호출자가 바인딩한 `PeriodBridgeAdminPersistService.generateAndPersistIfCollected` 를 받기
+ * 위한 callable 타입 — 그 메서드의 5 인자 시그니처 재사용(service 인스턴스 import 0). 본
+ * factory 는 이 callable 을 thunk 안에서 호출한다. `null` 은 수집이 불완전해 저장하지 않았다는
+ * 뜻이다. test 는 jest mock(`jest.fn()`)을 넘긴다.
  */
 export type GenerateAndPersistFn = (
   person: PeriodBridgePersonInput,
-  period: { since?: string },
+  period: { since: string; until?: string },
   options: ScoringOptions,
   context: EvaluationPersistContext,
   reevaluate?: boolean,
-) => Promise<PeriodBridgeAdminPersistResult>;
+) => Promise<PeriodBridgeAdminPersistResult | null>;
 
 /**
  * 좌표 1 개(`PeriodBridgeDto`) + resolved person + scoring 옵션 + 영속 callable 을 받아,
