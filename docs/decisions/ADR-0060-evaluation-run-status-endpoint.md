@@ -196,7 +196,7 @@ endpoint 를 두지 않는다(§Decision 1 의 "상태 수명 = 실행 수명" �
 | `.incompleteCoordinates` | 배열 | `period` · `scope` (`string`) · `periodStart` (ISO-8601 `string`) 의 중복 제거 목록. 첫 등장 순서로 50 개까지 |
 
 - **기록 시점** — 실행이 끝날 때 1 회 직전 값을 덮어쓴다. 중단된 실행도 그때까지의 건수로 기록한다. 경로가 달라도 값은 하나라, 다음 실행이 끝나면 이전 불완전 기록은 사라진다. 그 좌표가 여전히 미평가면 다음 실행의 기록에 다시 나타난다.
-- **두 경로의 전제** — `POST /unevaluated-fill-run` 도 T-2055 부터 tick 과 같은 저장 판정을 쓴다 (`generateAndPersistIfCollected`). 그 전까지 fill-run 은 기록 자체가 없다 (기록 배선은 T-2056).
+- **두 경로의 전제** — `POST /unevaluated-fill-run` 도 T-2055 부터 tick 과 같은 저장 판정을 쓴다 (`generateAndPersistIfCollected`). 그 전까지 fill-run 은 기록 자체가 없다 (기록 배선은 T-2057).
 - **건수 정의** — 실행 시작 시 0 으로 초기화한다. 활성 인원 0 명인 실행은 모두 0 으로, 시작 직후 중단된 실행은 `failedCount` 1 로 기록한다. `fill-run` 은 `UnevaluatedFillRunResult` 의 값을 옮겨 세 건수의 합이 좌표 총수다. `tick` 은 이 합 불변식을 지키지 않는다: `skippedCount` 는 식별자 0 인원의 좌표를 포함하고, `failedCount` 는 좌표 실패 외에 계획 실패 1 축 (좌표 수를 모른다) 과 중단을 각 1 로 센다. 그래서 `failedCount` 0 이 아니면 저장되지 않은 좌표가 더 있을 수 있다.
 - **기록 대상** — 위 두 경로만 기록한다. 수동 `POST /evaluate` · `/period` 는 응답으로 결과를 받으므로 기록하지 않는다.
 - **`personId` 제외** — 조회 tier 는 §Decision 3 의 `User+` 다. "어느 인원의 수집이 불완전한가" 를 모든 사용자에게 공개할 이유가 없다. 인원은 Admin+ 의 `POST /unevaluated-fill-plan` 이 미평가 좌표로 알려 주고, 사유 (쓸 수 없는 instance · 호출 실패 수) 는 서버 로그에 있다.

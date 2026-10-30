@@ -2,7 +2,11 @@
 id: T-2058
 title: 불완전 수집 저장 차단 ⑨ — fake GitHub e2e
 phase: P7
-status: PLANNED
+status: DONE
+completedAt: 2026-10-30
+mergedAs: 6d82606d
+prNumber: 1619
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-037, REQ-039, REQ-083]
 estimatedDiff: 165
