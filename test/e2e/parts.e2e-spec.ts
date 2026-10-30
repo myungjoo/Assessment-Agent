@@ -46,8 +46,9 @@ const ADMIN_EMAIL = "parts-admin-actor@e2e.test";
 const USER_EMAIL = "parts-user-actor@e2e.test";
 const SUPERADMIN_EMAIL = "parts-superadmin-actor@e2e.test";
 
-// 인가 단언 (E 절) 의 seed — part 1 · 소속 person 1.
-type AuthzSeed = { partId: string; partName: string; personId: string };
+// 인가 단언 (E 절) 의 seed — 소속 인원 0 인 part 1. 소속이 있으면 FK Restrict 로 DELETE 가 guard 와
+// 무관하게 실패해 부수효과 단언이 무력해진다 (D.2 참조).
+type AuthzSeed = { partId: string; partName: string };
 
 // E 절 route 표 — [제목, method, seed → path, body]. body 는 guard 를 통과했다면 handler 가
 // 실제로 반영했을 유효 payload 다 (validation 400 이 아니라 guard 거부임을 보인다).
@@ -340,14 +341,7 @@ describe("E2E: /api/parts HTTP contract", () => {
   // 바꾸면 E.1 · E.2 가 red 가 된다 (regression 가드). groups.e2e-spec E 절 mirror.
   const seedAuthz = async (): Promise<AuthzSeed> => {
     const part = await prisma.part.create({ data: { name: "인가대상파트" } });
-    const person = await prisma.person.create({
-      data: {
-        fullName: "인가소속",
-        email: "authz-part-member@example.test",
-        partId: part.id,
-      },
-    });
-    return { partId: part.id, partName: part.name, personId: person.id };
+    return { partId: part.id, partName: part.name };
   };
 
   // cookie 가 undefined 면 `Cookie` header 자체를 싣지 않는다 (무 cookie 요청).
