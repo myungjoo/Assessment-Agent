@@ -41,7 +41,9 @@ const ENV_NAMES = [
   "GITHUB_E2EENV_REPOS",
   "GITHUB_E2EENV_TOKEN_ENC",
   "GITHUB_E2EDB_TOKEN_ENC",
+  "GITHUB_E2EDB_ALLOWED_HOST",
   "CONFLUENCE_E2EWIKI_TOKEN_ENC",
+  "CONFLUENCE_E2EWIKI_ALLOWED_HOST",
 ];
 
 describe("E2E: 등록 수집 대상의 수집 반영 (ADR-0059 §Decision 3)", () => {
@@ -149,6 +151,8 @@ describe("E2E: 등록 수집 대상의 수집 반영 (ADR-0059 §Decision 3)", (
     failPath = null;
     process.env[ENC_KEY_ENV] = randomBytes(32).toString("base64");
     process.env.GITHUB_E2EDB_TOKEN_ENC = encrypt(DB_TOKEN);
+    process.env.GITHUB_E2EDB_ALLOWED_HOST = DB_HOST;
+    process.env.CONFLUENCE_E2EWIKI_ALLOWED_HOST = WIKI_HOST;
     await ctx.prisma.collectionTarget.deleteMany();
     await ctx.prisma.llmProviderConfig.deleteMany();
     await ctx.prisma.llmProviderConfig.create({
