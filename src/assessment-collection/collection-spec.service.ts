@@ -55,8 +55,8 @@ const listedKeys = (raw: string | undefined): Set<string> =>
  *
  * - 운영자가 `GITHUB_INSTANCES` · `CONFLUENCE_INSTANCES` 어디에도 올린 적 없는 key 의
  *   식별자는 실패가 아니다. 수집 대상이 아니라고 보고 무시한다.
- * - 목록에 올랐는데 쓸 수 없는 instance (필수 env 부재 · repo / org / SPACE 대상 0) 에
- *   식별자가 있으면 실패다. 수집되지 않았으니 활동 유무를 알 수 없다.
+ * - 목록에 올랐는데 쓸 수 없는 instance (필수 env 부재 · repo / org / SPACE 대상 0 · 해석
+ *   불가 repo token 1 개 이상) 에 식별자가 있으면 실패다. 빠진 대상의 활동을 알 수 없다.
  * - 수집 가능한 식별자가 하나도 없으면 실패다.
  * - 목록에 없는 key 가 있고 쓸 수 있는 GitHub instance 가 하나도 없으면 실패다.
  *   GitHub 설정 전체 유실과 구분되지 않기 때문이다 (T-2042 의 githubMissing).
@@ -81,11 +81,18 @@ export function assessCollectionCoverage(
       unlisted += 1;
       continue;
     }
-    const { sources, orgEnumerateTargets } = resolveGithubRepoSources(
-      github.filter((c) => normalizeKey(c.key) === key),
-      [{ service: key }],
-    );
-    const githubOk = sources.length + orgEnumerateTargets.length > 0;
+    const instance = github.find((c) => normalizeKey(c.key) === key);
+    const githubOk =
+      instance !== undefined &&
+      (instance.repos.length === 0
+        ? instance.orgs.length > 0
+        : instance.repos.every(
+            (repo) =>
+              resolveGithubRepoSources(
+                [{ ...instance, repos: [repo] }],
+                [{ service: key }],
+              ).sources.length > 0,
+          ));
     const confluenceOk = confluence.some(
       (c) => normalizeKey(c.key) === key && c.spaceAllowlist.length > 0,
     );

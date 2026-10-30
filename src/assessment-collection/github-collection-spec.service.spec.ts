@@ -149,6 +149,19 @@ describe("GithubCollectionSpecService.buildGithubCollectionSpec", () => {
       ]);
     });
 
+    it("호출자 tally 를 enumerate 까지 그대로 넘긴다", async () => {
+      const { service, spy } = makeService(ENV_MIXED, () => []);
+      const tally = { succeeded: 0, failed: 0 };
+
+      await service.buildGithubCollectionSpec(
+        { serviceIdentities: [{ service: "sec" }] },
+        undefined,
+        tally,
+      );
+
+      expect(spy.mock.calls[0][1]).toBe(tally);
+    });
+
     it("(d-2) enumerate 가 throw 하면 호출자 tally 에 실패로 남긴다_n", async () => {
       const { service } = makeService(ENV_MIXED, () => {
         throw new Error("enumerate 실패");

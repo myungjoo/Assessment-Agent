@@ -184,25 +184,15 @@ const identities = (...services: string[]) =>
   services.map((service) => ({ service }));
 
 describe("assessCollectionCoverage", () => {
+  const repos = (value: string) => ({ ...COM, GITHUB_COM_REPOS: value });
+  const SEC_LISTED = { ...COM, GITHUB_INSTANCES: "com,sec" };
   it.each<[string, NodeJS.ProcessEnv, string[]]>([
-    ["GitHub repo 대상이 있는 식별자", COM, ["com"]],
-    ["대소문자 · 공백이 다른 식별자", COM, [" COM "]],
-    [
-      "mode A org 대상이 있는 식별자",
-      { ...COM, GITHUB_COM_REPOS: "", GITHUB_COM_ORG: "o" },
-      ["com"],
-    ],
-    ["SPACE 대상이 있는 Confluence 식별자", WIKI, ["wiki"]],
-    [
-      "GitHub 이 쓸 수 있으면 운영자가 올린 적 없는 key 는 무시",
-      COM,
-      ["com", "ecode"],
-    ],
-    [
-      "식별자 없는 instance 의 설정 결함은 무관",
-      { ...COM, GITHUB_INSTANCES: "com,sec" },
-      ["com"],
-    ],
+    ["GitHub repo 대상", COM, ["com"]],
+    ["대소문자 · 공백이 다른 key", COM, [" COM "]],
+    ["mode A org 대상", { ...repos(""), GITHUB_COM_ORG: "o" }, ["com"]],
+    ["SPACE 대상", WIKI, ["wiki"]],
+    ["GitHub 사용 가능 + 올린 적 없는 key", COM, ["com", "ecode"]],
+    ["식별자 없는 instance 의 설정 결함", SEC_LISTED, ["com"]],
   ])("%s 는 완전하다", (_label, env, services) => {
     expect(assessCollectionCoverage(identities(...services), env)).toEqual({
       complete: true,
@@ -210,41 +200,23 @@ describe("assessCollectionCoverage", () => {
     });
   });
 
+  const BOTH = { ...COM, ...WIKI };
+  const NO_SPACES = { ...BOTH, CONFLUENCE_WIKI_SPACE_ALLOWLIST: "" };
+  const NO_WIKI_TOKEN = { ...BOTH, CONFLUENCE_WIKI_TOKEN_ENC: "" };
+  const COM_IN_BOTH = { ...COM, CONFLUENCE_INSTANCES: "com" };
+  const COM_WIKI = ["com", "wiki"];
   it.each<[string, NodeJS.ProcessEnv, string[], string[]]>([
-    [
-      "목록에 있고 필수 env 가 빠진 GitHub instance 의 식별자",
-      { ...COM, GITHUB_INSTANCES: "com,sec" },
-      ["com", "sec"],
-      ["SEC"],
-    ],
-    [
-      "repo · org 대상이 0 인 GitHub instance 의 식별자",
-      { ...COM, GITHUB_COM_REPOS: "" },
-      ["com"],
-      ["COM"],
-    ],
-    [
-      "repo token 이 전부 malformed 인 instance 의 식별자",
-      { ...COM, GITHUB_COM_REPOS: "a/b/c" },
-      ["com"],
-      ["COM"],
-    ],
-    [
-      "SPACE 대상이 0 인 Confluence instance 의 식별자",
-      { ...COM, ...WIKI, CONFLUENCE_WIKI_SPACE_ALLOWLIST: "" },
-      ["com", "wiki"],
-      ["WIKI"],
-    ],
-    [
-      "양쪽에 올랐는데 Confluence 쪽만 쓸 수 없는 key",
-      { ...COM, CONFLUENCE_INSTANCES: "com" },
-      ["com"],
-      ["COM"],
-    ],
-    ["수집 설정이 전혀 없음", {}, ["com"], []],
+    ["env 빠진 GitHub", SEC_LISTED, ["com", "sec"], ["SEC"]],
+    ["repo · org 대상 0", repos(""), ["com"], ["COM"]],
+    ["malformed repo token 1 개", repos("o/r,a/b/c"), ["com"], ["COM"]],
+    ["org 없는 bare repo token", repos("r"), ["com"], ["COM"]],
+    ["SPACE 대상 0", NO_SPACES, COM_WIKI, ["WIKI"]],
+    ["env 빠진 Confluence", NO_WIKI_TOKEN, COM_WIKI, ["WIKI"]],
+    ["GitHub 만 쓸 수 있는 양쪽 key", COM_IN_BOTH, ["com"], ["COM"]],
+    ["수집 설정 없음", {}, ["com"], []],
     ["식별자 0 개", COM, [], []],
-    ["목록에 없는 식별자뿐", COM, ["ecode"], []],
-    ["목록에 없는 식별자 + 쓸 수 있는 GitHub 없음", WIKI, ["com", "wiki"], []],
+    ["올린 적 없는 key 뿐", COM, ["ecode"], []],
+    ["올린 적 없는 key + 쓸 수 있는 GitHub 없음", WIKI, COM_WIKI, []],
   ])("%s 는 불완전하다_n", (_label, env, services, unavailableKeys) => {
     expect(assessCollectionCoverage(identities(...services), env)).toEqual({
       complete: false,
@@ -306,5 +278,15 @@ describe("CollectionSpecService.buildCollectionSpecWithCoverage", () => {
     });
 
     expect(coverage).toEqual({ complete: false, unavailableKeys: [] });
+  });
+
+  it("열거가 모두 성공해도 범위 규칙을 어기면 불완전하다_n", async () => {
+    const { service } = make({});
+
+    const { coverage } = await service.buildCollectionSpecWithCoverage({
+      serviceIdentities: identities("com"),
+    });
+
+    expect(coverage.complete).toBe(false);
   });
 });
