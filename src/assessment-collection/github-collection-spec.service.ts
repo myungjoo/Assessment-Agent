@@ -20,7 +20,10 @@ import { Injectable, Optional } from "@nestjs/common";
 import type { ServiceIdentity } from "@prisma/client";
 
 import { CollectionTargetReader } from "../collection-target/collection-target-reader.service";
-import { mergeGithubInstances } from "../collection-target/effective-instances";
+import {
+  type CollectionTargetRow,
+  mergeGithubInstances,
+} from "../collection-target/effective-instances";
 
 import { resolveGithubRepoSources } from "./domain/github-repo-source";
 import {
@@ -55,12 +58,13 @@ export class GithubCollectionSpecService {
     person: GithubCollectionSpecInput,
     since?: string,
     tally: CollectionCallTally = { succeeded: 0, failed: 0 },
+    targets?: CollectionTargetRow[],
   ): Promise<GithubCollectionSpec> {
-    // (a) 활성 GitHub instance config 를 resolve(reject 진단은 사용 안 함). 매 호출 DB 를
-    // 읽으므로 등록 변경은 다음 수집부터 반영된다.
+    // (a) 활성 GitHub instance config 를 resolve(reject 진단은 사용 안 함). 호출자가 row 를
+    // 주지 않으면 DB 를 읽으므로 등록 변경은 다음 수집부터 반영된다.
     const { instances } = mergeGithubInstances(
       this.env,
-      await this.targets.findAll(),
+      targets ?? (await this.targets.findAll()),
     );
 
     // (b) mode B `sources`(sync) + mode A 대상 `orgEnumerateTargets` 동시 획득.

@@ -328,6 +328,25 @@ describe("GithubCollectionSpecService — 등록 대상 병합 (ADR-0059 §Decis
     expect(second.sources).toEqual([]);
   });
 
+  it("호출자가 준 row 를 쓰고 DB 를 읽지 않는다", async () => {
+    const findAll = jest.fn();
+    const service = new GithubCollectionSpecService(
+      {} as GithubOrgEnumerateService,
+      { findAll } as unknown as CollectionTargetReader,
+      DB_ENV,
+    );
+
+    const { sources } = await service.buildGithubCollectionSpec(
+      person,
+      undefined,
+      undefined,
+      [ROW],
+    );
+
+    expect(sources).toHaveLength(1);
+    expect(findAll).not.toHaveBeenCalled();
+  });
+
   it("DB 조회 실패는 빈 수집으로 흡수하지 않는다_n", async () => {
     const service = new GithubCollectionSpecService(
       {} as GithubOrgEnumerateService,

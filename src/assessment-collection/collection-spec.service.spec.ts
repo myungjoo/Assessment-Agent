@@ -16,6 +16,7 @@ import {
   GithubCollectionSpecService,
 } from "./github-collection-spec.service";
 import { GithubCollectionSpec } from "./github-collection.service";
+import type { GithubOrgEnumerateService } from "./github-org-repo-enumerate.service";
 
 const targetsOf = (rows: CollectionTargetRow[]): CollectionTargetReader =>
   ({ findAll: async () => rows }) as unknown as CollectionTargetReader;
@@ -437,6 +438,60 @@ describe("CollectionSpecService.buildCollectionSpecWithCoverage", () => {
 
     expect(spec.confluence.instances).toEqual([]);
     expect(coverage.complete).toBe(true);
+  });
+
+  it("충돌하면 Confluence 도 env 좌표를 쓴다_n", async () => {
+    const env = { ...WIKI, CONFLUENCE_WIKI_BASE_URL: "http://env" };
+    const { service } = make(env, 0, [WIKI_ROW]);
+
+    const { spec } = await service.buildCollectionSpecWithCoverage(WIKI_PERSON);
+
+    expect(spec.confluence.instances.map((c) => c.baseUrl)).toEqual([
+      "http://env",
+    ]);
+  });
+
+  it("row 변경은 다음 호출에 반영된다", async () => {
+    const findAll = jest
+      .fn()
+      .mockResolvedValueOnce([WIKI_ROW])
+      .mockResolvedValueOnce([]);
+    const service = new CollectionSpecService(
+      {
+        buildGithubCollectionSpec: async () => GITHUB_SPEC,
+      } as unknown as GithubCollectionSpecService,
+      { findAll } as unknown as CollectionTargetReader,
+      WIKI_TOKEN,
+    );
+
+    const first = await service.buildCollectionSpec(WIKI_PERSON);
+    const second = await service.buildCollectionSpec(WIKI_PERSON);
+
+    expect(first.confluence.instances).toHaveLength(1);
+    expect(second.confluence.instances).toEqual([]);
+  });
+
+  it("spec 과 판정은 한 번 읽은 같은 row 를 본다", async () => {
+    const row = { ...WIKI_ROW, type: "GITHUB", repos: ["o/r"], spaces: [] };
+    const env = { GITHUB_WIKI_TOKEN_ENC: "t" };
+    const findAll = jest
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([row]);
+    const reader = { findAll } as unknown as CollectionTargetReader;
+    const github = new GithubCollectionSpecService(
+      {} as GithubOrgEnumerateService,
+      reader,
+      env,
+    );
+    const service = new CollectionSpecService(github, reader, env);
+
+    const { spec, coverage } =
+      await service.buildCollectionSpecWithCoverage(WIKI_PERSON);
+
+    expect(findAll).toHaveBeenCalledTimes(1);
+    expect(spec.github.sources).toEqual([]);
+    expect(coverage.complete).toBe(false);
   });
 
   it("DB 조회 실패는 삼키지 않는다_n", async () => {
