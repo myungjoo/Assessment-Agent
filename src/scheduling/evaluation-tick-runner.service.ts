@@ -1,6 +1,6 @@
 // EvaluationTickRunnerService — cron tick 과 manual trigger 가 공유하는 단일 실행 함수
-// (ADR-0042 §Decision 2, README 64 · 72~74 행, REQ-037/039/040). 활성 인원의 닫힌 기간
-// 미평가 좌표를 기존 경로(planner → generateAndPersist)로 순차 평가한다.
+// (ADR-0042 §Decision 2, README 64 · 72~74 행). 활성 인원의 닫힌 기간 미평가 좌표를
+// 기존 경로(planner → generateAndPersist)로 순차 평가한다.
 import { Injectable, Logger } from "@nestjs/common";
 
 import type { EvaluationPersistContext } from "../assessment-evaluation/domain/evaluation-result.persist.mapper";
@@ -38,8 +38,8 @@ export class EvaluationTickRunnerService {
   ) {}
 
   /**
-   * tick 1 회 실행. 절대 reject 하지 않는다 — cron callback 의 reject 는 unhandled 가 되고,
-   * 전체 실행은 최대 1 시간이라 호출자는 기다리지 않는다. 실행 중 재호출은 무시한다.
+   * tick 1 회 실행. 절대 reject 하지 않는다 — cron callback 의 reject 는 unhandled 가 된다.
+   * 인원 수에 비례해 오래 걸리므로 호출자는 기다리지 않는다. 실행 중 재호출은 무시한다.
    */
   run(): Promise<void> {
     if (this.current !== null) {
@@ -58,6 +58,7 @@ export class EvaluationTickRunnerService {
       const modelId = await this.resolver.resolveDefaultModelId();
       const persons = await this.persons.findActive();
       if (persons.length === 0) {
+        this.logger.log("평가 실행 완료: 활성 인원 없음");
         return;
       }
       this.tally = { evaluated: 0, failed: 0 };
@@ -65,9 +66,8 @@ export class EvaluationTickRunnerService {
       for (const [personId, coordinates] of gaps) {
         await this.fillPerson(personId, coordinates, modelId);
       }
-      const { evaluated, failed } = this.tally;
       this.logger.log(
-        `평가 실행 완료: evaluated=${evaluated} failed=${failed}`,
+        `평가 실행 완료: evaluated=${this.tally.evaluated} failed=${this.tally.failed}`,
       );
     } catch (error) {
       this.logger.error(`평가 실행 중단: ${errorMessage(error)}`);
@@ -127,12 +127,12 @@ export class EvaluationTickRunnerService {
     }
 
     for (const context of coordinates) {
-      const { start, end } = getKstPeriodRangeByPeriod(
-        context.period,
-        context.periodStart,
-      );
-      const since = start.toISOString();
+      const since = context.periodStart.toISOString();
       try {
+        const { end } = getKstPeriodRangeByPeriod(
+          context.period,
+          context.periodStart,
+        );
         await this.persist.generateAndPersist(
           person,
           { since, until: end.toISOString() },
