@@ -24,9 +24,12 @@
 //     측 fix 동등 e2e 적용) — parts.e2e + persons.e2e 의 afterEach(truncateAll)
 //     cross-file race 차단. app.e2e 는 DB 미사용이라 영향 0.
 //
-// 인증 cookie 선탑재 (T-2044, Q-0056 parts 축 guard 배선 선행): B~D 요청 11 곳 전부에 tier
-// cookie 를 싣는다 — GET 은 `userCookie`, 그 외는 `adminCookie` (api.md parts 행의 등급, tier 행이 없는 `:id` · `:id/persons` 는 GET 관례). guard 배선보다
-// 먼저 싣는 선행이라 단언은 무변경이다.
+// 인증 cookie (T-2044, Q-0056 parts 축): B~D 요청 11 곳 전부에 tier cookie 를 싣는다 — GET 은
+// `userCookie`, 그 외는 `adminCookie` (api.md parts 행의 등급).
+//
+// 인가 단언 (T-2049, Q-0056 parts 축): E 절이 실 `JwtAuthGuard` · `RolesGuard` 의 거부 경로를
+// 닫는다 — 무 cookie 401 × 6 · User mutation 403 × 3 · invalid JWT 401 × 2 · guard 가 pipe /
+// handler 보다 먼저 끊는 순서 2 건 · 상위 role · Admin 허용 3 건 (E 절 16 test).
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
@@ -41,6 +44,35 @@ import { truncateAll } from "../helpers/db-truncate";
 
 const ADMIN_EMAIL = "parts-admin-actor@e2e.test";
 const USER_EMAIL = "parts-user-actor@e2e.test";
+const SUPERADMIN_EMAIL = "parts-superadmin-actor@e2e.test";
+
+// 인가 단언 (E 절) 의 seed — part 1 · 소속 person 1.
+type AuthzSeed = { partId: string; partName: string; personId: string };
+
+// E 절 route 표 — [제목, method, seed → path, body]. body 는 guard 를 통과했다면 handler 가
+// 실제로 반영했을 유효 payload 다 (validation 400 이 아니라 guard 거부임을 보인다).
+type RouteMethod = "get" | "post" | "patch" | "delete";
+type RouteCase = [string, RouteMethod, (s: AuthzSeed) => string, object?];
+
+const READ_ROUTES: RouteCase[] = [
+  ["GET /api/parts", "get", () => "/api/parts"],
+  ["GET /api/parts/:id", "get", (s) => `/api/parts/${s.partId}`],
+  [
+    "GET /api/parts/:id/persons",
+    "get",
+    (s) => `/api/parts/${s.partId}/persons`,
+  ],
+];
+const WRITE_ROUTES: RouteCase[] = [
+  ["POST /api/parts", "post", () => "/api/parts", { name: "거부대상" }],
+  [
+    "PATCH /api/parts/:id",
+    "patch",
+    (s) => `/api/parts/${s.partId}`,
+    { name: "거부수정" },
+  ],
+  ["DELETE /api/parts/:id", "delete", (s) => `/api/parts/${s.partId}`],
+];
 
 // Part DTO 필수 2 field — happy endpoint (GET list / GET :id / POST) 공통.
 const PART_DTO_FIELDS = ["id", "name"] as const;
@@ -61,17 +93,20 @@ describe("E2E: /api/parts HTTP contract", () => {
   let prisma: PrismaService;
   let adminCookie: string;
   let userCookie: string;
+  let superAdminCookie: string;
 
   beforeAll(async () => {
     // 부트스트랩 + applyGlobalMiddleware wire 는 createE2EApp 책임 (T-0090 박제) — helper 가 감싼다.
     ctx = await createAuthenticatedE2EApp([
       { role: "Admin", email: ADMIN_EMAIL },
       { role: "User", email: USER_EMAIL },
+      { role: "SuperAdmin", email: SUPERADMIN_EMAIL },
     ]);
     app = ctx.app;
     prisma = ctx.prisma;
     adminCookie = buildAuthCookie(ctx.tokens[ADMIN_EMAIL]);
     userCookie = buildAuthCookie(ctx.tokens[USER_EMAIL]);
+    superAdminCookie = buildAuthCookie(ctx.tokens[SUPERADMIN_EMAIL]);
   });
 
   afterAll(async () => {
@@ -298,5 +333,151 @@ describe("E2E: /api/parts HTTP contract", () => {
       where: { id: part.id },
     });
     expect(stillExists).not.toBeNull();
+  });
+
+  // -- E. 인증·인가 (T-2049, Q-0056 parts 축) — 실 JwtAuthGuard · RolesGuard 거부 / 허용 경로 --
+  // `PartController` 의 `@UseGuards` 를 떼거나 write 축 `@Roles` 를 "User" 로 느슨하게
+  // 바꾸면 E.1 · E.2 가 red 가 된다 (regression 가드). groups.e2e-spec E 절 mirror.
+  const seedAuthz = async (): Promise<AuthzSeed> => {
+    const part = await prisma.part.create({ data: { name: "인가대상파트" } });
+    const person = await prisma.person.create({
+      data: {
+        fullName: "인가소속",
+        email: "authz-part-member@example.test",
+        partId: part.id,
+      },
+    });
+    return { partId: part.id, partName: part.name, personId: person.id };
+  };
+
+  // cookie 가 undefined 면 `Cookie` header 자체를 싣지 않는다 (무 cookie 요청).
+  const send = (
+    [, method, pathOf, body]: RouteCase,
+    seed: AuthzSeed,
+    cookie?: string,
+  ) => {
+    const req = request(app.getHttpServer())[method](pathOf(seed));
+    if (cookie !== undefined) req.set("Cookie", cookie);
+    return body === undefined ? req : req.send(body);
+  };
+
+  // 거부 시 부수효과 0 — part 는 seed 1 건 그대로 (POST 미생성 · DELETE 미삭제 · PATCH 미반영).
+  const expectUntouched = async (seed: AuthzSeed): Promise<void> => {
+    expect(await prisma.part.count()).toBe(1);
+    const part = await prisma.part.findUnique({ where: { id: seed.partId } });
+    expect(part?.name).toBe(seed.partName);
+  };
+
+  // E.1 무 cookie 401 × 6 route. `:id` 는 실존 id — 404 가 아니라 guard 거부임을 보인다.
+  it.each([...READ_ROUTES, ...WRITE_ROUTES])(
+    "Q-0056 %s — cookie 부재 시 401 (negative — 인증 부재, JwtAuthGuard)",
+    async (...route) => {
+      const seed = await seedAuthz();
+
+      const response = await send(route, seed);
+
+      expect(response.status).toBe(401);
+      await expectUntouched(seed);
+    },
+  );
+
+  // E.2 User token 의 write 축 403 × 3 route. 반대 분기 (같은 `userCookie` 의 read 축 200)
+  // 는 B 절의 GET happy test 3 건이 이미 cover 한다.
+  it.each(WRITE_ROUTES)(
+    "Q-0056 %s — User role token 시 403 (negative — Admin+ tier 미달, RolesGuard)",
+    async (...route) => {
+      const seed = await seedAuthz();
+
+      const response = await send(route, seed, userCookie);
+
+      expect(response.status).toBe(403);
+      await expectUntouched(seed);
+    },
+  );
+
+  // E.3 변조 JWT cookie 401 — read 1 + write 1 (JwtAuthGuard verify fail). 실 Admin token 의 서명을
+  // 바꿔 형식만 맞는 토큰도 끊기는지 본다.
+  const tampered = (): string =>
+    `${buildAuthCookie(ctx.tokens[ADMIN_EMAIL])}tampered`;
+
+  it("Q-0056 GET /api/parts — 변조 JWT cookie 시 401 (negative — JWT verify fail)", async () => {
+    const response = await request(app.getHttpServer())
+      .get("/api/parts")
+      .set("Cookie", tampered());
+
+    expect(response.status).toBe(401);
+  });
+
+  it("Q-0056 POST /api/parts — 변조 JWT cookie 시 401 (negative — JWT verify fail)", async () => {
+    const response = await request(app.getHttpServer())
+      .post("/api/parts")
+      .set("Cookie", tampered())
+      .send({ name: "invalid-jwt" });
+
+    expect(response.status).toBe(401);
+    expect(await prisma.part.count()).toBe(0);
+  });
+
+  // E.4 403 이 validation 보다 먼저 — C 절과 같은 빈 body 가 User token 이면 400 이 아니다.
+  it("Q-0056 POST /api/parts — User role token + 빈 body 는 400 이 아니라 403 (negative — guard 가 ValidationPipe 보다 먼저)", async () => {
+    const response = await request(app.getHttpServer())
+      .post("/api/parts")
+      .set("Cookie", userCookie)
+      .send({});
+
+    expect(response.status).toBe(403);
+    expect(await prisma.part.count()).toBe(0);
+  });
+
+  // E.5 401 이 404 보다 먼저 — 미인증 요청에 존재 여부를 노출하지 않는다.
+  it("Q-0056 GET /api/parts/:id — cookie 부재 + 부재 id 는 404 가 아니라 401 (negative — 존재 여부 비노출)", async () => {
+    const response = await request(app.getHttpServer()).get(
+      "/api/parts/cuid-e2e-missing-part",
+    );
+
+    expect(response.status).toBe(401);
+  });
+
+  // E.6 escalation 허용 — SuperAdmin 이 Admin+ tier (write 축) 를 통과한다.
+  it("Q-0056 POST /api/parts — SuperAdmin token 은 Admin+ tier 를 통과해 201 (happy — role escalation)", async () => {
+    const response = await request(app.getHttpServer())
+      .post("/api/parts")
+      .set("Cookie", superAdminCookie)
+      .send({ name: "상위권한파트" });
+
+    expect(response.status).toBe(201);
+    const created = await prisma.part.findUnique({
+      where: { id: response.body.id },
+    });
+    expect(created?.name).toBe("상위권한파트");
+  });
+
+  // E.7 escalation 허용 — Admin 이 User+ tier (read 축) 를 통과한다.
+  it("Q-0056 GET /api/parts — Admin token 은 User+ tier 를 통과해 200 (happy — role escalation)", async () => {
+    const seed = await seedAuthz();
+
+    const response = await request(app.getHttpServer())
+      .get("/api/parts")
+      .set("Cookie", adminCookie);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveLength(1);
+    expect(response.body[0].id).toBe(seed.partId);
+  });
+
+  // E.8 허용 경로 — Admin 의 PATCH 200 + 실 DB 반영. 거부 경로 (E.1 · E.2) 의 대조군이다.
+  it("Q-0056 PATCH /api/parts/:id — Admin token 은 200 이고 name 이 반영된다 (happy — E.1 · E.2 대조군)", async () => {
+    const seed = await seedAuthz();
+
+    const response = await request(app.getHttpServer())
+      .patch(`/api/parts/${seed.partId}`)
+      .set("Cookie", adminCookie)
+      .send({ name: "수정된파트" });
+
+    expect(response.status).toBe(200);
+    const updated = await prisma.part.findUnique({
+      where: { id: seed.partId },
+    });
+    expect(updated?.name).toBe("수정된파트");
   });
 });
