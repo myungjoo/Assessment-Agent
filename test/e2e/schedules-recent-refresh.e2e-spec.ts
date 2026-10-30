@@ -241,8 +241,8 @@ describe("E2E: 최근 N일 재수집 row 교체 (REQ-041)", () => {
     const result = await runToEnd(target.id, 1);
     expect(result).toMatchObject({ deletedCount: 0, refreshedCount: 1 });
     const rows = await ctx.prisma.assessment.findMany();
-    expect(rows.map((r) => [r.period, r.periodStart])).toEqual([
-      ["day", yesterday()],
+    expect(rows.map((r) => [r.period, r.scope, r.periodStart])).toEqual([
+      ["day", "aggregate", yesterday()],
     ]);
   });
 
