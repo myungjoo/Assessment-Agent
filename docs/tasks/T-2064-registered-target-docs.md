@@ -2,7 +2,11 @@
 id: T-2064
 title: 등록 수집 대상 실효화 ⑥ — ADR · 모듈 인덱스 · 화면 주석 동기화
 phase: P7
-status: PLANNED
+status: DONE
+completedAt: 2026-10-30
+mergedAs: d2b46ad2
+prNumber: 1625
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-070, REQ-072]
 estimatedDiff: 35
