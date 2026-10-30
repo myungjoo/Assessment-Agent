@@ -64,6 +64,10 @@ export function planRecentRefresh(
   window: PeriodRange,
   now: Date,
 ): RecentRefreshPlan {
+  // Invalid Date 는 비교가 모두 false 라 진행 중 row 를 닫힌 것으로 분류한다.
+  if (Number.isNaN(now.getTime())) {
+    throw new TypeError("planRecentRefresh: 유효한 now 가 필요합니다");
+  }
   const coordinates = new Map<string, RefreshCoordinate>();
   for (const period of REFRESH_PERIODS) {
     for (const periodStart of closedAggregateStarts(period, window, now)) {

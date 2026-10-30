@@ -121,6 +121,38 @@ describe("planRecentRefresh", () => {
     expect(result.coordinates.every((c) => c.period === "day")).toBe(true);
   });
 
+  it("시작이 창 밖이면 기간이 창과 겹쳐도 계획에 없다_n", () => {
+    // 창 = 06-05 ~ 06-10, 06-01 주는 창과 겹치지만 시작이 창 밖이다.
+    const result = plan(6, [stored("week", "2026-06-01")]);
+    expect(result.openRowCount).toBe(0);
+    expect(result.coordinates.every((c) => c.period === "day")).toBe(true);
+  });
+
+  it("now 가 기간 끝과 같으면 그 기간은 닫힌 것이다", () => {
+    const monday = kstMidnight("2026-06-08");
+    const result = planRecentRefresh(
+      "p1",
+      [stored("week", "2026-06-01", "commit")],
+      buildClosedDaysWindow(monday, 7),
+      monday,
+    );
+    expect(result.openRowCount).toBe(0);
+    const weekStart = kstMidnight("2026-06-01").toISOString();
+    expect(keys(result)).toEqual(
+      expect.arrayContaining([
+        `week:aggregate:${weekStart}`,
+        `week:commit:${weekStart}`,
+      ]),
+    );
+  });
+
+  it("now 가 Invalid Date 면 TypeError 다_n", () => {
+    const window = buildClosedDaysWindow(NOW, 1);
+    expect(() => planRecentRefresh("p1", [], window, new Date("x"))).toThrow(
+      TypeError,
+    );
+  });
+
   it("알 수 없는 period 저장본은 RangeError 다_n", () => {
     expect(() => plan(1, [stored("year", "2026-06-10")])).toThrow(RangeError);
   });
