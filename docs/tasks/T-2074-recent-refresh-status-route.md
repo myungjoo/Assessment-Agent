@@ -2,7 +2,11 @@
 id: T-2074
 title: 최근 N일 재수집 ⑥ — GET 상태 route 와 API 문서
 phase: P7
-status: READY
+status: DONE
+completedAt: 2026-10-30
+mergedAs: c8965143
+prNumber: 1635
+reviewRounds: 3
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 70
