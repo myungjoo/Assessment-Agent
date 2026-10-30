@@ -19,6 +19,16 @@ const CLOSED_WINDOWS = [
   { period: "month", count: 1 },
 ];
 
+const emptyTally = () => ({
+  evaluated: 0,
+  skipped: 0,
+  failed: 0,
+  incomplete: [] as IncompleteRecord[],
+});
+type IncompleteRecord = Parameters<
+  RunStatusService["recordEvaluationRun"]
+>[0]["incomplete"][number];
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -37,7 +47,7 @@ export class EvaluationTickRunnerService implements OnModuleDestroy {
   private readonly logger = new Logger(EvaluationTickRunnerService.name);
   private current: Promise<void> | null = null;
   private stopping = false;
-  private tally = { evaluated: 0, skipped: 0, failed: 0 };
+  private tally = emptyTally();
 
   constructor(
     private readonly resolver: LlmProviderConfigResolver,
@@ -73,6 +83,7 @@ export class EvaluationTickRunnerService implements OnModuleDestroy {
 
   private async execute(): Promise<void> {
     this.runStatus.begin("evaluation");
+    this.tally = emptyTally();
     try {
       const modelId = await this.resolver.resolveDefaultModelId();
       const persons = await this.persons.findActive();
@@ -80,7 +91,6 @@ export class EvaluationTickRunnerService implements OnModuleDestroy {
         this.logger.log("평가 실행 완료: 활성 인원 없음");
         return;
       }
-      this.tally = { evaluated: 0, skipped: 0, failed: 0 };
       const gaps = await this.planGaps(persons.map((person) => person.id));
       for (const [personId, coordinates] of gaps) {
         if (this.stopping) {
@@ -93,8 +103,16 @@ export class EvaluationTickRunnerService implements OnModuleDestroy {
         `평가 실행 완료: evaluated=${this.tally.evaluated} skipped=${this.tally.skipped} failed=${this.tally.failed}`,
       );
     } catch (error) {
+      this.tally.failed += 1;
       this.logger.error(`평가 실행 중단: ${errorMessage(error)}`);
     } finally {
+      this.runStatus.recordEvaluationRun({
+        source: "tick",
+        evaluatedCount: this.tally.evaluated,
+        skippedCount: this.tally.skipped,
+        failedCount: this.tally.failed,
+        incomplete: this.tally.incomplete,
+      });
       this.runStatus.end("evaluation");
     }
   }
@@ -171,6 +189,14 @@ export class EvaluationTickRunnerService implements OnModuleDestroy {
           context,
         );
         this.tally[persisted === null ? "skipped" : "evaluated"] += 1;
+        if (persisted === null) {
+          this.tally.incomplete.push({
+            personId,
+            period: context.period,
+            scope: context.scope,
+            periodStart: new Date(context.periodStart).toISOString(),
+          });
+        }
       } catch (error) {
         this.tally.failed += 1;
         this.logger.error(

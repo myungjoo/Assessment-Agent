@@ -76,6 +76,7 @@ import { EvaluateActivitiesDto } from "./dto/evaluate-activities.dto";
 import { PeriodBridgeDto } from "./dto/period-bridge.dto";
 import { RelativeComparisonQueryDto } from "./dto/relative-comparison-query.dto";
 import { ResetByPeriodRequestDto } from "./dto/reset-by-period-request.dto";
+import { COLLECTION_INCOMPLETE_REASON } from "./dto/run-unevaluated-fill-coordinate";
 import type { SummaryAggregateUnitResultDto } from "./dto/summary-aggregate-request.dto";
 import { SummaryAggregateRequestDto } from "./dto/summary-aggregate-request.dto";
 import { UnevaluatedFillPlanRequestDto } from "./dto/unevaluated-fill-plan-request.dto";
@@ -153,6 +154,23 @@ function isAdminRole(role: string | undefined): boolean {
     return false;
   }
   return ROLE_HIERARCHY.Admin.includes(role);
+}
+
+// fill-run 결과 → run status 기록. 수집 불완전은 read-through skipped 와 reason 으로 구분한다.
+function toFillRunRecord(result: UnevaluatedFillRunResult) {
+  return {
+    evaluatedCount: result.evaluatedCount,
+    skippedCount: result.skippedCount,
+    failedCount: result.failedCount,
+    incomplete: result.outcomes
+      .filter((outcome) => outcome.reason === COLLECTION_INCOMPLETE_REASON)
+      .map(({ personId, period, scope, periodStart }) => ({
+        personId,
+        period,
+        scope,
+        periodStart: new Date(periodStart).toISOString(),
+      })),
+  };
 }
 
 @Controller("api/assessment-evaluation")
@@ -736,6 +754,13 @@ export class AssessmentEvaluationController {
     // 가지므로, 그 fail-fast 구간이 바깥 try 밖이면 운영자 LLM provider 미설정마다 end 가
     // 안 돌아 카운터가 stuck 되고 배너가 영구히 "평가 중" 으로 굳는다. 마지막 위임은
     // **return await** 로 받아 finally 가 위임 해소 **이후**에만 돌게 한다.
+    // 끝난 뒤에만 건수를 안다. 그 전에 빠져나가면 중단 1 건으로 기록한다 (ADR-0060 §Decision 6).
+    let runRecord: ReturnType<typeof toFillRunRecord> = {
+      evaluatedCount: 0,
+      skippedCount: 0,
+      failedCount: 1,
+      incomplete: [],
+    };
     this.runStatus.begin("evaluation");
     try {
       // default modelId 의 server-side 해석 — caller 가 보낸 `dto.defaultModelId` 를
@@ -779,13 +804,16 @@ export class AssessmentEvaluationController {
       // `buildFillRunScoringOptions` 가 `=== true` 게이트에서 false 로 판정해 OFF 가
       // 보존된다(§Decision 3 "미지정 = OFF"). controller 는 판정 · 기본값 채움 · 정규화를
       // 하지 않는다 — 여기서 접으면 helper 와 이중 게이트가 된다.
-      return await this.unevaluatedFillRunOrchestrator.run(
+      const result = await this.unevaluatedFillRunOrchestrator.run(
         dto.rawBridges,
         dto.modelId,
         resolvedDefaultModelId,
         dto.useInputDifficultyRouting,
       );
+      runRecord = toFillRunRecord(result);
+      return result;
     } finally {
+      this.runStatus.recordEvaluationRun({ source: "fill-run", ...runRecord });
       this.runStatus.end("evaluation");
     }
   }

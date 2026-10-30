@@ -52,6 +52,7 @@ import {
 import { PeriodBridgeDto } from "./dto/period-bridge.dto";
 import { RelativeComparisonQueryDto } from "./dto/relative-comparison-query.dto";
 import { ResetByPeriodRequestDto } from "./dto/reset-by-period-request.dto";
+import { COLLECTION_INCOMPLETE_REASON } from "./dto/run-unevaluated-fill-coordinate";
 import {
   SummaryAggregateRequestDto,
   SummaryAggregateUnitResultDto,
@@ -3523,6 +3524,7 @@ function makeRunController(
   // beginSpy / endSpy — RunStatusService.begin/end 관측 mock(T-1844 배선 이후).
   beginSpy: jest.Mock;
   endSpy: jest.Mock;
+  recordSpy: jest.Mock;
 } {
   const runSpy = jest.fn(runImpl);
   const unevaluatedFillRunOrchestrator = {
@@ -3587,9 +3589,11 @@ function makeRunController(
   // 관측 mock(no-op jest.fn)이다. 호출 횟수 · axis 인자 · 위임 대비 순서를 단언한다.
   const beginSpy = jest.fn();
   const endSpy = jest.fn();
+  const recordSpy = jest.fn();
   const runStatus = {
     begin: beginSpy,
     end: endSpy,
+    recordEvaluationRun: recordSpy,
   } as unknown as RunStatusService;
   // summaryPersistService — POST /reset 전용(T-1916) 미사용 의존이라 throw mock.
   const summaryPersistService = {
@@ -3617,6 +3621,7 @@ function makeRunController(
     resolveSpy,
     beginSpy,
     endSpy,
+    recordSpy,
   };
 }
 
@@ -4077,6 +4082,89 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — 사전 난
     expect(endSpy).toHaveBeenCalledTimes(1);
     expect(endSpy).toHaveBeenCalledWith("evaluation");
   });
+});
+
+describe("AssessmentEvaluationController.runUnevaluatedFill (unit — lastEvaluationRun 기록, ADR-0060 §Decision 6)", () => {
+  const INCOMPLETE = {
+    personId: "person-9",
+    period: "day",
+    scope: "aggregate",
+    periodStart: "2026-06-01T00:00:00+09:00",
+    status: "skipped" as const,
+    reason: COLLECTION_INCOMPLETE_REASON,
+  };
+
+  it("결과 건수를 옮기고 수집 불완전 좌표만 UTC ISO 로 기록한다", async () => {
+    const readThrough = {
+      ...INCOMPLETE,
+      personId: "person-8",
+      reason: undefined,
+    };
+    const { controller, recordSpy } = makeRunController(async () =>
+      makeRunResult({
+        outcomes: [INCOMPLETE, readThrough],
+        evaluatedCount: 0,
+        skippedCount: 2,
+        failedCount: 0,
+      }),
+    );
+
+    await controller.runUnevaluatedFill(makeRunDto());
+
+    expect(recordSpy).toHaveBeenCalledTimes(1);
+    expect(recordSpy).toHaveBeenCalledWith({
+      source: "fill-run",
+      evaluatedCount: 0,
+      skippedCount: 2,
+      failedCount: 0,
+      incomplete: [
+        {
+          personId: "person-9",
+          period: "day",
+          scope: "aggregate",
+          periodStart: "2026-05-31T15:00:00.000Z",
+        },
+      ],
+    });
+  });
+
+  it.each([
+    [
+      "resolver 실패",
+      async () => makeRunResult(),
+      async () => {
+        throw new Error("no llm");
+      },
+    ],
+    [
+      "orchestrator 실패",
+      async () => {
+        throw new TypeError("bad");
+      },
+      undefined,
+    ],
+  ])(
+    "%s 로 빠져나가면 중단 1 건으로 기록한다_n",
+    async (_label, runImpl, resolveImpl) => {
+      const { controller, recordSpy, endSpy } = makeRunController(
+        runImpl,
+        resolveImpl,
+      );
+
+      await expect(
+        controller.runUnevaluatedFill(makeRunDto()),
+      ).rejects.toBeDefined();
+
+      expect(recordSpy).toHaveBeenCalledWith({
+        source: "fill-run",
+        evaluatedCount: 0,
+        skippedCount: 0,
+        failedCount: 1,
+        incomplete: [],
+      });
+      expect(endSpy).toHaveBeenCalledTimes(1);
+    },
+  );
 });
 
 describe("AssessmentEvaluationController.runUnevaluatedFill (unit — RunStatus 실행 상태 전이, ADR-0060 §Decision 4)", () => {
