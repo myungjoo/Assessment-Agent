@@ -1,5 +1,5 @@
 // RecentDeletionController — 최근 N일 결과 재수집 REST 진입점 (R-74 / REQ-041). 대상 row 는 서버가
-// 찾는다. 본문의 instants 는 DTO 호환을 위해 받지만 무시하며, T-2074 에서 DTO 에서도 제거한다.
+// 찾는다. 본문의 instants 는 DTO 호환을 위해 받지만 무시하며, web 전환 뒤 DTO 에서도 제거한다.
 // 실행이 오래 걸리므로 POST 는 시작만 하고 202 로 돌아온다.
 //
 // 오류 매핑: days 범위 RangeError 는 RecentDeletionInputExceptionFilter 가 400 으로,

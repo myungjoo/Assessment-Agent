@@ -1,5 +1,5 @@
 // schedules-recent-deletion.e2e-spec.ts — POST /api/schedules/recent-deletion/:personId 의 HTTP 계약
-// · RBAC · ValidationPipe e2e (REQ-041). 식별자 없는 인원을 쓰므로 수집 · 저장에 닿지 않는다.
+// · RBAC · ValidationPipe e2e (REQ-041). 식별자 없는 인원을 seed 하므로 외부 호출이 없다.
 // 실 수집 · 교체는 별도 spec 이 검증한다. 실 DB 를 쓰며 CI 의 pnpm test:e2e 에서 실행된다.
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
@@ -28,7 +28,7 @@ const recentDeletionUrl = (personId: string): string =>
 
 const STARTED = { running: true, result: null };
 
-const inWindowInstant = (): string => new Date().toISOString();
+const anyInstant = (): string => new Date().toISOString();
 
 describe("E2E: POST /api/schedules/recent-deletion/:personId (T-1963, REQ-041)", () => {
   let ctx: AuthenticatedE2EContext;
@@ -90,15 +90,13 @@ describe("E2E: POST /api/schedules/recent-deletion/:personId (T-1963, REQ-041)",
     });
   }
 
-  // -- happy 202 (Admin, days 미지정 = 기본 1 일 window) --
-
-  it("Admin 요청은 202 와 시작 상태를 돌려주고 식별자 없는 인원에 row 를 만들지 않는다", async () => {
+  it("Admin 요청은 202 와 시작 상태를 돌려주고 row 를 만들지 않는다", async () => {
     const person = await seedPerson();
 
     const response = await request(app.getHttpServer())
       .post(recentDeletionUrl(person.id))
       .set("Cookie", adminCookie)
-      .send({ instants: [inWindowInstant()], days: 7 });
+      .send({ instants: [anyInstant()], days: 7 });
 
     expect(response.status).toBe(202);
     expect(response.headers["content-type"]).toMatch(/application\/json/);
@@ -113,7 +111,7 @@ describe("E2E: POST /api/schedules/recent-deletion/:personId (T-1963, REQ-041)",
     const response = await request(app.getHttpServer())
       .post(recentDeletionUrl("nonexistent-person-id"))
       .set("Cookie", adminCookie)
-      .send({ instants: [inWindowInstant()] });
+      .send({ instants: [anyInstant()] });
 
     expect(response.status).toBe(404);
     expect(response.body.statusCode).toBe(404);
@@ -128,7 +126,7 @@ describe("E2E: POST /api/schedules/recent-deletion/:personId (T-1963, REQ-041)",
 
     const response = await request(app.getHttpServer())
       .post(recentDeletionUrl(person.id))
-      .send({ instants: [inWindowInstant()] });
+      .send({ instants: [anyInstant()] });
 
     expect(response.status).toBe(401);
     expect(await prisma.assessment.count()).toBe(0);
@@ -188,7 +186,7 @@ describe("E2E: POST /api/schedules/recent-deletion/:personId (T-1963, REQ-041)",
     const response = await request(app.getHttpServer())
       .post(recentDeletionUrl(person.id))
       .set("Cookie", adminCookie)
-      .send({ instants: [inWindowInstant()], days: OVER_MAX_DAYS });
+      .send({ instants: [anyInstant()], days: OVER_MAX_DAYS });
 
     // 500 이 아님을 status 로 직접 단언 — 입력 결함이 서버 장애로 보고되지 않는다.
     expect(response.status).not.toBe(500);
@@ -211,7 +209,7 @@ describe("E2E: POST /api/schedules/recent-deletion/:personId (T-1963, REQ-041)",
     const response = await request(app.getHttpServer())
       .post(recentDeletionUrl(person.id))
       .set("Cookie", adminCookie)
-      .send({ instants: [inWindowInstant()], days: MAX_DAYS });
+      .send({ instants: [anyInstant()], days: MAX_DAYS });
 
     expect(response.status).toBe(202);
     expect(response.body).toEqual({ personId: person.id, ...STARTED });
@@ -223,7 +221,7 @@ describe("E2E: POST /api/schedules/recent-deletion/:personId (T-1963, REQ-041)",
     const response = await request(app.getHttpServer())
       .post(recentDeletionUrl(person.id))
       .set("Cookie", userCookie)
-      .send({ instants: [inWindowInstant()], days: OVER_MAX_DAYS });
+      .send({ instants: [anyInstant()], days: OVER_MAX_DAYS });
 
     expect(response.status).toBe(403);
     // 403 body 는 filter 의 (1) HttpException passthrough — 안내 prefix 가 붙지 않는다.
@@ -241,7 +239,7 @@ describe("E2E: POST /api/schedules/recent-deletion/:personId (T-1963, REQ-041)",
     const response = await request(app.getHttpServer())
       .post(recentDeletionUrl(person.id))
       .set("Cookie", userCookie)
-      .send({ instants: [inWindowInstant()] });
+      .send({ instants: [anyInstant()] });
 
     expect(response.status).toBe(403);
     expect(await prisma.assessment.count()).toBe(0);
@@ -253,7 +251,7 @@ describe("E2E: POST /api/schedules/recent-deletion/:personId (T-1963, REQ-041)",
     const response = await request(app.getHttpServer())
       .post(recentDeletionUrl(person.id))
       .set("Cookie", superAdminCookie)
-      .send({ instants: [inWindowInstant()] });
+      .send({ instants: [anyInstant()] });
 
     expect(response.status).toBe(202);
     expect(response.body).toEqual({ personId: person.id, ...STARTED });
