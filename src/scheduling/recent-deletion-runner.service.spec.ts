@@ -516,6 +516,35 @@ describe("RecentDeletionRunnerService — 최근 N일 재수집", () => {
     });
   });
 
+  it("실행 도중 앱이 종료되면 끝난 교체는 유지하고 남은 좌표만 not refreshed 다_n", async () => {
+    const { service, persist } = setup();
+    let destroyed: Promise<void> = Promise.resolve();
+    persist.mockImplementationOnce(() => {
+      destroyed = service.onModuleDestroy();
+      return Promise.resolve({ created: true });
+    });
+    await service.startRefresh("p1", 3);
+    await settle(service);
+    await destroyed;
+    expect(service.refreshStatus("p1").result).toMatchObject({
+      refreshedCount: 1,
+      notRefreshedCount: 2,
+      aborted: true,
+    });
+    expect(persist).toHaveBeenCalledTimes(1);
+  });
+
+  it("거부된 요청은 직전 결과를 지우지 않는다_n", async () => {
+    const { service, runStatus, finish } = setup();
+    await service.startRefresh("p1", 1);
+    const previous = await finish();
+    runStatus.begin("evaluation");
+    await expect(service.startRefresh("p1", 1)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(service.refreshStatus("p1").result).toEqual(previous);
+  });
+
   it("실행 중 재호출과 다른 인원 호출은 409 이고 실행을 늘리지 않는다_n", async () => {
     const { service, runStatus, finish, holdNextRun } = setup();
     const release = holdNextRun();

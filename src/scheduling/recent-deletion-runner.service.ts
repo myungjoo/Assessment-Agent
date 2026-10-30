@@ -138,7 +138,7 @@ export class RecentDeletionRunnerService implements OnModuleDestroy {
    *
    * @throws RangeError days 범위 위반.
    * @throws NotFoundException 인원 부재.
-   * @throws ConflictException 다른 평가 실행이 진행 중. tick · 다른 인원 재수집 포함.
+   * @throws ConflictException 다른 평가 실행이 진행 중 (tick · 다른 인원 재수집 포함) 이거나 앱 종료 중.
    */
   async startRefresh(
     personId: string,
@@ -152,7 +152,7 @@ export class RecentDeletionRunnerService implements OnModuleDestroy {
       this.runStatus.snapshot().evaluation.active
     ) {
       throw new ConflictException(
-        "다른 평가 실행이 진행 중입니다. 끝난 뒤 다시 시도해 주세요.",
+        "다른 평가 실행이 진행 중이거나 서버가 종료 중입니다. 잠시 뒤 다시 시도해 주세요.",
       );
     }
 
