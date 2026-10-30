@@ -2,7 +2,11 @@
 id: T-2078
 title: 최근 N일 재수집 ⑩ — web 이 기간만 보낸다
 phase: P7
-status: READY
+status: DONE
+completedAt: 2026-10-30
+mergedAs: c05e8628
+prNumber: 1639
+reviewRounds: 1
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 15
