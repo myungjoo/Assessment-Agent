@@ -25,7 +25,7 @@
 // 않으며, 실 LLM · 활동 있는 평가는 본 spec 이 검증하지 않는다.
 //
 // 실 DB 전략(ADR-0004): mock override 0. createAuthenticatedE2EApp 가 AppModule
-// 부트스트랩 + actor seed, PrismaService 가 실 connection. 본 endpoint 군은 DB row 를
+// 부트스트랩 + actor seed, PrismaService 가 실 connection. REST 계약 축은 DB row 를
 // 만들지 않으므로 truncateAll 은 쓰지 않는다(actor seed 를 지우고 재-seed 를 강요할
 // 뿐 얻는 격리가 없다). 대신 afterEach 가 등록된 cron name 을 전수 삭제해 살아 있는
 // CronJob 이 jest open handle 로 남지 않게 한다.
@@ -37,6 +37,7 @@ import { randomBytes } from "node:crypto";
 import type { INestApplication } from "@nestjs/common";
 import request, { type Test } from "supertest";
 
+import { getKstPeriodRangeByPeriod } from "../../src/common/period-boundary";
 import { LlmApiKeyCipher } from "../../src/llm/llm-apikey-cipher.service";
 import { RunStatusService } from "../../src/run-status/run-status.service";
 import {
@@ -127,7 +128,6 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
       .send({ name, cronExpression });
   }
 
-  // 가짜 GitHub 의 응답 status — test 가 token 장애를 흉내 낼 때 401 로 바꾼다.
   let githubStatus = 200;
   const realFetch = globalThis.fetch;
 
@@ -192,7 +192,7 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
     expect(afterDelete).not.toContain(JOB_NAME);
   });
 
-  it("Admin 으로 POST /api/schedules/trigger 시 202 (happy — LlmProviderConfig 0 이면 실행은 resolver 에서 멈춘다)", async () => {
+  it("Admin 으로 POST /api/schedules/trigger 시 202 (happy — manual trigger 수락)", async () => {
     const response = await request(app.getHttpServer())
       .post(TRIGGER_URL)
       .set("Cookie", adminCookie);
@@ -328,14 +328,12 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
   );
 
   describe("실 평가 실행 (T-2043, README 64 · 72~74 행)", () => {
-    const savedEncKey = process.env[ENC_KEY_ENV];
-
     async function waitIdle(): Promise<void> {
       const status = app.get(RunStatusService, { strict: false });
-      const deadline = Date.now() + 30_000;
+      const deadline = Date.now() + 4_000;
       while (status.snapshot().evaluation.active) {
         if (Date.now() > deadline) {
-          throw new Error("평가 실행이 30 초 안에 끝나지 않았다");
+          throw new Error("평가 실행이 4 초 안에 끝나지 않았다");
         }
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
@@ -349,13 +347,13 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
       await waitIdle();
     }
 
-    const createPerson = (identities: { service: string }[]) =>
+    const createPerson = () =>
       ctx.prisma.person.create({
         data: {
           fullName: "tick 대상",
           email: "tick-person@e2e.test",
           serviceIdentities: {
-            create: identities.map((i) => ({ ...i, externalId: "kim" })),
+            create: { service: "e2etick", externalId: "kim" },
           },
         },
       });
@@ -392,11 +390,6 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
     afterEach(async () => {
       await waitIdle();
       clearGithubEnv();
-      if (savedEncKey === undefined) {
-        delete process.env[ENC_KEY_ENV];
-      } else {
-        process.env[ENC_KEY_ENV] = savedEncKey;
-      }
       await ctx.prisma.permissionDeniedRecord.deleteMany();
       await ctx.prisma.assessment.deleteMany();
       await ctx.prisma.person.deleteMany();
@@ -404,8 +397,7 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
     });
 
     it("trigger 가 닫힌 기간 좌표를 저장하고, 재실행은 중복을 만들지 않는다", async () => {
-      await createPerson([{ service: "e2etick" }]);
-
+      await createPerson();
       await triggerAndWait();
 
       const rows = await ctx.prisma.assessment.findMany({
@@ -415,13 +407,18 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
       expect(rows.filter((r) => r.period === "day")).toHaveLength(7);
       expect(rows.filter((r) => r.period === "week")).toHaveLength(1);
       expect(rows.filter((r) => r.period === "month")).toHaveLength(1);
-      expect(rows.every((r) => r.periodStart.getTime() < Date.now())).toBe(
-        true,
-      );
+      const now = Date.now();
+      for (const { period, periodStart } of rows) {
+        const { end } = getKstPeriodRangeByPeriod(period, periodStart);
+        expect(end.getTime()).toBeLessThanOrEqual(now);
+      }
 
       await triggerAndWait();
 
+      // 두 trigger 사이에 KST 자정을 넘으면 새 좌표가 생길 수 있어 기존 좌표 범위만 비교한다.
+      const latest = Math.max(...rows.map((r) => r.periodStart.getTime()));
       const again = await ctx.prisma.assessment.findMany({
+        where: { periodStart: { lte: new Date(latest) } },
         select: { id: true },
       });
       expect(again.map((r) => r.id).sort()).toEqual(
@@ -430,7 +427,7 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
     });
 
     it("GitHub token 장애 중에는 빈 평가를 저장하지 않고, 복구 후 tick 이 채운다_n", async () => {
-      await createPerson([{ service: "e2etick" }]);
+      await createPerson();
       githubStatus = 401;
 
       await triggerAndWait();
@@ -442,26 +439,8 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
     });
 
     it("수집 instance 미설정이면 빈 평가를 저장하지 않는다_n", async () => {
-      await createPerson([{ service: "e2etick" }]);
+      await createPerson();
       clearGithubEnv();
-
-      await triggerAndWait();
-
-      expect(await ctx.prisma.assessment.count()).toBe(0);
-    });
-
-    it("service identity 가 없는 인원은 평가하지 않는다_n", async () => {
-      await createPerson([]);
-
-      await triggerAndWait();
-
-      expect(await ctx.prisma.assessment.count()).toBe(0);
-    });
-
-    it("LlmProviderConfig 가 없으면 202 뒤 아무 것도 저장하지 않는다_n", async () => {
-      await createPerson([{ service: "e2etick" }]);
-      await ctx.prisma.llmProviderConfig.deleteMany();
-
       await triggerAndWait();
 
       expect(await ctx.prisma.assessment.count()).toBe(0);

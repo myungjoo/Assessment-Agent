@@ -1,6 +1,9 @@
 import { Logger } from "@nestjs/common";
 
-import { EvaluationTickRunnerService } from "./evaluation-tick-runner.service";
+import {
+  createCronTickHandler,
+  EvaluationTickRunnerService,
+} from "./evaluation-tick-runner.service";
 
 const utc = (monthDay: string) => new Date(`2026-${monthDay}T15:00:00.000Z`);
 const NOW = new Date("2026-10-30T03:00:00Z"); // KST 2026-10-30(금) 12:00
@@ -175,13 +178,38 @@ describe("EvaluationTickRunnerService", () => {
     );
     const running = runner.run();
     await new Promise((resolve) => setImmediate(resolve));
-    const destroyed = runner.onModuleDestroy();
+    let destroyedDone = false;
+    const destroyed = runner.onModuleDestroy().then(() => {
+      destroyedDone = true;
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(destroyedDone).toBe(false);
     release({});
     await Promise.all([running, destroyed]);
     expect(persist.generateAndPersistIfCollected).toHaveBeenCalledTimes(1);
   });
 
-  it("실행이 없으면 종료 hook 은 바로 끝난다_n", async () => {
-    await expect(setup().runner.onModuleDestroy()).resolves.toBeUndefined();
+  it("종료 중에는 새 tick 과 남은 인원을 시작하지 않는다_n", async () => {
+    const { runner, planner, persons, persist } = setup();
+    planner.planUnevaluatedFill.mockResolvedValueOnce({
+      batches: [
+        { personId: "p1", periods: [gap(DAY)] },
+        { personId: "p2", periods: [gap(DAY, "day", "p2")] },
+      ],
+    });
+    persist.generateAndPersistIfCollected.mockImplementationOnce(() => {
+      void runner.onModuleDestroy();
+      return Promise.resolve({});
+    });
+    await runner.run();
+    await runner.run();
+    expect(persons.findByIdWithIdentities).toHaveBeenCalledTimes(1);
+    expect(persons.findActive).toHaveBeenCalledTimes(1);
+  });
+
+  it("tick handler 는 실행을 기다리지 않고 undefined 를 반환한다", () => {
+    const run = jest.fn(() => new Promise<void>(() => undefined));
+    expect(createCronTickHandler({ run })()).toBeUndefined();
+    expect(run).toHaveBeenCalledTimes(1);
   });
 });

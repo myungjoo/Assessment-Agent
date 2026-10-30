@@ -1,6 +1,6 @@
 // EvaluationTickRunnerService — cron tick 과 manual trigger 가 공유하는 단일 실행 함수
 // (ADR-0042 §Decision 2, README 64 · 72~74 행). 활성 인원의 닫힌 기간 미평가 좌표를
-// 기존 경로(planner → generateAndPersist)로 순차 평가한다.
+// 기존 경로(planner → generateAndPersistIfCollected)로 순차 평가한다.
 import { Injectable, Logger, type OnModuleDestroy } from "@nestjs/common";
 
 import type { EvaluationPersistContext } from "../assessment-evaluation/domain/evaluation-result.persist.mapper";
@@ -23,6 +23,15 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+// cron · manual 공용 tick handler. POST 는 즉시 202 여야 하므로 실행을 기다리지 않는다.
+export function createCronTickHandler(
+  runner: Pick<EvaluationTickRunnerService, "run">,
+): () => void {
+  return () => {
+    void runner.run();
+  };
+}
+
 @Injectable()
 export class EvaluationTickRunnerService implements OnModuleDestroy {
   private readonly logger = new Logger(EvaluationTickRunnerService.name);
@@ -43,6 +52,9 @@ export class EvaluationTickRunnerService implements OnModuleDestroy {
    * 인원 수에 비례해 오래 걸리므로 호출자는 기다리지 않는다. 실행 중 재호출은 무시한다.
    */
   run(): Promise<void> {
+    if (this.stopping) {
+      return Promise.resolve();
+    }
     if (this.current !== null) {
       this.logger.warn("이전 평가 실행이 진행 중이라 이번 tick 을 건너뛴다");
       return this.current;
@@ -71,6 +83,10 @@ export class EvaluationTickRunnerService implements OnModuleDestroy {
       this.tally = { evaluated: 0, skipped: 0, failed: 0 };
       const gaps = await this.planGaps(persons.map((person) => person.id));
       for (const [personId, coordinates] of gaps) {
+        if (this.stopping) {
+          this.logger.warn("app 종료로 평가 실행을 중단한다");
+          return;
+        }
         await this.fillPerson(personId, coordinates, modelId);
       }
       this.logger.log(

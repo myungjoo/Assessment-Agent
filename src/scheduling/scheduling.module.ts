@@ -26,22 +26,18 @@ import {
   CRON_TICK_HANDLER,
   CronScheduleController,
 } from "./cron-schedule.controller";
+import { CronScheduleService } from "./cron-schedule.service";
 import {
-  CronScheduleService,
-  type CronTickHandler,
-} from "./cron-schedule.service";
-import { EvaluationTickRunnerService } from "./evaluation-tick-runner.service";
+  createCronTickHandler,
+  EvaluationTickRunnerService,
+} from "./evaluation-tick-runner.service";
 import { RecentDeletionRunnerService } from "./recent-deletion-runner.service";
 import { RecentDeletionController } from "./recent-deletion.controller";
 
-// cron tick · manual trigger 공용 handler. 전체 실행은 최대 1 시간이라 기다리지 않는다.
+// cron tick · manual trigger 공용 handler (기다리지 않음 — createCronTickHandler 참조).
 const cronTickHandlerProvider = {
   provide: CRON_TICK_HANDLER,
-  useFactory:
-    (runner: EvaluationTickRunnerService): CronTickHandler =>
-    (): void => {
-      void runner.run();
-    },
+  useFactory: createCronTickHandler,
   inject: [EvaluationTickRunnerService],
 };
 
