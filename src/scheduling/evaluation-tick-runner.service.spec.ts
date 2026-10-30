@@ -223,13 +223,28 @@ describe("EvaluationTickRunnerService", () => {
     expect(status.recordEvaluationRun).toHaveBeenCalledTimes(1);
   });
 
-  it("기록이 실패해도 실행 상태 카운터는 풀린다_n", async () => {
+  it("기록이 실패해도 reject 하지 않고 실행 상태 카운터는 풀린다_n", async () => {
     const { runner, status } = setup();
     status.recordEvaluationRun.mockImplementationOnce(() => {
       throw new Error("record");
     });
-    await runner.run().catch(() => undefined);
+    await expect(runner.run()).resolves.toBeUndefined();
     expect(status.end).toHaveBeenCalledWith("evaluation");
+    expect(error).toHaveBeenCalledWith(expect.stringContaining("record"));
+  });
+
+  it("종료로 멈춘 실행도 그때까지의 건수를 기록한다_n", async () => {
+    const { runner, planOnce, persist, status } = setup();
+    planOnce("p1", gap(DAY), gap(utc("10-23")));
+    persist.generateAndPersistIfCollected.mockImplementationOnce(async () => {
+      void runner.onModuleDestroy();
+      return {};
+    });
+    await runner.run();
+    expect(persist.generateAndPersistIfCollected).toHaveBeenCalledTimes(1);
+    expect(status.recordEvaluationRun).toHaveBeenCalledWith(
+      expect.objectContaining({ evaluatedCount: 1 }),
+    );
   });
 
   it("시작 직후 중단되면 직전 실행 건수가 아니라 실패 1 건으로 기록한다_n", async () => {

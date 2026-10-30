@@ -107,6 +107,13 @@ export class EvaluationTickRunnerService implements OnModuleDestroy {
       this.logger.error(`평가 실행 중단: ${errorMessage(error)}`);
     } finally {
       this.runStatus.end("evaluation");
+      this.recordRun();
+    }
+  }
+
+  // 관측 기록 실패가 run() 의 절대 reject 안 함 계약을 깨지 않게 한다.
+  private recordRun(): void {
+    try {
       this.runStatus.recordEvaluationRun({
         source: "tick",
         evaluatedCount: this.tally.evaluated,
@@ -114,6 +121,8 @@ export class EvaluationTickRunnerService implements OnModuleDestroy {
         failedCount: this.tally.failed,
         incomplete: this.tally.incomplete,
       });
+    } catch (error) {
+      this.logger.error(`평가 실행 기록 실패: ${errorMessage(error)}`);
     }
   }
 
