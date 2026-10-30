@@ -2,7 +2,7 @@
 id: T-2040
 title: groups guard 실배선 ⑤c — groups.e2e-spec 에 인증·인가 e2e 단언 (무 cookie 401 · User mutation 403 · escalation) 신설
 phase: P5
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-073]
 estimatedDiff: 240
