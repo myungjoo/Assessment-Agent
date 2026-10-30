@@ -60,7 +60,7 @@ schema 게이트를 건드린다. 이 판단을 후속 slice 마다 재추론하
 
 축별 **실행 중 카운터를 보유하는 단일 NestJS provider** 를 신설한다(`RunStatusService`,
 `src/run-status/`). 상태 실체는 축마다 정수 카운터 하나와 가장 이른 시작 시각 하나뿐이며,
-DB · 파일 · 외부 store 를 쓰지 않는다.
+DB · 파일 · 외부 store 를 쓰지 않는다 (끝난 실행의 요약은 §Decision 6 이 같은 방식으로 더한다).
 
 채택 근거는 다음과 같다.
 
@@ -181,6 +181,27 @@ endpoint 를 두지 않는다(§Decision 1 의 "상태 수명 = 실행 수명" �
   저장소(DB row 또는 외부 store)로 옮기는 것이며, §Decision 2 의 **응답 계약은 그대로 두고
   §Decision 1 의 보유 방식만 교체** 하면 되도록 읽기 표면을 endpoint 하나로 좁혀 두었다.
 
+### 6. 마지막 평가 실행 요약 — `lastEvaluationRun` 추가 (T-2053 결정, T-2054 구현)
+
+자동 평가는 수집이 불완전한 좌표를 저장하지 않는다 (T-2052). 운영자가 로그 없이 이를 알아야 하는데 §Decision 2 의 필드는 "지금 실행 중인가" 만 말하므로 표현할 수 없어 응답 top-level 에 필드 1 개를 더한다. 기존 필드 · 불변식은 그대로다. 보유 방식은 §Decision 1 의 프로세스 메모리에 값 1 개를 더하는 것이고 Prisma schema 변경은 0 이다. 재시작하면 `null` 로 돌아간다.
+
+| 필드 | 타입 | 의미 |
+| --- | --- | --- |
+| `lastEvaluationRun` | 객체 또는 `null` | 마지막으로 끝난 평가 실행. 프로세스 시작 후 없으면 `null` |
+| `.source` | `"tick"` 또는 `"fill-run"` | cron · `POST /api/schedules/trigger` 는 `tick`, `POST /unevaluated-fill-run` 은 `fill-run` |
+| `.finishedAt` | `string` | 끝난 시각 (ISO-8601 UTC) |
+| `.evaluatedCount` · `.skippedCount` · `.failedCount` | `number` | 좌표 건수. `UnevaluatedFillRunResult` 와 같은 이름이다 |
+| `.incompleteCount` | `number` | 수집 불완전으로 저장하지 않은 좌표 전체 수. `skippedCount` 에 포함된다 |
+| `.incompletePersonCount` | `number` | 그 좌표를 가진 인원 수 |
+| `.incompleteCoordinates` | 배열 | `period` · `scope` (`string`) · `periodStart` (ISO-8601 `string`) 의 중복 제거 목록. 첫 등장 순서로 50 개까지 |
+
+- **기록 시점** — 실행이 끝날 때 1 회 직전 값을 덮어쓴다. 중단된 실행도 그때까지의 건수로 기록한다. 경로가 달라도 값은 하나라, 다음 실행이 끝나면 이전 불완전 기록은 사라진다. 그 좌표가 여전히 미평가면 다음 실행의 기록에 다시 나타난다.
+- **두 경로의 전제** — `POST /unevaluated-fill-run` 도 T-2055 부터 tick 과 같은 저장 판정을 쓴다 (`generateAndPersistIfCollected`). 그 전까지 fill-run 은 기록 자체가 없다 (기록 배선은 T-2056).
+- **건수 정의** — 실행 시작 시 0 으로 초기화한다. 활성 인원 0 명인 실행은 모두 0 으로, 시작 직후 중단된 실행은 `failedCount` 1 로 기록한다. `fill-run` 은 `UnevaluatedFillRunResult` 의 값을 옮겨 세 건수의 합이 좌표 총수다. `tick` 은 이 합 불변식을 지키지 않는다: `skippedCount` 는 식별자 0 인원의 좌표를 포함하고, `failedCount` 는 좌표 실패 외에 계획 실패 1 축 (좌표 수를 모른다) 과 중단을 각 1 로 센다. 그래서 `failedCount` 0 이 아니면 저장되지 않은 좌표가 더 있을 수 있다.
+- **기록 대상** — 위 두 경로만 기록한다. 수동 `POST /evaluate` · `/period` 는 응답으로 결과를 받으므로 기록하지 않는다.
+- **`personId` 제외** — 조회 tier 는 §Decision 3 의 `User+` 다. "어느 인원의 수집이 불완전한가" 를 모든 사용자에게 공개할 이유가 없다. 인원은 Admin+ 의 `POST /unevaluated-fill-plan` 이 미평가 좌표로 알려 주고, 사유 (쓸 수 없는 instance · 호출 실패 수) 는 서버 로그에 있다.
+- **다중 인스턴스** — §Decision 5 와 같은 한계다. 다른 인스턴스의 실행 요약은 보이지 않는다.
+
 ## Consequences
 
 ### 긍정
@@ -201,7 +222,7 @@ endpoint 를 두지 않는다(§Decision 1 의 "상태 수명 = 실행 수명" �
 - **(b) 다중 인스턴스에서 배너가 false-negative** — §Decision 5 그대로. 단일 프로세스 전제가
   깨지는 순간 조용히 부정확해지며 그 부정확이 사용자에게 오류로 보이지 않는다(배너가 그냥 안
   뜬다). HA 전환 ADR 이 이 항목을 반드시 다시 읽어야 한다.
-- **(c) 카운터는 "무엇을" 실행 중인지 모른다** — 응답에 personId · period · 진행률이 없다.
+- **(c) 카운터는 "무엇을" 실행 중인지 모른다** — 응답에 personId · period · 진행률이 없다 (§Decision 6 은 끝난 실행의 요약이며 personId 는 여전히 없다).
   R-78 이 요구하지 않아 의도적으로 뺐으나, 후일 "누구 평가가 얼마나 남았나" 요구가 오면
   §Decision 1 의 보유 방식 자체를 재검토해야 한다(카운터로는 확장이 어렵다).
 - **(d) polling 이 인증 요청을 5 초마다 만든다** — 접속 사용자 수 × 12 회/분의 인증된 GET 이
