@@ -2,7 +2,11 @@
 id: T-2055
 title: 불완전 수집 저장 차단 ⑥ — 미평가 fill-run 도 수집 완전성 판정을 거쳐 저장
 phase: P7
-status: PLANNED
+status: DONE
+completedAt: 2026-10-30
+mergedAs: ebd26026
+prNumber: 1616
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 estimatedDiff: 130
