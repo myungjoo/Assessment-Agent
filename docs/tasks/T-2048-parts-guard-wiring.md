@@ -2,7 +2,11 @@
 id: T-2048
 title: parts guard 실배선 — PartController read 3 User+ · write 3 Admin+ + census known-gap 0
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-10-30
+mergedAs: 64286e89
+prNumber: 1609
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-043, REQ-045, REQ-046, REQ-073]
 estimatedDiff: 272
@@ -32,15 +36,15 @@ plannerNote: P5 · Q-0056 parts 축 — 오너 승인 완료, groups 축 T-2031 
 
 ## Acceptance Criteria
 
-- [ ] read 3 route: `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles("User")`
-- [ ] write 3 route: `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles("Admin")`
-- [ ] happy: 등급별 통과 (read User · Admin · SuperAdmin / write Admin · SuperAdmin)
-- [ ] error: guard 거부 401 · 403 시 service 0 회 호출
-- [ ] negative: User 의 write 403, 클래스 레벨 guard 0
-- [ ] census `KNOWN_GAP_REQ_043` 0 건 · `MIN.guarded` 84
-- [ ] api.md 에 `GET /api/parts/:id` · `:id/persons` User+ 행 추가, 합계 86 → 88 · shipped 81 → 83 동기
-- [ ] `pnpm lint && pnpm build && pnpm test` green
-- [ ] `pnpm test:e2e` · `pnpm test:smoke` · `pnpm test:perf` · `pnpm test:cov` green (CI)
+- [x] read 3 route: `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles("User")`
+- [x] write 3 route: `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles("Admin")`
+- [x] happy: 등급별 통과 (read User · Admin · SuperAdmin / write Admin · SuperAdmin)
+- [x] error: guard 거부 401 · 403 시 service 0 회 호출
+- [x] negative: User 의 write 403, 클래스 레벨 guard 0
+- [x] census `KNOWN_GAP_REQ_043` 0 건 · `MIN.guarded` 84
+- [x] api.md 에 `GET /api/parts/:id` · `:id/persons` User+ 행 추가, 합계 86 → 88 · shipped 81 → 83 동기
+- [x] `pnpm lint && pnpm build && pnpm test` green
+- [x] `pnpm test:e2e` · `pnpm test:smoke` · `pnpm test:perf` · `pnpm test:cov` green (CI)
 
 ## Out of Scope
 
