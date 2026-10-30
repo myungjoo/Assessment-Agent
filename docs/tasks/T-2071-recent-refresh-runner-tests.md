@@ -2,7 +2,11 @@
 id: T-2071
 title: 최근 N일 재수집 ③ — runner 분기별 unit test 와 종료 중 시작 거부
 phase: P7
-status: READY
+status: DONE
+completedAt: 2026-10-30
+mergedAs: 61271bff
+prNumber: 1632
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 190
