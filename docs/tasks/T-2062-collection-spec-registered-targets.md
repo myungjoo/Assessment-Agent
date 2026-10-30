@@ -2,7 +2,11 @@
 id: T-2062
 title: 등록 수집 대상 실효화 ④ — 수집 spec 조립이 등록 대상을 쓴다
 phase: P7
-status: PLANNED
+status: DONE
+completedAt: 2026-10-30
+mergedAs: f7bdd13a
+prNumber: 1623
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-037, REQ-039, REQ-070, REQ-072]
 estimatedDiff: 256
