@@ -2,7 +2,11 @@
 id: T-2047
 title: parts guard 선행 ④ — k6 s2-read parts seed POST · 측정 GET · 회수 DELETE 인증 cookie
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-10-30
+mergedAs: d316849d
+prNumber: 1608
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-043, REQ-048]
 estimatedDiff: 77
@@ -30,11 +34,11 @@ plannerNote: P5 · Q-0056 parts 축 — 오너 승인 완료, groups 축 T-2031 
 
 ## Acceptance Criteria
 
-- [ ] 변경 파일은 `test/load/s2-read.js` · drift smoke 2 개
-- [ ] parts 3 지점 cookie 부착, tag 는 seed · parts · teardown 그대로
-- [ ] 새 `__ENV` 키 · route tag · 임계 재산정 0
-- [ ] drift smoke 가 무 cookie 옛 형태 잔존을 red 로 잡는다
-- [ ] `pnpm test:smoke` green (CI)
+- [x] 변경 파일은 `test/load/s2-read.js` · drift smoke 2 개
+- [x] parts 3 지점 cookie 부착, tag 는 seed · parts · teardown 그대로
+- [x] 새 `__ENV` 키 · route tag · 임계 재산정 0
+- [x] drift smoke 가 무 cookie 옛 형태 잔존을 red 로 잡는다
+- [x] `pnpm test:smoke` green (CI)
 
 ## Out of Scope
 
