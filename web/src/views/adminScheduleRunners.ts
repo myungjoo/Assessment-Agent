@@ -40,6 +40,7 @@
 // 바뀌지 않는다(공개 표면 무변경).
 
 import type { RequestOptions } from '../api/apiClient';
+import type { RecentRefreshResult } from '../components/ReEvaluationTriggerPanel';
 
 // 스케줄 조회/upsert path — 고정 endpoint(GET/PUT /api/schedules, ADR-0042 Admin+). GET 은
 // 등록된 schedule name string[] 을 반환하고, PUT 은 `{ name, cronExpression }` body 로 이름
@@ -183,64 +184,90 @@ export async function runTrigger(deps: ScheduleMutationDeps): Promise<void> {
   }
 }
 
-// 재평가(최근 N일 delete→재수집) 트리거 path 빌더(순수 helper, T-0886) — POST
-// /api/schedules/recent-deletion/:personId(Admin+, ADR-0038 reeval chain / RecentDeletionController).
-// 선택 personId 를 path param 으로 부착한다. encodeURIComponent 로 비정상 문자가 든 personId 도
-// path 가 깨지지 않게 안전 인코딩한다(buildExportPath 의 안전 인코딩 convention 정합).
+// 최근 N일 재수집 시작 · 상태 조회 공용 path (POST · GET, Admin+). personId 를 안전 인코딩한다.
 export function buildRecentDeletionPath(personId: string): string {
   return `${SCHEDULES_PATH}/recent-deletion/${encodeURIComponent(personId)}`;
 }
 
-// onTrigger 의 재평가 POST + state-전이 로직에 주입하는 deps(T-0886 — runImport/runTrigger 의
-// *Deps 주입 convention 차용. jsdom/렌더러 없이 mutation 본체를 직접 검증한다). ReEvaluationTriggerPanel
-// 은 submitting 우선/error 분기를 이미 박제하므로 컨테이너는 단일 submitting·error setter 만 공유한다.
+export const REFRESH_POLL_INTERVAL_MS = 3000;
+// 연속 실패가 이 횟수에 이르면 조회를 포기한다. 실행 자체는 서버에서 계속될 수 있다.
+export const REFRESH_POLL_MAX_FAILURES = 5;
+// 서버 재시작 등으로 실행 중이 아닌데 결과도 없을 때의 안내.
+export const REFRESH_RESULT_LOST_TEXT =
+  '재수집 결과를 확인할 수 없습니다. 서버가 재시작되었을 수 있습니다. 교체되지 않은 기간의 이전 결과는 그대로입니다.';
+
+interface RecentRefreshStatus {
+  running: boolean;
+  result: RecentRefreshResult | null;
+}
+
 export interface ReEvaluationDeps {
-  // 재평가 POST 발사 primitive — apiClient.request 를 주입한다(테스트는 mock 주입).
   post: (path: string, options: RequestOptions) => Promise<unknown>;
-  // ApiError 등 throw 표면 → 사람-친화 문구 파생(toErrorMessage 주입).
+  get: (path: string) => Promise<unknown>;
+  wait: (ms: number) => Promise<void>;
   describeError: (e: unknown) => string;
-  // 현재 재평가 in-flight 여부 — true 면 미발사(동시 재호출·이중 발사 가드).
+  // 현재 재수집 in-flight 여부 — true 면 미발사(이중 발사 가드).
   submitting: boolean;
   setSubmitting: (next: boolean) => void;
   setError: (next: string | undefined) => void;
+  setResult: (next: RecentRefreshResult | undefined) => void;
 }
 
-// onTrigger 의 POST /api/schedules/recent-deletion/:personId + state-전이 로직을 캡슐화한 순수
-// async 러너(T-0886 — runTrigger 캡슐화 패턴 차용). 컨테이너의 handleReevalTrigger 는 이 러너에
-// 선택 personId·window days·in-flight 여부(submitting)·상태 setter 를 주입해 호출만 한다. 동작:
-//  - 빈/falsy personId(인원 미선택) → 미발사(발사 억제 — path param 누락·잘못된 요청 방어, 택1 구현).
-//  - submitting(이전 재평가 미완) → 미발사(이중 POST·state 경합 차단 — runTrigger busy 가드 동형).
-//  - 발사 시 진행 on + 이전 error 비움 → POST { days } → 성공(error 없음 유지) /
-//    실패(error 문구 표면화 — throw 없이) → 진행 off(공통).
-// 삭제 대상은 서버가 찾으므로 client 는 기간만 보낸다.
+// 실행이 끝날 때까지 상태를 조회한다. 실행 시간은 좌표 수에 비례해 상한을 두지 않고, 연속 조회 실패만 포기 조건이다.
+async function pollRefreshResult(
+  path: string,
+  deps: ReEvaluationDeps,
+): Promise<RecentRefreshResult | null> {
+  let failures = 0;
+  for (;;) {
+    await deps.wait(REFRESH_POLL_INTERVAL_MS);
+    try {
+      const status = (await deps.get(path)) as RecentRefreshStatus;
+      failures = 0;
+      if (!status.running) {
+        return status.result;
+      }
+    } catch (e) {
+      failures += 1;
+      if (failures >= REFRESH_POLL_MAX_FAILURES) {
+        throw e;
+      }
+    }
+  }
+}
+
+/**
+ * 재수집을 시작하고 끝날 때까지 기다려 실제 결과를 표면화한다. 삭제 대상은 서버가 찾으므로 본문은 days 뿐이다.
+ * 인원 미선택 · 진행 중이면 발사하지 않는다. 실패는 throw 없이 error 로 표면화한다.
+ */
 export async function runReEvaluate(
   personId: string,
   days: number,
   deps: ReEvaluationDeps,
 ): Promise<void> {
-  // 비정상 호출 가드 — 빈/falsy personId(인원 미선택)는 POST 미발사(path param 누락 방어 — 발사 억제).
   if (!personId) {
     return;
   }
-  // 동시 재호출 가드 — 이전 재평가 미완 중이면 미발사(이중 POST·state 경합 차단).
   if (deps.submitting) {
     return;
   }
   deps.setSubmitting(true);
-  // 재발화 시작 시 직전 error 를 비운다(실패 후 재시도 시 직전 error 정리 — 새 재평가 진행만 남도록).
   deps.setError(undefined);
+  deps.setResult(undefined);
+  const path = buildRecentDeletionPath(personId);
   try {
-    // POST /api/schedules/recent-deletion/:personId — 202 로 시작만 한다. 결과 표시는 후속 task.
-    await deps.post(buildRecentDeletionPath(personId), {
+    await deps.post(path, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ days }),
     });
-    // 성공 — 방금 비운 error(undefined)를 유지한다(패널이 정상 트리거 폼을 렌더 — 완료 문구 소비
-    // 상태). 성공 message props 는 panel 계약에 없어(submitting/error/confirmText 만) 별도 설정 불요.
+    const result = await pollRefreshResult(path, deps);
+    if (result === null) {
+      deps.setError(REFRESH_RESULT_LOST_TEXT);
+    } else {
+      deps.setResult(result);
+    }
   } catch (e) {
-    // 실패 — 사람-친화 문구를 error props 로 안전 표시(throw 없이). 403 Admin+ 미만 / 400 잘못된
-    // body / 404 / 비-2xx / 네트워크 0 모두 ApiError.status → toErrorMessage 파생으로 표면화.
     deps.setError(deps.describeError(e));
   } finally {
     deps.setSubmitting(false);

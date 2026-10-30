@@ -22,6 +22,9 @@ import {
   SCHEDULE_TRIGGER_PATH,
   TRIGGER_DONE_TEXT,
   buildRecentDeletionPath,
+  REFRESH_POLL_INTERVAL_MS,
+  REFRESH_POLL_MAX_FAILURES,
+  REFRESH_RESULT_LOST_TEXT,
   deriveScheduleMessage,
   runApply,
   runReEvaluate,
@@ -155,29 +158,51 @@ const DAYS = 7;
 interface ReEvalHarness {
   deps: ReEvaluationDeps;
   post: ReturnType<typeof vi.fn>;
+  get: ReturnType<typeof vi.fn>;
+  wait: ReturnType<typeof vi.fn>;
   setSubmitting: ReturnType<typeof vi.fn>;
   setError: ReturnType<typeof vi.fn>;
+  setResult: ReturnType<typeof vi.fn>;
 }
 // 재평가 deps 주입 harness — POST 발사 primitive 와 setter 를 spy 로 갈아끼워 러너 본체만 관측한다
 // (위 apply harness 동형. 재평가는 message setter 가 없고 submitting 슬롯을 쓴다).
+const REFRESH_RESULT = {
+  deletedCount: 2,
+  refreshedCount: 3,
+  notRefreshedCount: 1,
+  aborted: false,
+};
+
 function reEvalHarness(
   options: { submitting?: boolean; reject?: boolean } = {},
 ): ReEvalHarness {
   const post = vi.fn(async () =>
     options.reject ? Promise.reject(BOOM) : undefined,
   );
+  const get = vi.fn(async (): Promise<unknown> => ({
+    running: false,
+    result: REFRESH_RESULT,
+  }));
+  const wait = vi.fn(async () => undefined);
   const setSubmitting = vi.fn();
   const setError = vi.fn();
+  const setResult = vi.fn();
   return {
     post,
+    get,
+    wait,
     setSubmitting,
     setError,
+    setResult,
     deps: {
       post,
+      get,
+      wait,
       describeError,
       submitting: options.submitting ?? false,
       setSubmitting,
       setError,
+      setResult,
     },
   };
 }
@@ -271,6 +296,54 @@ describe('adminScheduleRunners — runReEvaluate (T-1870 경계 spec)', () => {
     await runReEvaluate(PERSON_ID, DAYS, h.deps);
     expect(h.setSubmitting.mock.calls).toEqual([[true], [false]]);
     expect(h.setError.mock.calls).toEqual([[undefined]]); // 시작 정리 1 회뿐(성공 — error 표면화 없음)
+  });
+  it('끝날 때까지 상태를 조회하고 실제 결과를 표면화한다', async () => {
+    const h = reEvalHarness();
+    h.get.mockResolvedValueOnce({ running: true, result: null });
+    await runReEvaluate(PERSON_ID, DAYS, h.deps);
+    expect(h.get).toHaveBeenCalledTimes(2);
+    expect(h.get).toHaveBeenCalledWith(buildRecentDeletionPath(PERSON_ID));
+    expect(h.wait).toHaveBeenCalledWith(REFRESH_POLL_INTERVAL_MS);
+    expect(h.setResult.mock.calls).toEqual([[undefined], [REFRESH_RESULT]]);
+    expect(h.setSubmitting.mock.calls).toEqual([[true], [false]]);
+  });
+  it('조회가 잠깐 실패해도 계속 조회해 결과를 표면화한다', async () => {
+    const h = reEvalHarness();
+    h.get.mockRejectedValueOnce(BOOM);
+    await runReEvaluate(PERSON_ID, DAYS, h.deps);
+    expect(h.setResult).toHaveBeenLastCalledWith(REFRESH_RESULT);
+    expect(h.setError.mock.calls).toEqual([[undefined]]);
+  });
+  it('중간 성공이 있으면 연속 실패 수를 다시 센다', async () => {
+    const h = reEvalHarness();
+    for (let i = 0; i < REFRESH_POLL_MAX_FAILURES - 1; i += 1) {
+      h.get.mockRejectedValueOnce(BOOM);
+    }
+    h.get.mockResolvedValueOnce({ running: true, result: null });
+    h.get.mockRejectedValueOnce(BOOM);
+    await runReEvaluate(PERSON_ID, DAYS, h.deps);
+    expect(h.setResult).toHaveBeenLastCalledWith(REFRESH_RESULT);
+  });
+  it('조회가 연속으로 실패하면 포기하고 error 로 알린다_n', async () => {
+    const h = reEvalHarness();
+    h.get.mockRejectedValue(BOOM);
+    await runReEvaluate(PERSON_ID, DAYS, h.deps);
+    expect(h.get).toHaveBeenCalledTimes(REFRESH_POLL_MAX_FAILURES);
+    expect(h.setError).toHaveBeenLastCalledWith(describeError(BOOM));
+    expect(h.setSubmitting.mock.calls).toEqual([[true], [false]]);
+  });
+  it('실행 중이 아닌데 결과가 없으면 확인할 수 없다고 알린다_n', async () => {
+    const h = reEvalHarness();
+    h.get.mockResolvedValueOnce({ running: false, result: null });
+    await runReEvaluate(PERSON_ID, DAYS, h.deps);
+    expect(h.setError).toHaveBeenLastCalledWith(REFRESH_RESULT_LOST_TEXT);
+    expect(h.setResult.mock.calls).toEqual([[undefined]]);
+  });
+  it('재시작 시 직전 결과를 비운다', async () => {
+    const h = reEvalHarness({ reject: true });
+    await runReEvaluate(PERSON_ID, DAYS, h.deps);
+    expect(h.setResult.mock.calls).toEqual([[undefined]]);
+    expect(h.get).not.toHaveBeenCalled();
   });
   it('주입 post 가 reject 하면 throw 없이 describeError 파생 문구를 error 로 표면화한다 (error path)', async () => {
     const h = reEvalHarness({ reject: true });
