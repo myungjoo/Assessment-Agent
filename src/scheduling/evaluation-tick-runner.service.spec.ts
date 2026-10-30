@@ -73,7 +73,7 @@ describe("EvaluationTickRunnerService", () => {
       { since: MONTH.toJSON(), until: utc("09-30").toJSON() },
     ]);
     expect(calls.map(([, , , context]) => context)).toEqual(coordinates);
-    expect(calls[0][2]).toEqual({ modelId: "m" });
+    expect(calls[0].slice(2)).toEqual([{ modelId: "m" }, coordinates[0]]);
     expect(status.begin).toHaveBeenCalledWith("evaluation");
     expect(status.end).toHaveBeenCalledWith("evaluation");
     summary(3, 0);

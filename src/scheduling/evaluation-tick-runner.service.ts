@@ -127,15 +127,14 @@ export class EvaluationTickRunnerService {
     }
 
     for (const context of coordinates) {
-      const since = context.periodStart.toISOString();
       try {
-        const { end } = getKstPeriodRangeByPeriod(
+        const { start, end } = getKstPeriodRangeByPeriod(
           context.period,
           context.periodStart,
         );
         await this.persist.generateAndPersist(
           person,
-          { since, until: end.toISOString() },
+          { since: start.toISOString(), until: end.toISOString() },
           { modelId },
           context,
         );
@@ -143,7 +142,7 @@ export class EvaluationTickRunnerService {
       } catch (error) {
         this.tally.failed += 1;
         this.logger.error(
-          `좌표 평가 실패: personId=${personId} period=${context.period} since=${since} — ${errorMessage(error)}`,
+          `좌표 평가 실패: personId=${personId} period=${context.period} periodStart=${String(context.periodStart)} — ${errorMessage(error)}`,
         );
       }
     }
