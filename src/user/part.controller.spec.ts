@@ -38,11 +38,19 @@ jest.mock("../persistence/prisma.service", () => ({
 import {
   ConflictException,
   NotFoundException,
+  UnauthorizedException,
+  type ExecutionContext,
   type INestApplication,
 } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
 import { Test, type TestingModule } from "@nestjs/testing";
 import type { Part, Person } from "@prisma/client";
+import type { Request } from "express";
 import request from "supertest";
+
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { ROLES_METADATA_KEY } from "../auth/roles.decorator";
+import { ROLE_HIERARCHY, RolesGuard } from "../auth/roles.guard";
 
 import { PartController } from "./part.controller";
 import { PartService } from "./part.service";
@@ -382,7 +390,13 @@ describe("PartController (ValidationPipe integration)", () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [PartController],
       providers: [{ provide: PartService, useValue: serviceMock }],
-    }).compile();
+    })
+      // guard 는 RBAC describe 소관 — 본 describe 는 DTO 검증만 본다.
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: (): boolean => true })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: (): boolean => true })
+      .compile();
 
     app = moduleRef.createNestApplication();
     // Controller-scope @UsePipes 가 자동 활성화 — global wire 안 함 (별도 후속 책임).
@@ -560,5 +574,209 @@ describe("PartController (ValidationPipe integration)", () => {
       .expect(409);
 
     expect(serviceMock.update).toHaveBeenCalledTimes(1);
+  });
+});
+
+// -----------------------------------------------------------------------
+// RBAC guard 배선 (T-2048 — Q-0056 parts 축). read 3 route = User+, write 3 route = Admin+.
+// production 에 새 분기는 없다 (decorator 부착뿐) — 실 JWT · 실 RolesGuard 거부 경로는
+// parts.e2e-spec 소관이고, 여기서는 metadata 와 stub guard 로 배선을 잠근다.
+// -----------------------------------------------------------------------
+// Nest 가 @UseGuards 를 심는 metadata key — @nestjs/common 이 public export 하지 않아
+// 리터럴 상수로 둔다 (group.controller.spec 과 같은 방식).
+const GUARDS_METADATA_KEY = "__guards__";
+const ALLOW_ALL = { canActivate: (): boolean => true };
+
+type PartRoute =
+  | "findAll"
+  | "findById"
+  | "findPersons"
+  | "create"
+  | "update"
+  | "delete";
+type Handler = (...args: never[]) => unknown;
+type StubGuard = { canActivate: (ctx: ExecutionContext) => boolean };
+type PartServiceMock = ReturnType<typeof buildServiceMock>["serviceMock"];
+type Verb = "get" | "post" | "patch" | "delete";
+// [handler, verb, path, 위임 service 메서드, 유효 body, 성공 status]
+type RouteRow = [
+  PartRoute,
+  Verb,
+  string,
+  keyof PartServiceMock,
+  object | undefined,
+  number,
+];
+
+describe("PartController (RBAC guard 배선 — T-2048)", () => {
+  const reflector = new Reflector();
+  const handlerOf = (name: PartRoute): Handler =>
+    PartController.prototype[name] as unknown as Handler;
+  const guardsOf = (name: PartRoute): unknown[] | undefined =>
+    reflector.get<unknown[] | undefined>(GUARDS_METADATA_KEY, handlerOf(name));
+  const rolesOf = (name: PartRoute): string[] | undefined =>
+    reflector.get<string[] | undefined>(ROLES_METADATA_KEY, handlerOf(name));
+
+  const READ_ROUTES: ReadonlyArray<RouteRow> = [
+    ["findAll", "get", "/api/parts", "findAll", undefined, 200],
+    ["findById", "get", "/api/parts/p-1", "findById", undefined, 200],
+    [
+      "findPersons",
+      "get",
+      "/api/parts/p-1/persons",
+      "findPersonsByPartId",
+      undefined,
+      200,
+    ],
+  ];
+  const WRITE_ROUTES: ReadonlyArray<RouteRow> = [
+    ["create", "post", "/api/parts", "create", { name: "p" }, 201],
+    ["update", "patch", "/api/parts/p-1", "update", { name: "q" }, 200],
+    ["delete", "delete", "/api/parts/p-1", "delete", undefined, 204],
+  ];
+  const ALL_ROUTES = [...READ_ROUTES, ...WRITE_ROUTES];
+  const DENIALS: ReadonlyArray<[string, number, StubGuard]> = [
+    ["canActivate=false", 403, { canActivate: (): boolean => false }],
+    [
+      "UnauthorizedException throw",
+      401,
+      {
+        canActivate: (): never => {
+          throw new UnauthorizedException("Unauthorized");
+        },
+      },
+    ],
+  ];
+
+  let app: INestApplication | null = null;
+  let serviceMock: PartServiceMock;
+
+  const server = (): ReturnType<INestApplication["getHttpServer"]> => {
+    if (app === null) throw new Error("app 미부팅");
+    return app.getHttpServer();
+  };
+  const call = (verb: Verb, path: string, body?: object): request.Test => {
+    const req = request(server())[verb](path);
+    return body === undefined ? req : req.send(body);
+  };
+  // 통과 JwtAuthGuard stub — req.user 박제 후 true. 실 cookie → JWT verify 는 e2e 책임.
+  const allowAs = (role: string): StubGuard => ({
+    canActivate: (ctx: ExecutionContext): boolean => {
+      const req = ctx.switchToHttp().getRequest<Request>();
+      (req as Request & { user?: { sub: string; role: string } }).user = {
+        sub: "a-1",
+        role,
+      };
+      return true;
+    },
+  });
+
+  async function buildApp(jwt: StubGuard, roles: StubGuard): Promise<void> {
+    serviceMock = buildServiceMock().serviceMock;
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      controllers: [PartController],
+      providers: [{ provide: PartService, useValue: serviceMock }],
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue(jwt)
+      .overrideGuard(RolesGuard)
+      .useValue(roles)
+      .compile();
+    app = moduleRef.createNestApplication();
+    await app.init();
+  }
+  const stubSuccess = (): void => {
+    serviceMock.findAll.mockResolvedValue([]);
+    serviceMock.findById.mockResolvedValue(buildPartFixture({ id: "p-1" }));
+    serviceMock.findPersonsByPartId.mockResolvedValue([]);
+    serviceMock.create.mockResolvedValue(buildPartFixture({ id: "p-1" }));
+    serviceMock.update.mockResolvedValue(buildPartFixture({ id: "p-1" }));
+    serviceMock.delete.mockResolvedValue(undefined);
+  };
+
+  afterEach(async () => {
+    if (app !== null) {
+      await app.close();
+      app = null;
+    }
+  });
+
+  describe("happy — route 별 tier 게이트 부착 (Reflector read)", () => {
+    it.each(READ_ROUTES)(
+      "%s — JwtAuthGuard · RolesGuard + @Roles('User')",
+      (name) => {
+        expect(guardsOf(name)).toEqual([JwtAuthGuard, RolesGuard]);
+        expect(rolesOf(name)).toEqual(["User"]);
+      },
+    );
+    it.each(WRITE_ROUTES)(
+      "%s — JwtAuthGuard · RolesGuard + @Roles('Admin')",
+      (name) => {
+        expect(guardsOf(name)).toEqual([JwtAuthGuard, RolesGuard]);
+        expect(rolesOf(name)).toEqual(["Admin"]);
+      },
+    );
+  });
+
+  describe("error path — guard 거부 시 handler body 미실행", () => {
+    it.each(DENIALS)(
+      "JwtAuthGuard %s → %i 이고 PartService 는 6 route 모두 0 회 호출",
+      async (_label, status, jwt) => {
+        await buildApp(jwt, ALLOW_ALL);
+        for (const [, verb, path, method, body] of ALL_ROUTES) {
+          await call(verb, path, body).expect(status);
+          expect(serviceMock[method]).not.toHaveBeenCalled();
+        }
+      },
+    );
+  });
+
+  describe("분기 — @Roles 가 소비하는 role 등급 축", () => {
+    it.each([["User"], ["Admin"], ["SuperAdmin"]])(
+      "%s actor 는 read 3 route 를 통과한다 (ROLE_HIERARCHY.User)",
+      async (role) => {
+        await buildApp(allowAs(role), ALLOW_ALL);
+        stubSuccess();
+        for (const [, verb, path, method, body, ok] of READ_ROUTES) {
+          await call(verb, path, body).expect(ok);
+          expect(serviceMock[method]).toHaveBeenCalledTimes(1);
+        }
+        expect(ROLE_HIERARCHY.User).toContain(role);
+      },
+    );
+    it.each([["Admin"], ["SuperAdmin"]])(
+      "%s actor 는 write 3 route 를 통과한다 (ROLE_HIERARCHY.Admin)",
+      async (role) => {
+        await buildApp(allowAs(role), ALLOW_ALL);
+        stubSuccess();
+        for (const [, verb, path, method, body, ok] of WRITE_ROUTES) {
+          await call(verb, path, body).expect(ok);
+          expect(serviceMock[method]).toHaveBeenCalledTimes(1);
+        }
+        expect(ROLE_HIERARCHY.Admin).toContain(role);
+      },
+    );
+    it("User actor 는 Admin 등급 미달 — RolesGuard reject 시 write 3 route 403 + service 미호출", async () => {
+      expect(ROLE_HIERARCHY.Admin).not.toContain("User");
+      await buildApp(allowAs("User"), { canActivate: (): boolean => false });
+      for (const [, verb, path, method, body] of WRITE_ROUTES) {
+        await call(verb, path, body).expect(403);
+        expect(serviceMock[method]).not.toHaveBeenCalled();
+      }
+    });
+  });
+
+  describe("negative — 과잉 배선 · tier 오설정 탐지", () => {
+    it("클래스 레벨 @UseGuards · @Roles 부착 0", () => {
+      expect(
+        reflector.get<unknown[] | undefined>(
+          GUARDS_METADATA_KEY,
+          PartController,
+        ),
+      ).toBeUndefined();
+      expect(
+        reflector.get<string[] | undefined>(ROLES_METADATA_KEY, PartController),
+      ).toBeUndefined();
+    });
   });
 });

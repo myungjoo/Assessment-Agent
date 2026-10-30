@@ -24,8 +24,12 @@
 //     PartService.update 의 ConflictException 변환 (Group 의 GroupController.@Patch
 //     header 주석 정합 mirror, 단 Group 은 P2002 분기 부재).
 //
+// RBAC 배선 (T-2048 — Q-0056 parts 축):
+//   - read 3 route (`GET /api/parts` · `:id` · `:id/persons`) 는 User+, write 3 route (POST ·
+//     PATCH · DELETE) 는 Admin+ — `@UseGuards(JwtAuthGuard, RolesGuard)` + `@Roles`. 정본 등급은
+//     api.md parts 행이다. 인증 부재 → 401, 등급 미달 → 403. 클래스 레벨 `@UseGuards` 는 쓰지 않는다.
+//
 // 책임 경계 (Out of Scope — T-0075 시점):
-//   - AuthGuard (Admin+ / User+) 적용 안 함 — 후속 task 책임.
 //   - GET list 의 pagination / sorting / filtering query param 미지원.
 //   - 응답 envelope (`{ data: ..., meta: ... }`) 표준화 안 함 — Prisma return 그대로.
 //   - PATCH e2e spec 신설 안 함 — 본 task 는 unit/integration 만 (별도 후속).
@@ -38,10 +42,15 @@ import {
   Param,
   Patch,
   Post,
+  UseGuards,
   UsePipes,
   ValidationPipe,
 } from "@nestjs/common";
 import type { Part, Person } from "@prisma/client";
+
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { Roles } from "../auth/roles.decorator";
+import { RolesGuard } from "../auth/roles.guard";
 
 import { CreatePartDto } from "./dto/create-part.dto";
 import { UpdatePartDto } from "./dto/update-part.dto";
@@ -61,6 +70,8 @@ export class PartController {
   // GET /api/parts — 전체 Part 목록. 200 OK + JSON 배열. 정렬은 service / repository 의
   // Prisma default 순서 유지 (후속 task 결정).
   @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("User")
   async findAll(): Promise<Part[]> {
     return this.service.findAll();
   }
@@ -68,6 +79,8 @@ export class PartController {
   // GET /api/parts/:id — 단일 Part 상세. row 부재 시 service 가 NotFoundException
   // throw → 404 Not Found 자동 mapping.
   @Get(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("User")
   async findById(@Param("id") id: string): Promise<Part> {
     return this.service.findById(id);
   }
@@ -75,6 +88,8 @@ export class PartController {
   // GET /api/parts/:id/persons — 지정 Part 소속 Person 목록. Part 자체가 존재하지
   // 않으면 service 가 404 강제. Part 는 있으나 Person 0 이면 200 + 빈 배열.
   @Get(":id/persons")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("User")
   async findPersons(@Param("id") id: string): Promise<Person[]> {
     return this.service.findPersonsByPartId(id);
   }
@@ -83,6 +98,8 @@ export class PartController {
   // ValidationPipe 가 dto 의 2 decorator (IsString / IsNotEmpty) 검증 — 위반 시 400.
   @Post()
   @HttpCode(201)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
   async create(@Body() dto: CreatePartDto): Promise<Part> {
     return this.service.create(dto);
   }
@@ -114,11 +131,12 @@ export class PartController {
   //   - 그 외 raw error → service 그대로 propagate.
   //
   // 책임 경계 (Out of Scope):
-  //   - AuthGuard 적용 안 함 — ADR-0008 auth credential 미박제 상태 유지.
   //   - active toggle / 다른 도메인 필드 PATCH 미지원 — UpdatePartDto 가 `name`
   //     단일 필드만 정의.
   //   - PATCH e2e spec 신설 안 함 — 후속 follow-up.
   @Patch(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
   async update(
     @Param("id") id: string,
     @Body() patch: UpdatePartDto,
@@ -130,6 +148,8 @@ export class PartController {
   // 시 409 (REQ-028 invariant — Part-Person 의 dangling reference 차단).
   @Delete(":id")
   @HttpCode(204)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("Admin")
   async delete(@Param("id") id: string): Promise<void> {
     await this.service.delete(id);
   }
