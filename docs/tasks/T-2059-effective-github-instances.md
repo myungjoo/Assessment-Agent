@@ -2,7 +2,11 @@
 id: T-2059
 title: 등록 수집 대상 실효화 ① — env 와 CollectionTarget 을 합친 GitHub 수집 대상 계산
 phase: P7
-status: PLANNED
+status: DONE
+completedAt: 2026-10-30
+mergedAs: 56851af4
+prNumber: 1620
+reviewRounds: 3
 commitMode: pr
 coversReq: [REQ-070, REQ-072]
 estimatedDiff: 295
@@ -53,3 +57,4 @@ ADR 문언에서 도출해 여기 적는 것:
 ## Follow-ups
 
 - (planner 판정, CLAUDE.md §3 소비처 동반 의무 예외) 소비처 `assessCollectionCoverage` 와 Confluence 병합을 함께 넣으면 estimatedDiff 약 550 · estimatedFiles 4 로 300 LOC cap 을 넘는다. T-2060 이 `src/assessment-collection/collection-spec.service.ts` 의 `assessCollectionCoverage` 에서 소비한다.
+- (보안, owner 판단 필요) 배선 (T-2061 · T-2062) 후 Admin 이 바꿀 수 있는 `endpoint` 와 배포 env 의 token 이 결합되어, env 목록에 없는 key 의 token 을 Admin 이 고른 host 로 보낼 수 있다. env 목록의 key 는 env 우선으로 보호된다. ADR-0059 는 이 위험을 다루지 않았고 host allowlist 는 새 운영 계약이라 이 arc 범위 밖이다. T-2064 가 ADR Consequences 에 기록하고 arc 보고에서 owner 에게 올린다.
