@@ -2,7 +2,11 @@
 id: T-2043
 title: 평가 tick runner ③ — "지금 실행" · cron 을 실 평가에 결선하고 e2e 로 검증
 phase: P7
-status: PLANNED
+status: DONE
+completedAt: 2026-10-30
+mergedAs: c4467315
+prNumber: 1604
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-037, REQ-039, REQ-040, REQ-042]
 estimatedDiff: 274
@@ -46,3 +50,6 @@ plannerNote: P7 · 평가 tick arc ③ — T-2041 runner 와 T-2042 빈 평가 �
 
 - `src/main.ts` 에 `app.enableShutdownHooks()` 가 없어 production SIGTERM 에서는 종료 hook 이 돌지 않는다. 프로세스 전역 동작 변경이고 6 파일째라 별도 slice 다. 끊겨도 `persist` 는 transaction 이고 다음 tick 이 다시 채우므로 데이터 위험은 낮다.
 - `src/app.module.spec.ts` `136~137 행` 주석이 사라진 stub 을 가리킨다. cap 상 본 PR 밖이다.
+- e2e 재실행 단언은 월요일 · 1 일 KST 자정을 두 trigger 사이에 넘으면 실패할 수 있다 (창 1 초 안팎, 실패는 red 로 드러남).
+- (CI 게이트 결함, 담당 미정) `.github/workflows/ci.yml` `304 행` 의 approve 어휘 패턴이 `approval` · `통과` 등도 매칭해 REQUEST_CHANGES comment 로도 `reviewer agent approval 검증` 이 통과한다. 본 PR 의 run 41055950788 이 그 사례다. verdict 는 comment 본문으로 판단했다.
+- (별개 버그, 담당 미정) `POST /unevaluated-fill-run` 의 좌표 runner (`build-unevaluated-fill-coordinate-runner.ts` `149 행`) 가 `{ since }` 만 넘겨 창 이후 활동이 좌표에 영속된다.
