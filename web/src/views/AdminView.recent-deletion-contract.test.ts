@@ -123,7 +123,7 @@ const HANDLERS = extractHandlerMethods(CONTROLLER_SOURCE);
 const RD = HANDLERS.recentDeletion ?? null;
 const DTO_FIELDS = extractDtoFields(DTO_SOURCE, 'RecentDeletionDto');
 const RUNNER_SRC = sliceReEvaluateRunner(SCHEDULE_RUNNERS_SOURCE);
-// 단일 handler controller — 핸들러 인자 존재는 소스 전체 정규식으로 판별(@Param/@Body 는 recentDeletion 뿐).
+// 핸들러 인자 존재는 소스 전체 정규식으로 판별(@Body 는 recentDeletion 뿐).
 const CONTROLLER_STRIPPED = stripComments(CONTROLLER_SOURCE);
 const RD_CONTRACT: BackendContract = {
   route: ROUTE,
@@ -258,7 +258,7 @@ describe('AdminView — 재평가 트리거 web↔backend 계약 drift guard (T-
     expect(diffContract(fired as WebFire, { ...RD_CONTRACT, subPath }, PERSON_ID)).toEqual([expect.stringContaining('path 불일치')]);
   });
   it('형제 api/schedules controller(base 만 공유)를 recentDeletion 으로 오인하지 않는다 (negative (e) — 형제 base 혼동)', async () => {
-    expect(Object.keys(HANDLERS)).toEqual(['recentDeletion']); // 추출기가 단일 handler 를 정확히 선택
+    expect(Object.keys(HANDLERS)).toEqual(['recentDeletion', 'recentDeletionStatus']); // 추출기가 handler 를 정확히 구분
     expect(RD?.subPath).toBe('recent-deletion/:personId');
     const fired = await fireReEvaluate(PERSON_ID, 7);
     // base(api/schedules)만 같고 literal 없는 형제(cron/backfill bare handler) 계약이면 path 불일치.

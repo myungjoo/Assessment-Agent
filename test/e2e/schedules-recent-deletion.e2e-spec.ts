@@ -256,4 +256,29 @@ describe("E2E: POST /api/schedules/recent-deletion/:personId (T-1963, REQ-041)",
     expect(response.status).toBe(202);
     expect(response.body).toEqual({ personId: person.id, ...STARTED });
   });
+
+  // -- GET 상태 조회 --
+
+  it("Admin 상태 조회는 200 + 실행 중 아님 + 결과 없음이다", async () => {
+    const response = await request(app.getHttpServer())
+      .get(recentDeletionUrl("never-ran"))
+      .set("Cookie", adminCookie);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      personId: "never-ran",
+      running: false,
+      result: null,
+    });
+  });
+
+  it("상태 조회는 User 403 · 무인증 401 이다_n", async () => {
+    const url = recentDeletionUrl("anyone");
+    const asUser = await request(app.getHttpServer())
+      .get(url)
+      .set("Cookie", userCookie);
+    const anonymous = await request(app.getHttpServer()).get(url);
+
+    expect([asUser.status, anonymous.status]).toEqual([403, 401]);
+  });
 });
