@@ -2,7 +2,11 @@
 id: T-2051
 title: 불완전 수집 저장 차단 ② — 식별자 기준 수집 범위 판정 규칙과 org 열거 실패 전달
 phase: P7
-status: PLANNED
+status: DONE
+completedAt: 2026-10-30
+mergedAs: ef010b7f
+prNumber: 1612
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-037, REQ-039]
 estimatedDiff: 294
@@ -27,7 +31,7 @@ plannerNote: P7 · 불완전 수집 저장 차단 arc ② — "미설정" 의 �
 | --- | --- | --- |
 | `GITHUB_INSTANCES` · `CONFLUENCE_INSTANCES` 어디에도 없다 | 무시 (실패 아님) | 운영자가 올린 적 없는 instance 는 수집 대상이 아니다. 이를 실패로 치면 그 식별자를 가진 인원의 다른 instance 평가까지 영원히 막힌다 |
 | 목록에 있고 필수 env 가 빠졌다 | 실패 | 수집 대상인데 수집하지 못했다 |
-| 목록에 있고 repo · org · SPACE 대상이 0 이다 (모든 repo token malformed 포함) | 실패 | 위와 같다 |
+| 목록에 있고 repo · org · SPACE 대상이 0 이다 (해석 불가 repo token 1 개 이상 포함) | 실패 | 위와 같다 |
 | 쓸 수 있고 org 열거 · 수집 호출이 실패했다 | 실패 | 위와 같다 |
 | 쓸 수 있고 호출이 모두 성공했다 | 완전 | 빈 org · 활동 0 건도 사실이므로 저장한다 |
 
