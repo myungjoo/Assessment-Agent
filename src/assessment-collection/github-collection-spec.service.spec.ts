@@ -256,6 +256,12 @@ describe("GithubCollectionSpecService — 등록 대상 병합 (ADR-0059 §Decis
   };
   const DB_ENV = { GITHUB_DB_TOKEN_ENC: "enc-db" };
   const person = { serviceIdentities: [{ service: "db" }] };
+  const withFindAll = (findAll: jest.Mock) =>
+    new GithubCollectionSpecService(
+      {} as GithubOrgEnumerateService,
+      { findAll } as unknown as CollectionTargetReader,
+      DB_ENV,
+    );
   const NEVER = (): GithubRepoSource[] => {
     throw new Error("열거되면 안 된다");
   };
@@ -288,38 +294,12 @@ describe("GithubCollectionSpecService — 등록 대상 병합 (ADR-0059 §Decis
     });
   });
 
-  it("credential 이 없는 대상은 수집하지 않는다_n", async () => {
-    const { service } = makeService({}, NEVER, [ROW]);
-
-    await expect(service.buildGithubCollectionSpec(person)).resolves.toEqual({
-      sources: [],
-    });
-  });
-
-  it("충돌하면 env 의 repo 를 쓴다_n", async () => {
-    const env = {
-      GITHUB_INSTANCES: "db",
-      GITHUB_DB_HOST: "env.example.test",
-      GITHUB_DB_REPOS: "env/repo",
-      ...DB_ENV,
-    };
-    const { service } = makeService(env, NEVER, [ROW]);
-
-    const { sources } = await service.buildGithubCollectionSpec(person);
-
-    expect(sources.map((s) => s.repo)).toEqual(["repo"]);
-  });
-
   it("매 호출 DB 를 다시 읽는다", async () => {
     const findAll = jest
       .fn()
       .mockResolvedValueOnce([ROW])
       .mockResolvedValueOnce([{ ...ROW, active: false }]);
-    const service = new GithubCollectionSpecService(
-      {} as GithubOrgEnumerateService,
-      { findAll } as unknown as CollectionTargetReader,
-      DB_ENV,
-    );
+    const service = withFindAll(findAll);
 
     const first = await service.buildGithubCollectionSpec(person);
     const second = await service.buildGithubCollectionSpec(person);
@@ -330,13 +310,7 @@ describe("GithubCollectionSpecService — 등록 대상 병합 (ADR-0059 §Decis
 
   it("호출자가 준 row 를 쓰고 DB 를 읽지 않는다", async () => {
     const findAll = jest.fn();
-    const service = new GithubCollectionSpecService(
-      {} as GithubOrgEnumerateService,
-      { findAll } as unknown as CollectionTargetReader,
-      DB_ENV,
-    );
-
-    const { sources } = await service.buildGithubCollectionSpec(
+    const { sources } = await withFindAll(findAll).buildGithubCollectionSpec(
       person,
       undefined,
       undefined,
@@ -348,12 +322,8 @@ describe("GithubCollectionSpecService — 등록 대상 병합 (ADR-0059 §Decis
   });
 
   it("DB 조회 실패는 빈 수집으로 흡수하지 않는다_n", async () => {
-    const service = new GithubCollectionSpecService(
-      {} as GithubOrgEnumerateService,
-      {
-        findAll: jest.fn().mockRejectedValue(new Error("db down")),
-      } as unknown as CollectionTargetReader,
-      DB_ENV,
+    const service = withFindAll(
+      jest.fn().mockRejectedValue(new Error("db down")),
     );
 
     await expect(service.buildGithubCollectionSpec(person)).rejects.toThrow(

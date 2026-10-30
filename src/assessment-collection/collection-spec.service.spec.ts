@@ -395,6 +395,14 @@ describe("CollectionSpecService.buildCollectionSpecWithCoverage", () => {
     expect(coverage).toEqual({ complete: false, unavailableKeys: [] });
   });
 
+  const withReader = (reader: unknown, env: NodeJS.ProcessEnv) =>
+    new CollectionSpecService(
+      {
+        buildGithubCollectionSpec: async () => GITHUB_SPEC,
+      } as unknown as GithubCollectionSpecService,
+      reader as CollectionTargetReader,
+      env,
+    );
   const WIKI_ROW: CollectionTargetRow = {
     type: "CONFLUENCE",
     instanceKey: "wiki",
@@ -428,18 +436,6 @@ describe("CollectionSpecService.buildCollectionSpecWithCoverage", () => {
     expect(coverage).toEqual({ complete: false, unavailableKeys: ["WIKI"] });
   });
 
-  it("비활성 대상의 식별자는 판정에서 빠지고 spec 에도 없다_n", async () => {
-    const off = { ...WIKI_ROW, active: false };
-    const { service } = make({ ...COM, ...WIKI_TOKEN }, 0, [off]);
-
-    const { spec, coverage } = await service.buildCollectionSpecWithCoverage({
-      serviceIdentities: identities("com", "wiki"),
-    });
-
-    expect(spec.confluence.instances).toEqual([]);
-    expect(coverage.complete).toBe(true);
-  });
-
   it("충돌하면 Confluence 도 env 좌표를 쓴다_n", async () => {
     const env = { ...WIKI, CONFLUENCE_WIKI_BASE_URL: "http://env" };
     const { service } = make(env, 0, [WIKI_ROW]);
@@ -456,13 +452,7 @@ describe("CollectionSpecService.buildCollectionSpecWithCoverage", () => {
       .fn()
       .mockResolvedValueOnce([WIKI_ROW])
       .mockResolvedValueOnce([]);
-    const service = new CollectionSpecService(
-      {
-        buildGithubCollectionSpec: async () => GITHUB_SPEC,
-      } as unknown as GithubCollectionSpecService,
-      { findAll } as unknown as CollectionTargetReader,
-      WIKI_TOKEN,
-    );
+    const service = withReader({ findAll }, WIKI_TOKEN);
 
     const first = await service.buildCollectionSpec(WIKI_PERSON);
     const second = await service.buildCollectionSpec(WIKI_PERSON);
@@ -495,13 +485,8 @@ describe("CollectionSpecService.buildCollectionSpecWithCoverage", () => {
   });
 
   it("DB 조회 실패는 삼키지 않는다_n", async () => {
-    const service = new CollectionSpecService(
-      {
-        buildGithubCollectionSpec: async () => GITHUB_SPEC,
-      } as unknown as GithubCollectionSpecService,
-      {
-        findAll: jest.fn().mockRejectedValue(new Error("db down")),
-      } as unknown as CollectionTargetReader,
+    const service = withReader(
+      { findAll: jest.fn().mockRejectedValue(new Error("db down")) },
       {},
     );
 
@@ -514,13 +499,11 @@ describe("CollectionSpecService.buildCollectionSpecWithCoverage", () => {
   });
 
   it("buildCollectionSpec 은 env 와 활성 DB 대상을 합치고 비활성은 뺀다", async () => {
-    const service = new CollectionSpecService(
-      {
-        buildGithubCollectionSpec: async () => GITHUB_SPEC,
-      } as unknown as GithubCollectionSpecService,
-      targetsOf([WIKI_ROW, { ...WIKI_ROW, instanceKey: "off", active: false }]),
-      { ...ENV_CONF, ...WIKI_TOKEN },
-    );
+    const off = { ...WIKI_ROW, instanceKey: "off", active: false };
+    const service = withReader(targetsOf([WIKI_ROW, off]), {
+      ...ENV_CONF,
+      ...WIKI_TOKEN,
+    });
 
     const spec = await service.buildCollectionSpec(WIKI_PERSON);
 

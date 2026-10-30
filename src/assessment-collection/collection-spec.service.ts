@@ -131,17 +131,17 @@ export class CollectionSpecService {
     since?: string,
   ): Promise<CollectionSpec> {
     // (a) GitHub 쪽 — mode B+A 결합은 GithubCollectionSpecService(T-0260)에 위임.
-    const targets = await this.targets.findAll();
     const github = await this.githubSpecService.buildGithubCollectionSpec(
       person,
       since,
-      undefined,
-      targets,
     );
 
     // (b) Confluence 쪽 — env ∪ active row 전체(ADR-0030 §3, ADR-0059 §Decision 3). rejected
     // 진단은 사용 안 함. SPACE scope / since 는 enumerate 밖(traversal service / slice vi).
-    const { instances } = mergeConfluenceInstances(this.env, targets);
+    const { instances } = mergeConfluenceInstances(
+      this.env,
+      await this.targets.findAll(),
+    );
 
     // (c) 두 산출을 CollectionSpec 으로 결합만 한다.
     return { github, confluence: { instances } };
