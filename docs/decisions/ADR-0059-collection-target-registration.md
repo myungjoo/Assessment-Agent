@@ -116,10 +116,12 @@ REQ-073(RBAC) 세 row 뿐이다. 세 row 모두 `PLANNED` 이고 착수 slice �
   - env 목록에 오른 key 는 필수 env 부재로 reject 돼도 충돌로 보고 row 를 무시한다. row 로 복구하면
     §Alternatives 가 막은 fail-fast 우회가 된다.
   - `active=false` row 는 같은 key 의 env 를 끄지 못한다. 합집합에서 row 쪽만 빠진다.
-  - credential 을 찾지 못한 active row 는 수집 대상이 아니지만 등록된 대상이다. 그 key 의 식별자는
-    "미설정" 이 아니라 실패라서 좌표를 비워 둔다 ([T-2060](../tasks/T-2060-coverage-registered-targets.md)).
-    비활성 row 의 식별자는 운영자의 제외 결정으로 보고 무시한다.
-  - 수집은 매번 DB 를 읽어 재기동 없이 반영된다. DB 조회 실패는 전파한다.
+  - credential 을 찾지 못한 active row 는 수집 대상이 아니지만 등록된 대상이다. 자동 평가 (tick ·
+    `POST /unevaluated-fill-run`) 의 저장 판정은 그 key 의 식별자를 "미설정" 이 아니라 실패로 쳐 좌표를
+    비워 둔다 ([T-2060](../tasks/T-2060-coverage-registered-targets.md)). 비활성 row 의 식별자는 운영자의
+    제외 결정으로 보고 무시한다. 판정이 없는 수동 경로 (`POST /collect` · `POST /period`) 는 그 대상을 빼고 진행한다.
+  - 수집은 매번 DB 를 읽어 재기동 없이 반영된다. spec 조립의 DB 조회 실패는 전파하고, 호출 단계의 실패는
+    source 단위 호출 실패로 센다.
   - `rejected` 진단은 계산만 되고 아직 API · 로그로 나가지 않는다 (§Follow-ups (e) 의 출처 표시와 함께 다룬다).
 
 ### 4. 대상 종류 모델링 — 단일 model + `type` discriminator
@@ -226,20 +228,21 @@ PATCH · DELETE) 이며, 기존 `RolesGuard` 의 `ROLE_HIERARCHY` 승격 매핑�
   가능 여부를 명시적으로 표시하지 않으면 이 혼동은 그대로 사용자에게 간다.
 - **(b) credential 을 env 에 남겨 생기는 조용한 실패 경로** — 화면에서 새 `instanceKey` 로
   대상을 등록해도 그 key 의 `_TOKEN_ENC` 가 배포 env 에 없으면 등록은 201 로 성공하고,
-  수집 시점에 credential 부재로 그 대상이 reject 되어 **그 식별자를 가진 인원의 좌표가 저장되지
-  않는다** (T-2060). 사용자는 "등록했는데 평가가 없다" 를 보게 되고 원인은 run status · 서버 로그에 있다. 등록 시점 검증 수단(존재하는 key 목록 제시 또는
+  수집 시점에 credential 부재로 그 대상이 reject 된다. 자동 평가에서는 **그 식별자를 가진 인원의
+  좌표가 저장되지 않고** (T-2060) 원인은 run status · 서버 로그에 있다. 수동 경로 (`POST /collect` ·
+  `POST /period`) 에서는 그 대상의 **수집 결과가 0 건**인 채 진행되고 경고도 없다. 등록 시점 검증 수단(존재하는 key 목록 제시 또는
   credential 존재 여부 확인)이 §Follow-ups (b) · (e) 에서 붙기 전까지 이 위험은 실재한다.
 - **(c) 단일 model 의 type 별 필수성이 DB 제약이 아니다** — `orgs` 는 GITHUB 에만,
   `spaces` 는 CONFLUENCE 에만 의미가 있으나 단일 table 로는 그 조건부 필수성을 강제할 수 없어
   검증이 DTO/service 로 밀린다. 그 검증을 빠뜨린 경로가 생기면 "필드가 비어 있는 대상" 이
   저장될 수 있다.
+- **(d) 정체성 축 PATCH 금지로 정정 동선이 2 회 왕복** — `type` · `instanceKey` 오타는
+  DELETE + POST 로만 고칠 수 있어 UI 가 그 2 단계를 사용자에게 숨기는 부담을 진다.
 - **(e) Admin 이 고른 host 로 env token 이 나갈 수 있다 (owner 판단 대기)** — `endpoint` 는 Admin 이
   편집하고 형식 제약이 없으며, 수집 시 `<KEY>_TOKEN_ENC` 를 복호해 그 host 로 보낸다. env 목록의 key 는
   env 우선으로 보호되나, 등록 대상용으로 env 에 둔 token 은 Admin 이 임의 host 로 보낼 수 있다 (Confluence 는
   `http://` 평문 전송도 가능하다). 앱 권한으로 배포 secret 을 얻는 경로다. 완화안은 key 별 허용 host 를 env 에
   두는 것이나 새 운영 계약이라 T-2059~T-2064 범위 밖이다.
-- **(d) 정체성 축 PATCH 금지로 정정 동선이 2 회 왕복** — `type` · `instanceKey` 오타는
-  DELETE + POST 로만 고칠 수 있어 UI 가 그 2 단계를 사용자에게 숨기는 부담을 진다.
 
 ## Alternatives considered
 
