@@ -13,7 +13,8 @@
 // assessment-read / contribution-read / person-read / group-read 와 함께 여섯 다 실행된다.
 //
 // 앞선 spec 과의 차이(본 spec 고유 특성): 본 spec 은 person-read/group-read 와 동일하게
-// `overrideGuard` 로 guard 를 통과시켜 controller 를 부트스트랩한다. 또한 `GET /api/parts` 는 query-param 필수
+// `overrideGuard` 로 guard 를 통과시켜 controller 를 부트스트랩한다. 또한
+// `GET /api/parts` 는 query-param 필수
 // 분기(400)가 없는 단순 list read 라, non-2xx 분류 실증은 400 query 대신 **`GET
 // /api/parts/:id` 의 404 분기**(mocked `findById` 이 `NotFoundException` throw)로
 // 이어간다.

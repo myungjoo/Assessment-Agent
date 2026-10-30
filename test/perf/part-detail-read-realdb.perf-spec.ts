@@ -35,8 +35,9 @@
 //    동일, `include` 0 의 미조인 SELECT 는 slice 11·19 와 동일하다. 한 controller 의 조회 route 전량
 //    실측 도달도 Group slice 18 · Person slice 19 선례가 있어 새 축이 아니다. 본 slice 의 신규성은
 //    ③ 의 3 개뿐이다.
-// ⑤ 인증·인가 negative 는 본 spec 소관이 아니다 — 무 cookie 401 · tier 403 은 `parts.e2e-spec` 이
-//    닫고, 본 spec 은 요청마다 User 인증 cookie 를 싣는다(T-2046, Q-0056 parts 축). 대신 404 수렴 · 격리(혼입 0) · 삭제 후 전이 · 비노출
+// ⑤ 인증·인가 negative 는 본 spec 소관이 아니다 — 무 cookie 401 · tier 403 은 `parts.e2e-spec` 소관이고,
+//    본 spec 은 요청마다 User 인증 cookie 를 싣는다(T-2046, Q-0056 parts 축). 대신 404 수렴 · 격리(혼입 0) ·
+//    삭제 후 전이 · 비노출
 //    관계 키 · path 토큰 변형 · 임계 주입 축으로 negative 를 채운다.
 // ⑥ 결정론 전략 — seed 는 고정 행 수, `afterEach(truncateAll)`(ADR-0004 §Cleanup)가 매 test 후 도메인
 //    테이블을 비워 각 test 는 자기 seed 만 본다(`Part.name` 과 `Person.email` 이 모두 `@unique` 라 seed

@@ -8,7 +8,7 @@
 //    후 자식 조회(`findByPartId`)라 slice 2 의 membership 비례 N+1 과도 다르다.
 //    (c) **soft-delete 필터** — `activeOnly` 기본값이 `where: { partId, active: true }`(REQ-026).
 // ② 실행 경로 — `jest-perf.json` 매칭이라 `pnpm test:perf` 로만 실행된다(기본 `pnpm test` 미picking).
-// ③ mock 0 · override 0 — guard 는 실제로 통과한다(요청마다 User 인증 cookie, T-2046). 검증은
+// ③ mock 0 · override 0 — 요청마다 User 인증 cookie 를 싣는다(T-2046). 검증은
 //    `toHaveBeenCalledTimes` 대신 **응답 body 가 seed row 값과 일치** 함으로 실 query 발화를
 //    입증한다(fail 분기는 404 · `p95MaxMs: 0` 라 측정 시간 무의존). production code · mock 짝 ·
 //    임계값 · baseline write 불변이며 REQ-047 실 scale 부하가 아니다.
