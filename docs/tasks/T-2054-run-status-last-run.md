@@ -2,7 +2,11 @@
 id: T-2054
 title: 불완전 수집 저장 차단 ⑤ — run status 마지막 평가 실행 요약 구현
 phase: P7
-status: PLANNED
+status: DONE
+completedAt: 2026-10-30
+mergedAs: fd018aec
+prNumber: 1615
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-037, REQ-083]
 estimatedDiff: 180
