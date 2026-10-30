@@ -2,7 +2,11 @@
 id: T-2072
 title: 최근 N일 재수집 ④ — POST 를 startRefresh 로 전환하고 이전 실행 경로 제거
 phase: P7
-status: READY
+status: DONE
+completedAt: 2026-10-30
+mergedAs: c89c7a09
+prNumber: 1633
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 120
