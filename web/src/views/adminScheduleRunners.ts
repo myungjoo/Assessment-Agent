@@ -196,9 +196,38 @@ export const REFRESH_POLL_MAX_FAILURES = 5;
 export const REFRESH_RESULT_LOST_TEXT =
   '재수집 결과를 확인할 수 없습니다. 서버가 재시작되었을 수 있습니다. 교체되지 않은 기간의 이전 결과는 그대로입니다.';
 
+// 조회를 포기했을 때의 안내. POST 실패와 달리 실행은 계속될 수 있다.
+export const REFRESH_POLL_LOST_TEXT =
+  '재수집 진행 상태를 확인하지 못했습니다. 실행은 서버에서 계속될 수 있으니 잠시 뒤 다시 시도해 주세요';
+
 interface RecentRefreshStatus {
   running: boolean;
   result: RecentRefreshResult | null;
+}
+
+function isRefreshResult(value: unknown): value is RecentRefreshResult {
+  const r = value as Partial<RecentRefreshResult> | null;
+  return (
+    typeof r?.deletedCount === 'number' &&
+    typeof r.refreshedCount === 'number' &&
+    typeof r.notRefreshedCount === 'number' &&
+    typeof r.aborted === 'boolean'
+  );
+}
+
+// 형태가 다른 응답을 "끝남" 으로 오인하지 않게 조회 실패로 돌린다.
+function parseRefreshStatus(raw: unknown): RecentRefreshStatus {
+  const status = raw as { running?: unknown; result?: unknown } | null;
+  if (typeof status?.running !== 'boolean') {
+    throw new Error('재수집 상태 응답 형식이 올바르지 않습니다');
+  }
+  if (status.result === null || status.result === undefined) {
+    return { running: status.running, result: null };
+  }
+  if (!isRefreshResult(status.result)) {
+    throw new Error('재수집 결과 응답 형식이 올바르지 않습니다');
+  }
+  return { running: status.running, result: status.result };
 }
 
 export interface ReEvaluationDeps {
@@ -222,7 +251,7 @@ async function pollRefreshResult(
   for (;;) {
     await deps.wait(REFRESH_POLL_INTERVAL_MS);
     try {
-      const status = (await deps.get(path)) as RecentRefreshStatus;
+      const status = parseRefreshStatus(await deps.get(path));
       failures = 0;
       if (!status.running) {
         return status.result;
@@ -261,6 +290,12 @@ export async function runReEvaluate(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ days }),
     });
+  } catch (e) {
+    deps.setError(deps.describeError(e));
+    deps.setSubmitting(false);
+    return;
+  }
+  try {
     const result = await pollRefreshResult(path, deps);
     if (result === null) {
       deps.setError(REFRESH_RESULT_LOST_TEXT);
@@ -268,7 +303,7 @@ export async function runReEvaluate(
       deps.setResult(result);
     }
   } catch (e) {
-    deps.setError(deps.describeError(e));
+    deps.setError(`${REFRESH_POLL_LOST_TEXT} (${deps.describeError(e)})`);
   } finally {
     deps.setSubmitting(false);
   }

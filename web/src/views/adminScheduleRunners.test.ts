@@ -24,6 +24,7 @@ import {
   buildRecentDeletionPath,
   REFRESH_POLL_INTERVAL_MS,
   REFRESH_POLL_MAX_FAILURES,
+  REFRESH_POLL_LOST_TEXT,
   REFRESH_RESULT_LOST_TEXT,
   deriveScheduleMessage,
   runApply,
@@ -155,6 +156,13 @@ describe('adminScheduleRunners — deriveScheduleMessage (T-1869 경계 spec)', 
 const PERSON_ID = 'p-1';
 const DAYS = 7;
 
+const REFRESH_RESULT = {
+  deletedCount: 2,
+  refreshedCount: 3,
+  notRefreshedCount: 1,
+  aborted: false,
+};
+
 interface ReEvalHarness {
   deps: ReEvaluationDeps;
   post: ReturnType<typeof vi.fn>;
@@ -166,13 +174,6 @@ interface ReEvalHarness {
 }
 // 재평가 deps 주입 harness — POST 발사 primitive 와 setter 를 spy 로 갈아끼워 러너 본체만 관측한다
 // (위 apply harness 동형. 재평가는 message setter 가 없고 submitting 슬롯을 쓴다).
-const REFRESH_RESULT = {
-  deletedCount: 2,
-  refreshedCount: 3,
-  notRefreshedCount: 1,
-  aborted: false,
-};
-
 function reEvalHarness(
   options: { submitting?: boolean; reject?: boolean } = {},
 ): ReEvalHarness {
@@ -329,8 +330,29 @@ describe('adminScheduleRunners — runReEvaluate (T-1870 경계 spec)', () => {
     h.get.mockRejectedValue(BOOM);
     await runReEvaluate(PERSON_ID, DAYS, h.deps);
     expect(h.get).toHaveBeenCalledTimes(REFRESH_POLL_MAX_FAILURES);
-    expect(h.setError).toHaveBeenLastCalledWith(describeError(BOOM));
+    expect(h.setError).toHaveBeenLastCalledWith(
+      `${REFRESH_POLL_LOST_TEXT} (${describeError(BOOM)})`,
+    );
     expect(h.setSubmitting.mock.calls).toEqual([[true], [false]]);
+  });
+  it.each<[string, unknown]>([
+    ['빈 객체', {}],
+    ['비 JSON 문자열', '<html>'],
+    ['null', null],
+    ['결과 건수가 빠진 응답', { running: false, result: { deletedCount: 1 } }],
+  ])('%s 응답은 조회 실패로 세어 조용히 끝나지 않는다_n', async (_label, body) => {
+    const h = reEvalHarness();
+    h.get.mockResolvedValue(body);
+    await runReEvaluate(PERSON_ID, DAYS, h.deps);
+    expect(h.get).toHaveBeenCalledTimes(REFRESH_POLL_MAX_FAILURES);
+    expect(h.setError.mock.lastCall?.[0]).toContain(REFRESH_POLL_LOST_TEXT);
+    expect(h.setResult.mock.calls).toEqual([[undefined]]);
+  });
+  it('result 필드가 없고 실행 중이 아니면 확인할 수 없다고 알린다_n', async () => {
+    const h = reEvalHarness();
+    h.get.mockResolvedValueOnce({ running: false });
+    await runReEvaluate(PERSON_ID, DAYS, h.deps);
+    expect(h.setError).toHaveBeenLastCalledWith(REFRESH_RESULT_LOST_TEXT);
   });
   it('실행 중이 아닌데 결과가 없으면 확인할 수 없다고 알린다_n', async () => {
     const h = reEvalHarness();

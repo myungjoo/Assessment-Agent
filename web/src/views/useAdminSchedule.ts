@@ -12,7 +12,7 @@
 // AdminView 의 props destructure 가 계속 소유한다(hook 안 분기 · 기본값 신설 0).
 //
 // 반환은 JSX 소비처 두 덩어리(SchedulePanel props · 재평가 인원 <select> + 재평가 패널 props)가
-// 실제로 쓰는 15 심볼만 공개하고 내부 setter(`setScheduleBusy` · `setSelectedDays` 등)와 조회 원본
+// 실제로 쓰는 16 심볼만 공개하고 내부 setter(`setScheduleBusy` · `setSelectedDays` 등)와 조회 원본
 // (`scheduleData` · `scheduleLoading` · `scheduleGetError`)은 노출하지 않는다(캡슐화 —
 // T-1884/T-1886/T-1887/T-1888 선례 승계).
 //
@@ -200,7 +200,7 @@ export function useAdminSchedule({
   // === /재평가 트리거 패널 배선(T-0886) ================================================
 
   // 반환 표면 — JSX 소비처 두 덩어리(SchedulePanel props · 재평가 인원 <select> + 재평가 패널
-  // props)가 실제로 소비하는 15 심볼만 공개한다. 내부 전용(조회 원본 3 종 · mutation 문구 상태 ·
+  // props)가 실제로 소비하는 16 심볼만 공개한다. 내부 전용(조회 원본 3 종 · mutation 문구 상태 ·
   // 나머지 setter)은 의도적으로 빼 축 밖에서 이 축의 내부 상태를 건드릴 경로를 만들지 않는다.
   return {
     cronExpression,

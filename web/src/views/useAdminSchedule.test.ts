@@ -325,7 +325,7 @@ describe('useAdminSchedule — happy path(초기 반환 · 조회 · 파생 계�
     expect(deps.submitting).toBe(false);
   });
 
-  it('상태 조회는 path 만 넘겨 request 를 호출하고 wait 는 시간이 지나면 끝난다', async () => {
+  it('상태 조회는 path 만 넘겨 request 를 호출하고 wait 는 정확히 그 시간 뒤에 끝난다', async () => {
     const hook = lastOf(renderProbe());
     await hook.handleReevalTrigger(7);
     const deps = lastDeps(runReEvaluateMock, 2) as unknown as {
@@ -335,7 +335,18 @@ describe('useAdminSchedule — happy path(초기 반환 · 조회 · 파생 계�
 
     await deps.get('/x');
     expect(requestStub).toHaveBeenLastCalledWith('/x');
-    await expect(deps.wait(0)).resolves.toBeUndefined();
+
+    vi.useFakeTimers();
+    try {
+      const done = vi.fn();
+      void deps.wait(3000).then(done);
+      await vi.advanceTimersByTimeAsync(2999);
+      expect(done).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(done).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
