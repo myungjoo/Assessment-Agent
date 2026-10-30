@@ -21,6 +21,9 @@
 //     경로도 cron registry 상태를 바꾸지 않는다. SuperAdmin 은 RolesGuard escalation
 //     으로 통과(과차단 없음).
 //
+// 실 평가 실행(T-2043): GitHub 만 globalThis.fetch 로 대체한다. LLM 은 활동 0 건이라 호출되지
+// 않으며, 실 LLM · 활동 있는 평가는 본 spec 이 검증하지 않는다.
+//
 // 실 DB 전략(ADR-0004): mock override 0. createAuthenticatedE2EApp 가 AppModule
 // 부트스트랩 + actor seed, PrismaService 가 실 connection. 본 endpoint 군은 DB row 를
 // 만들지 않으므로 truncateAll 은 쓰지 않는다(actor seed 를 지우고 재-seed 를 강요할
@@ -29,9 +32,13 @@
 //
 // cron 식은 매일 03:00 / 04:00 이라 실행 중 발화 · 타이머 sleep 0. 로컬 DATABASE_URL
 // 부재 시 본 spec 은 CI 의 pnpm test:e2e(R-113) 에서만 실행된다.
+import { randomBytes } from "node:crypto";
+
 import type { INestApplication } from "@nestjs/common";
 import request, { type Test } from "supertest";
 
+import { LlmApiKeyCipher } from "../../src/llm/llm-apikey-cipher.service";
+import { RunStatusService } from "../../src/run-status/run-status.service";
 import {
   buildAuthCookie,
   createAuthenticatedE2EApp,
@@ -46,6 +53,16 @@ const DAILY_3AM = "0 3 * * *";
 const DAILY_4AM = "0 4 * * *";
 
 const JOB_NAME = "e2e-cron-job-alpha";
+
+const GITHUB_HOST = "github.e2etick.test";
+const GITHUB_ENV = {
+  GITHUB_INSTANCES: "e2etick",
+  GITHUB_E2ETICK_HOST: GITHUB_HOST,
+  GITHUB_E2ETICK_REPOS: "org/repo",
+};
+const ENC_KEY_ENV = "LLM_APIKEY_ENC_KEY";
+// 닫힌 기간 좌표 수 — 일 7 + 직전 주 1 + 직전 월 1.
+const CLOSED_COORDINATES = 9;
 
 type RouteMethod = "get" | "put" | "delete" | "post";
 
@@ -110,7 +127,19 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
       .send({ name, cronExpression });
   }
 
+  // 가짜 GitHub 의 응답 status — test 가 token 장애를 흉내 낼 때 401 로 바꾼다.
+  let githubStatus = 200;
+  const realFetch = globalThis.fetch;
+
   beforeAll(async () => {
+    // GithubAdapter 가 생성 시점에 fetch 를 잡으므로 app 부팅 전에 교체한다.
+    globalThis.fetch = (async (input: unknown, init?: RequestInit) =>
+      String(input).includes(GITHUB_HOST)
+        ? new Response("[]", {
+            status: githubStatus,
+            headers: { "content-type": "application/json" },
+          })
+        : realFetch(input as string, init)) as typeof fetch;
     ctx = await createAuthenticatedE2EApp([
       { role: "User", email: "cron-schedule-user-actor@e2e.test" },
       { role: "Admin", email: "cron-schedule-admin-actor@e2e.test" },
@@ -131,6 +160,7 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
   afterAll(async () => {
     await app.close();
     await ctx.prisma.$disconnect();
+    globalThis.fetch = realFetch;
   });
 
   // 등록된 cron job 전수 삭제 — 살아 있는 CronJob 이 다음 it 로 새거나 jest open
@@ -162,7 +192,7 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
     expect(afterDelete).not.toContain(JOB_NAME);
   });
 
-  it("Admin 으로 POST /api/schedules/trigger 시 202 (happy — manual trigger 수락, tick handler 는 module 기본 stub)", async () => {
+  it("Admin 으로 POST /api/schedules/trigger 시 202 (happy — LlmProviderConfig 0 이면 실행은 resolver 에서 멈춘다)", async () => {
     const response = await request(app.getHttpServer())
       .post(TRIGGER_URL)
       .set("Cookie", adminCookie);
@@ -296,4 +326,145 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
       expect(await listNames()).toEqual([]);
     },
   );
+
+  describe("실 평가 실행 (T-2043, README 64 · 72~74 행)", () => {
+    const savedEncKey = process.env[ENC_KEY_ENV];
+
+    async function waitIdle(): Promise<void> {
+      const status = app.get(RunStatusService, { strict: false });
+      const deadline = Date.now() + 30_000;
+      while (status.snapshot().evaluation.active) {
+        if (Date.now() > deadline) {
+          throw new Error("평가 실행이 30 초 안에 끝나지 않았다");
+        }
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    }
+
+    async function triggerAndWait(): Promise<void> {
+      const response = await request(app.getHttpServer())
+        .post(TRIGGER_URL)
+        .set("Cookie", adminCookie);
+      expect(response.status).toBe(202);
+      await waitIdle();
+    }
+
+    const createPerson = (identities: { service: string }[]) =>
+      ctx.prisma.person.create({
+        data: {
+          fullName: "tick 대상",
+          email: "tick-person@e2e.test",
+          serviceIdentities: {
+            create: identities.map((i) => ({ ...i, externalId: "kim" })),
+          },
+        },
+      });
+
+    function clearGithubEnv(): void {
+      for (const key of [
+        ...Object.keys(GITHUB_ENV),
+        "GITHUB_E2ETICK_TOKEN_ENC",
+      ]) {
+        delete process.env[key];
+      }
+    }
+
+    beforeEach(async () => {
+      await waitIdle();
+      githubStatus = 200;
+      process.env[ENC_KEY_ENV] = randomBytes(32).toString("base64");
+      Object.assign(process.env, GITHUB_ENV, {
+        GITHUB_E2ETICK_TOKEN_ENC: app
+          .get(LlmApiKeyCipher, { strict: false })
+          .encrypt("e2e-token"),
+      });
+      await ctx.prisma.llmProviderConfig.deleteMany();
+      await ctx.prisma.llmProviderConfig.create({
+        data: {
+          provider: "openai-compatible",
+          endpointUrl: "http://llm.e2e.test/v1",
+          apiKey: "e2e-placeholder-key",
+          modelId: "test-model",
+        },
+      });
+    });
+
+    afterEach(async () => {
+      await waitIdle();
+      clearGithubEnv();
+      if (savedEncKey === undefined) {
+        delete process.env[ENC_KEY_ENV];
+      } else {
+        process.env[ENC_KEY_ENV] = savedEncKey;
+      }
+      await ctx.prisma.permissionDeniedRecord.deleteMany();
+      await ctx.prisma.assessment.deleteMany();
+      await ctx.prisma.person.deleteMany();
+      await ctx.prisma.llmProviderConfig.deleteMany();
+    });
+
+    it("trigger 가 닫힌 기간 좌표를 저장하고, 재실행은 중복을 만들지 않는다", async () => {
+      await createPerson([{ service: "e2etick" }]);
+
+      await triggerAndWait();
+
+      const rows = await ctx.prisma.assessment.findMany({
+        select: { id: true, period: true, periodStart: true },
+      });
+      expect(rows).toHaveLength(CLOSED_COORDINATES);
+      expect(rows.filter((r) => r.period === "day")).toHaveLength(7);
+      expect(rows.filter((r) => r.period === "week")).toHaveLength(1);
+      expect(rows.filter((r) => r.period === "month")).toHaveLength(1);
+      expect(rows.every((r) => r.periodStart.getTime() < Date.now())).toBe(
+        true,
+      );
+
+      await triggerAndWait();
+
+      const again = await ctx.prisma.assessment.findMany({
+        select: { id: true },
+      });
+      expect(again.map((r) => r.id).sort()).toEqual(
+        rows.map((r) => r.id).sort(),
+      );
+    });
+
+    it("GitHub token 장애 중에는 빈 평가를 저장하지 않고, 복구 후 tick 이 채운다_n", async () => {
+      await createPerson([{ service: "e2etick" }]);
+      githubStatus = 401;
+
+      await triggerAndWait();
+      expect(await ctx.prisma.assessment.count()).toBe(0);
+
+      githubStatus = 200;
+      await triggerAndWait();
+      expect(await ctx.prisma.assessment.count()).toBe(CLOSED_COORDINATES);
+    });
+
+    it("수집 instance 미설정이면 빈 평가를 저장하지 않는다_n", async () => {
+      await createPerson([{ service: "e2etick" }]);
+      clearGithubEnv();
+
+      await triggerAndWait();
+
+      expect(await ctx.prisma.assessment.count()).toBe(0);
+    });
+
+    it("service identity 가 없는 인원은 평가하지 않는다_n", async () => {
+      await createPerson([]);
+
+      await triggerAndWait();
+
+      expect(await ctx.prisma.assessment.count()).toBe(0);
+    });
+
+    it("LlmProviderConfig 가 없으면 202 뒤 아무 것도 저장하지 않는다_n", async () => {
+      await createPerson([{ service: "e2etick" }]);
+      await ctx.prisma.llmProviderConfig.deleteMany();
+
+      await triggerAndWait();
+
+      expect(await ctx.prisma.assessment.count()).toBe(0);
+    });
+  });
 });

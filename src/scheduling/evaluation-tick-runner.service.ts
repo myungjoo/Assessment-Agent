@@ -1,7 +1,7 @@
 // EvaluationTickRunnerService — cron tick 과 manual trigger 가 공유하는 단일 실행 함수
 // (ADR-0042 §Decision 2, README 64 · 72~74 행). 활성 인원의 닫힌 기간 미평가 좌표를
 // 기존 경로(planner → generateAndPersist)로 순차 평가한다.
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, type OnModuleDestroy } from "@nestjs/common";
 
 import type { EvaluationPersistContext } from "../assessment-evaluation/domain/evaluation-result.persist.mapper";
 import { EvaluationUnevaluatedFillPlanner } from "../assessment-evaluation/evaluation-unevaluated-fill-planner.service";
@@ -24,10 +24,11 @@ function errorMessage(error: unknown): string {
 }
 
 @Injectable()
-export class EvaluationTickRunnerService {
+export class EvaluationTickRunnerService implements OnModuleDestroy {
   private readonly logger = new Logger(EvaluationTickRunnerService.name);
   private current: Promise<void> | null = null;
-  private tally = { evaluated: 0, failed: 0 };
+  private stopping = false;
+  private tally = { evaluated: 0, skipped: 0, failed: 0 };
 
   constructor(
     private readonly resolver: LlmProviderConfigResolver,
@@ -52,6 +53,12 @@ export class EvaluationTickRunnerService {
     return this.current;
   }
 
+  // app 종료 시 새 좌표 진입을 막고 진행 중 좌표까지만 기다린다.
+  async onModuleDestroy(): Promise<void> {
+    this.stopping = true;
+    await this.current;
+  }
+
   private async execute(): Promise<void> {
     this.runStatus.begin("evaluation");
     try {
@@ -61,13 +68,13 @@ export class EvaluationTickRunnerService {
         this.logger.log("평가 실행 완료: 활성 인원 없음");
         return;
       }
-      this.tally = { evaluated: 0, failed: 0 };
+      this.tally = { evaluated: 0, skipped: 0, failed: 0 };
       const gaps = await this.planGaps(persons.map((person) => person.id));
       for (const [personId, coordinates] of gaps) {
         await this.fillPerson(personId, coordinates, modelId);
       }
       this.logger.log(
-        `평가 실행 완료: evaluated=${this.tally.evaluated} failed=${this.tally.failed}`,
+        `평가 실행 완료: evaluated=${this.tally.evaluated} skipped=${this.tally.skipped} failed=${this.tally.failed}`,
       );
     } catch (error) {
       this.logger.error(`평가 실행 중단: ${errorMessage(error)}`);
@@ -126,19 +133,28 @@ export class EvaluationTickRunnerService {
       return;
     }
 
+    // 빈 평가 row 는 first-write-wins 때문에 식별자가 추가된 뒤의 평가를 영구히 막는다.
+    if (person.serviceIdentities.length === 0) {
+      this.tally.skipped += coordinates.length;
+      return;
+    }
+
     for (const context of coordinates) {
+      if (this.stopping) {
+        return;
+      }
       try {
         const { start, end } = getKstPeriodRangeByPeriod(
           context.period,
           context.periodStart,
         );
-        await this.persist.generateAndPersist(
+        const persisted = await this.persist.generateAndPersistIfCollected(
           person,
           { since: start.toISOString(), until: end.toISOString() },
           { modelId },
           context,
         );
-        this.tally.evaluated += 1;
+        this.tally[persisted === null ? "skipped" : "evaluated"] += 1;
       } catch (error) {
         this.tally.failed += 1;
         this.logger.error(

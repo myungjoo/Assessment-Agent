@@ -18,9 +18,8 @@
 //   - transform: plain JSON 을 UpsertCronScheduleDto instance 로 변환.
 //
 // cron tick callback 배선 — CRON_TICK_HANDLER injection token 으로 주입된 handler 를
-// registerOrReplace 의 callback 인자로 전달한다. 실 평가 pipeline 결선은 본 task
-// Out of Scope — module 의 기본 provider 가 no-op/logging stub 이며, ④ manual trigger /
-// ⑤ backfill 과 공유 가능한 경계만 박제한다 (ADR-0042 §Consequences).
+// registerOrReplace 의 callback 인자로 전달한다. module 이 EvaluationTickRunnerService 로
+// 결선한다 (cron 과 manual trigger 공용 단일 실행 함수, ADR-0042 §Decision 2).
 //
 // service-layer HttpException → status 자동 mapping (controller 는 추가 변환 0, raw forward):
 //   - BadRequestException (유효하지 않은 cron 식 / 빈 name) → 400.
@@ -33,7 +32,6 @@
 //   - 인증 부재 (cookie 없음 / invalid JWT) → JwtAuthGuard 가 401.
 //
 // 책임 경계 (Out of Scope — task §Out of Scope 박제):
-//   - cron tick callback 의 실 평가 pipeline 결선 (EvaluationOrchestrator 실 호출) — ④/⑤ 후속.
 //   - ⑤ backfill endpoint — 별도 task.
 //   - 등록 cron job 영속화 / timezone(KST) 처리 — ADR-0042 §Consequences 별도 ADR.
 //   - 새 auth-flow / RBAC 정책 변경 0 — 기존 guard stack 적용만.
@@ -62,9 +60,8 @@ import {
 } from "./cron-schedule.service";
 import { UpsertCronScheduleDto } from "./dto/upsert-cron-schedule.dto";
 
-// CRON_TICK_HANDLER — cron 발화 시 호출될 callback 의 DI injection token. 실 평가
-// pipeline 결선은 Out of Scope 이므로 module 이 no-op/logging stub provider 를 바인딩하고,
-// controller 는 주입된 handler 를 registerOrReplace 에 전달만 한다 (④/⑤ 공유 경계).
+// CRON_TICK_HANDLER — cron 발화 시 호출될 callback 의 DI injection token. controller 는
+// 주입된 handler 를 registerOrReplace 에 전달만 한다 (④/⑤ 공유 경계).
 export const CRON_TICK_HANDLER = "CRON_TICK_HANDLER";
 
 @Controller("api/schedules")
@@ -78,7 +75,7 @@ export const CRON_TICK_HANDLER = "CRON_TICK_HANDLER";
 export class CronScheduleController {
   constructor(
     private readonly service: CronScheduleService,
-    // 주입된 tick handler — registerOrReplace 의 callback 인자로 전달 (실 결선 Out of Scope).
+    // 주입된 tick handler — registerOrReplace 의 callback 인자로 전달.
     @Inject(CRON_TICK_HANDLER) private readonly tickHandler: CronTickHandler,
   ) {}
 
@@ -130,10 +127,10 @@ export class CronScheduleController {
   // 거치지 않고 직접 1회 호출한다 — cron tick callback 과 동일한 실행 추상을 공유해 중복
   // 구동 로직을 방지한다(③ cron 등록 · ④ manual 즉시 · ⑤ backfill 3 진입 수렴). 요청 본문
   // 없는 fire-and-forget trigger 이므로 DTO 불요, 수락 즉시 202 Accepted 를 반환한다.
+  // 실 평가는 handler 가 background 로 넘기므로 완료를 기다리지 않는다.
   //
-  // handler 는 `() => void | Promise<void>` — 동기 void 반환과 Promise 반환 양쪽을 처리한다.
-  // await 가 sync void 도 안전히 통과하므로 단일 await 로 두 분기를 모두 cover하며, handler
-  // 가 throw / reject 하면 그 에러를 삼키지 않고 그대로 propagate (500 으로 표면화).
+  // handler 는 `() => void | Promise<void>` — 단일 await 로 두 반환 형태를 모두 cover 하며,
+  // handler 가 동기 throw / reject 하면 그대로 propagate (500 으로 표면화).
   //
   // RBAC — Admin+ tier (기존 3 endpoint 1:1 동형). @Roles("Admin") → Admin / SuperAdmin
   // 통과, User actor 403, 인증 부재 401.
