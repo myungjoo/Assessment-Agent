@@ -195,6 +195,38 @@ export class PeriodBridgeAdminPersistService {
   }
 
   /**
+   * 사람 없이 도는 자동 평가용 fill 경로. first-write-wins 라 수집 장애 중의 빈 평가는
+   * 이후 평가를 영구히 막으므로, 귀속 활동이 0 건인데 수집 호출이 하나라도 실패했거나
+   * 하나도 돌지 않았으면 영속화 없이 `null` 을 반환한다. 모든 호출이 성공한 0 건은 실제
+   * 무활동이라 빈 평가로 저장한다. 활동이 있으면 일부 source 가 실패해도 저장한다
+   * (부분 가용성, ADR-0029 Decision §3).
+   *
+   * @returns 영속 결과. 수집이 실제로 돌지 못한 좌표면 `null`.
+   */
+  async generateAndPersistIfCollected(
+    person: PeriodBridgePersonInput,
+    period: { since: string; until: string },
+    options: ScoringOptions,
+    context: EvaluationPersistContext,
+  ): Promise<PeriodBridgeAdminPersistResult | null> {
+    const spec = await this.specService.buildCollectionSpec(
+      person,
+      period.since,
+    );
+    const { activities, tally } =
+      await this.orchestrator.collectActivitiesWithTally(spec);
+    const filtered = filterActivitiesByAuthor(
+      filterActivitiesByPeriodWindow(activities, period),
+      person.serviceIdentities,
+    );
+    if (filtered.length === 0 && (tally.failed > 0 || tally.succeeded === 0)) {
+      return null;
+    }
+    const results = await this.evaluation.evaluateActivities(filtered, options);
+    return this.persistAndReadThrough(context, results);
+  }
+
+  /**
    * 영속화 진입 — `reevaluate` flag 로 mode 를 선택한다(ADR-0038 §Decision3).
    *   - strict `reevaluate === true` → "reeval"(reset-and-recreate) 분기로 위임
    *     (persistReevalAndReadBack — read-through fall-back 미적용).

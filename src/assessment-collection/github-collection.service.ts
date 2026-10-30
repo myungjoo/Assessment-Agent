@@ -77,6 +77,13 @@ export interface GithubCollectionSpec {
   sources: GithubRepoSource[];
 }
 
+// CollectionCallTally — 수집 호출 성공 · 실패 건수. 빈 수집이 "활동 없음" 인지 "수집 불가"
+// 인지 호출자가 구분하게 한다. 부분 가용성 흡수 동작은 그대로다.
+export interface CollectionCallTally {
+  succeeded: number;
+  failed: number;
+}
+
 @Injectable()
 export class GithubCollectionService {
   // logger 는 pass 2(내용 지문 dedup)가 제거한 건수를 남기는 관측 전용 필드다
@@ -91,6 +98,7 @@ export class GithubCollectionService {
   // 어떤 source/endpoint 가 throw 해도 전체는 throw 하지 않고 그 source 만 skip 한다.
   async collectGithubActivities(
     spec: GithubCollectionSpec,
+    tally: CollectionCallTally = { succeeded: 0, failed: 0 },
   ): Promise<GithubActivity[]> {
     const collected: GithubActivity[] = [];
 
@@ -108,6 +116,7 @@ export class GithubCollectionService {
             path,
             query,
           );
+          tally.succeeded += 1;
           // raw item → mapper → null(malformed) skip → 누적.
           for (const raw of rawItems) {
             const activity = mapGithubActivity(
@@ -122,6 +131,7 @@ export class GithubCollectionService {
         } catch {
           // skip-and-continue — 기존 emit 은 wrapper 내부에서 이미 발생. 본 service 는
           // 새 emit 경로를 만들지 않고 이 source/endpoint 만 건너뛴다(부분 가용성 우선).
+          tally.failed += 1;
           continue;
         }
       }

@@ -38,6 +38,7 @@ import {
 } from "./confluence-collection.service";
 import { Activity } from "./domain/activity";
 import {
+  type CollectionCallTally,
   GithubCollectionService,
   GithubCollectionSpec,
 } from "./github-collection.service";
@@ -75,6 +76,29 @@ export class CollectionOrchestratorService {
     // GitHub→Confluence 순서 concat(결정론적). 두 변형 모두 `Activity` 이므로 결과
     // 타입은 `Activity[]` 로 좁혀진다.
     return [...githubActivities, ...confluenceActivities];
+  }
+
+  // collectActivitiesWithTally — collectActivities 와 같은 수집에 호출 성공 · 실패 건수를
+  // 더해 돌려준다. 빈 결과를 영구 저장하기 전에 수집이 실제로 돌았는지 판정하는 용도.
+  async collectActivitiesWithTally(
+    spec: CollectionSpec,
+  ): Promise<{ activities: Activity[]; tally: CollectionCallTally }> {
+    const tally: CollectionCallTally = { succeeded: 0, failed: 0 };
+    const guarded = async <T>(collect: () => Promise<T[]>): Promise<T[]> => {
+      try {
+        return await collect();
+      } catch {
+        tally.failed += 1;
+        return [];
+      }
+    };
+    const github = await guarded(() =>
+      this.github.collectGithubActivities(spec.github, tally),
+    );
+    const confluence = await guarded(() =>
+      this.confluence.collectConfluenceActivities(spec.confluence, tally),
+    );
+    return { activities: [...github, ...confluence], tally };
   }
 
   // collectSafely — 한 source 의 collection 호출을 독립 try/catch 로 감싸, throw 시
