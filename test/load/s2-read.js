@@ -6,8 +6,8 @@
 // 타격 대상은 작성 시점에 `@UseGuards` 가 없던 목록 GET 3 종이다 — assessment / contribution /
 // summary / user 의 조회는 JwtAuthGuard 가 붙어 토큰 없이는 401 이고, 그 401 이
 // http_req_failed 임계를 오염시킨다(인증 획득 배선은 후속 slice). id 파라미터 경로도 빈 DB 에서
-// 404 가 되므로 타격하지 않는다. 그중 persons · groups 는 Q-0056 으로 guarded 가 될 예정이라 아래
-// T-2023 · T-2036 항목대로 인증 cookie 를 미리 싣는다(parts 는 parts 축 몫이라 무변경).
+// 404 가 되므로 타격하지 않는다. 그중 persons · groups · parts 는 Q-0056 으로 guarded 가 되므로 아래
+// T-2023 · T-2036 · T-2047 항목대로 인증 cookie 를 싣는다.
 // 임계는 docs/ops/load-resilience-test-plan.md §3 표 그대로 — 재산정 0 (ADR-0054).
 // 조건 분기 로직 0 — 분기가 필요해지면 unit-testable helper 로 분리한다 (T-1620 규약 승계).
 //
@@ -46,6 +46,12 @@
 // 공유하는 결정적 bootstrap 계정으로 올린다. stamp 계정은 run 의 첫 user 가 아니라 User 등급이고,
 // groups seed POST · 회수 DELETE 는 ⑤b 이후 Admin+ write tier 라 cookie 가 있어도 403 이 된다.
 // 지금은 group write 에 guard 가 없어 tier 상향은 no-op 이다. 새 __ENV 키 · route tag · 임계 0.
+//
+// T-2047 — parts guard 배선 선행(Q-0056 parts 축): parts 3 지점(seed POST · 측정 GET · 회수 DELETE)에
+// 인증 cookie 를 싣는다. guard 가 붙으면 cookie 없는 세 지점은 401 이 되어 http_req_failed 와 parts
+// route 의 p95 를 오염시킨다(seed POST 실패는 part id 를 깨뜨려 teardown 까지 연쇄로 틀어진다). 자격은
+// T-2038 의 SuperAdmin bootstrap 그대로라 Admin+ write 를 통과한다. 공용 teardown params 는 소비처가
+// 0 이 되어 제거했다. tag 는 세 지점 모두 기존 그대로이고 새 __ENV 키 · route tag · 임계 재산정 0 이다.
 import http from "k6/http";
 
 // 대상 base URL. workflow 의 K6_BASE_URL 주입값과 동일한 기본값을 들고 있다 (smoke.js 와 동형).
@@ -66,17 +72,16 @@ const SEED_PERSONS = Math.max(
 // 새 __ENV 키를 만들지 않고 사본 상수로 둔다(s1-batch.js 동형 — 설계 ④ (f)).
 const DEVSET_EMAIL_DOMAIN = "load.devset.test";
 
-// seed / 정리 요청 파라미터. route tag 는 조회 3 종(persons / groups / parts) 과 겹치지 않는
-// 별도 이름이라, route tag 별 p95 임계 3 종이 조회 지연만 측정한다 (지표 오염 차단).
+// 인증 전 seed 요청(signup · login) 파라미터. route tag 는 조회 3 종(persons / groups / parts) 과
+// 겹치지 않는 별도 이름이라, route tag 별 p95 임계 3 종이 조회 지연만 측정한다 (지표 오염 차단).
 const SEED_PARAMS = {
   headers: { "Content-Type": "application/json" },
   tags: { route: "seed" },
 };
-const TEARDOWN_PARAMS = { tags: { route: "teardown" } };
 
 // (T-2038) 부하 job 전용 일회성 bootstrap 계정 — s1-batch.js · s3-concurrent.js 가 문자 단위로
 // 같은 1 쌍을 선언해, 한 run 안에서 세 시나리오가 같은 계정으로 로그인한다. 이 계정은 run 의 첫
-// signup 이라 SuperAdmin 이 되고, 그래서 setup 의 groups seed POST 와 teardown 의 회수 DELETE 가
+// signup 이라 SuperAdmin 이 되고, 그래서 setup 의 groups · parts seed POST 와 teardown 의 회수 DELETE 가
 // Admin+ gate 를 통과한다. 실 자격증명 · 외부 secret 0 이고 password 는 8 자 이상이다. 재실행
 // DB 에서 signup 이 내는 409 1 건은 seed tag 라 판정 tag (조회 route 4 종) 로의 누수는 0 이다.
 const BOOTSTRAP_CREDENTIALS = {
@@ -113,7 +118,7 @@ export function setup() {
   const stamp = Date.now();
   // 인증 부트스트랩 — signup 은 guard 없는 public endpoint 라 별도 admin 준비 없이 계정
   // 1 개를 만들 수 있다. (T-2038) 자격증명은 s1 · s3 와 공유하는 결정적 bootstrap 계정이다 —
-  // groups write (seed POST · 회수 DELETE) 가 ⑤b 이후 Admin+ gate 를 통과해야 한다. 계정이 이미
+  // groups · parts write (seed POST · 회수 DELETE) 가 ⑤b 이후 Admin+ gate 를 통과해야 한다. 계정이 이미
   // 있으면 signup 은 409 를 내는데, 응답을 분기 없이 버린다 (분기 0 규약). 두 요청 모두 seed tag
   // 라 조회 route 4 종의 p95 는 오염 0. 계정 row 는 지우지 않는다 — user 삭제 endpoint 가 없다.
   // (T-2023) 이 블록은 아래 표본 조회보다 **앞** 에 있어야 한다 — 표본 조회가 authCookie 를
@@ -163,10 +168,14 @@ export function setup() {
       tags: { route: "seed" },
     },
   );
+  // (T-2047) parts seed POST 도 같은 seed tag 에 인증 cookie 를 더한 인라인 params.
   const part = http.post(
     `${BASE_URL}/api/parts`,
     JSON.stringify({ name: `부하 파트 ${stamp}` }),
-    SEED_PARAMS,
+    {
+      headers: { Cookie: authCookie, "Content-Type": "application/json" },
+      tags: { route: "seed" },
+    },
   );
   // 반환값은 teardown 으로 그대로 전달되므로 JSON 직렬화 가능한 형태만 담는다.
   // (T-2023) authCookie 는 위에서 조립한 지역 const 를 그대로 재사용한다.
@@ -181,7 +190,7 @@ export function setup() {
 export default function (data) {
   // 한 iteration = 목록 GET 3 종 + 인증 GET 1 종 각 1 회. route tag 로 지표를 분리 집계한다.
   // (T-2023) persons 는 setup 이 만든 cookie 를 싣는다 — ④ 가 guard 를 붙여도 401 로 바뀌지
-  // 않도록 미리 배선한다. parts 는 parts 축 몫이라 무변경이다.
+  // 않도록 미리 배선한다.
   http.get(`${BASE_URL}/api/persons`, {
     headers: { Cookie: data.authCookie },
     tags: { route: "persons" },
@@ -191,7 +200,11 @@ export default function (data) {
     headers: { Cookie: data.authCookie },
     tags: { route: "groups" },
   });
-  http.get(`${BASE_URL}/api/parts`, { tags: { route: "parts" } });
+  // (T-2047) parts 측정 GET 도 같은 cookie 를 싣는다 — tag 는 parts 그대로.
+  http.get(`${BASE_URL}/api/parts`, {
+    headers: { Cookie: data.authCookie },
+    tags: { route: "parts" },
+  });
   // 인증 조회 — jwt.strategy 가 cookie 를 유일한 토큰 source 로 읽으므로(헤더 토큰 방식은
   // cover 0) setup 이 만든 cookie 문자열을 header 로 직접 싣는다.
   http.get(`${BASE_URL}/api/auth/me`, {
@@ -215,6 +228,11 @@ export function teardown(data) {
     );
   }
   for (let i = 0; i < data.partIds.length; i += 1) {
-    http.del(`${BASE_URL}/api/parts/${data.partIds[i]}`, null, TEARDOWN_PARAMS);
+    http.del(
+      `${BASE_URL}/api/parts/${data.partIds[i]}`,
+      null,
+      // (T-2047) groups 회수와 같은 teardown tag + 인증 cookie 인라인 params.
+      { headers: { Cookie: data.authCookie }, tags: { route: "teardown" } },
+    );
   }
 }

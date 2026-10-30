@@ -911,6 +911,22 @@ const S2_GROUPS_SEED_COOKIE_CALL =
  */
 const S2_GROUPS_READ_COOKIE_CALL =
   /http\.get\(`\$\{BASE_URL\}\/api\/groups`,\s*\{\s*headers: \{ Cookie: data\.authCookie \},\s*tags: \{ route: "groups" \},\s*\}\)/;
+/**
+ * (T-2047) setup 의 parts seed POST — 인증 cookie 와 seed tag 가 **같은 http.post 호출** 의
+ * 인라인 params 안에 있어야 한다. tag 가 seed 그대로여야 route:parts p95 표본이 오염되지 않는다.
+ */
+const S2_PARTS_SEED_COOKIE_CALL =
+  /http\.post\(\s*`\$\{BASE_URL\}\/api\/parts`,\s*JSON\.stringify\([^)]*\),\s*\{\s*headers: \{ Cookie: authCookie, "Content-Type": "application\/json" \},\s*tags: \{ route: "seed" \},\s*\},\s*\)/;
+/**
+ * (T-2047) default 의 parts 측정 GET — parts 축 guard 가 붙으면 이 배선이 401 을 막는다.
+ */
+const S2_PARTS_READ_COOKIE_CALL =
+  /http\.get\(`\$\{BASE_URL\}\/api\/parts`,\s*\{\s*headers: \{ Cookie: data\.authCookie \},\s*tags: \{ route: "parts" \},\s*\}\)/;
+/**
+ * (T-2047) teardown 의 parts 회수 DELETE — Admin+ write 라 cookie 와 teardown tag 가 같은 호출 안에 있어야 한다.
+ */
+const S2_PARTS_TEARDOWN_COOKIE_CALL =
+  /http\.del\(\s*`\$\{BASE_URL\}\/api\/parts\/\$\{data\.partIds\[i\]\}`,\s*null,[^{]*\{ headers: \{ Cookie: data\.authCookie \}, tags: \{ route: "teardown" \} \},\s*\)/;
 /** 임계 정본 — 전역 2 + route tag 4(T-1624 의 me 포함) = 6 종. */
 const EXPECTED_THRESHOLD_KEYS = [
   "http_req_duration",
@@ -956,9 +972,12 @@ describe("test/load/s2-read.js 인증 조회 확장(signup → login → me) 배
       // 대체 단언을 같은 호출 하나에 못 박는다(headers + tags 가 한 http.get 안에 있어야 한다).
       // (T-2036) 4 → 3: 줄어든 1 건은 groups seed POST 로, 같은 seed tag 에 인증 cookie 를 더한
       // 인라인 params 로 바뀌었다. 수치만 내리면 cookie 소실이 조용히 통과하므로 대체 단언을 둔다.
-      expect(setup.match(/SEED_PARAMS/g)).toHaveLength(3);
+      // (T-2047) 3 → 2: 줄어든 1 건은 parts seed POST 로, 대체 단언을 같은 자리에 둔다. 남은 2 건은
+      // cookie 를 얻기 전의 signup · login 이다.
+      expect(setup.match(/SEED_PARAMS/g)).toHaveLength(2);
       expect(setup).toMatch(S2_PERSONS_SEED_COOKIE_CALL);
       expect(setup).toMatch(S2_GROUPS_SEED_COOKIE_CALL);
+      expect(setup).toMatch(S2_PARTS_SEED_COOKIE_CALL);
       // 토큰은 Set-Cookie 로만 오므로 응답 cookie 에서 값을 꺼내 문자열로 담는다.
       expect(setup).toContain(`cookies["${COOKIE_NAME}"][0].value`);
       // (T-2023) cookie 문자열은 지역 const 에서 조립되고 return 은 그 const 를 재사용한다.
@@ -1147,12 +1166,12 @@ describe("test/load/s2-read.js persons 인증 cookie 선탑재 배선 drift smok
   });
 
   describe("flow / 분기 cover — 새 params 리터럴이 분기를 늘리지 않는다", () => {
-    // (T-2036) groups 3 지점 cookie 선탑재로 3 → 6 곳.
-    it("cookie params 는 문자열 리터럴 6 곳뿐이고 분기 토큰은 여전히 0 이다", () => {
+    // (T-2036) groups 3 지점 cookie 선탑재로 3 → 6 곳. (T-2047) parts 3 지점으로 6 → 9 곳.
+    it("cookie params 는 문자열 리터럴 9 곳뿐이고 분기 토큰은 여전히 0 이다", () => {
       const script = s2Script();
-      // setup persons + setup groups + default persons + default groups + default me +
-      // teardown groups = 6 곳.
-      expect(script.match(/headers: \{ Cookie: /g)).toHaveLength(6);
+      // setup persons · groups · parts + default persons · groups · parts · me +
+      // teardown groups · parts = 9 곳.
+      expect(script.match(/headers: \{ Cookie: /g)).toHaveLength(9);
       ["if (", "} else", " ? ", " && "].forEach((token) =>
         expect(script).not.toContain(token),
       );
@@ -1178,14 +1197,18 @@ describe("test/load/s2-read.js persons 인증 cookie 선탑재 배선 drift smok
     });
   });
 
-  describe("negative cases 충분 cover — 축 경계 · 토큰 리터럴 · 합성 mutation 대조군", () => {
-    // (T-2036) groups 는 cookie 를 싣게 되어 문자 단위 무변경 대상이 parts 만으로 좁혀진다.
-    it("(1) parts GET 은 문자 단위 무변경 — Cookie 잔존 0(parts 축 경계 보존), groups GET 은 cookie 부착", () => {
+  describe("negative cases 충분 cover — cookie 부착 · 토큰 리터럴 · 합성 mutation 대조군", () => {
+    // (T-2047) parts 도 cookie 를 싣게 되어 무 cookie 측정 GET 은 0 이다. 옛 형태 잔존도 red.
+    it("(1) groups · parts GET 은 cookie 부착 — 무 cookie 옛 형태 잔존 0, teardown parts 도 cookie 부착", () => {
       const read = s2Body("export default function");
-      expect(read).toContain(
+      expect(read).not.toContain(
         `http.get(\`\${BASE_URL}/api/parts\`, { tags: { route: "parts" } });`,
       );
       expect(read).toMatch(S2_GROUPS_READ_COOKIE_CALL);
+      expect(read).toMatch(S2_PARTS_READ_COOKIE_CALL);
+      const down = s2Body("export function teardown");
+      expect(down).toMatch(S2_PARTS_TEARDOWN_COOKIE_CALL);
+      expect(s2Script()).not.toContain("TEARDOWN_PARAMS");
     });
 
     it("(2)~(4) 토큰 리터럴 0 · __ENV 키 2 회 · 임계 프로파일 무변경", () => {
