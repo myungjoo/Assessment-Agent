@@ -81,8 +81,8 @@ describe('ReEvaluationTriggerPanel', () => {
     expect(html).toContain('value="7"');
   });
 
-  // error path — error truthy → role="alert" 영역에 문구 렌더, 선택 UI(<select>) 미렌더.
-  it('error truthy 전달 시 role="alert" 영역에 문구 렌더, <select> 미렌더 (error path)', () => {
+  // error path — 오류를 알리면서 선택 UI 를 유지해 Admin 이 바로 재시도할 수 있다.
+  it('error truthy 전달 시 role="alert" 문구와 재시도할 선택 UI 를 함께 렌더한다 (error path)', () => {
     const html = renderToStaticMarkup(
       <ReEvaluationTriggerPanel
         windows={sampleWindows}
@@ -94,8 +94,129 @@ describe('ReEvaluationTriggerPanel', () => {
     );
     expect(html).toContain('role="alert"');
     expect(html).toContain('재수집 요청에 실패했습니다');
-    expect(html).not.toContain('<select');
+    expect(html).toContain('<select');
+    expect(html).toContain(TRIGGER_LABEL);
+    expect(html).not.toMatch(/<button[^>]*disabled/);
+  });
+
+  it('error 가 있어도 windows 가 비면 alert 와 빈 상태 문구를 함께 렌더하고 버튼은 없다_n', () => {
+    const html = renderToStaticMarkup(
+      <ReEvaluationTriggerPanel
+        windows={[]}
+        selectedDays={7}
+        onSelect={noop}
+        onTrigger={noop}
+        error="실패"
+      />,
+    );
+    expect(html).toContain('role="alert"');
+    expect(html).toContain(EMPTY_WINDOWS);
     expect(html).not.toContain('<button');
+  });
+
+  it('result 전달 시 삭제 · 저장 · 갱신 안 됨 건수를 표시한다', () => {
+    const html = renderToStaticMarkup(
+      <ReEvaluationTriggerPanel
+        windows={sampleWindows}
+        selectedDays={7}
+        onSelect={noop}
+        onTrigger={noop}
+        result={{
+          deletedCount: 3,
+          refreshedCount: 5,
+          notRefreshedCount: 2,
+          aborted: false,
+        }}
+      />,
+    );
+    expect(html).toContain('이전 결과 삭제 3건');
+    expect(html).toContain('새로 저장 5건');
+    expect(html).toContain('갱신 안 됨 2건');
+    expect(html).not.toContain('끝까지 진행되지 못했습니다');
+    expect(html).toContain(TRIGGER_LABEL);
+  });
+
+  it('windows 가 비어도 result 건수를 표시한다_n', () => {
+    const html = renderToStaticMarkup(
+      <ReEvaluationTriggerPanel
+        windows={[]}
+        selectedDays={7}
+        onSelect={noop}
+        onTrigger={noop}
+        result={{
+          deletedCount: 1,
+          refreshedCount: 2,
+          notRefreshedCount: 3,
+          aborted: false,
+        }}
+      />,
+    );
+    expect(html).toContain('갱신 안 됨 3건');
+    expect(html).toContain(EMPTY_WINDOWS);
+  });
+
+  it('aborted 결과는 중단 안내를 함께 표시한다_n', () => {
+    const html = renderToStaticMarkup(
+      <ReEvaluationTriggerPanel
+        windows={sampleWindows}
+        selectedDays={7}
+        onSelect={noop}
+        onTrigger={noop}
+        result={{
+          deletedCount: 0,
+          refreshedCount: 0,
+          notRefreshedCount: 0,
+          aborted: true,
+        }}
+      />,
+    );
+    expect(html).toContain('끝까지 진행되지 못했습니다');
+  });
+
+  it('submitting 중에는 이전 result 를 표시하지 않는다_n', () => {
+    const html = renderToStaticMarkup(
+      <ReEvaluationTriggerPanel
+        windows={sampleWindows}
+        selectedDays={7}
+        onSelect={noop}
+        onTrigger={noop}
+        submitting
+        result={{
+          deletedCount: 1,
+          refreshedCount: 1,
+          notRefreshedCount: 0,
+          aborted: false,
+        }}
+      />,
+    );
+    expect(html).not.toContain('이전 결과 삭제');
+  });
+
+  it('triggerDisabled 면 유효한 기간이어도 버튼이 비활성이다_n', () => {
+    const html = renderToStaticMarkup(
+      <ReEvaluationTriggerPanel
+        windows={sampleWindows}
+        selectedDays={7}
+        onSelect={noop}
+        onTrigger={noop}
+        triggerDisabled
+      />,
+    );
+    expect(html).toMatch(/<button[^>]*disabled/);
+  });
+
+  it('기본 경고는 실제 동작을 말한다 — 실패 기간 유지 · 오늘 제외', () => {
+    const html = renderToStaticMarkup(
+      <ReEvaluationTriggerPanel
+        windows={sampleWindows}
+        selectedDays={7}
+        onSelect={noop}
+        onTrigger={noop}
+      />,
+    );
+    expect(html).toContain('교체합니다');
+    expect(html).toContain('그대로 남고');
+    expect(html).toContain('오늘은 제외');
   });
 
   // flow/branch — submitting=true → role="status" + 진행 문구, 선택 UI/버튼 미렌더.
