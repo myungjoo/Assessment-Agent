@@ -28,9 +28,9 @@ plannerNote: P7 · 평가 tick arc ③ — T-2041 runner 와 T-2042 빈 평가 �
 - [ ] handler 는 동기 fire-and-forget 이고 POST 는 즉시 202 다.
 - [ ] `SchedulingModule` 이 Evaluation · User · Llm · RunStatus 를 import 한다. 순환 없음.
 - [ ] runner 는 `generateAndPersistIfCollected` 를 쓰고 `null` 을 skipped 로 집계한다. identity 0 인원은 건너뛴다.
-- [ ] 종료 hook 은 새 좌표 진입을 막고 진행 중 좌표만 기다린다.
+- [ ] `app.close()` 시 종료 hook 은 새 좌표 진입을 막고 진행 중 좌표만 기다린다. production SIGTERM 연결은 범위 밖이다 (Follow-ups).
 - [ ] stale 주석 (stub · Out of Scope) 을 갱신한다.
-- [ ] e2e: trigger 202 → 좌표 9 개 저장 → 재실행 무중복. 장애 (401) · 미설정 · identity 0 · provider 0 은 무저장 (negative), 복구 후 채움.
+- [ ] e2e: trigger 202 → 좌표 9 개 저장 → 재실행 무중복. 장애 (401) · 미설정은 무저장 (negative), 복구 후 채움. identity 0 · provider 0 은 unit 으로 검증한다.
 - [ ] `pnpm lint && pnpm build && pnpm test` green, PR CI (unit · smoke · e2e) green.
 
 ## Out of Scope
@@ -43,3 +43,6 @@ plannerNote: P7 · 평가 tick arc ③ — T-2041 runner 와 T-2042 빈 평가 �
 `implementer → tester`
 
 ## Follow-ups
+
+- `src/main.ts` 에 `app.enableShutdownHooks()` 가 없어 production SIGTERM 에서는 종료 hook 이 돌지 않는다. 프로세스 전역 동작 변경이고 6 파일째라 별도 slice 다. 끊겨도 `persist` 는 transaction 이고 다음 tick 이 다시 채우므로 데이터 위험은 낮다.
+- `src/app.module.spec.ts` `136~137 행` 주석이 사라진 stub 을 가리킨다. cap 상 본 PR 밖이다.
