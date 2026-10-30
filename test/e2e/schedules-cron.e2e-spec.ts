@@ -21,8 +21,8 @@
 //     경로도 cron registry 상태를 바꾸지 않는다. SuperAdmin 은 RolesGuard escalation
 //     으로 통과(과차단 없음).
 //
-// 실 평가 실행(T-2043): GitHub 만 globalThis.fetch 로 대체한다. LLM 은 활동 0 건이라 호출되지
-// 않으며, 실 LLM · 활동 있는 평가는 본 spec 이 검증하지 않는다.
+// 실 평가 실행(T-2043, T-2057): GitHub 만 globalThis.fetch 로 대체한다. LLM 은 저장 경로에
+// 활동이 닿지 않아 호출되지 않으며, 실 LLM · 활동 있는 평가의 저장은 본 spec 이 검증하지 않는다.
 //
 // 실 DB 전략(ADR-0004): mock override 0. createAuthenticatedE2EApp 가 AppModule
 // 부트스트랩 + actor seed, PrismaService 가 실 connection. REST 계약 축은 DB row 를
@@ -48,6 +48,7 @@ import {
 
 const SCHEDULES_URL = "/api/schedules";
 const TRIGGER_URL = `${SCHEDULES_URL}/trigger`;
+const FILL_RUN_URL = "/api/assessment-evaluation/unevaluated-fill-run";
 
 // 발화하지 않는 cron 식 2 개(매일 03:00 / 04:00) — 교체 분기용 서로 다른 주기.
 const DAILY_3AM = "0 3 * * *";
@@ -129,17 +130,25 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
   }
 
   let githubStatus = 200;
+  // 이 path 조각을 포함한 GitHub 호출만 500 으로 실패시킨다.
+  let githubFailPath: string | null = null;
+  let githubCommits: unknown[] = [];
   const realFetch = globalThis.fetch;
 
   beforeAll(async () => {
     // GithubAdapter 가 생성 시점에 fetch 를 잡으므로 app 부팅 전에 교체한다.
-    globalThis.fetch = (async (input: unknown, init?: RequestInit) =>
-      String(input).includes(GITHUB_HOST)
-        ? new Response("[]", {
-            status: githubStatus,
-            headers: { "content-type": "application/json" },
-          })
-        : realFetch(input as string, init)) as typeof fetch;
+    globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (!url.includes(GITHUB_HOST)) {
+        return realFetch(input as string, init);
+      }
+      const failing = githubFailPath !== null && url.includes(githubFailPath);
+      const body = url.includes("/commits") ? githubCommits : [];
+      return new Response(JSON.stringify(body), {
+        status: failing ? 500 : githubStatus,
+        headers: { "content-type": "application/json" },
+      });
+    }) as typeof fetch;
     ctx = await createAuthenticatedE2EApp([
       { role: "User", email: "cron-schedule-user-actor@e2e.test" },
       { role: "Admin", email: "cron-schedule-admin-actor@e2e.test" },
@@ -347,16 +356,33 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
       await waitIdle();
     }
 
-    const createPerson = () =>
+    const createPerson = (services = ["e2etick"]) =>
       ctx.prisma.person.create({
         data: {
           fullName: "tick 대상",
           email: "tick-person@e2e.test",
           serviceIdentities: {
-            create: { service: "e2etick", externalId: "kim" },
+            create: services.map((service) => ({
+              service,
+              externalId: "kim",
+            })),
           },
         },
       });
+
+    const commit = (date: Date): unknown => ({
+      sha: `sha-${date.getTime()}`,
+      commit: { author: { name: "kim", date: date.toISOString() } },
+      author: { login: "kim" },
+    });
+
+    async function lastRun(): Promise<Record<string, unknown>> {
+      const response = await request(app.getHttpServer())
+        .get("/api/run-status")
+        .set("Cookie", userCookie);
+      expect(response.status).toBe(200);
+      return response.body.lastEvaluationRun as Record<string, unknown>;
+    }
 
     function clearGithubEnv(): void {
       for (const key of [
@@ -370,6 +396,8 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
     beforeEach(async () => {
       await waitIdle();
       githubStatus = 200;
+      githubFailPath = null;
+      githubCommits = [];
       process.env[ENC_KEY_ENV] = randomBytes(32).toString("base64");
       Object.assign(process.env, GITHUB_ENV, {
         GITHUB_E2ETICK_TOKEN_ENC: app
@@ -444,6 +472,133 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
       await triggerAndWait();
 
       expect(await ctx.prisma.assessment.count()).toBe(0);
+    });
+
+    it("활동이 있어도 source 하나가 실패하면 저장하지 않고 run status 에 알리며, 복구 후 채운다_n", async () => {
+      await createPerson();
+      const yesterday = getKstPeriodRangeByPeriod(
+        "day",
+        new Date(Date.now() - 86_400_000),
+      ).start;
+      githubCommits = [commit(yesterday)];
+      githubFailPath = "/issues";
+
+      await triggerAndWait();
+
+      expect(await ctx.prisma.assessment.count()).toBe(0);
+      const run = await lastRun();
+      expect(run).toMatchObject({
+        source: "tick",
+        evaluatedCount: 0,
+        skippedCount: CLOSED_COORDINATES,
+        failedCount: 0,
+        incompleteCount: CLOSED_COORDINATES,
+        incompletePersonCount: 1,
+      });
+      expect(run.incompleteCoordinates).toHaveLength(CLOSED_COORDINATES);
+      expect(JSON.stringify(run)).not.toContain("personId");
+
+      githubFailPath = null;
+      githubCommits = [];
+      await triggerAndWait();
+
+      expect(await ctx.prisma.assessment.count()).toBe(CLOSED_COORDINATES);
+      expect(await lastRun()).toMatchObject({
+        incompleteCount: 0,
+        incompleteCoordinates: [],
+      });
+    });
+
+    it("목록에 있으나 쓸 수 없는 instance 에 식별자가 있으면 무활동이어도 저장하지 않는다_n", async () => {
+      await createPerson(["e2etick", "broken"]);
+      process.env.GITHUB_INSTANCES = "e2etick,broken";
+
+      await triggerAndWait();
+
+      expect(await ctx.prisma.assessment.count()).toBe(0);
+      expect(await lastRun()).toMatchObject({
+        incompleteCount: CLOSED_COORDINATES,
+      });
+    });
+
+    it("운영자가 올린 적 없는 instance 의 식별자는 저장을 막지 않는다", async () => {
+      await createPerson(["e2etick", "neverlisted"]);
+
+      await triggerAndWait();
+
+      expect(await ctx.prisma.assessment.count()).toBe(CLOSED_COORDINATES);
+    });
+
+    describe("POST /unevaluated-fill-run", () => {
+      const yesterdayStart = () =>
+        getKstPeriodRangeByPeriod("day", new Date(Date.now() - 86_400_000))
+          .start;
+
+      const fillRun = (personId: string, periodStart = yesterdayStart()) =>
+        request(app.getHttpServer())
+          .post(FILL_RUN_URL)
+          .set("Cookie", adminCookie)
+          .send({
+            rawBridges: [
+              {
+                personId,
+                period: "day",
+                scope: "aggregate",
+                periodStart: periodStart.toISOString(),
+              },
+            ],
+          });
+
+      it("source 하나가 실패하면 좌표를 skipped 로 알리고 저장하지 않으며, 복구 후 채운다_n", async () => {
+        const person = await createPerson();
+        githubFailPath = "/pulls";
+
+        const response = await fillRun(person.id);
+
+        expect(response.status).toBe(200);
+        expect(response.body.outcomes[0]).toMatchObject({
+          status: "skipped",
+          reason: "collection-incomplete",
+        });
+        expect(await ctx.prisma.assessment.count()).toBe(0);
+        expect(await lastRun()).toMatchObject({
+          source: "fill-run",
+          incompleteCount: 1,
+        });
+
+        githubFailPath = null;
+        expect((await fillRun(person.id)).status).toBe(200);
+
+        expect(await ctx.prisma.assessment.count()).toBe(1);
+        expect(await lastRun()).toMatchObject({ incompleteCount: 0 });
+      });
+
+      it("기간 끝 이후 활동은 좌표에 들어가지 않는다 (until)", async () => {
+        const person = await createPerson();
+        const start = yesterdayStart();
+        const { end } = getKstPeriodRangeByPeriod("day", start);
+        githubCommits = [commit(end)];
+
+        const response = await fillRun(person.id, start);
+
+        expect(response.status).toBe(200);
+        expect(response.body.failedCount).toBe(0);
+        expect(await ctx.prisma.assessment.count()).toBe(1);
+      });
+
+      // 위 test 의 대조군. 창 안 활동은 LLM 까지 가고, 본 spec 에는 쓸 수 있는 LLM 이 없어 실패한다.
+      it("기간 끝 직전 활동은 좌표의 평가 대상이다_n", async () => {
+        const person = await createPerson();
+        const start = yesterdayStart();
+        const { end } = getKstPeriodRangeByPeriod("day", start);
+        githubCommits = [commit(new Date(end.getTime() - 1))];
+
+        const response = await fillRun(person.id, start);
+
+        expect(response.status).toBe(200);
+        expect(response.body.failedCount).toBe(1);
+        expect(await ctx.prisma.assessment.count()).toBe(0);
+      });
     });
   });
 });
