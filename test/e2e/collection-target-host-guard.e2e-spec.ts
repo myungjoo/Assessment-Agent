@@ -118,7 +118,7 @@ describe("E2E: 등록 수집 대상의 허용 host 검사 (ADR-0059 §Consequenc
     expect(calls.length).toBeGreaterThan(0);
     for (const call of calls) {
       expect(new URL(call.url).hostname).toBe(host);
-      expect(call.authorization).not.toBe("");
+      expect(call.authorization).toBe(`Bearer ${TOKEN}`);
     }
   };
 
@@ -191,7 +191,6 @@ describe("E2E: 등록 수집 대상의 허용 host 검사 (ADR-0059 §Consequenc
     await runCollection();
 
     expectSentOnlyTo(DB_HOST);
-    expect(calls[0].authorization).toBe(`Bearer ${TOKEN}`);
     expect(await ctx.prisma.assessment.count()).toBe(CLOSED_COORDINATES);
   });
 
@@ -204,6 +203,11 @@ describe("E2E: 등록 수집 대상의 허용 host 검사 (ADR-0059 §Consequenc
 
     expect(calls).toEqual([]);
     expect(await ctx.prisma.assessment.count()).toBe(0);
+
+    process.env[ALLOWED_ENV] = EVIL_HOST;
+    await runCollection();
+
+    expectSentOnlyTo(EVIL_HOST);
   });
 
   it.each([
@@ -255,12 +259,12 @@ describe("E2E: 등록 수집 대상의 허용 host 검사 (ADR-0059 §Consequenc
     expect(rejected.status).toBe(status);
     expect(calls).toEqual([]);
 
+    // 수동 경로는 저장 판정이 없어 거부 row 만 가진 인원도 좌표를 만든다. 같은 좌표 재요청 충돌을 비운다.
     await ctx.prisma.assessment.deleteMany();
     process.env[ALLOWED_ENV] = DB_HOST;
     const allowed = await postManual(url, person.id);
 
     expect(allowed.status).toBe(status);
     expectSentOnlyTo(DB_HOST);
-    expect(calls[0].authorization).toBe(`Bearer ${TOKEN}`);
   });
 });
