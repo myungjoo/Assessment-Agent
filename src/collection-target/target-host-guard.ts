@@ -52,7 +52,8 @@ function checkHost(
 
 /**
  * GitHub 등록 endpoint 를 검사한다. `host[:port]` 또는 `https://host[:port]` 만 받고 `http://` 는
- * 거부한다. 통과 값은 `host[:port]` 다. github.com 은 builder 가 api.github.com 으로 보낸다.
+ * 거부한다. 파서가 같은 host 로 정규화하는 표기 (`//host`, `@host`) 는 통과하며 정규화 값만 쓴다.
+ * 통과 값은 `host[:port]` 다. github.com 은 builder 가 api.github.com 으로 보낸다.
  */
 export function checkGithubEndpoint(
   endpoint: string,

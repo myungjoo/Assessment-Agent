@@ -1,4 +1,7 @@
 // target-host-guard spec — 허용 host 규칙과 우회 입력을 고정한다.
+import { buildConfluenceRequest } from "../confluence/confluence-request.builder";
+import { buildGithubRequest } from "../github/github-request.builder";
+
 import {
   checkConfluenceEndpoint,
   checkGithubEndpoint,
@@ -25,6 +28,9 @@ describe("checkGithubEndpoint", () => {
     // 파서가 지우는 문자는 정규화 값으로 나가므로 검사와 요청이 갈라지지 않는다.
     ["allow\ted.test"],
     ["allowed%2Etest"],
+    ["//allowed.test"],
+    ["@allowed.test"],
+    ["allowed.test?"],
   ])("%j 는 정규화한 host 로 통과한다", (endpoint) => {
     expect(github(endpoint)).toEqual({ ok: true, endpoint: "allowed.test" });
   });
@@ -94,15 +100,10 @@ describe("checkGithubEndpoint", () => {
     });
     expect(github("allowed.test", env)).toEqual(MISMATCH);
     expect(github("allowed.test:9443", env)).toEqual(MISMATCH);
-  });
-
-  it("허용 값의 :443 은 생략과 같다", () => {
-    const env = { [ENV_NAME]: "allowed.test:443" };
-
-    expect(github("allowed.test", env)).toEqual({
-      ok: true,
-      endpoint: "allowed.test",
-    });
+    // :443 은 생략과 같다.
+    expect(github("allowed.test", { [ENV_NAME]: "allowed.test:443" }).ok).toBe(
+      true,
+    );
   });
 
   it("끝 점은 양쪽이 같을 때만 일치한다", () => {
@@ -113,6 +114,13 @@ describe("checkGithubEndpoint", () => {
       endpoint: "allowed.test.",
     });
     expect(github("allowed.test", env)).toEqual(MISMATCH);
+  });
+
+  it("통과 값은 builder 에서 허용 host 로만 나간다", () => {
+    const check = github(" https://Allowed.test:443/ ");
+    const host = check.ok ? check.endpoint : "";
+    const { url } = buildGithubRequest({ host, token: "t", path: "user" });
+    expect(new URL(url).host).toBe("allowed.test");
   });
 
   it("거부 사유에 endpoint 원문을 싣지 않는다_n", () => {
@@ -136,6 +144,18 @@ describe("checkConfluenceEndpoint", () => {
     ["https://allowed.test", "https://allowed.test"],
   ])("%j 는 정규화한 URL 로 통과한다", (endpoint, expected) => {
     expect(confluence(endpoint)).toEqual({ ok: true, endpoint: expected });
+  });
+
+  it("통과 값은 builder 에서 허용 host 로만 나간다", () => {
+    const check = confluence("HTTPS://Allowed.test/rest/api/");
+    const baseUrl = check.ok ? check.endpoint : "";
+    const { url } = buildConfluenceRequest({
+      baseUrl,
+      authUser: null,
+      token: "t",
+      path: "content",
+    });
+    expect(url).toBe("https://allowed.test/rest/api/content");
   });
 
   it("port 를 적은 허용 값이면 그 port 를 유지한다", () => {
