@@ -2,7 +2,11 @@
 id: T-2068
 title: 등록 수집 대상 허용 host ④ — redirect 고정 · 배포 계약 · ADR 결정
 phase: P7
-status: PENDING
+status: DONE
+completedAt: 2026-10-30
+mergedAs: 4faa0401
+prNumber: 1629
+reviewRounds: 3
 commitMode: pr
 coversReq: [REQ-072]
 estimatedDiff: 150
@@ -39,3 +43,4 @@ T-2065~T-2067 로 enforcement 가 들어갔다. 새 배포 계약 (`*_ALLOWED_HO
 
 - (owner) 수동 경로의 저장 판정: `POST /period` · `POST /collect` 는 거부 row 만 가진 인원에 대해서도 빈 좌표를 저장해 first-write-wins 로 자동 평가의 재기록을 막는다. credential 부재 row 의 기존 동작과 같다. token 은 나가지 않는다.
 - (owner) 허용 host 로 등록한 서버가 다른 host 로 redirect 하면 인증 없이 받은 응답을 수집 결과로 쓴다. token 유출은 아니다. `redirect: "error"` 는 GitHub 의 저장소 이름 변경 301 까지 끊으므로 정책 판단이 필요하다.
+- (리뷰 MINOR) `test/smoke/` 의 `listen(0)` 3 곳도 fetch bad port 를 받으면 실패할 수 있다. Windows 로컬에서만 관측됐고 CI 영향은 없다.
