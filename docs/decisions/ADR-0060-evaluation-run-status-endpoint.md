@@ -181,6 +181,23 @@ endpoint 를 두지 않는다(§Decision 1 의 "상태 수명 = 실행 수명" �
   저장소(DB row 또는 외부 store)로 옮기는 것이며, §Decision 2 의 **응답 계약은 그대로 두고
   §Decision 1 의 보유 방식만 교체** 하면 되도록 읽기 표면을 endpoint 하나로 좁혀 두었다.
 
+### 6. 마지막 평가 실행 요약 — `lastEvaluationRun` 추가 (T-2053 결정, T-2054 구현)
+
+자동 평가는 수집이 불완전한 좌표를 저장하지 않는다 (T-2052). 운영자가 로그 없이 이를 알아야 하는데 §Decision 2 의 필드는 "지금 실행 중인가" 만 말하므로 표현할 수 없어 응답에 필드 1 개를 더한다. 보유 방식은 §Decision 1 그대로 프로세스 메모리이고 Prisma schema 변경은 0 이다. 재시작하면 `null` 로 돌아간다.
+
+| 필드 | 타입 | 의미 |
+| --- | --- | --- |
+| `lastEvaluationRun` | 객체 또는 `null` | 마지막으로 끝난 평가 실행. 프로세스 시작 후 없으면 `null` |
+| `.source` | `"tick"` 또는 `"fill-run"` | 실행 경로 |
+| `.finishedAt` | `string` | 끝난 시각 (ISO-8601 UTC) |
+| `.evaluated` · `.skipped` · `.failed` | `number` | 좌표 건수. `skipped` 는 불완전 좌표를 포함한다 |
+| `.incompleteCount` | `number` | 수집 불완전으로 저장하지 않은 좌표의 전체 수 |
+| `.incompleteCoordinates` | 배열 | `personId` · `period` · `scope` · `periodStart`. 앞에서부터 50 개까지 |
+
+- **`personId` 공개 범위** — 조회 tier 는 §Decision 3 의 `User+` 그대로다. `GET /api/persons` 가 이미 `User+` 라 노출 범위가 넓어지지 않는다.
+- **§Consequences (c) 와의 관계** — 진행 중 실행의 대상 · 진행률은 여전히 없다. 끝난 실행의 요약일 뿐이고 §Decision 2 의 불변식과 축 필드는 그대로다.
+- **다중 인스턴스** — §Decision 5 와 같은 한계다. 다른 인스턴스의 실행 요약은 보이지 않는다.
+
 ## Consequences
 
 ### 긍정
