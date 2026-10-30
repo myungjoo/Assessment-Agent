@@ -4,6 +4,9 @@
 // GithubOrgEnumerateService(async)만 jest mock 으로 주입한다(Q-0025 deferred 정합 —
 // 실 GitHub 호출 0 / 실 token 0). env 는 임의 map literal 로 주입(실 process.env 의존 0).
 
+import type { CollectionTargetReader } from "../collection-target/collection-target-reader.service";
+import type { CollectionTargetRow } from "../collection-target/effective-instances";
+
 import { GithubOrgEnumerateTarget } from "./domain/github-repo-source";
 import { GithubCollectionSpecService } from "./github-collection-spec.service";
 import { GithubRepoSource } from "./github-collection.service";
@@ -21,12 +24,17 @@ const ENV_MIXED: NodeJS.ProcessEnv = {
   GITHUB_SEC_ORG: "secorg",
 };
 
+const targetsOf = (rows: CollectionTargetRow[]): CollectionTargetReader =>
+  ({ findAll: async () => rows }) as unknown as CollectionTargetReader;
+const NO_TARGETS = targetsOf([]);
+
 // makeService — GithubOrgEnumerateService.enumerateRepoSources 만 mock 한 service 를 만든다.
 function makeService(
   env: NodeJS.ProcessEnv,
   handler: (
     targets: GithubOrgEnumerateTarget[],
   ) => GithubRepoSource[] | Promise<GithubRepoSource[]>,
+  rows: CollectionTargetRow[] = [],
 ): { service: GithubCollectionSpecService; spy: jest.Mock } {
   const spy = jest.fn(
     async (targets: GithubOrgEnumerateTarget[]): Promise<GithubRepoSource[]> =>
@@ -36,7 +44,11 @@ function makeService(
     enumerateRepoSources: spy,
   } as unknown as GithubOrgEnumerateService;
   return {
-    service: new GithubCollectionSpecService(enumerateService, env),
+    service: new GithubCollectionSpecService(
+      enumerateService,
+      targetsOf(rows),
+      env,
+    ),
     spy,
   };
 }
@@ -216,7 +228,10 @@ describe("GithubCollectionSpecService.buildGithubCollectionSpec", () => {
         enumerateRepoSources: spy,
       } as unknown as GithubOrgEnumerateService;
       // env 인자 생략 → @Optional 기본값 process.env 경로(테스트 env 엔 GITHUB_* 미설정).
-      const service = new GithubCollectionSpecService(enumerateService);
+      const service = new GithubCollectionSpecService(
+        enumerateService,
+        NO_TARGETS,
+      );
 
       const spec = await service.buildGithubCollectionSpec({
         serviceIdentities: [{ service: "public" }],
@@ -225,5 +240,94 @@ describe("GithubCollectionSpecService.buildGithubCollectionSpec", () => {
       expect(spec.sources).toEqual([]);
       expect(spy).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("GithubCollectionSpecService — 등록 대상 병합 (ADR-0059 §Decision 3)", () => {
+  const ROW: CollectionTargetRow = {
+    type: "GITHUB",
+    instanceKey: "db",
+    endpoint: "db.example.test",
+    orgs: [],
+    repos: ["o/r"],
+    spaces: [],
+    active: true,
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+  };
+  const DB_ENV = { GITHUB_DB_TOKEN_ENC: "enc-db" };
+  const person = { serviceIdentities: [{ service: "db" }] };
+  const withFindAll = (findAll: jest.Mock) =>
+    new GithubCollectionSpecService(
+      {} as GithubOrgEnumerateService,
+      { findAll } as unknown as CollectionTargetReader,
+      DB_ENV,
+    );
+  const NEVER = (): GithubRepoSource[] => {
+    throw new Error("열거되면 안 된다");
+  };
+
+  it("DB 에만 있는 대상의 repo 를 수집 source 로 낸다", async () => {
+    const { service } = makeService(DB_ENV, NEVER, [ROW]);
+
+    await expect(service.buildGithubCollectionSpec(person)).resolves.toEqual({
+      sources: [{ instanceKey: "db", org: "o", repo: "r", since: undefined }],
+    });
+  });
+
+  it("repos 가 빈 DB 대상은 org 를 열거한다 (mode A)", async () => {
+    const { service, spy } = makeService(DB_ENV, () => [], [
+      { ...ROW, repos: [], orgs: ["o"] },
+    ]);
+
+    await service.buildGithubCollectionSpec(person);
+
+    expect(spy.mock.calls[0][0]).toEqual([
+      { instanceKey: "db", org: "o", since: undefined },
+    ]);
+  });
+
+  it("비활성 대상은 수집하지 않는다_n", async () => {
+    const { service } = makeService(DB_ENV, NEVER, [{ ...ROW, active: false }]);
+
+    await expect(service.buildGithubCollectionSpec(person)).resolves.toEqual({
+      sources: [],
+    });
+  });
+
+  it("매 호출 DB 를 다시 읽는다", async () => {
+    const findAll = jest
+      .fn()
+      .mockResolvedValueOnce([ROW])
+      .mockResolvedValueOnce([{ ...ROW, active: false }]);
+    const service = withFindAll(findAll);
+
+    const first = await service.buildGithubCollectionSpec(person);
+    const second = await service.buildGithubCollectionSpec(person);
+
+    expect(first.sources).toHaveLength(1);
+    expect(second.sources).toEqual([]);
+  });
+
+  it("호출자가 준 row 를 쓰고 DB 를 읽지 않는다", async () => {
+    const findAll = jest.fn();
+    const { sources } = await withFindAll(findAll).buildGithubCollectionSpec(
+      person,
+      undefined,
+      undefined,
+      [ROW],
+    );
+
+    expect(sources).toHaveLength(1);
+    expect(findAll).not.toHaveBeenCalled();
+  });
+
+  it("DB 조회 실패는 빈 수집으로 흡수하지 않는다_n", async () => {
+    const service = withFindAll(
+      jest.fn().mockRejectedValue(new Error("db down")),
+    );
+
+    await expect(service.buildGithubCollectionSpec(person)).rejects.toThrow(
+      "db down",
+    );
   });
 });

@@ -4,6 +4,7 @@
 // GithubCollectionSpecService(async)만 jest mock 으로 주입한다(Q-0025 deferred 정합 —
 // 실 GitHub/Confluence 호출 0 / 실 token 0). env 는 임의 map literal 로 주입.
 
+import type { CollectionTargetReader } from "../collection-target/collection-target-reader.service";
 import type { CollectionTargetRow } from "../collection-target/effective-instances";
 
 import {
@@ -15,6 +16,11 @@ import {
   GithubCollectionSpecService,
 } from "./github-collection-spec.service";
 import { GithubCollectionSpec } from "./github-collection.service";
+import type { GithubOrgEnumerateService } from "./github-org-repo-enumerate.service";
+
+const targetsOf = (rows: CollectionTargetRow[]): CollectionTargetReader =>
+  ({ findAll: async () => rows }) as unknown as CollectionTargetReader;
+const NO_TARGETS = targetsOf([]);
 
 // ENV_CONF — 활성 Confluence instance 1 개(cloud)를 산출하는 env map. _BASE_URL +
 // _TOKEN_ENC 가 필수(authUser/spaceAllowlist 는 선택 → null/빈 배열).
@@ -60,8 +66,8 @@ function makeService(
   } as unknown as GithubCollectionSpecService;
   const service =
     env === undefined
-      ? new CollectionSpecService(githubSpecService)
-      : new CollectionSpecService(githubSpecService, env);
+      ? new CollectionSpecService(githubSpecService, NO_TARGETS)
+      : new CollectionSpecService(githubSpecService, NO_TARGETS, env);
   return { service, spy };
 }
 
@@ -334,6 +340,7 @@ describe("CollectionSpecService.buildCollectionSpecWithCoverage", () => {
   function make(
     env: NodeJS.ProcessEnv,
     enumerateFailures = 0,
+    rows: CollectionTargetRow[] = [],
   ): { service: CollectionSpecService; spy: jest.Mock } {
     const spy = jest.fn(
       async (
@@ -348,7 +355,10 @@ describe("CollectionSpecService.buildCollectionSpecWithCoverage", () => {
     const github = {
       buildGithubCollectionSpec: spy,
     } as unknown as GithubCollectionSpecService;
-    return { service: new CollectionSpecService(github, env), spy };
+    return {
+      service: new CollectionSpecService(github, targetsOf(rows), env),
+      spy,
+    };
   }
   const SINCE = "2026-01-01T00:00:00Z";
 
@@ -383,6 +393,124 @@ describe("CollectionSpecService.buildCollectionSpecWithCoverage", () => {
     });
 
     expect(coverage).toEqual({ complete: false, unavailableKeys: [] });
+  });
+
+  const withReader = (reader: unknown, env: NodeJS.ProcessEnv) =>
+    new CollectionSpecService(
+      {
+        buildGithubCollectionSpec: async () => GITHUB_SPEC,
+      } as unknown as GithubCollectionSpecService,
+      reader as CollectionTargetReader,
+      env,
+    );
+  const WIKI_ROW: CollectionTargetRow = {
+    type: "CONFLUENCE",
+    instanceKey: "wiki",
+    endpoint: "http://w",
+    orgs: [],
+    repos: [],
+    spaces: ["A"],
+    active: true,
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+  };
+  const WIKI_TOKEN = { CONFLUENCE_WIKI_TOKEN_ENC: "t" };
+  const WIKI_PERSON = { serviceIdentities: identities("wiki") };
+
+  it("DB 에만 있는 Confluence 대상도 spec 과 판정에 들어간다", async () => {
+    const { service } = make(WIKI_TOKEN, 0, [WIKI_ROW]);
+
+    const { spec, coverage } =
+      await service.buildCollectionSpecWithCoverage(WIKI_PERSON);
+
+    expect(spec.confluence.instances.map((c) => c.key)).toEqual(["wiki"]);
+    expect(coverage.complete).toBe(true);
+  });
+
+  it("credential 없는 DB 대상의 식별자는 실패로 판정한다_n", async () => {
+    const { service } = make({}, 0, [WIKI_ROW]);
+
+    const { spec, coverage } =
+      await service.buildCollectionSpecWithCoverage(WIKI_PERSON);
+
+    expect(spec.confluence.instances).toEqual([]);
+    expect(coverage).toEqual({ complete: false, unavailableKeys: ["WIKI"] });
+  });
+
+  it("충돌하면 Confluence 도 env 좌표를 쓴다_n", async () => {
+    const env = { ...WIKI, CONFLUENCE_WIKI_BASE_URL: "http://env" };
+    const { service } = make(env, 0, [WIKI_ROW]);
+
+    const { spec } = await service.buildCollectionSpecWithCoverage(WIKI_PERSON);
+
+    expect(spec.confluence.instances.map((c) => c.baseUrl)).toEqual([
+      "http://env",
+    ]);
+  });
+
+  it("row 변경은 다음 호출에 반영된다", async () => {
+    const findAll = jest
+      .fn()
+      .mockResolvedValueOnce([WIKI_ROW])
+      .mockResolvedValueOnce([]);
+    const service = withReader({ findAll }, WIKI_TOKEN);
+
+    const first = await service.buildCollectionSpec(WIKI_PERSON);
+    const second = await service.buildCollectionSpec(WIKI_PERSON);
+
+    expect(first.confluence.instances).toHaveLength(1);
+    expect(second.confluence.instances).toEqual([]);
+  });
+
+  it("spec 과 판정은 한 번 읽은 같은 row 를 본다", async () => {
+    const row = { ...WIKI_ROW, type: "GITHUB", repos: ["o/r"], spaces: [] };
+    const env = { GITHUB_WIKI_TOKEN_ENC: "t" };
+    const findAll = jest
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([row]);
+    const reader = { findAll } as unknown as CollectionTargetReader;
+    const github = new GithubCollectionSpecService(
+      {} as GithubOrgEnumerateService,
+      reader,
+      env,
+    );
+    const service = new CollectionSpecService(github, reader, env);
+
+    const { spec, coverage } =
+      await service.buildCollectionSpecWithCoverage(WIKI_PERSON);
+
+    expect(findAll).toHaveBeenCalledTimes(1);
+    expect(spec.github.sources).toEqual([]);
+    expect(coverage.complete).toBe(false);
+  });
+
+  it("DB 조회 실패는 삼키지 않는다_n", async () => {
+    const service = withReader(
+      { findAll: jest.fn().mockRejectedValue(new Error("db down")) },
+      {},
+    );
+
+    await expect(
+      service.buildCollectionSpecWithCoverage(WIKI_PERSON),
+    ).rejects.toThrow("db down");
+    await expect(service.buildCollectionSpec(WIKI_PERSON)).rejects.toThrow(
+      "db down",
+    );
+  });
+
+  it("buildCollectionSpec 은 env 와 활성 DB 대상을 합치고 비활성은 뺀다", async () => {
+    const off = { ...WIKI_ROW, instanceKey: "off", active: false };
+    const service = withReader(targetsOf([WIKI_ROW, off]), {
+      ...ENV_CONF,
+      ...WIKI_TOKEN,
+    });
+
+    const spec = await service.buildCollectionSpec(WIKI_PERSON);
+
+    expect(spec.confluence.instances.map((c) => c.key)).toEqual([
+      "cloud",
+      "wiki",
+    ]);
   });
 
   it("열거가 모두 성공해도 범위 규칙을 어기면 불완전하다_n", async () => {

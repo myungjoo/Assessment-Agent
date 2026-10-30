@@ -51,6 +51,7 @@
 import { Module } from "@nestjs/common";
 
 import { AuthModule } from "../auth/auth.module";
+import { CollectionTargetReader } from "../collection-target/collection-target-reader.service";
 import { ConfluenceModule } from "../confluence/confluence.module";
 import { GithubModule } from "../github/github.module";
 import { RunStatusModule } from "../run-status/run-status.module";
@@ -141,6 +142,8 @@ import { SinceDerivationService } from "./since-derivation.service";
     // CollectionTargetService 의 유일한 의존은 같은 module 의 repository 라 DI 가 닫힌다.
     CollectionTargetRepository,
     CollectionTargetService,
+    // 두 spec service 가 env ∪ 등록 row 를 계산할 때 쓰는 읽기 포트 (ADR-0059 §Decision 3).
+    CollectionTargetReader,
   ],
   // 두 collection service / orchestrator / 영속화 service 는 후속 slice / 외부가 inject.
   // enumerate chain 은 외부 진입점 CollectionEntryService 만 export 한다 — 중간 chain
