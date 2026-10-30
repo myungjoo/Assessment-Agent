@@ -2,7 +2,11 @@
 id: T-2057
 title: 불완전 수집 저장 차단 ⑧ — tick · fill-run 결과를 run status 에 기록
 phase: P7
-status: PLANNED
+status: DONE
+completedAt: 2026-10-30
+mergedAs: a62700a8
+prNumber: 1618
+reviewRounds: 3
 commitMode: pr
 coversReq: [REQ-037, REQ-083]
 estimatedDiff: 210
