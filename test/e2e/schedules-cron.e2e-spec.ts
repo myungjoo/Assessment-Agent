@@ -534,7 +534,7 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
         getKstPeriodRangeByPeriod("day", new Date(Date.now() - 86_400_000))
           .start;
 
-      const fillRun = (personId: string) =>
+      const fillRun = (personId: string, periodStart = yesterdayStart()) =>
         request(app.getHttpServer())
           .post(FILL_RUN_URL)
           .set("Cookie", adminCookie)
@@ -544,7 +544,7 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
                 personId,
                 period: "day",
                 scope: "aggregate",
-                periodStart: yesterdayStart().toISOString(),
+                periodStart: periodStart.toISOString(),
               },
             ],
           });
@@ -575,15 +575,29 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
 
       it("기간 끝 이후 활동은 좌표에 들어가지 않는다 (until)", async () => {
         const person = await createPerson();
-        const { end } = getKstPeriodRangeByPeriod("day", yesterdayStart());
-        // 창 안으로 들어오면 LLM 호출이 실패해 outcome 이 failed 가 되고 row 가 남지 않는다.
+        const start = yesterdayStart();
+        const { end } = getKstPeriodRangeByPeriod("day", start);
         githubCommits = [commit(end)];
 
-        const response = await fillRun(person.id);
+        const response = await fillRun(person.id, start);
 
         expect(response.status).toBe(200);
         expect(response.body.failedCount).toBe(0);
         expect(await ctx.prisma.assessment.count()).toBe(1);
+      });
+
+      // 위 test 의 대조군. 창 안 활동은 LLM 까지 가고, 본 spec 에는 쓸 수 있는 LLM 이 없어 실패한다.
+      it("기간 끝 직전 활동은 좌표의 평가 대상이다_n", async () => {
+        const person = await createPerson();
+        const start = yesterdayStart();
+        const { end } = getKstPeriodRangeByPeriod("day", start);
+        githubCommits = [commit(new Date(end.getTime() - 1))];
+
+        const response = await fillRun(person.id, start);
+
+        expect(response.status).toBe(200);
+        expect(response.body.failedCount).toBe(1);
+        expect(await ctx.prisma.assessment.count()).toBe(0);
       });
     });
   });
