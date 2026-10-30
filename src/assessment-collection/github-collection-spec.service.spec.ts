@@ -60,9 +60,10 @@ describe("GithubCollectionSpecService.buildGithubCollectionSpec", () => {
         { instanceKey: "sec", org: "secorg", repo: "svc", since },
       ]);
       // mode A enumerate 는 sec 의 orgEnumerateTarget 으로 호출됨.
-      expect(spy).toHaveBeenCalledWith([
-        { instanceKey: "sec", org: "secorg", since },
-      ]);
+      expect(spy).toHaveBeenCalledWith(
+        [{ instanceKey: "sec", org: "secorg", since }],
+        expect.anything(),
+      );
     });
   });
 
@@ -148,6 +149,21 @@ describe("GithubCollectionSpecService.buildGithubCollectionSpec", () => {
       ]);
     });
 
+    it("(d-2) enumerate 가 throw 하면 호출자 tally 에 실패로 남긴다_n", async () => {
+      const { service } = makeService(ENV_MIXED, () => {
+        throw new Error("enumerate 실패");
+      });
+      const tally = { succeeded: 0, failed: 0 };
+
+      await service.buildGithubCollectionSpec(
+        { serviceIdentities: [{ service: "sec" }] },
+        undefined,
+        tally,
+      );
+
+      expect(tally).toEqual({ succeeded: 0, failed: 1 });
+    });
+
     it("(e) since 미지정(undefined) → 산출 source 의 since 도 undefined", async () => {
       const { service } = makeService(ENV_MIXED, () => [
         { instanceKey: "sec", org: "secorg", repo: "svc", since: undefined },
@@ -173,9 +189,10 @@ describe("GithubCollectionSpecService.buildGithubCollectionSpec", () => {
       );
 
       // sec(mode A)의 orgEnumerateTarget 에 since 가 pass-through 되어 enumerate 에 전달됨.
-      expect(spy).toHaveBeenCalledWith([
-        { instanceKey: "sec", org: "secorg", since },
-      ]);
+      expect(spy).toHaveBeenCalledWith(
+        [{ instanceKey: "sec", org: "secorg", since }],
+        expect.anything(),
+      );
     });
   });
 
