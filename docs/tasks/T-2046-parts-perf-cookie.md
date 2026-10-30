@@ -2,7 +2,11 @@
 id: T-2046
 title: parts guard 선행 ③ — mock 부트 perf 3 spec guard override + realdb perf 2 spec 인증 cookie
 phase: P5
-status: PENDING
+status: DONE
+completedAt: 2026-10-30
+mergedAs: be147330
+prNumber: 1607
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-043, REQ-048]
 estimatedDiff: 179
@@ -33,11 +37,11 @@ parts guard 를 붙이면 mock 부트 3 spec 은 guard 때문에 깨지고 reald
 
 ## Acceptance Criteria
 
-- [ ] 변경 파일은 `test/perf/part-*.perf-spec.ts` 5 개
-- [ ] mock 3 spec 에 `overrideGuard(JwtAuthGuard)` · `overrideGuard(RolesGuard)` 부착
-- [ ] realdb 2 spec 의 `/api/parts` 요청 전부 인증 cookie 부착, truncate 뒤 actor 재-seed
-- [ ] 임계값 · 반복 수 · 측정 로직 무변경, guard 부재를 전제한 옛 주석 제거
-- [ ] `pnpm test:perf` green (mock 은 로컬, realdb 는 CI)
+- [x] 변경 파일은 `test/perf/part-*.perf-spec.ts` 5 개
+- [x] mock 3 spec 에 `overrideGuard(JwtAuthGuard)` · `overrideGuard(RolesGuard)` 부착
+- [x] realdb 2 spec 의 `/api/parts` 요청 전부 인증 cookie 부착, truncate 뒤 actor 재-seed
+- [x] 임계값 · 반복 수 · 측정 로직 무변경, guard 부재를 전제한 옛 주석 제거
+- [x] `pnpm test:perf` green (mock 은 로컬, realdb 는 CI)
 
 ## Out of Scope
 
@@ -49,4 +53,4 @@ parts guard 를 붙이면 mock 부트 3 spec 은 guard 때문에 깨지고 reald
 
 ## Follow-ups
 
-- `test/perf/README.md` 의 parts slice 서술 (guard 미부착) doc-sync 는 groups 축 선례처럼 arc 뒤로 미룬다.
+- guard 미부착을 전제한 서술의 doc-sync 는 groups 축 선례처럼 arc 뒤로 미룬다 — `test/perf/README.md` parts slice 서술, `docs/ops/load-resilience-test-plan.md` slice 7 · 20, `test/perf/app-root-read.perf-spec.ts` 의 part-read 서술.
