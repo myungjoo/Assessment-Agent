@@ -110,7 +110,7 @@ function ReEvaluationTriggerPanel({
   return (
     <div>
       {notices}
-      {/* 파괴적 동작 경고 — 항상 표시해 사용자가 delete→재수집 임을 인지하게 한다. */}
+      {/* 파괴적 동작 경고 — 교체는 되돌릴 수 없으므로 항상 표시한다. */}
       <p>{warning}</p>
 
       <label>
