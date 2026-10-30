@@ -22,6 +22,7 @@ import { resolveGithubInstances } from "../github/github-instance-config";
 
 import { resolveGithubRepoSources } from "./domain/github-repo-source";
 import {
+  CollectionCallTally,
   GithubCollectionSpec,
   GithubRepoSource,
 } from "./github-collection.service";
@@ -46,9 +47,11 @@ export class GithubCollectionSpecService {
   // buildGithubCollectionSpec — Person 의 serviceIdentities 와 env 의 활성 GitHub instance
   // 로부터 mode B(allowlist) + mode A(org 전체 enumerate) source 를 결합한
   // `GithubCollectionSpec` 을 반환한다. 매칭 instance 가 없으면 빈 sources(throw 0).
+  // org 열거의 성공 · 실패는 tally 로 알린다 — 빈 sources 만으로는 둘을 구분할 수 없다.
   async buildGithubCollectionSpec(
     person: GithubCollectionSpecInput,
     since?: string,
+    tally: CollectionCallTally = { succeeded: 0, failed: 0 },
   ): Promise<GithubCollectionSpec> {
     // (a) 활성 GitHub instance config 를 env 에서 resolve(reject 진단은 사용 안 함).
     const { instances } = resolveGithubInstances(this.env);
@@ -64,9 +67,12 @@ export class GithubCollectionSpecService {
     let modeASources: GithubRepoSource[] = [];
     if (orgEnumerateTargets.length > 0) {
       try {
-        modeASources =
-          await this.enumerateService.enumerateRepoSources(orgEnumerateTargets);
+        modeASources = await this.enumerateService.enumerateRepoSources(
+          orgEnumerateTargets,
+          tally,
+        );
       } catch {
+        tally.failed += 1;
         modeASources = [];
       }
     }

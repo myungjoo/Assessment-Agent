@@ -4,7 +4,10 @@
 // GithubCollectionSpecService(async)만 jest mock 으로 주입한다(Q-0025 deferred 정합 —
 // 실 GitHub/Confluence 호출 0 / 실 token 0). env 는 임의 map literal 로 주입.
 
-import { CollectionSpecService } from "./collection-spec.service";
+import {
+  assessCollectionCoverage,
+  CollectionSpecService,
+} from "./collection-spec.service";
 import {
   GithubCollectionSpecInput,
   GithubCollectionSpecService,
@@ -162,5 +165,128 @@ describe("CollectionSpecService.buildCollectionSpec", () => {
       expect(spec.github).toEqual(GITHUB_SPEC);
       expect(spec.confluence).toEqual({ instances: [] });
     });
+  });
+});
+
+const COM = {
+  GITHUB_INSTANCES: "com",
+  GITHUB_COM_HOST: "h",
+  GITHUB_COM_TOKEN_ENC: "t",
+  GITHUB_COM_REPOS: "o/r",
+};
+const WIKI = {
+  CONFLUENCE_INSTANCES: "wiki",
+  CONFLUENCE_WIKI_BASE_URL: "http://w",
+  CONFLUENCE_WIKI_TOKEN_ENC: "t",
+  CONFLUENCE_WIKI_SPACE_ALLOWLIST: "A",
+};
+const identities = (...services: string[]) =>
+  services.map((service) => ({ service }));
+
+describe("assessCollectionCoverage", () => {
+  const repos = (value: string) => ({ ...COM, GITHUB_COM_REPOS: value });
+  const SEC_LISTED = { ...COM, GITHUB_INSTANCES: "com,sec" };
+  it.each<[string, NodeJS.ProcessEnv, string[]]>([
+    ["GitHub repo 대상", COM, ["com"]],
+    ["대소문자 · 공백이 다른 key", COM, [" COM "]],
+    ["mode A org 대상", { ...repos(""), GITHUB_COM_ORG: "o" }, ["com"]],
+    ["SPACE 대상", WIKI, ["wiki"]],
+    ["GitHub 사용 가능 + 올린 적 없는 key", COM, ["com", "ecode"]],
+    ["식별자 없는 instance 의 설정 결함", SEC_LISTED, ["com"]],
+  ])("%s 는 완전하다", (_label, env, services) => {
+    expect(assessCollectionCoverage(identities(...services), env)).toEqual({
+      complete: true,
+      unavailableKeys: [],
+    });
+  });
+
+  const BOTH = { ...COM, ...WIKI };
+  const NO_SPACES = { ...BOTH, CONFLUENCE_WIKI_SPACE_ALLOWLIST: "" };
+  const NO_WIKI_TOKEN = { ...BOTH, CONFLUENCE_WIKI_TOKEN_ENC: "" };
+  const COM_IN_BOTH = { ...COM, CONFLUENCE_INSTANCES: "com" };
+  const COM_WIKI = ["com", "wiki"];
+  it.each<[string, NodeJS.ProcessEnv, string[], string[]]>([
+    ["env 빠진 GitHub", SEC_LISTED, ["com", "sec"], ["SEC"]],
+    ["repo · org 대상 0", repos(""), ["com"], ["COM"]],
+    ["malformed repo token 1 개", repos("o/r,a/b/c"), ["com"], ["COM"]],
+    ["org 없는 bare repo token", repos("r"), ["com"], ["COM"]],
+    ["SPACE 대상 0", NO_SPACES, COM_WIKI, ["WIKI"]],
+    ["env 빠진 Confluence", NO_WIKI_TOKEN, COM_WIKI, ["WIKI"]],
+    ["GitHub 만 쓸 수 있는 양쪽 key", COM_IN_BOTH, ["com"], ["COM"]],
+    ["수집 설정 없음", {}, ["com"], []],
+    ["식별자 0 개", COM, [], []],
+    ["올린 적 없는 key 뿐", COM, ["ecode"], []],
+    ["올린 적 없는 key + 쓸 수 있는 GitHub 없음", WIKI, COM_WIKI, []],
+  ])("%s 는 불완전하다_n", (_label, env, services, unavailableKeys) => {
+    expect(assessCollectionCoverage(identities(...services), env)).toEqual({
+      complete: false,
+      unavailableKeys,
+    });
+  });
+});
+
+describe("CollectionSpecService.buildCollectionSpecWithCoverage", () => {
+  function make(
+    env: NodeJS.ProcessEnv,
+    enumerateFailures = 0,
+  ): { service: CollectionSpecService; spy: jest.Mock } {
+    const spy = jest.fn(
+      async (
+        _person: GithubCollectionSpecInput,
+        _since: string | undefined,
+        tally: { failed: number },
+      ): Promise<GithubCollectionSpec> => {
+        tally.failed += enumerateFailures;
+        return GITHUB_SPEC;
+      },
+    );
+    const github = {
+      buildGithubCollectionSpec: spy,
+    } as unknown as GithubCollectionSpecService;
+    return { service: new CollectionSpecService(github, env), spy };
+  }
+  const SINCE = "2026-01-01T00:00:00Z";
+
+  it("식별자가 있는 Confluence instance 만 spec 에 남기고 since 를 넘긴다", async () => {
+    const env = {
+      ...COM,
+      ...WIKI,
+      CONFLUENCE_INSTANCES: "wiki,other",
+      CONFLUENCE_OTHER_BASE_URL: "http://o",
+      CONFLUENCE_OTHER_TOKEN_ENC: "t",
+      CONFLUENCE_OTHER_SPACE_ALLOWLIST: "A",
+    };
+    const { service, spy } = make(env);
+    const person = { serviceIdentities: identities("com", "WIKI") };
+
+    const { spec, coverage } = await service.buildCollectionSpecWithCoverage(
+      person,
+      SINCE,
+    );
+
+    expect(spec.github).toEqual(GITHUB_SPEC);
+    expect(spec.confluence.instances.map((c) => c.key)).toEqual(["wiki"]);
+    expect(coverage.complete).toBe(true);
+    expect(spy.mock.calls[0].slice(0, 2)).toEqual([person, SINCE]);
+  });
+
+  it("org 열거가 하나라도 실패하면 범위 규칙을 통과해도 불완전하다_n", async () => {
+    const { service } = make(COM, 1);
+
+    const { coverage } = await service.buildCollectionSpecWithCoverage({
+      serviceIdentities: identities("com"),
+    });
+
+    expect(coverage).toEqual({ complete: false, unavailableKeys: [] });
+  });
+
+  it("열거가 모두 성공해도 범위 규칙을 어기면 불완전하다_n", async () => {
+    const { service } = make({});
+
+    const { coverage } = await service.buildCollectionSpecWithCoverage({
+      serviceIdentities: identities("com"),
+    });
+
+    expect(coverage.complete).toBe(false);
   });
 });
