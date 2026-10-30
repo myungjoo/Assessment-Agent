@@ -2,7 +2,11 @@
 id: T-2076
 title: 최근 N일 재수집 ⑧ — 실 DB row 교체 e2e
 phase: P7
-status: READY
+status: DONE
+completedAt: 2026-10-30
+mergedAs: fff3d977
+prNumber: 1637
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-041, REQ-031]
 estimatedDiff: 300
