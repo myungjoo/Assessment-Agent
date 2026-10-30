@@ -15,13 +15,12 @@
 import { Injectable, Optional } from "@nestjs/common";
 
 import {
-  CONFLUENCE_INSTANCES_ENV,
-  resolveConfluenceInstances,
-} from "../confluence/confluence-instance-config";
-import {
-  GITHUB_INSTANCES_ENV,
-  resolveGithubInstances,
-} from "../github/github-instance-config";
+  type CollectionTargetRow,
+  mergeConfluenceInstances,
+  mergeGithubInstances,
+  normalizeInstanceKey,
+} from "../collection-target/effective-instances";
+import { resolveConfluenceInstances } from "../confluence/confluence-instance-config";
 
 import { CollectionSpec } from "./collection-orchestrator.service";
 import { resolveGithubRepoSources } from "./domain/github-repo-source";
@@ -39,49 +38,49 @@ export interface CollectionCoverage {
   unavailableKeys: string[];
 }
 
-const normalizeKey = (key: string): string => key.trim().toUpperCase();
-
-const listedKeys = (raw: string | undefined): Set<string> =>
-  new Set(
-    (raw ?? "")
-      .split(/[\s,]+/)
-      .filter((key) => key.length > 0)
-      .map(normalizeKey),
-  );
-
 /**
  * 인원의 식별자 기준으로 수집 범위를 판정한다. 이 판정이 false 면 활동 유무와 무관하게
  * 좌표를 저장하지 않는다 (T-2051 규칙 정본).
  *
- * - 운영자가 `GITHUB_INSTANCES` · `CONFLUENCE_INSTANCES` 어디에도 올린 적 없는 key 의
- *   식별자는 실패가 아니다. 수집 대상이 아니라고 보고 무시한다.
- * - 목록에 올랐는데 쓸 수 없는 instance (필수 env 부재 · repo / org / SPACE 대상 0 · 해석
- *   불가 repo token 1 개 이상) 에 식별자가 있으면 실패다. 빠진 대상의 활동을 알 수 없다.
+ * - `GITHUB_INSTANCES` · `CONFLUENCE_INSTANCES` 와 active CollectionTarget 어디에도 없는
+ *   key 의 식별자는 실패가 아니다. 수집 대상이 아니라고 보고 무시한다. 비활성 row 는 운영자가
+ *   제외한 대상이므로 여기에 든다.
+ * - 목록에 올랐거나 등록됐는데 쓸 수 없는 instance (필수 env · credential 부재 · repo / org /
+ *   SPACE 대상 0 · 해석 불가 repo token 1 개 이상) 에 식별자가 있으면 실패다.
  * - 수집 가능한 식별자가 하나도 없으면 실패다.
- * - 목록에 없는 key 가 있고 쓸 수 있는 GitHub instance 가 하나도 없으면 실패다.
+ * - 비활성 row 도 아닌 미목록 key 가 있고 쓸 수 있는 GitHub instance 가 하나도 없으면 실패다.
  *   GitHub 설정 전체 유실과 구분되지 않기 때문이다 (T-2042 의 githubMissing).
  */
 export function assessCollectionCoverage(
   identities: GithubCollectionSpecInput["serviceIdentities"],
   env: NodeJS.ProcessEnv,
+  targets: CollectionTargetRow[] = [],
 ): CollectionCoverage {
-  const githubListed = listedKeys(env[GITHUB_INSTANCES_ENV]);
-  const confluenceListed = listedKeys(env[CONFLUENCE_INSTANCES_ENV]);
-  const github = resolveGithubInstances(env).instances;
-  const confluence = resolveConfluenceInstances(env).instances;
+  const github = mergeGithubInstances(env, targets);
+  const confluence = mergeConfluenceInstances(env, targets);
+  const excluded = new Set(
+    targets
+      .filter((t) => !t.active)
+      .map((t) => normalizeInstanceKey(t.instanceKey)),
+  );
 
   const unavailableKeys: string[] = [];
   let usable = 0;
   let githubUsable = false;
   let unlisted = 0;
-  for (const key of new Set(identities.map((i) => normalizeKey(i.service)))) {
-    const inGithub = githubListed.has(key);
-    const inConfluence = confluenceListed.has(key);
+  for (const key of new Set(
+    identities.map((i) => normalizeInstanceKey(i.service)),
+  )) {
+    const inGithub = github.listedKeys.has(key);
+    const inConfluence = confluence.listedKeys.has(key);
     if (!inGithub && !inConfluence) {
-      unlisted += 1;
+      // 비활성 row 는 운영자의 제외 결정이라 GitHub 설정 유실 신호가 아니다.
+      unlisted += excluded.has(key) ? 0 : 1;
       continue;
     }
-    const instance = github.find((c) => normalizeKey(c.key) === key);
+    const instance = github.instances.find(
+      (c) => normalizeInstanceKey(c.key) === key,
+    );
     const githubOk =
       instance !== undefined &&
       (instance.repos.length === 0
@@ -93,8 +92,8 @@ export function assessCollectionCoverage(
                 [{ service: key }],
               ).sources.length > 0,
           ));
-    const confluenceOk = confluence.some(
-      (c) => normalizeKey(c.key) === key && c.spaceAllowlist.length > 0,
+    const confluenceOk = confluence.instances.some(
+      (c) => normalizeInstanceKey(c.key) === key && c.spaceAllowlist.length > 0,
     );
     if ((inGithub && !githubOk) || (inConfluence && !confluenceOk)) {
       unavailableKeys.push(key);
@@ -160,10 +159,10 @@ export class CollectionSpecService {
       tally,
     );
     const keys = new Set(
-      person.serviceIdentities.map((i) => normalizeKey(i.service)),
+      person.serviceIdentities.map((i) => normalizeInstanceKey(i.service)),
     );
     const instances = resolveConfluenceInstances(this.env).instances.filter(
-      (c) => keys.has(normalizeKey(c.key)),
+      (c) => keys.has(normalizeInstanceKey(c.key)),
     );
     const coverage = assessCollectionCoverage(
       person.serviceIdentities,

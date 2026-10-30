@@ -1,5 +1,6 @@
 import {
   type CollectionTargetRow,
+  mergeConfluenceInstances,
   mergeGithubInstances,
 } from "./effective-instances";
 
@@ -16,6 +17,19 @@ const row = (
   createdAt: new Date("2026-01-01T00:00:00Z"),
   ...overrides,
 });
+
+const confluenceRow = (
+  overrides: Partial<CollectionTargetRow> = {},
+): CollectionTargetRow =>
+  row({
+    type: "CONFLUENCE",
+    instanceKey: "wiki",
+    endpoint: "https://wiki.example.test/rest/api",
+    orgs: [],
+    repos: [],
+    spaces: [" SP ", ""],
+    ...overrides,
+  });
 
 const ENV_GITHUB: NodeJS.ProcessEnv = {
   GITHUB_INSTANCES: "env",
@@ -184,5 +198,82 @@ describe("mergeGithubInstances", () => {
     expect(merged.instances).toEqual([]);
     expect(merged.listedKeys).toEqual(new Set(["DB"]));
     expect(merged.rejected).toEqual(["db: endpoint 가 비어 있음"]);
+  });
+});
+
+describe("mergeConfluenceInstances", () => {
+  const ENV_CONFLUENCE: NodeJS.ProcessEnv = {
+    CONFLUENCE_INSTANCES: "cloud",
+    CONFLUENCE_CLOUD_BASE_URL: "https://cloud.example.test/rest/api",
+    CONFLUENCE_CLOUD_TOKEN_ENC: "enc-cloud",
+  };
+  const WIKI_TOKEN = { CONFLUENCE_WIKI_TOKEN_ENC: "enc-wiki" };
+  const WIKI_CONFIG = {
+    key: "wiki",
+    baseUrl: "https://wiki.example.test/rest/api",
+    authUser: null,
+    tokenEnc: "enc-wiki",
+    spaceAllowlist: ["SP"],
+  };
+
+  it("DB 에만 있는 row 는 env credential 로 env 대상 뒤에 붙는다", () => {
+    const merged = mergeConfluenceInstances(
+      { ...ENV_CONFLUENCE, ...WIKI_TOKEN },
+      [confluenceRow()],
+    );
+
+    expect(merged.instances.map((i) => i.key)).toEqual(["cloud", "wiki"]);
+    expect(merged.instances[1]).toEqual(WIKI_CONFIG);
+    expect(merged.listedKeys).toEqual(new Set(["CLOUD", "WIKI"]));
+  });
+
+  it.each([
+    ["있으면 Basic 계정으로 쓴다", " kim@example.test ", "kim@example.test"],
+    ["공백이면 null 이다", "  ", null],
+  ])("_AUTH_USER 가 %s", (_label, authUser, expected) => {
+    const merged = mergeConfluenceInstances(
+      { ...WIKI_TOKEN, CONFLUENCE_WIKI_AUTH_USER: authUser },
+      [confluenceRow()],
+    );
+
+    expect(merged.instances[0].authUser).toBe(expected);
+  });
+
+  it("충돌하면 env 가 이긴다_n", () => {
+    const merged = mergeConfluenceInstances(ENV_CONFLUENCE, [
+      confluenceRow({ instanceKey: "CLOUD" }),
+    ]);
+
+    expect(merged.instances.map((i) => i.baseUrl)).toEqual([
+      "https://cloud.example.test/rest/api",
+    ]);
+    expect(merged.rejected).toEqual(["CLOUD: env 정의 우선 (DB row 무시)"]);
+  });
+
+  it("비활성 row 는 빠진다_n", () => {
+    const merged = mergeConfluenceInstances(WIKI_TOKEN, [
+      confluenceRow({ active: false }),
+    ]);
+
+    expect(merged.instances).toEqual([]);
+    expect(merged.listedKeys).toEqual(new Set());
+  });
+
+  it("credential 이 없는 row 는 대상이 아니지만 목록에 남는다_n", () => {
+    const merged = mergeConfluenceInstances({}, [confluenceRow()]);
+
+    expect(merged.instances).toEqual([]);
+    expect(merged.listedKeys).toEqual(new Set(["WIKI"]));
+    expect(merged.rejected).toEqual([
+      "wiki: 필수 env 부재 — CONFLUENCE_WIKI_TOKEN_ENC",
+    ]);
+  });
+
+  it("GitHub row 는 읽지 않는다_n", () => {
+    const merged = mergeConfluenceInstances(WIKI_TOKEN, [
+      row({ instanceKey: "wiki" }),
+    ]);
+
+    expect(merged.instances).toEqual([]);
   });
 });
