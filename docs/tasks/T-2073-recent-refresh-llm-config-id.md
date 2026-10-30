@@ -2,7 +2,11 @@
 id: T-2073
 title: 최근 N일 재수집 ⑤ — 기본 provider 의 config id 로 평가해 활동 있는 좌표가 실제로 저장되게 한다
 phase: P7
-status: READY
+status: DONE
+completedAt: 2026-10-30
+mergedAs: 9e888f07
+prNumber: 1634
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 90
