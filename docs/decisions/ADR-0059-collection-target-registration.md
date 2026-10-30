@@ -93,6 +93,28 @@ REQ-073(RBAC) 세 row 뿐이다. 세 row 모두 `PLANNED` 이고 착수 slice �
   곧 env instance key 이며, 수집 시점에 `GITHUB_<KEY 대문자>_TOKEN_ENC` /
   `CONFLUENCE_<KEY 대문자>_TOKEN_ENC` 를 조립해 찾는다 — 이름 조립 규칙은 기존
   `githubEnvName` / `confluenceEnvName` 을 재사용하고 새 규칙을 만들지 않는다.
+- **등록 row 의 token 은 허용 host 에만 나간다 (T-2065~T-2068, 2026-10-31 결정).** 수집 시 row 의
+  `endpoint` 를 `GITHUB_<KEY 대문자>_ALLOWED_HOST` / `CONFLUENCE_<KEY 대문자>_ALLOWED_HOST` 와 비교해 일치할
+  때만 대상으로 삼는다. 이름 조립은 `_TOKEN_ENC` 와 같고, 값은 token 과 함께 배포가 소유한다. 규칙은 다음과
+  같다 (정본 [target-host-guard.ts](../../src/collection-target/target-host-guard.ts)).
+  - **fail closed**: 미설정 · 형식 오류 · 불일치면 token 을 복호하지 않고 아무 요청도 보내지 않는다.
+  - **비교**: 문자열이 아니라 URL 파서의 host 를 비교한다. 값은 host 1 개이며 목록 · wildcard 가 아니다.
+    subdomain · suffix 는 불일치다. 대소문자는 무시한다.
+  - **port**: https 기본 443 만 생략과 같다. `host` 는 443 만, `host:8443` 은 그 port 만 허용한다.
+  - **끝 점**: 정규화하지 않는다. `host.` 와 `host` 는 DNS 해석이 다를 수 있어 다른 host 다.
+  - **scheme**: Confluence 는 `https://` URL, GitHub 는 `host[:port]` 또는 `https://host[:port]` 만 받는다.
+    GitHub builder 는 `http://` 를 지우고 https 로 보내 평문 경로는 없었으나, 입력 의도와 달라 거부한다.
+    userinfo · query · fragment 와 GitHub 의 path 도 거부한다.
+  - **정규화 값 사용**: 통과한 row 는 검사한 정규화 값으로 요청한다. 검사와 요청이 파서 차이로 갈라지지 않는다.
+  - **거부는 "미설정" 이 아니다**: 등록된 대상이므로 §Decision 3 의 credential 부재와 같이 자동 평가의 저장
+    판정에서 실패로 쳐 좌표를 비운다. 거부는 type · key · 사유로 warn 로그에 남고 token · endpoint 원문은 남지 않는다.
+  - **env 정의 대상은 검사하지 않는다.** 좌표와 token 을 배포가 함께 소유해 이 위험이 없고 기존 동작을 바꾸지 않는다.
+  - **redirect**: adapter 는 실 fetch 의 기본 redirect 를 쓴다. fetch 는 다른 origin 으로 갈 때 Authorization 을
+    지우므로 코드를 바꾸지 않고 [registered-target-redirect.spec.ts](../../src/collection-target/registered-target-redirect.spec.ts)
+    로 고정한다. `redirect: "error"` 는 같은 host 의 저장소 이름 변경 301 까지 끊는다. 다만 다른 host 로 redirect 된
+    응답은 인증 없이 받은 그대로 수집 결과가 된다 (token 유출은 아니다).
+  - **등록 · 수정 시점 검증은 두지 않는다.** 일치 여부를 응답에 내면 env 설정을 알리는 oracle 이 된다. 수집 시점 검사가
+    enforcement 다. 그래서 일치하지 않는 등록도 201 / 200 으로 성공한다.
 - **API 응답에 노출되는 것은 `instanceKey` 이름뿐**이며 이는 실값이 아니라 식별자다. token
   존재 여부 flag 조차 본 ADR 범위에서는 노출하지 않는다(그 노출 여부 판단은 §Follow-ups (b)).
 
@@ -238,11 +260,15 @@ PATCH · DELETE) 이며, 기존 `RolesGuard` 의 `ROLE_HIERARCHY` 승격 매핑�
   저장될 수 있다.
 - **(d) 정체성 축 PATCH 금지로 정정 동선이 2 회 왕복** — `type` · `instanceKey` 오타는
   DELETE + POST 로만 고칠 수 있어 UI 가 그 2 단계를 사용자에게 숨기는 부담을 진다.
-- **(e) Admin 이 고른 host 로 env token 이 나갈 수 있다 (owner 판단 대기)** — `endpoint` 는 Admin 이
-  편집하고 형식 제약이 없으며, 수집 시 `<KEY>_TOKEN_ENC` 를 복호해 그 host 로 보낸다. env 목록의 key 는
-  env 우선으로 보호되나, 등록 대상용으로 env 에 둔 token 은 Admin 이 임의 host 로 보낼 수 있다 (Confluence 는
-  `http://` 평문 전송도 가능하다). 앱 권한으로 배포 secret 을 얻는 경로다. 완화안은 key 별 허용 host 를 env 에
-  두는 것이나 새 운영 계약이라 T-2059~T-2064 범위 밖이다.
+- **(e) Admin 이 고른 host 로 env token 이 나갈 수 있었다 (T-2065~T-2068 로 봉합, 결정은 §Decision 2)** —
+  `endpoint` 는 Admin 이 편집하고 형식 제약이 없어, 등록 대상용으로 env 에 둔 token 을 임의 host 로 보낼 수 있었다.
+  key 별 허용 host env 로 fail closed 한다. 대가와 잔여는 다음과 같다.
+  - **새 배포 계약**: 등록 row 를 쓰는 배포는 key 마다 `*_ALLOWED_HOST` 를 넣어야 한다. 넣기 전에는 그 row 가 수집되지
+    않는다. 이 값을 바꾸는 권한은 배포 권한이다.
+  - **수동 경로의 저장 판정 (owner 판단 대기)**: `POST /period` · `POST /collect` 는 token 규칙을 따르지만 저장 판정이
+    없다. 거부 row 만 가진 인원도 빈 좌표를 저장하고, first-write-wins 라서 자동 평가가 재기록하지 못한다
+    (`reevaluate` 로 복구). credential 부재 row 의 기존 동작과 같다.
+  - **허용 host 의 진실성은 방어하지 않는다**: 허용 host 자체의 DNS 탈취 · 서버 침해 · 그 서버의 redirect 응답은 범위 밖이다.
 
 ## Alternatives considered
 
