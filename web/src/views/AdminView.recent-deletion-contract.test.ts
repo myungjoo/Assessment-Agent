@@ -173,11 +173,12 @@ describe('AdminView — 재평가 트리거 web↔backend 계약 drift guard (T-
     expect(ROUTE).not.toBe('');
     expect(RD_CONTRACT.method).not.toBeNull();
     expect(RD).not.toBeNull();
-    expect(DTO_FIELDS.required.size).toBeGreaterThan(0);
+    expect(DTO_FIELDS.optional.size).toBeGreaterThan(0);
     // 빈 소스 입력 시 추출기는 null·빈 집합을 내고, 대조는 통과가 아니라 '추출 실패' 사유를 낸다.
     expect(extractControllerRoute('')).toBeNull();
     expect(extractHandlerMethods('')).toEqual({});
     expect(extractDtoFields('', 'RecentDeletionDto').required.size).toBe(0);
+    expect(extractDtoFields('', 'RecentDeletionDto').optional.size).toBe(0);
     expect(sliceReEvaluateRunner('')).toBe('');
     const empty: BackendContract = { ...RD_CONTRACT, route: extractControllerRoute('') };
     const fired = { path: BASE, method: 'POST', bodyKeys: new Set(['instants']), body: {} } as WebFire;
@@ -213,14 +214,13 @@ describe('AdminView — 재평가 트리거 web↔backend 계약 drift guard (T-
     expect(RD_CONTRACT.method).toBe('POST'); // backend @Post(GET/PATCH/DELETE 아님)
     expect(fired?.method).toBe(RD_CONTRACT.method);
   });
-  it('web 발사 body({instants,days})가 backend RecentDeletionDto 필드 집합과 정합한다 — instants 필수·days optional (happy-path — body 필드 정합)', async () => {
+  it('web 발사 body 가 backend RecentDeletionDto 필드 집합과 정합한다 — 필수 필드 없음·days optional (happy-path — body 필드 정합)', async () => {
     const fired = await fireReEvaluate(PERSON_ID, 7);
-    expect([...DTO_FIELDS.required]).toEqual(['instants']);
-    expect([...DTO_FIELDS.optional]).toEqual(['days']);
+    expect([...DTO_FIELDS.required]).toEqual([]);
+    expect([...DTO_FIELDS.optional]).toContain('days');
     const declared = new Set([...DTO_FIELDS.required, ...DTO_FIELDS.optional]);
     expect([...(fired as WebFire).bodyKeys].every((key) => declared.has(key))).toBe(true); // 초과 키 0
-    expect([...DTO_FIELDS.required].every((key) => (fired as WebFire).bodyKeys.has(key))).toBe(true); // 필수 누락 0
-    expect([...(fired as WebFire).bodyKeys].sort()).toEqual(['days', 'instants']);
+    expect((fired as WebFire).body.days).toBe(7);
   });
   it('buildRecentDeletionPath("a/b") 가 personId 를 encodeURIComponent 로 인코딩해 세그먼트가 깨지지 않는다 (happy-path — 인코딩)', () => {
     expect(buildRecentDeletionPath('a/b')).toBe(`${BASE}/${LITERAL}/a%2Fb`);
@@ -265,8 +265,8 @@ describe('AdminView — 재평가 트리거 web↔backend 계약 drift guard (T-
     expect(diffContract(fired as WebFire, { ...RD_CONTRACT, subPath: '' }, PERSON_ID)).toEqual([expect.stringContaining('path 불일치')]);
   });
   it.each<[string, (fired: WebFire) => WebFire | BackendContract, string]>([
-    ['backend DTO 에서 instants 필수 소실(web 은 여전히 instants 발사)', () => ({ ...RD_CONTRACT, required: new Set(['days']), optional: new Set<string>() }), 'body 초과 키'],
-    ['web 이 필수 instants 를 누락', (fired) => ({ ...fired, bodyKeys: new Set(['days']) }), 'body 필수 누락'],
+    ['backend DTO 에서 days 소실', () => ({ ...RD_CONTRACT, required: new Set<string>(), optional: new Set(['scope']) }), 'body 초과 키'],
+    ['backend DTO 가 새 필수 필드를 요구', () => ({ ...RD_CONTRACT, required: new Set(['scope']) }), 'body 필수 누락'],
   ])('%s 하면 body 필드 대조가 불일치로 잡힌다 (negative (f) — body 필드 drift)', async (_label, mutate, expected) => {
     const fired = await fireReEvaluate(PERSON_ID, 7);
     const mutated = mutate(fired as WebFire);

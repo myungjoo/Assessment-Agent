@@ -27,25 +27,17 @@ import {
   IsPositive,
 } from "class-validator";
 
-// 삭제 후보 instant 배열의 application-layer 상한. 비정상적으로 큰 배열(수십만 원소)을
-// 거부해 DoS / 메모리 폭주를 막는다. 실 도메인 상한이 아니라 방어적 cap 이며, 실제 삭제
-// 범위는 runner 의 buildRecentDeletionPlan 이 window 로 필터링한다(상한 밖 instant 는
-// 어차피 toKeep). 1000 은 "최근 30일 × 합리적 일일 결과 수" 를 충분히 덮는 여유값.
+// 비정상적으로 큰 배열을 거부하는 방어적 상한.
 const INSTANTS_MAX_SIZE = 1000;
 
 export class RecentDeletionDto {
-  // 삭제 후보 instant 의 ISO 8601 문자열 배열. @IsArray 로 배열 형 강제, @IsISO8601
-  // (each:true) 로 각 원소가 유효한 ISO 8601 datetime string 임을 검증, @ArrayMaxSize 로
-  // 비정상적으로 큰 배열 거부(위 INSTANTS_MAX_SIZE 근거). controller 가 각 원소를
-  // new Date(s) 로 매핑해 runner 에 전달한다.
-  //
-  // 빈 배열([])은 허용한다 — runner(runRecentDeletion → buildRecentDeletionPlan)가
-  // toDelete 가 비면 삭제/재수집 없이 no-op 요약을 반환하는 정상 경로이기 때문이다
-  // (error 아님). 따라서 @ArrayNotEmpty 를 두지 않는다.
+  // 사용하지 않는다. 대상 row 는 서버가 찾으며 값은 runner 로 전달되지 않는다. web 전환 기간에만
+  // 받고 후속 task 에서 제거한다.
+  @IsOptional()
   @IsArray()
   @ArrayMaxSize(INSTANTS_MAX_SIZE)
   @IsISO8601({}, { each: true })
-  instants!: string[];
+  instants?: string[];
 
   // 최근 며칠을 삭제 대상으로 삼을지(선택). 미지정 시 runner 기본값(DEFAULT_DAYS=1).
   // @IsOptional 로 미지정 허용, @IsInt + @IsPositive 로 정수·양수 기본 검증만 한다.
