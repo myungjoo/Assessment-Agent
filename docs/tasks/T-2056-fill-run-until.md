@@ -2,7 +2,11 @@
 id: T-2056
 title: 불완전 수집 저장 차단 ⑦ — 미평가 fill-run 좌표에 기간 끝 until 전달
 phase: P7
-status: PLANNED
+status: DONE
+completedAt: 2026-10-30
+mergedAs: b5ef84c3
+prNumber: 1617
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-037, REQ-038]
 estimatedDiff: 90
