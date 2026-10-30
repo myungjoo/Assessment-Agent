@@ -2,7 +2,11 @@
 id: T-2061
 title: 등록 수집 대상 실효화 ③ — GithubInstanceClient 가 등록 대상의 key 를 해석한다
 phase: P7
-status: PLANNED
+status: DONE
+completedAt: 2026-10-30
+mergedAs: 61dec7b0
+prNumber: 1622
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-070, REQ-072]
 estimatedDiff: 259
