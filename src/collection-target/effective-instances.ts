@@ -5,6 +5,14 @@
 import type { CollectionTarget } from "@prisma/client";
 
 import {
+  CONFLUENCE_AUTH_USER_SUFFIX,
+  CONFLUENCE_INSTANCES_ENV,
+  CONFLUENCE_TOKEN_ENC_SUFFIX,
+  confluenceEnvName,
+  type ConfluenceInstanceConfig,
+  resolveConfluenceInstances,
+} from "../confluence/confluence-instance-config";
+import {
   GITHUB_INSTANCES_ENV,
   GITHUB_TOKEN_ENC_SUFFIX,
   githubEnvName,
@@ -22,7 +30,8 @@ export interface EffectiveInstances<T> {
   listedKeys: Set<string>;
 }
 
-const normalizeInstanceKey = (key: string): string => key.trim().toUpperCase();
+export const normalizeInstanceKey = (key: string): string =>
+  key.trim().toUpperCase();
 
 const parseListedKeys = (raw: string | undefined): Set<string> =>
   new Set(
@@ -107,6 +116,30 @@ export function mergeGithubInstances(
       orgs: cleanList(row.orgs),
       repos: cleanList(row.repos),
       tokenEnc,
+    }),
+  );
+}
+
+/** env 와 등록 row 를 합친 Confluence 수집 대상을 계산한다. */
+export function mergeConfluenceInstances(
+  env: NodeJS.ProcessEnv,
+  rows: CollectionTargetRow[],
+): EffectiveInstances<ConfluenceInstanceConfig> {
+  return mergeRegistered(
+    "CONFLUENCE",
+    resolveConfluenceInstances(env),
+    env[CONFLUENCE_INSTANCES_ENV],
+    rows,
+    (key) => confluenceEnvName(key, CONFLUENCE_TOKEN_ENC_SUFFIX),
+    env,
+    (key, row, tokenEnc) => ({
+      key,
+      baseUrl: row.endpoint.trim(),
+      authUser:
+        env[confluenceEnvName(key, CONFLUENCE_AUTH_USER_SUFFIX)]?.trim() ||
+        null,
+      tokenEnc,
+      spaceAllowlist: cleanList(row.spaces),
     }),
   );
 }

@@ -4,6 +4,8 @@
 // GithubCollectionSpecService(async)만 jest mock 으로 주입한다(Q-0025 deferred 정합 —
 // 실 GitHub/Confluence 호출 0 / 실 token 0). env 는 임의 map literal 로 주입.
 
+import type { CollectionTargetRow } from "../collection-target/effective-instances";
+
 import {
   assessCollectionCoverage,
   CollectionSpecService,
@@ -222,6 +224,97 @@ describe("assessCollectionCoverage", () => {
       complete: false,
       unavailableKeys,
     });
+  });
+});
+
+describe("assessCollectionCoverage — 등록 대상 (ADR-0059 §Decision 3)", () => {
+  const ROW: CollectionTargetRow = {
+    type: "GITHUB",
+    instanceKey: "db",
+    endpoint: "db.example.test",
+    orgs: [],
+    repos: ["o/r"],
+    spaces: [],
+    active: true,
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+  };
+  const DB_TOKEN = { GITHUB_DB_TOKEN_ENC: "t" };
+  const OK = { complete: true, unavailableKeys: [] };
+  const assess = (
+    env: NodeJS.ProcessEnv,
+    rows: CollectionTargetRow[],
+    ...services: string[]
+  ) => assessCollectionCoverage(identities(...services), env, rows);
+
+  it("DB 에만 있는 쓸 수 있는 대상의 식별자는 완전하다", () => {
+    expect(assess(DB_TOKEN, [ROW], "DB")).toEqual(OK);
+  });
+
+  it("DB 대상은 env 대상과 함께 판정한다", () => {
+    expect(assess({ ...COM, ...DB_TOKEN }, [ROW], "com", "db")).toEqual(OK);
+  });
+
+  it("DB GitHub 대상이 있으면 목록에 없는 key 가 저장을 막지 않는다", () => {
+    expect(assess(DB_TOKEN, [ROW], "db", "neverlisted")).toEqual(OK);
+  });
+
+  it("credential 없는 DB 대상의 식별자는 미설정이 아니라 실패다_n", () => {
+    expect(assess(COM, [ROW], "com", "db")).toEqual({
+      complete: false,
+      unavailableKeys: ["DB"],
+    });
+  });
+
+  it.each<[string, CollectionTargetRow]>([
+    ["repo · org 0", { ...ROW, repos: [], orgs: [] }],
+    ["malformed repo", { ...ROW, repos: ["o/r", "a/b/c"] }],
+    ["빈 endpoint", { ...ROW, endpoint: " " }],
+  ])("%s 인 DB 대상의 식별자는 실패다_n", (_label, row) => {
+    expect(assess({ ...COM, ...DB_TOKEN }, [row], "com", "db")).toEqual({
+      complete: false,
+      unavailableKeys: ["DB"],
+    });
+  });
+
+  it("SPACE 0 인 DB Confluence 대상의 식별자는 실패다_n", () => {
+    const row = { ...ROW, type: "CONFLUENCE", spaces: [] };
+
+    expect(
+      assess({ ...COM, CONFLUENCE_DB_TOKEN_ENC: "t" }, [row], "com", "db"),
+    ).toEqual({ complete: false, unavailableKeys: ["DB"] });
+  });
+
+  it("비활성 대상의 식별자는 운영자가 제외한 것이므로 다른 대상을 막지 않는다", () => {
+    expect(
+      assess({ ...COM, ...DB_TOKEN }, [{ ...ROW, active: false }], "com", "db"),
+    ).toEqual(OK);
+  });
+
+  it("비활성 대상의 식별자만 있으면 수집할 것이 없어 불완전하다_n", () => {
+    expect(assess(DB_TOKEN, [{ ...ROW, active: false }], "db").complete).toBe(
+      false,
+    );
+  });
+
+  it("비활성 row 는 같은 key 의 env 대상을 끄지 못한다", () => {
+    expect(
+      assess(COM, [{ ...ROW, instanceKey: "com", active: false }], "com"),
+    ).toEqual(OK);
+  });
+
+  it("env 목록에 있으나 쓸 수 없는 key 는 row 로 복구되지 않는다_n", () => {
+    const env = { ...DB_TOKEN, GITHUB_INSTANCES: "db" };
+
+    expect(assess(env, [ROW], "db")).toEqual({
+      complete: false,
+      unavailableKeys: ["DB"],
+    });
+  });
+
+  it("row 인자를 생략하면 env 만으로 판정한다", () => {
+    expect(assessCollectionCoverage(identities("db"), DB_TOKEN).complete).toBe(
+      false,
+    );
   });
 });
 
