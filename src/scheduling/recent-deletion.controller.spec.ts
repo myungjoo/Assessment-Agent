@@ -35,10 +35,11 @@ const RUN_RESULT: RecentRefreshStatus = {
 // RecentDeletionRunnerService mock factory.
 function buildRunnerMock(): {
   runner: RecentDeletionRunnerService;
-  runnerMock: { startRefresh: jest.Mock };
+  runnerMock: { startRefresh: jest.Mock; refreshStatus: jest.Mock };
 } {
   const runnerMock = {
     startRefresh: jest.fn(),
+    refreshStatus: jest.fn(),
   };
   return {
     runner: runnerMock as unknown as RecentDeletionRunnerService,
@@ -87,6 +88,21 @@ describe("RecentDeletionController (unit)", () => {
     });
 
     expect(runnerMock.startRefresh.mock.calls[0]).toEqual([PERSON_ID, 1]);
+  });
+
+  it("GET recent-deletion — refreshStatus 를 그대로 반환한다", () => {
+    const { runner, runnerMock } = buildRunnerMock();
+    const status = {
+      personId: PERSON_ID,
+      running: false,
+      result: { deletedCount: 1 },
+    };
+    runnerMock.refreshStatus.mockReturnValueOnce(status);
+
+    expect(
+      new RecentDeletionController(runner).recentDeletionStatus(PERSON_ID),
+    ).toEqual(status);
+    expect(runnerMock.refreshStatus).toHaveBeenCalledWith(PERSON_ID);
   });
 
   it("POST recent-deletion — startRefresh 의 reject 를 삼키지 않는다_n", async () => {
