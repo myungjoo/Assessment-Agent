@@ -153,16 +153,20 @@ function toFire(path: string, options: RequestOptions): WebFire {
 // 러너를 mock deps 로 직접 호출해 **실 발사 인자** 를 캡처한다. falsy personId 는 미발사(undefined).
 async function fireReEvaluate(personId: string, days: number): Promise<WebFire | undefined> {
   let fired: WebFire | undefined;
-  const deps: ReEvaluationDeps = {
-    post: async (path, options) => {
+  // get · wait · setResult 는 결과 조회 slice(T-2079)의 deps 다.
+  const deps = {
+    post: async (path: string, options: RequestOptions) => {
       fired = toFire(path, options);
       return undefined;
     },
+    get: async () => ({ running: false, result: null }),
+    wait: async () => undefined,
+    setResult: () => undefined,
     describeError: () => '',
     submitting: false,
     setSubmitting: () => {},
     setError: () => {},
-  };
+  } as ReEvaluationDeps;
   await runReEvaluate(personId, days, deps);
   return fired;
 }
@@ -214,13 +218,13 @@ describe('AdminView — 재평가 트리거 web↔backend 계약 drift guard (T-
     expect(RD_CONTRACT.method).toBe('POST'); // backend @Post(GET/PATCH/DELETE 아님)
     expect(fired?.method).toBe(RD_CONTRACT.method);
   });
-  it('web 발사 body 가 backend RecentDeletionDto 필드 집합과 정합한다 — 필수 필드 없음·days optional (happy-path — body 필드 정합)', async () => {
+  it('web 발사 body({days})가 backend RecentDeletionDto 필드 집합과 정합한다 — 필수 필드 없음·days optional (happy-path — body 필드 정합)', async () => {
     const fired = await fireReEvaluate(PERSON_ID, 7);
     expect([...DTO_FIELDS.required]).toEqual([]);
     expect([...DTO_FIELDS.optional]).toContain('days');
     const declared = new Set([...DTO_FIELDS.required, ...DTO_FIELDS.optional]);
     expect([...(fired as WebFire).bodyKeys].every((key) => declared.has(key))).toBe(true); // 초과 키 0
-    expect((fired as WebFire).body.days).toBe(7);
+    expect((fired as WebFire).body).toEqual({ days: 7 }); // client 가 삭제 대상을 고르지 않는다
   });
   it('buildRecentDeletionPath("a/b") 가 personId 를 encodeURIComponent 로 인코딩해 세그먼트가 깨지지 않는다 (happy-path — 인코딩)', () => {
     expect(buildRecentDeletionPath('a/b')).toBe(`${BASE}/${LITERAL}/a%2Fb`);
