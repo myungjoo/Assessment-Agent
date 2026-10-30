@@ -141,6 +141,7 @@ export class GithubCollectionService {
           // 새 emit 경로를 만들지 않고 이 source/endpoint 만 건너뛴다(부분 가용성 우선).
           const noContent =
             error instanceof GithubDomainError &&
+            error.status !== undefined &&
             error.status === NO_CONTENT_STATUS[endpoint];
           tally[noContent ? "succeeded" : "failed"] += 1;
           continue;

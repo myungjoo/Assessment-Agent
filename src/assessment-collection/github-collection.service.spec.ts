@@ -336,6 +336,21 @@ describe("GithubCollectionService", () => {
       });
     });
 
+    it.each(["commits", "pulls", "issues"])(
+      "%s 의 status 없는 GithubDomainError(transport) 는 수집 장애로 센다_n",
+      async (suffix) => {
+        const { service } = makeClientMock((_key, path) => {
+          if (path.endsWith(suffix)) {
+            throw new GithubDomainError("transport-error", undefined, "x");
+          }
+          return [];
+        });
+        const tally = { succeeded: 0, failed: 0 };
+        await service.collectGithubActivities(SOURCE, tally);
+        expect(tally).toEqual({ succeeded: 2, failed: 1 });
+      },
+    );
+
     it("status 가 없는 일반 Error 는 수집 장애로 센다_n", async () => {
       const { service } = makeClientMock((_key, path) => {
         if (isPullsPath(path)) throw new Error("network");

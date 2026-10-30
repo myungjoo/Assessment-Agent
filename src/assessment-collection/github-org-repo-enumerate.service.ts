@@ -52,7 +52,7 @@ export class GithubOrgEnumerateService {
         tally.succeeded += 1;
         for (const raw of rawItems) {
           const repo = mapRepoName(raw);
-          // malformed(repo 이름 추출 불가) item 은 skip(throw 0).
+          // malformed(repo 이름 추출 불가) item 은 skip(throw 0). 호출은 성공이라 tally 무관.
           if (repo !== null) {
             sources.push({
               instanceKey: target.instanceKey,
