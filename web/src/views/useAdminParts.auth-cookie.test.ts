@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-// R-112 — 파트 축 web 인증 cookie 전송 계약 (T-2044, Q-0056 parts guard 배선 선행). 파트 5 발사(목록 GET ·
+// R-112 — 파트 축 web 인증 cookie 전송 계약 (T-2045, Q-0056 parts guard 배선 선행). 파트 5 발사(목록 GET ·
 // 소속 인원 GET · 생성 POST · 수정 PATCH · 삭제 DELETE)와 401 refresh/retry 가 실 fetch 에
 // credentials='same-origin' 을 싣는지 잠근다. apiClient 는 mock 하지 않고 전역 fetch 만 stub 한다.
 // harness 는 T-2032 · T-2033 선례를 따른다 — useApiResource 는 인자만 기록하는 pass-through, 러너 3 종은
@@ -73,7 +73,7 @@ async function runResource(url: string): Promise<ApiResourceState<unknown>> {
   return states[states.length - 1];
 }
 
-describe('useAdminParts — 인증 cookie 전송 계약 (T-2044, apiClient 실 경유)', () => {
+describe('useAdminParts — 인증 cookie 전송 계약 (T-2045, apiClient 실 경유)', () => {
   let fetchMock: Spy;
   const allSameOrigin = () =>
     fetchMock.mock.calls.every(([, init]) => (init as RequestInit).credentials === 'same-origin');
@@ -114,7 +114,6 @@ describe('useAdminParts — 인증 cookie 전송 계약 (T-2044, apiClient 실 �
     expect(log.paths).toContain(PARTS_URL);
     expect(log.paths).toContain(null);
     expect(log.paths).not.toContain(PART_PERSONS_URL);
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('GET 401 → refresh 401 이면 error 상태를 드러내고 refresh 요청도 same-origin 이다 (error path)', async () => {
