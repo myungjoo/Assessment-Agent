@@ -23,12 +23,24 @@
 //   - test/jest-e2e.json 에 `maxWorkers: 1` 박제 (T-0059 amendment d350bde 의 smoke
 //     측 fix 동등 e2e 적용) — parts.e2e + persons.e2e 의 afterEach(truncateAll)
 //     cross-file race 차단. app.e2e 는 DB 미사용이라 영향 0.
+//
+// 인증 cookie 선탑재 (T-2044, Q-0056 parts 축 guard 배선 선행): B~D 요청 11 곳 전부에 tier
+// cookie 를 싣는다 — GET 은 `userCookie`, 그 외는 `adminCookie` (api.md parts 행). guard 배선보다
+// 먼저 싣는 선행이라 단언은 무변경이다.
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 
 import { PrismaService } from "../../src/persistence/prisma.service";
+import {
+  buildAuthCookie,
+  createAuthenticatedE2EApp,
+  reseedAuthenticatedActors,
+  type AuthenticatedE2EContext,
+} from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
-import { createE2EApp } from "../helpers/e2e-app-factory";
+
+const ADMIN_EMAIL = "parts-admin-actor@e2e.test";
+const USER_EMAIL = "parts-user-actor@e2e.test";
 
 // Part DTO 필수 2 field — happy endpoint (GET list / GET :id / POST) 공통.
 const PART_DTO_FIELDS = ["id", "name"] as const;
@@ -44,14 +56,22 @@ const expectDtoFields = (body: object): void => {
 };
 
 describe("E2E: /api/parts HTTP contract", () => {
+  let ctx: AuthenticatedE2EContext;
   let app: INestApplication;
   let prisma: PrismaService;
+  let adminCookie: string;
+  let userCookie: string;
 
   beforeAll(async () => {
-    // 부트스트랩 + applyGlobalMiddleware wire 는 createE2EApp 책임 (T-0090 박제).
-    const created = await createE2EApp();
-    app = created.app;
-    prisma = created.moduleRef.get<PrismaService>(PrismaService);
+    // 부트스트랩 + applyGlobalMiddleware wire 는 createE2EApp 책임 (T-0090 박제) — helper 가 감싼다.
+    ctx = await createAuthenticatedE2EApp([
+      { role: "Admin", email: ADMIN_EMAIL },
+      { role: "User", email: USER_EMAIL },
+    ]);
+    app = ctx.app;
+    prisma = ctx.prisma;
+    adminCookie = buildAuthCookie(ctx.tokens[ADMIN_EMAIL]);
+    userCookie = buildAuthCookie(ctx.tokens[USER_EMAIL]);
   });
 
   afterAll(async () => {
@@ -59,8 +79,10 @@ describe("E2E: /api/parts HTTP contract", () => {
     await prisma.$disconnect();
   });
 
+  // truncate 가 "User" 까지 비우므로 원본 id 그대로 actor 를 복원한다 (순서 고정).
   afterEach(async () => {
     await truncateAll(prisma);
+    await reseedAuthenticatedActors(ctx);
   });
 
   // -- B. Happy path (5 endpoint × status + header + body shape) -------------
@@ -68,7 +90,9 @@ describe("E2E: /api/parts HTTP contract", () => {
   it("GET /api/parts returns 200 with application/json array of Part DTOs", async () => {
     const seed = await prisma.part.create({ data: { name: "조직도파트A" } });
 
-    const response = await request(app.getHttpServer()).get("/api/parts");
+    const response = await request(app.getHttpServer())
+      .get("/api/parts")
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(200);
     expect(response.headers["content-type"]).toMatch(/application\/json/);
@@ -83,9 +107,9 @@ describe("E2E: /api/parts HTTP contract", () => {
   it("GET /api/parts/:id returns 200 with application/json single Part DTO", async () => {
     const seed = await prisma.part.create({ data: { name: "조직도파트B" } });
 
-    const response = await request(app.getHttpServer()).get(
-      `/api/parts/${seed.id}`,
-    );
+    const response = await request(app.getHttpServer())
+      .get(`/api/parts/${seed.id}`)
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(200);
     expect(response.headers["content-type"]).toMatch(/application\/json/);
@@ -106,9 +130,9 @@ describe("E2E: /api/parts HTTP contract", () => {
       data: { fullName: "김철수", email: "b@example.test", partId: part.id },
     });
 
-    const response = await request(app.getHttpServer()).get(
-      `/api/parts/${part.id}/persons`,
-    );
+    const response = await request(app.getHttpServer())
+      .get(`/api/parts/${part.id}/persons`)
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(200);
     expect(response.headers["content-type"]).toMatch(/application\/json/);
@@ -133,6 +157,7 @@ describe("E2E: /api/parts HTTP contract", () => {
   it("POST /api/parts returns 201 with created Part and persists to DB", async () => {
     const response = await request(app.getHttpServer())
       .post("/api/parts")
+      .set("Cookie", adminCookie)
       .send({ name: "조직도파트신규" });
 
     expect(response.status).toBe(201);
@@ -154,9 +179,9 @@ describe("E2E: /api/parts HTTP contract", () => {
   it("DELETE /api/parts/:id returns 204 with empty body", async () => {
     const seed = await prisma.part.create({ data: { name: "삭제대상파트" } });
 
-    const response = await request(app.getHttpServer()).delete(
-      `/api/parts/${seed.id}`,
-    );
+    const response = await request(app.getHttpServer())
+      .delete(`/api/parts/${seed.id}`)
+      .set("Cookie", adminCookie);
 
     expect(response.status).toBe(204);
     expect(response.body).toEqual({});
@@ -168,9 +193,9 @@ describe("E2E: /api/parts HTTP contract", () => {
   // -- C. 4xx error envelope (status + statusCode + message + error) --------
   // C.1 GET missing → 404 envelope. findUnique null → NotFoundException.
   it("GET /api/parts/:id with missing id returns 404 with envelope", async () => {
-    const response = await request(app.getHttpServer()).get(
-      "/api/parts/missing-id",
-    );
+    const response = await request(app.getHttpServer())
+      .get("/api/parts/missing-id")
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(404);
     expect(response.body).toMatchObject({
@@ -184,6 +209,7 @@ describe("E2E: /api/parts HTTP contract", () => {
   it("POST /api/parts with empty body returns 400 with envelope and validation message", async () => {
     const response = await request(app.getHttpServer())
       .post("/api/parts")
+      .set("Cookie", adminCookie)
       .send({});
 
     expect(response.status).toBe(400);
@@ -202,6 +228,7 @@ describe("E2E: /api/parts HTTP contract", () => {
   it("POST /api/parts with non-whitelisted field returns 400 with envelope and whitelist message", async () => {
     const response = await request(app.getHttpServer())
       .post("/api/parts")
+      .set("Cookie", adminCookie)
       .send({ name: "조직도파트X", extra: "forbidden" });
 
     expect(response.status).toBe(400);
@@ -217,9 +244,9 @@ describe("E2E: /api/parts HTTP contract", () => {
 
   // C.4 DELETE missing id (P2025) → 404 envelope. §F 권장 augment — negative 강화.
   it("DELETE /api/parts/:id with missing id (P2025) returns 404 with envelope", async () => {
-    const response = await request(app.getHttpServer()).delete(
-      "/api/parts/cuid-e2e-missing-delete",
-    );
+    const response = await request(app.getHttpServer())
+      .delete("/api/parts/cuid-e2e-missing-delete")
+      .set("Cookie", adminCookie);
 
     expect(response.status).toBe(404);
     expect(response.body).toMatchObject({
@@ -237,6 +264,7 @@ describe("E2E: /api/parts HTTP contract", () => {
 
     const response = await request(app.getHttpServer())
       .post("/api/parts")
+      .set("Cookie", adminCookie)
       .send({ name: "중복파트" });
 
     expect(response.status).toBe(409);
@@ -257,9 +285,9 @@ describe("E2E: /api/parts HTTP contract", () => {
       },
     });
 
-    const response = await request(app.getHttpServer()).delete(
-      `/api/parts/${part.id}`,
-    );
+    const response = await request(app.getHttpServer())
+      .delete(`/api/parts/${part.id}`)
+      .set("Cookie", adminCookie);
 
     expect(response.status).toBe(409);
     expect(response.body).toMatchObject({ statusCode: 409, error: "Conflict" });

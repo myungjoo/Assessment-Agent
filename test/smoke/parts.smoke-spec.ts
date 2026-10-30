@@ -35,28 +35,41 @@
 // 격리: 본 파일은 `.smoke-spec.ts` suffix 로 unit jest 의 testRegex (`.*\.spec\.ts$`)
 // 와 충돌하지 않으며, package.json 의 jest.testPathIgnorePatterns 에 `test/smoke/` 가
 // 추가돼 있어 `pnpm test` / `pnpm test:cov` 실행 시에는 본 파일이 picking 되지 않는다.
+//
+// 인증 cookie 선탑재 (T-2044, Q-0056 parts 축 guard 배선 선행): `createAuthenticatedE2EApp` 로
+// 부트해 parts 요청 10 곳 전부에 tier cookie 를 싣는다 — GET 은 `userCookie`, 그 외는
+// `adminCookie` (api.md parts 행). guard 배선보다 먼저 싣는 선행이라 단언은 무변경이다.
 import type { INestApplication } from "@nestjs/common";
-import { Test, type TestingModule } from "@nestjs/testing";
 import request from "supertest";
 
-import { AppModule } from "../../src/app.module";
 import { PrismaService } from "../../src/persistence/prisma.service";
+import {
+  buildAuthCookie,
+  createAuthenticatedE2EApp,
+  reseedAuthenticatedActors,
+  type AuthenticatedE2EContext,
+} from "../helpers/auth-e2e-helper";
 import { truncateAll } from "../helpers/db-truncate";
 
+const ADMIN_EMAIL = "parts-smoke-admin-actor@smoke.test";
+const USER_EMAIL = "parts-smoke-user-actor@smoke.test";
+
 describe("Smoke: /api/parts CRUD bootstrap", () => {
+  let ctx: AuthenticatedE2EContext;
   let app: INestApplication;
   let prisma: PrismaService;
+  let adminCookie: string;
+  let userCookie: string;
 
   beforeAll(async () => {
-    const moduleRef: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleRef.createNestApplication();
-    await app.init();
-
-    // 실 PrismaService 인스턴스를 DI container 에서 획득 — seed / truncate / disconnect 용.
-    prisma = moduleRef.get<PrismaService>(PrismaService);
+    ctx = await createAuthenticatedE2EApp([
+      { role: "Admin", email: ADMIN_EMAIL },
+      { role: "User", email: USER_EMAIL },
+    ]);
+    app = ctx.app;
+    prisma = ctx.prisma;
+    adminCookie = buildAuthCookie(ctx.tokens[ADMIN_EMAIL]);
+    userCookie = buildAuthCookie(ctx.tokens[USER_EMAIL]);
   });
 
   afterAll(async () => {
@@ -67,9 +80,11 @@ describe("Smoke: /api/parts CRUD bootstrap", () => {
   });
 
   // ADR-0004 §Cleanup 정책 박제 — 각 test 후 7 도메인 테이블 TRUNCATE ... RESTART
-  // IDENTITY CASCADE 로 초기화. test 간 state leak 0 보장.
+  // IDENTITY CASCADE 로 초기화. test 간 state leak 0 보장. truncate 가 "User" 까지 비우므로
+  // 원본 id 그대로 actor 를 복원한다 (순서 고정).
   afterEach(async () => {
     await truncateAll(prisma);
+    await reseedAuthenticatedActors(ctx);
   });
 
   // ---------------------------------------------------------------------------
@@ -85,7 +100,9 @@ describe("Smoke: /api/parts CRUD bootstrap", () => {
       data: { name: "조직도파트A" },
     });
 
-    const response = await request(app.getHttpServer()).get("/api/parts");
+    const response = await request(app.getHttpServer())
+      .get("/api/parts")
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(200);
     expect(Array.isArray(response.body)).toBe(true);
@@ -101,9 +118,9 @@ describe("Smoke: /api/parts CRUD bootstrap", () => {
       data: { name: "조직도파트B" },
     });
 
-    const response = await request(app.getHttpServer()).get(
-      `/api/parts/${seed.id}`,
-    );
+    const response = await request(app.getHttpServer())
+      .get(`/api/parts/${seed.id}`)
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(200);
     expect(response.body.id).toBe(seed.id);
@@ -134,9 +151,9 @@ describe("Smoke: /api/parts CRUD bootstrap", () => {
       },
     });
 
-    const response = await request(app.getHttpServer()).get(
-      `/api/parts/${part.id}/persons`,
-    );
+    const response = await request(app.getHttpServer())
+      .get(`/api/parts/${part.id}/persons`)
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(200);
     expect(Array.isArray(response.body)).toBe(true);
@@ -154,6 +171,7 @@ describe("Smoke: /api/parts CRUD bootstrap", () => {
   it("POST /api/parts returns 201 with created part", async () => {
     const response = await request(app.getHttpServer())
       .post("/api/parts")
+      .set("Cookie", adminCookie)
       .send({ name: "조직도파트신규" });
 
     expect(response.status).toBe(201);
@@ -175,9 +193,9 @@ describe("Smoke: /api/parts CRUD bootstrap", () => {
       data: { name: "삭제대상파트" },
     });
 
-    const response = await request(app.getHttpServer()).delete(
-      `/api/parts/${seed.id}`,
-    );
+    const response = await request(app.getHttpServer())
+      .delete(`/api/parts/${seed.id}`)
+      .set("Cookie", adminCookie);
 
     expect(response.status).toBe(204);
     // 204 No Content 는 body 가 없어야 함 — supertest 는 빈 객체 {} 로 표현.
@@ -195,9 +213,9 @@ describe("Smoke: /api/parts CRUD bootstrap", () => {
   // GET /api/parts/missing → 404. 실 DB 의 prisma.part.findUnique 가 null 반환 →
   // PartService.findById() 가 NotFoundException throw → Nest 의 404 mapping.
   it("GET /api/parts/missing-id returns 404", async () => {
-    const response = await request(app.getHttpServer()).get(
-      "/api/parts/missing-id",
-    );
+    const response = await request(app.getHttpServer())
+      .get("/api/parts/missing-id")
+      .set("Cookie", userCookie);
 
     expect(response.status).toBe(404);
   });
@@ -208,6 +226,7 @@ describe("Smoke: /api/parts CRUD bootstrap", () => {
   it("POST /api/parts with empty body returns 400 (validation)", async () => {
     const response = await request(app.getHttpServer())
       .post("/api/parts")
+      .set("Cookie", adminCookie)
       .send({});
 
     expect(response.status).toBe(400);
@@ -223,6 +242,7 @@ describe("Smoke: /api/parts CRUD bootstrap", () => {
   it("POST /api/parts with non-whitelisted field returns 400", async () => {
     const response = await request(app.getHttpServer())
       .post("/api/parts")
+      .set("Cookie", adminCookie)
       .send({
         name: "조직도파트X",
         extra: "forbidden",
@@ -255,6 +275,7 @@ describe("Smoke: /api/parts CRUD bootstrap", () => {
 
     const response = await request(app.getHttpServer())
       .post("/api/parts")
+      .set("Cookie", adminCookie)
       .send({ name: "중복방지파트" });
 
     expect(response.status).toBe(409);
@@ -278,9 +299,9 @@ describe("Smoke: /api/parts CRUD bootstrap", () => {
       },
     });
 
-    const response = await request(app.getHttpServer()).delete(
-      `/api/parts/${part.id}`,
-    );
+    const response = await request(app.getHttpServer())
+      .delete(`/api/parts/${part.id}`)
+      .set("Cookie", adminCookie);
 
     expect(response.status).toBe(409);
 
