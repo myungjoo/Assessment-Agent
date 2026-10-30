@@ -181,4 +181,33 @@ describe("GithubOrgEnumerateService.enumerateRepoSources", () => {
       ]);
     });
   });
+
+  describe("호출 tally", () => {
+    const TARGETS: GithubOrgEnumerateTarget[] = [
+      { instanceKey: "k", org: "empty" },
+      { instanceKey: "k", org: "bad" },
+    ];
+
+    it("repo 0 개인 org 는 성공, throw 한 org 는 실패로 센다", async () => {
+      const { service } = makeService((_key, path) => {
+        if (path === "orgs/bad/repos") throw new Error("403");
+        return [];
+      });
+      const tally = { succeeded: 0, failed: 0 };
+
+      await expect(
+        service.enumerateRepoSources(TARGETS, tally),
+      ).resolves.toEqual([]);
+
+      expect(tally).toEqual({ succeeded: 1, failed: 1 });
+    });
+
+    it("tally 를 넘기지 않아도 실패를 삼키고 throw 하지 않는다_n", async () => {
+      const { service } = makeService(() => {
+        throw new Error("500");
+      });
+
+      await expect(service.enumerateRepoSources(TARGETS)).resolves.toEqual([]);
+    });
+  });
 });

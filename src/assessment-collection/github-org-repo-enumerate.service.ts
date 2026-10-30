@@ -21,7 +21,10 @@ import { GithubInstanceClient } from "../github/github-instance-client.service";
 
 import { mapRepoName } from "./domain/github-repo-list.mapper";
 import { GithubOrgEnumerateTarget } from "./domain/github-repo-source";
-import { GithubRepoSource } from "./github-collection.service";
+import {
+  CollectionCallTally,
+  GithubRepoSource,
+} from "./github-collection.service";
 
 @Injectable()
 export class GithubOrgEnumerateService {
@@ -29,9 +32,11 @@ export class GithubOrgEnumerateService {
 
   // enumerateRepoSources — 각 mode A target 의 org 전체 repo 를 enumerate 해
   // `GithubRepoSource[]` 로 평탄화 반환한다. 빈 targets 면 빈 배열(client 호출 0).
-  // 한 target 이 throw 해도 전체는 throw 하지 않고 그 target 만 skip 한다.
+  // 한 target 이 throw 해도 전체는 throw 하지 않고 그 target 만 skip 한다. skip 은 tally 로
+  // 호출자에게 알린다 — 빈 org 와 열거 실패는 반환값만으로 구분되지 않는다.
   async enumerateRepoSources(
     targets: GithubOrgEnumerateTarget[],
+    tally: CollectionCallTally = { succeeded: 0, failed: 0 },
   ): Promise<GithubRepoSource[]> {
     const sources: GithubRepoSource[] = [];
 
@@ -44,9 +49,10 @@ export class GithubOrgEnumerateService {
           target.instanceKey,
           path,
         );
+        tally.succeeded += 1;
         for (const raw of rawItems) {
           const repo = mapRepoName(raw);
-          // malformed(repo 이름 추출 불가) item 은 skip(throw 0).
+          // malformed(repo 이름 추출 불가) item 은 skip(throw 0). 호출은 성공이라 tally 무관.
           if (repo !== null) {
             sources.push({
               instanceKey: target.instanceKey,
@@ -59,6 +65,7 @@ export class GithubOrgEnumerateService {
       } catch {
         // skip-and-continue — 기존 emit 은 wrapper 내부에서 이미 발생. 본 service 는
         // 새 emit 경로를 만들지 않고 이 target 만 건너뛴다(부분 가용성 우선).
+        tally.failed += 1;
         continue;
       }
     }

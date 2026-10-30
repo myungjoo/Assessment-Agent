@@ -6,6 +6,7 @@
 
 import { Logger } from "@nestjs/common";
 
+import { GithubDomainError } from "../github/github-adapter.service";
 import { GithubInstanceClient } from "../github/github-instance-client.service";
 
 import {
@@ -294,6 +295,70 @@ describe("GithubCollectionService", () => {
           ],
         }),
       ).resolves.toEqual([]);
+    });
+  });
+
+  describe("호출 tally — 내용 없음 응답과 수집 장애의 구분", () => {
+    const SOURCE = { sources: [{ instanceKey: "com", org: "o", repo: "r" }] };
+
+    function collectThrowing(endpointSuffix: string, status: number) {
+      const { service } = makeClientMock((_key, path) => {
+        if (path.endsWith(endpointSuffix)) {
+          throw new GithubDomainError("upstream-error", status, "x");
+        }
+        return [];
+      });
+      const tally = { succeeded: 0, failed: 0 };
+      return service.collectGithubActivities(SOURCE, tally).then(() => tally);
+    }
+
+    it.each([
+      ["빈 repo 의 commits 409", "commits", 409],
+      ["issue 를 끈 repo 의 issues 410", "issues", 410],
+    ])("%s 은 활동 0 건의 성공으로 센다", async (_label, suffix, status) => {
+      await expect(collectThrowing(suffix, status)).resolves.toEqual({
+        succeeded: 3,
+        failed: 0,
+      });
+    });
+
+    it.each([
+      ["commits 410", "commits", 410],
+      ["issues 409", "issues", 409],
+      ["pulls 409", "pulls", 409],
+      ["pulls 410", "pulls", 410],
+      ["commits 500", "commits", 500],
+      ["issues 403", "issues", 403],
+    ])("%s 은 수집 장애로 센다_n", async (_label, suffix, status) => {
+      await expect(collectThrowing(suffix, status)).resolves.toEqual({
+        succeeded: 2,
+        failed: 1,
+      });
+    });
+
+    it.each(["commits", "pulls", "issues"])(
+      "%s 의 status 없는 GithubDomainError(transport) 는 수집 장애로 센다_n",
+      async (suffix) => {
+        const { service } = makeClientMock((_key, path) => {
+          if (path.endsWith(suffix)) {
+            throw new GithubDomainError("transport-error", undefined, "x");
+          }
+          return [];
+        });
+        const tally = { succeeded: 0, failed: 0 };
+        await service.collectGithubActivities(SOURCE, tally);
+        expect(tally).toEqual({ succeeded: 2, failed: 1 });
+      },
+    );
+
+    it("status 가 없는 일반 Error 는 수집 장애로 센다_n", async () => {
+      const { service } = makeClientMock((_key, path) => {
+        if (isPullsPath(path)) throw new Error("network");
+        return [];
+      });
+      const tally = { succeeded: 0, failed: 0 };
+      await service.collectGithubActivities(SOURCE, tally);
+      expect(tally).toEqual({ succeeded: 2, failed: 1 });
     });
   });
 

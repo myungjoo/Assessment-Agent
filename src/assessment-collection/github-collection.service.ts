@@ -34,6 +34,7 @@
 // `GithubInstanceClient` 위에서만 unit-test 된다.
 import { Injectable, Logger } from "@nestjs/common";
 
+import { GithubDomainError } from "../github/github-adapter.service";
 import { GithubInstanceClient } from "../github/github-instance-client.service";
 
 import { GithubActivity } from "./domain/activity";
@@ -57,6 +58,13 @@ const COLLECT_ENDPOINTS: ReadonlyArray<{
   { endpoint: "pulls", suffix: "pulls" },
   { endpoint: "issues", suffix: "issues" },
 ];
+
+// endpoint 별 "내용 없음" 응답. 빈 repo 의 commits 는 409, issue 를 끈 repo 의 issues 는 410
+// 으로 온다. 수집 장애가 아니라 활동 0 건이므로 tally 에서 성공으로 센다.
+const NO_CONTENT_STATUS: Partial<Record<GithubActivityEndpoint, number>> = {
+  commits: 409,
+  issues: 410,
+};
 
 // GithubRepoSource — 단일 (instance, org, repo) 수집 단위. 한 Person 의 ServiceIdentity
 // 별 GitHub 수집 대상을 표현한다. since 는 adapter query 로 pass-through 만 된다(도출 0).
@@ -104,7 +112,7 @@ export class GithubCollectionService {
 
     for (const source of spec.sources) {
       const repoRef = `${source.org}/${source.repo}`;
-      for (const { suffix } of COLLECT_ENDPOINTS) {
+      for (const { endpoint, suffix } of COLLECT_ENDPOINTS) {
         const path = `repos/${source.org}/${source.repo}/${suffix}`;
         // per-source(endpoint 단위) 독립 try/catch — 한 호출의 throw(권한 부족 등)가
         // 다른 source/endpoint 수집을 막지 않도록 skip-and-continue.
@@ -128,10 +136,14 @@ export class GithubCollectionService {
               collected.push(activity);
             }
           }
-        } catch {
+        } catch (error) {
           // skip-and-continue — 기존 emit 은 wrapper 내부에서 이미 발생. 본 service 는
           // 새 emit 경로를 만들지 않고 이 source/endpoint 만 건너뛴다(부분 가용성 우선).
-          tally.failed += 1;
+          const noContent =
+            error instanceof GithubDomainError &&
+            error.status !== undefined &&
+            error.status === NO_CONTENT_STATUS[endpoint];
+          tally[noContent ? "succeeded" : "failed"] += 1;
           continue;
         }
       }
