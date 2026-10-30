@@ -41,4 +41,4 @@ plannerNote: P7 · 오너 지시 — 최근 N일 재수집 arc ⑨. 설계 결�
 
 ## Follow-ups
 
-- (planner 판정, 소비처 동반 의무 예외) `result` · `triggerDisabled` 의 소비처를 포함하면 `estimatedFiles` 7 로 5 파일 cap 을 넘는다. 소비처는 T-2078 (`adminScheduleRunners.ts` 폴링, `useAdminSchedule.ts`) · T-2079 (`AdminView.tsx` props 배선) 다.
+- (planner 판정, 소비처 동반 의무 예외) `result` · `triggerDisabled` 의 소비처를 포함하면 `estimatedFiles` 7 로 5 파일 cap 을 넘는다. 소비처는 T-2079 (`adminScheduleRunners.ts` 폴링, `useAdminSchedule.ts`) · T-2080 (`AdminView.tsx` props 배선) 다.

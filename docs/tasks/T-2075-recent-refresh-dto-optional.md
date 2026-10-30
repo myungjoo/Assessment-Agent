@@ -36,4 +36,4 @@ plannerNote: P7 · 오너 지시 — 최근 N일 재수집 arc ⑦. 설계 결�
 
 ## Out of Scope
 
-- web 본문 변경 (T-2077), `instants` 완전 제거 (T-2079).
+- web 본문 변경 (T-2078), `instants` 완전 제거 (T-2081).

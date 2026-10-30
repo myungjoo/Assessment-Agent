@@ -37,7 +37,7 @@ POST 가 아직 client 의 `instants` 로 no-op 또는 placeholder 수집을 한
 
 ## Out of Scope
 
-- GET 상태 · 실 row 교체 e2e (T-2074), DTO 에서 `instants` 제거 (T-2075), web (T-2076 이후), 사용처 없는 plan · select helper 제거 (마지막 task).
+- GET 상태 (T-2074), 실 row 교체 e2e (T-2076), `instants` 제거 (T-2081), web (T-2077 이후), 사용처 없는 plan · select helper 제거 (마지막 task).
 
 ## Follow-ups
 

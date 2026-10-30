@@ -36,7 +36,7 @@ Admin 패널의 "재수집 시작" 은 빈 `instants` 를 보내 no-op 이고, `
 
 ## Arc 순서
 
-① 본 task → ② runner 실행부 → ③ controller 전환 (`instants` 무시 · GET 상태) → ④ 실 경로 e2e → ⑤ DTO 에서 `instants` 제거 → ⑥ web 결과 표시 · 재시도 → ⑦ 인원 옵션 → ⑧ 사용처 없는 helper 제거 · 주석 · 문서.
+① 본 task → ② runner 실행부 (T-2070) → ③ runner 분기 test (T-2071) → ④ controller 전환 (T-2072) → ⑤ config id 평가 (T-2073) → ⑥ GET 상태 (T-2074) → ⑦ `instants` 선택화 (T-2075) → ⑧ 실 경로 e2e (T-2076) → ⑨ 패널 (T-2077) → ⑩ web 본문 (T-2078) → ⑪ 결과 조회 (T-2079) → ⑫ 인원 옵션 · 패널 배선 (T-2080) → ⑬ `instants` 제거 (T-2081) → ⑭ 사용처 없는 helper 제거 · 주석 · 문서 (T-2082).
 
 ## Required Reading
 
