@@ -1,13 +1,7 @@
 // effective-instances — env 의 instance 정의와 등록된 CollectionTarget row 를 합쳐 실제 수집
-// 대상 집합을 계산하는 부수효과 0 순수 함수 모듈 (ADR-0059 §Decision 3).
-//
-// 수집 대상 = env 결과 ∪ active row. 판정 규칙:
-//   - 충돌은 같은 (type, key) 가 env 목록과 DB 에 모두 있는 경우다. key 는 대소문자 · 앞뒤 공백을
-//     무시한다. env 목록에 오른 key 는 reject 됐어도 env 가 이긴다 (ADR-0059 §Alternatives).
-//   - active=false row 는 env 를 끄지 않는다. 합집합에서 row 쪽만 빠진다.
-//   - credential 은 §Decision 2 대로 env 에서만 읽는다. 찾지 못한 active row 는 instances 에서
-//     빠지지만 listedKeys 에는 남는다. 그래서 그 key 의 식별자는 "미설정" 이 아니라 실패다.
-//   - rejected 진단에는 key 와 env 이름만 적고 값은 적지 않는다.
+// 대상을 계산하는 순수 함수 (ADR-0059 §Decision 3). 규칙 표는 T-2059 task 파일이 정본이다.
+// 찾지 못한 credential 의 active row 는 instances 에서 빠지지만 listedKeys 에 남는다.
+// rejected 진단에는 key 와 env 이름만 적고 값은 적지 않는다.
 import type { CollectionTarget } from "@prisma/client";
 
 import {
@@ -18,17 +12,7 @@ import {
   resolveGithubInstances,
 } from "../github/github-instance-config";
 
-export type CollectionTargetRow = Pick<
-  CollectionTarget,
-  | "type"
-  | "instanceKey"
-  | "endpoint"
-  | "orgs"
-  | "repos"
-  | "spaces"
-  | "active"
-  | "createdAt"
->;
+export type CollectionTargetRow = Omit<CollectionTarget, "id" | "updatedAt">;
 
 export interface EffectiveInstances<T> {
   /** env 정의가 먼저, 그 뒤 등록 row 순서다. */

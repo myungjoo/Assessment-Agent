@@ -50,14 +50,12 @@ describe("mergeGithubInstances", () => {
 
   it("row 가 없으면 env 결과와 같다", () => {
     const merged = mergeGithubInstances(ENV_GITHUB, []);
-
     expect(merged.instances).toEqual([ENV_CONFIG]);
     expect(merged.listedKeys).toEqual(new Set(["ENV"]));
   });
 
   it("DB 에만 있는 active row 는 env 의 credential 로 대상이 된다", () => {
     const merged = mergeGithubInstances(DB_TOKEN, [row()]);
-
     expect(merged.instances).toEqual([DB_CONFIG]);
     expect(merged.listedKeys).toEqual(new Set(["DB"]));
   });
@@ -85,7 +83,6 @@ describe("mergeGithubInstances", () => {
     const env = { GITHUB_INSTANCES: "db", ...DB_TOKEN };
 
     const merged = mergeGithubInstances(env, [row()]);
-
     expect(merged.instances).toEqual([]);
     expect(merged.listedKeys).toEqual(new Set(["DB"]));
     expect(merged.rejected).toEqual([
@@ -96,7 +93,6 @@ describe("mergeGithubInstances", () => {
 
   it("비활성 row 는 대상도 목록도 아니다_n", () => {
     const merged = mergeGithubInstances(DB_TOKEN, [row({ active: false })]);
-
     expect(merged.instances).toEqual([]);
     expect(merged.listedKeys).toEqual(new Set());
   });
@@ -117,7 +113,6 @@ describe("mergeGithubInstances", () => {
     "credential 이 %s 인 active row 는 대상이 아니지만 목록에 남는다_n",
     (_label, env) => {
       const merged = mergeGithubInstances(env, [row()]);
-
       expect(merged.instances).toEqual([]);
       expect(merged.listedKeys).toEqual(new Set(["DB"]));
       expect(merged.rejected).toEqual([
@@ -141,14 +136,12 @@ describe("mergeGithubInstances", () => {
     const env = { ...ENV_GITHUB, GITHUB_INSTANCES: " other, Env	third ," };
 
     const merged = mergeGithubInstances(env, [row({ instanceKey: "ENV" })]);
-
     expect(merged.instances.map((i) => i.key)).toEqual(["Env"]);
     expect(merged.listedKeys).toEqual(new Set(["OTHER", "ENV", "THIRD"]));
   });
 
   it("공백뿐인 instanceKey row 는 없는 것으로 친다_n", () => {
     const merged = mergeGithubInstances(DB_TOKEN, [row({ instanceKey: "  " })]);
-
     expect(merged.instances).toEqual([]);
     expect(merged.listedKeys).toEqual(new Set());
   });
@@ -164,9 +157,32 @@ describe("mergeGithubInstances", () => {
   });
 
   it("같은 시각의 중복 row 는 key 코드 순으로 고른다", () => {
-    const rows = [row({ instanceKey: "db" }), row({ instanceKey: "DB" })];
-    const merged = mergeGithubInstances(DB_TOKEN, rows);
+    const a = row({ instanceKey: "db" });
+    const b = row({ instanceKey: "DB" });
+
+    for (const rows of [
+      [a, b],
+      [b, a],
+    ]) {
+      const merged = mergeGithubInstances(DB_TOKEN, rows);
+      expect(merged.instances.map((i) => i.key)).toEqual(["DB"]);
+    }
+  });
+
+  it("먼저 등록된 비활성 row 는 대소문자만 다른 active row 를 막지 않는다", () => {
+    const merged = mergeGithubInstances(DB_TOKEN, [
+      row({ active: false }),
+      row({ instanceKey: "DB", createdAt: new Date("2026-02-01T00:00:00Z") }),
+    ]);
 
     expect(merged.instances.map((i) => i.key)).toEqual(["DB"]);
+    expect(merged.rejected).toEqual([]);
+  });
+
+  it("endpoint 가 공백인 row 는 대상이 아니지만 목록에 남는다_n", () => {
+    const merged = mergeGithubInstances(DB_TOKEN, [row({ endpoint: "  " })]);
+    expect(merged.instances).toEqual([]);
+    expect(merged.listedKeys).toEqual(new Set(["DB"]));
+    expect(merged.rejected).toEqual(["db: endpoint 가 비어 있음"]);
   });
 });
