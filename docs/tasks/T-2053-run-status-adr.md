@@ -2,7 +2,11 @@
 id: T-2053
 title: 불완전 수집 저장 차단 ④ — ADR-0060 에 마지막 평가 실행 요약 계약 추가
 phase: P7
-status: PLANNED
+status: DONE
+completedAt: 2026-10-30
+mergedAs: 57674efe
+prNumber: 1614
+reviewRounds: 4
 commitMode: pr
 coversReq: [REQ-037, REQ-083]
 estimatedDiff: 20
@@ -25,7 +29,7 @@ plannerNote: P7 · 불완전 수집 저장 차단 arc ④ — 코드보다 ADR �
 
 ## Acceptance Criteria
 
-- [ ] §Decision 6 에 `lastEvaluationRun` 필드 표, `personId` 공개 범위, 다중 인스턴스 한계를 적는다.
+- [ ] §Decision 6 에 `lastEvaluationRun` 필드 표, `personId` 제외 판단, 다중 인스턴스 한계를 적는다.
 - [ ] 코드 변경 0. `pnpm lint && pnpm build && pnpm test` green, PR CI green.
 
 ## Out of Scope
