@@ -2,7 +2,11 @@
 id: T-2069
 title: 최근 N일 재수집 ① — 어제까지의 닫힌 창과 교체 대상 좌표를 계산하는 순수 helper
 phase: P7
-status: READY
+status: DONE
+completedAt: 2026-10-30
+mergedAs: e15ba4cf
+prNumber: 1630
+reviewRounds: 2
 commitMode: pr
 coversReq: [REQ-041, REQ-031]
 estimatedDiff: 245
