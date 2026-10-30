@@ -439,7 +439,7 @@ describe("등록 row 의 허용 host 검사 (ADR-0059 §Consequences (e))", () =
     expect(line).not.toContain("evil.test");
   });
 
-  it("같은 사유는 한 번만 남기고, 사유가 바뀌거나 복구 후 재발하면 다시 남긴다", () => {
+  it("같은 거부는 한 번만 남기고, 사유가 바뀌거나 복구 · 삭제 후 재발하면 다시 남긴다", () => {
     const token = { GITHUB_LOGB_TOKEN_ENC: "enc" };
     const target = row({ instanceKey: "logb" });
     const allowed = { ...token, GITHUB_LOGB_ALLOWED_HOST: "db.example.test" };
@@ -455,5 +455,9 @@ describe("등록 row 의 허용 host 검사 (ADR-0059 §Consequences (e))", () =
     mergeGithubInstances(allowed, [target]);
     mergeGithubInstances(other, [target]);
     expect(warn).toHaveBeenCalledTimes(3);
+
+    mergeGithubInstances(other, []);
+    mergeGithubInstances(other, [target]);
+    expect(warn).toHaveBeenCalledTimes(4);
   });
 });
