@@ -165,7 +165,6 @@ describe("mergeGithubInstances", () => {
 
   it("같은 시각의 중복 row 는 key 코드 순으로 고른다", () => {
     const rows = [row({ instanceKey: "db" }), row({ instanceKey: "DB" })];
-
     const merged = mergeGithubInstances(DB_TOKEN, rows);
 
     expect(merged.instances.map((i) => i.key)).toEqual(["DB"]);
