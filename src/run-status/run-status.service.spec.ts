@@ -446,6 +446,49 @@ describe("RunStatusService", () => {
       expect(run?.incompleteCoordinates).toHaveLength(MAX_REPORTED_INCOMPLETE);
     });
 
+    it("상한과 같은 수의 좌표는 모두 싣는다", () => {
+      const incomplete = Array.from(
+        { length: MAX_REPORTED_INCOMPLETE },
+        (_, i) => ({
+          ...coordinate("p1"),
+          periodStart: new Date(i * 86_400_000).toISOString(),
+        }),
+      );
+      service.recordEvaluationRun({ ...COUNTS, incomplete });
+
+      expect(
+        service.snapshot().lastEvaluationRun?.incompleteCoordinates,
+      ).toHaveLength(MAX_REPORTED_INCOMPLETE);
+    });
+
+    it("period · scope 만 달라도 다른 좌표로 싣는다", () => {
+      service.recordEvaluationRun({
+        ...COUNTS,
+        incomplete: [
+          coordinate("p1"),
+          { ...coordinate("p1"), period: "week" },
+          { ...coordinate("p1"), scope: "commit" },
+        ],
+      });
+
+      expect(
+        service.snapshot().lastEvaluationRun?.incompleteCoordinates,
+      ).toHaveLength(3);
+    });
+
+    it("입력의 여분 프로퍼티와 snapshot 변경이 내부 상태로 새지 않는다_n", () => {
+      service.recordEvaluationRun({
+        ...COUNTS,
+        personId: "secret",
+        incomplete: [],
+      } as never);
+
+      const first = service.snapshot().lastEvaluationRun;
+      expect(JSON.stringify(first)).not.toContain("secret");
+      if (first) first.failedCount = 99;
+      expect(service.snapshot().lastEvaluationRun?.failedCount).toBe(0);
+    });
+
     it("실행 상태 카운터를 건드리지 않는다_n", () => {
       service.recordEvaluationRun({ ...COUNTS, incomplete: [] });
 

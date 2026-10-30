@@ -137,7 +137,7 @@ export class RunStatusService {
     failedCount: number;
     incomplete: (IncompleteCoordinate & { personId: string })[];
   }): void {
-    const { incomplete, ...counts } = run;
+    const { incomplete } = run;
     const coordinates = new Map<string, IncompleteCoordinate>();
     for (const { period, scope, periodStart } of incomplete) {
       coordinates.set(JSON.stringify([period, scope, periodStart]), {
@@ -147,7 +147,10 @@ export class RunStatusService {
       });
     }
     this.lastEvaluationRun = {
-      ...counts,
+      source: run.source,
+      evaluatedCount: run.evaluatedCount,
+      skippedCount: run.skippedCount,
+      failedCount: run.failedCount,
       finishedAt: new Date().toISOString(),
       incompleteCount: incomplete.length,
       incompletePersonCount: new Set(incomplete.map((c) => c.personId)).size,
@@ -166,7 +169,9 @@ export class RunStatusService {
       active: evaluation.active || collection.active,
       evaluation,
       collection,
-      lastEvaluationRun: this.lastEvaluationRun,
+      lastEvaluationRun: this.lastEvaluationRun && {
+        ...this.lastEvaluationRun,
+      },
       observedAt: new Date().toISOString(),
     };
   }
