@@ -297,10 +297,12 @@ describe("assessCollectionCoverage — 등록 대상 (ADR-0059 §Decision 3)", (
   });
 
   const OFF = { ...ROW, active: false };
-
-  it("GitHub 식별자 없는 인원도 비활성 대상의 식별자로 막히지 않는다", () => {
-    expect(assess(WIKI, [OFF], "db", "wiki")).toEqual(OK);
-  });
+  it.each(["GITHUB", "CONFLUENCE"])(
+    "GitHub 식별자 없는 인원도 비활성 %s 대상의 식별자로 막히지 않는다",
+    (type) => {
+      expect(assess(WIKI, [{ ...OFF, type }], "db", "wiki")).toEqual(OK);
+    },
+  );
 
   it("비활성 대상이 있어도 GitHub 없는 미목록 key 보호는 유지된다_n", () => {
     expect(assess(WIKI, [OFF], "db", "wiki", "ecode").complete).toBe(false);
@@ -326,7 +328,6 @@ describe("assessCollectionCoverage — 등록 대상 (ADR-0059 §Decision 3)", (
       unavailableKeys: ["DB"],
     });
   });
-
 });
 
 describe("CollectionSpecService.buildCollectionSpecWithCoverage", () => {

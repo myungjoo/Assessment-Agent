@@ -46,10 +46,9 @@ export interface CollectionCoverage {
  *   key 의 식별자는 실패가 아니다. 수집 대상이 아니라고 보고 무시한다. 비활성 row 는 운영자가
  *   제외한 대상이므로 여기에 든다.
  * - 목록에 올랐거나 등록됐는데 쓸 수 없는 instance (필수 env · credential 부재 · repo / org /
- *   SPACE 대상 0 · 해석 불가 repo token 1 개 이상) 에 식별자가 있으면 실패다. 빠진 대상의
- *   활동을 알 수 없다.
+ *   SPACE 대상 0 · 해석 불가 repo token 1 개 이상) 에 식별자가 있으면 실패다.
  * - 수집 가능한 식별자가 하나도 없으면 실패다.
- * - 목록에 없는 key 가 있고 쓸 수 있는 GitHub instance 가 하나도 없으면 실패다.
+ * - 비활성 row 도 아닌 미목록 key 가 있고 쓸 수 있는 GitHub instance 가 하나도 없으면 실패다.
  *   GitHub 설정 전체 유실과 구분되지 않기 때문이다 (T-2042 의 githubMissing).
  */
 export function assessCollectionCoverage(
