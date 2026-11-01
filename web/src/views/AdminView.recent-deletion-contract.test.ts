@@ -59,6 +59,11 @@ function extractDtoFields(source: string, className: string): DtoFields {
   }
   return { required, optional };
 }
+// export interface 의 필드 이름 목록. 없으면 빈 배열이다.
+function extractInterfaceFields(source: string, name: string): string[] {
+  const body = new RegExp(`interface\\s+${name}\\s*\\{([\\s\\S]*?)\\n\\}`).exec(stripComments(source));
+  return body ? [...body[1].matchAll(/^\s*(\w+)\??:/gm)].map((m) => m[1]) : [];
+}
 // runReEvaluate 함수 영역만 슬라이스(선언 ~ 다음 async function) — method:'POST'·falsy guard 를 상위
 // 소스의 다른 발사기(create 러너 등)와 섞지 않고 이 러너 안에서만 소스 대조한다.
 function sliceReEvaluateRunner(source: string): string {
@@ -118,6 +123,7 @@ const DTO_SOURCE = readFileSync(new URL('../../../src/scheduling/dto/recent-dele
 // adminScheduleRunners.ts 로 옮겨졌다. 읽기 대상 파일만 따라 바꾸고 단언 내용은 그대로 둔다
 // (`export const ...` 형태라 기존 선언 문자열이 부분 문자열로 그대로 매칭된다).
 const SCHEDULE_RUNNERS_SOURCE = readFileSync(new URL('./adminScheduleRunners.ts', import.meta.url), 'utf8');
+const RUNNER_SOURCE = readFileSync(new URL('../../../src/scheduling/recent-deletion-runner.service.ts', import.meta.url), 'utf8');
 const ROUTE = extractControllerRoute(CONTROLLER_SOURCE);
 const HANDLERS = extractHandlerMethods(CONTROLLER_SOURCE);
 const RD = HANDLERS.recentDeletion ?? null;
@@ -225,6 +231,23 @@ describe('AdminView — 재평가 트리거 web↔backend 계약 drift guard (T-
     const declared = new Set([...DTO_FIELDS.required, ...DTO_FIELDS.optional]);
     expect([...(fired as WebFire).bodyKeys].every((key) => declared.has(key))).toBe(true); // 초과 키 0
     expect((fired as WebFire).body).toEqual({ days: 7 }); // client 가 삭제 대상을 고르지 않는다
+  });
+  it('web 이 조회하는 GET 상태 route 와 읽는 응답 필드가 backend 에 있다 (happy-path — GET 계약)', () => {
+    const status = HANDLERS.recentDeletionStatus;
+    expect(status?.method).toBe('GET');
+    expect(composeRoute(String(ROUTE), status?.subPath ?? '')).toBe(ROUTE_TEMPLATE);
+    const backendResult = extractInterfaceFields(RUNNER_SOURCE, 'RecentRefreshResult');
+    const backendStatus = extractInterfaceFields(RUNNER_SOURCE, 'RecentRefreshStatus');
+    for (const field of ['deletedCount', 'refreshedCount', 'notRefreshedCount', 'aborted']) {
+      expect(backendResult).toContain(field);
+      expect(SCHEDULE_RUNNERS_SOURCE).toContain(field);
+    }
+    expect(backendStatus).toEqual(expect.arrayContaining(['running', 'result']));
+  });
+  it('backend 타입에서 필드가 사라지면 추출 결과로 드러난다 (negative — GET 계약 drift)', () => {
+    const source = 'export interface RecentRefreshStatus {\n  personId: string;\n}';
+    expect(extractInterfaceFields(source, 'RecentRefreshStatus')).not.toContain('running');
+    expect(extractInterfaceFields('', 'RecentRefreshStatus')).toEqual([]);
   });
   it('buildRecentDeletionPath("a/b") 가 personId 를 encodeURIComponent 로 인코딩해 세그먼트가 깨지지 않는다 (happy-path — 인코딩)', () => {
     expect(buildRecentDeletionPath('a/b')).toBe(`${BASE}/${LITERAL}/a%2Fb`);

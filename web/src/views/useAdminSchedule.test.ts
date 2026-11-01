@@ -84,7 +84,7 @@ const MEMBER_A = { id: 'p1', name: '김하나' };
 const MEMBER_B = { id: 'p2', name: '이두리' };
 const MEMBERS = [MEMBER_A, MEMBER_B];
 
-// 반환 표면 계약 — JSX 소비처 두 덩어리가 쓰는 15 심볼(그 이상도 이하도 아니다).
+// 반환 표면 계약 — JSX 소비처 두 덩어리가 쓰는 16 심볼(그 이상도 이하도 아니다).
 const RETURN_KEYS = [
   'cronExpression',
   'handleApply',
@@ -95,6 +95,7 @@ const RETURN_KEYS = [
   'handleReevalTrigger',
   'personOptions',
   'reevalError',
+  'reevalResult',
   'reevalSubmitting',
   'schedulePanelError',
   'schedulePanelMessage',
@@ -210,9 +211,10 @@ describe('useAdminSchedule — happy path(초기 반환 · 조회 · 파생 계�
     // personOptions = members 한 줄이 글자-동일로 남아 참조까지 그대로다(복사 · 가공 0).
     expect(hook.personOptions).toBe(MEMBERS);
     expect(hook.reevalError).toBeUndefined();
+    expect(hook.reevalResult).toBeUndefined();
   });
 
-  it('JSX 소비처가 쓰는 15 심볼만 공개하고 내부 setter 는 노출하지 않는다', () => {
+  it('JSX 소비처가 쓰는 16 심볼만 공개하고 내부 setter 는 노출하지 않는다', () => {
     const hook = lastOf(renderProbe());
 
     expect(Object.keys(hook).sort()).toEqual(RETURN_KEYS);
@@ -298,7 +300,7 @@ describe('useAdminSchedule — happy path(초기 반환 · 조회 · 파생 계�
     expect(deps.describeError).toBe(toErrorMessageStub);
   });
 
-  it('handleReevalTrigger 가 runReEvaluate 를 (선택 personId, days, 주입 키 5 개) 로 1 회 호출한다', async () => {
+  it('handleReevalTrigger 가 runReEvaluate 를 (선택 personId, days, 주입 키 8 개) 로 1 회 호출한다', async () => {
     const hook = lastOf(renderProbe());
 
     await hook.handleReevalTrigger(30);
@@ -310,14 +312,41 @@ describe('useAdminSchedule — happy path(초기 반환 · 조회 · 파생 계�
     // 재평가 축은 발사 primitive 키가 request 가 아니라 post 다(러너 계약 — 교차 배선 방지).
     expect(Object.keys(deps).sort()).toEqual([
       'describeError',
+      'get',
       'post',
       'setError',
+      'setResult',
       'setSubmitting',
       'submitting',
+      'wait',
     ]);
     expect(deps.post).toBe(requestStub);
     expect(deps.describeError).toBe(toErrorMessageStub);
     expect(deps.submitting).toBe(false);
+  });
+
+  it('상태 조회는 path 만 넘겨 request 를 호출하고 wait 는 정확히 그 시간 뒤에 끝난다', async () => {
+    const hook = lastOf(renderProbe());
+    await hook.handleReevalTrigger(7);
+    const deps = lastDeps(runReEvaluateMock, 2) as unknown as {
+      get: (path: string) => Promise<unknown>;
+      wait: (ms: number) => Promise<void>;
+    };
+
+    await deps.get('/x');
+    expect(requestStub).toHaveBeenLastCalledWith('/x');
+
+    vi.useFakeTimers();
+    try {
+      const done = vi.fn();
+      void deps.wait(3000).then(done);
+      await vi.advanceTimersByTimeAsync(2999);
+      expect(done).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(done).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -333,7 +362,7 @@ describe('useAdminSchedule — error path', () => {
     await expect(hook.handleApply()).rejects.toBe(boom);
     await expect(hook.handleManualTrigger()).rejects.toBe(boom);
     await expect(hook.handleReevalTrigger(7)).rejects.toBe(boom);
-    // 반환 표면은 15 심볼 그대로 유지된다.
+    // 반환 표면은 16 심볼 그대로 유지된다.
     expect(Object.keys(hook).sort()).toEqual(RETURN_KEYS);
   });
 
@@ -475,7 +504,7 @@ describe('useAdminSchedule — negative cases 충분 cover', () => {
     expect(runReEvaluateMock.mock.calls[0][1]).toBe(0);
   });
 
-  it('(v) 초기 person 미선택(빈 문자열)에서도 반환 15 심볼이 정상 형태다', () => {
+  it('(v) 초기 person 미선택(빈 문자열)에서도 반환 16 심볼이 정상 형태다', () => {
     const hook = lastOf(
       renderProbe({ initialSelectedPersonId: '', initialSelectedDays: 0 }),
     );
