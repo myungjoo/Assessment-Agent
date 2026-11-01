@@ -198,7 +198,7 @@ export const REFRESH_RESULT_LOST_TEXT =
 
 // 조회를 포기했을 때의 안내. POST 실패와 달리 실행은 계속될 수 있다.
 export const REFRESH_POLL_LOST_TEXT =
-  '재수집 진행 상태를 확인하지 못했습니다. 실행은 서버에서 계속될 수 있으니 잠시 뒤 다시 시도해 주세요';
+  '재수집 진행 상태를 확인하지 못했습니다. 실행은 서버에서 계속될 수 있으니 잠시 뒤 평가 결과를 확인해 주세요';
 
 interface RecentRefreshStatus {
   running: boolean;
