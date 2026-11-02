@@ -1,7 +1,7 @@
 // AssessmentController — `/api/assessments` 5 REST endpoint. T-0117 acceptance 박제.
 // ADR-0006 data-model chain (schema + repo + service) 완결 후 HTTP-facing 첫 slice.
 //
-// api.md §3 row L88-92 정합 (AssessmentService 가 이미 노출한 4 primitive 대응 endpoint
+// api.md §3 row L88-92 정합 (AssessmentService 가 이미 노출한 primitive 대응 endpoint
 // 만 — UC-06 batch 연산 (run / reeval / reset / 범위 DELETE) 은 평가 pipeline (P5)
 // 의존이라 Out of Scope):
 //   - GET    /api/assessments?personId=&period=  → findByPerson  (200, REQ-038 시계열 조회)
@@ -11,7 +11,7 @@
 //   - DELETE /api/assessments/:id                → remove        (204, row 부재 시 404)
 //
 // ValidationPipe wire 결정 (PersonController / GroupController mirror):
-//   - Controller-scope `@UsePipes(new ValidationPipe({...}))` — 본 controller 4 endpoint 한정.
+//   - Controller-scope `@UsePipes(new ValidationPipe({...}))` — 본 controller 전체 endpoint.
 //   - whitelist: 정의되지 않은 필드 제거.
 //   - forbidNonWhitelisted: 정의되지 않은 필드 (raw 본문 키 등) 포함 시 400 BadRequest
 //     (R-59 raw 미저장 invariant 의 DTO-level 정합).
