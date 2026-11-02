@@ -83,7 +83,7 @@ describe('DashboardView — 전체 인원 통계', () => {
     const source = readFileSync(
       new URL('./DashboardView.tsx', import.meta.url),
       'utf8',
-    ).replace(/^s*//.*$/gm, '');
+    ).replace(/^\s*\/\/.*$/gm, '');
 
     expect(source).toContain('onPeriodChange={setCohortPeriod}');
     expect(source).toContain('buildCohortStatisticsPath(cohortPeriod)');
