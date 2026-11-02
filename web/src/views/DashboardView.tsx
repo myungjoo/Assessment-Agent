@@ -84,6 +84,12 @@ import type { SelectablePerson } from '../components/DashboardPersonSelector';
 import DashboardPeriodSelector from '../components/DashboardPeriodSelector';
 import { submitPeriodEvaluation } from '../api/periodEvaluationSubmit';
 import type { PeriodEvaluationRequest } from '../api/evaluationPeriod';
+import CohortStatisticsPanel from '../components/CohortStatisticsPanel';
+import {
+  DEFAULT_COHORT_PERIOD,
+  buildCohortStatisticsPath,
+  normalizeCohortStatistics,
+} from '../api/cohortStatistics';
 
 // 정렬 가능 컬럼 옵션 — 표 헤더(ASSESSMENT_TABLE_COLUMNS)에서 파생한다. 하드코딩하면 표
 // 컬럼이 바뀔 때 툴바 정렬 옵션만 옛 키로 남는 drift 가 생기므로, 단일 출처에서 {key,label}
@@ -626,6 +632,20 @@ function DashboardView({
     error: personsError,
   } = useApiResource<unknown[]>(PERSONS_PATH);
 
+  // 전체 인원 통계 — 대상 미선택(첫 화면) 분기에서만 보이므로 대상을 고르면 조회하지 않는다.
+  const [cohortPeriod, setCohortPeriod] = useState<string>(DEFAULT_COHORT_PERIOD);
+  const {
+    data: cohortData,
+    loading: cohortLoading,
+    error: cohortError,
+  } = useApiResource<unknown>(
+    selectedPersonId ? null : buildCohortStatisticsPath(cohortPeriod),
+  );
+  const cohortStatistics = useMemo(
+    () => normalizeCohortStatistics(cohortData),
+    [cohortData],
+  );
+
   // 표시 직전 파이프라인(T-1727) — 매핑 → 검색 필터 → 정렬. 세 단계 모두 순수 모듈이
   // 담당하므로 컨테이너는 조합만 한다(응답 캐스팅·정규화 금지). 세 함수 모두 비배열 입력·
   // 결손 행을 값으로 흡수하므로 data 미도착(undefined)·오류 응답에도 분기 없이 빈 표가 된다.
@@ -805,6 +825,13 @@ function DashboardView({
         <EvaluationGuardBanner
           active={evaluationActive}
           message={evaluationMessage}
+        />
+        <CohortStatisticsPanel
+          statistics={cohortStatistics}
+          period={cohortPeriod}
+          onPeriodChange={setCohortPeriod}
+          loading={cohortLoading}
+          error={cohortError}
         />
         {personSelector}
         <p>{NO_PERSON_TEXT}</p>

@@ -143,3 +143,71 @@ input, select {
   border-color: var(--color-accent);
   color: var(--color-accent);
 }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.cohort-statistics {
+  margin-bottom: var(--space-lg);
+  padding: var(--space-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.cohort-statistics__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.cohort-statistics__summary {
+  margin-bottom: var(--space-md);
+  color: var(--color-muted);
+}
+
+.cohort-statistics__tables {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.cohort-statistics caption {
+  margin-bottom: var(--space-xs);
+  font-weight: 600;
+  text-align: left;
+}
+
+.cohort-statistics tbody th {
+  color: var(--color-fg);
+  font-weight: 400;
+}
+
+.cohort-statistics td,
+.cohort-statistics th {
+  white-space: nowrap;
+}
+
+.cohort-bar-cell {
+  width: 40%;
+  min-width: 64px;
+}
+
+.cohort-bar {
+  height: 8px;
+}
+
+.cohort-bar__fill {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
