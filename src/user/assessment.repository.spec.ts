@@ -539,3 +539,46 @@ describe("AssessmentRepository", () => {
     });
   });
 });
+
+describe("AssessmentRepository.findCohortInputs()", () => {
+  function buildCohortPrisma(persons: unknown[], averages: unknown[]) {
+    const findMany = jest.fn().mockResolvedValueOnce(persons);
+    const groupBy = jest.fn().mockResolvedValueOnce(averages);
+    const prisma = {
+      person: { findMany },
+      assessment: { groupBy },
+    } as unknown as PrismaService;
+    return { prisma, findMany, groupBy };
+  }
+
+  it("활성 인원과 aggregate scope 평균만 읽어 입력 형태로 매핑한다", async () => {
+    const { prisma, findMany, groupBy } = buildCohortPrisma(
+      [
+        { id: "p-1", part: { id: "x", name: "파트" } },
+        { id: "p-2", part: null },
+      ],
+      [{ personId: "p-1", _avg: { contributionScore: "1.5" } }],
+    );
+
+    const result = await new AssessmentRepository(prisma).findCohortInputs(
+      "week",
+    );
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { active: true } }),
+    );
+    expect(groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        by: ["personId"],
+        where: { period: "week", scope: "aggregate", person: { active: true } },
+      }),
+    );
+    expect(result).toEqual({
+      persons: [
+        { personId: "p-1", partId: "x", partName: "파트" },
+        { personId: "p-2", partId: null, partName: null },
+      ],
+      scores: [{ personId: "p-1", score: 1.5 }],
+    });
+  });
+});

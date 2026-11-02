@@ -65,6 +65,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 
+import type { CohortStatistics } from "./assessment-cohort-statistics";
 import { AssessmentService } from "./assessment.service";
 import { CreateAssessmentDto } from "./dto/create-assessment.dto";
 
@@ -104,6 +105,23 @@ export class AssessmentController {
       personId,
       period !== undefined ? { period } : undefined,
     );
+  }
+
+  // GET /api/assessments/cohort-statistics?period=<day|week|month> — 전체 인원의 10 분위별
+  // 평균 · 파트별 인당 평균. `:id` 보다 먼저 선언해야 id 로 매칭되지 않는다.
+  //
+  // RBAC — User+ tier. 응답은 집계뿐이라 personId 가 없고, User+ 는 이미 인원별 평가를
+  // findByPerson 으로 읽을 수 있어 새로 노출되는 정보가 없다.
+  @Get("cohort-statistics")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("User")
+  async readCohortStatistics(
+    @Query("period") period?: string,
+  ): Promise<CohortStatistics> {
+    if (period === undefined || period === "") {
+      throw new BadRequestException("period query parameter is required");
+    }
+    return this.service.readCohortStatistics(period);
   }
 
   // GET /api/assessments/:id — 단일 Assessment 상세. row 부재 시 service 가
