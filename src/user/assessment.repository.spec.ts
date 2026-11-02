@@ -581,4 +581,17 @@ describe("AssessmentRepository.findCohortInputs()", () => {
       scores: [{ personId: "p-1", score: 1.5 }],
     });
   });
+
+  it("평균이 null 인 행은 0 점이 아니라 점수에서 제외한다 (negative)", async () => {
+    const { prisma } = buildCohortPrisma(
+      [{ id: "p-1", part: null }],
+      [{ personId: "p-1", _avg: { contributionScore: null } }],
+    );
+
+    const result = await new AssessmentRepository(prisma).findCohortInputs(
+      "week",
+    );
+
+    expect(result.scores).toEqual([]);
+  });
 });

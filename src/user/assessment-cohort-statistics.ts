@@ -6,8 +6,9 @@
 //     "기여 0" 으로 오독된다. 제외 규모는 totalPersons 와 scoredPersons 의 차이로 드러낸다.
 //   - 1 분위가 최하위, 10 분위가 최상위다(소득 분위 통계 관행).
 //   - 분위 배정은 오름차순 순번 i 에 대해 floor(i × 10 / N) + 1 이다 — 인원이 10 의 배수가
-//     아니어도 분위 간 인원 차가 1 이하이고, 10 명 미만이면 빈 분위가 생긴다. 동점은 personId
-//     순으로 결정적으로 나눈다.
+//     아니어도 분위 간 인원 차가 1 이하이고, 10 명 미만이면 빈 분위가 생긴다. 동점자가 어느
+//     분위로 가든 점수가 같아 분위별 인원 · 평균은 달라지지 않으므로 tie-break 를 두지 않는다.
+//   - 점수는 호출자가 준 인원별 대표값을 그대로 쓴다 — 기간 제한 없는 누적 평균은 repository 소유다.
 //   - 응답에 personId 를 싣지 않는다 — 개인별 순위는 Admin+ 인 relative-comparison 의 몫이다.
 
 // metricScore 파생 산출(summary-relative-comparison.ts)과 같은 소수 정밀도.
@@ -95,15 +96,14 @@ export function computeCohortStatistics(
     }
   }
 
-  const ranked = [...scoreByPerson.entries()].sort(
-    ([leftId, leftScore], [rightId, rightScore]) =>
-      leftScore - rightScore || (leftId < rightId ? -1 : 1),
+  const ranked = [...scoreByPerson.values()].sort(
+    (left, right) => left - right,
   );
   const decileScores: number[][] = Array.from(
     { length: DECILE_COUNT },
     () => [],
   );
-  ranked.forEach(([, score], index) => {
+  ranked.forEach((score, index) => {
     decileScores[Math.floor((index * DECILE_COUNT) / ranked.length)].push(
       score,
     );
@@ -131,7 +131,7 @@ export function computeCohortStatistics(
   return {
     totalPersons: persons.length,
     scoredPersons: ranked.length,
-    overallAverage: meanOf(ranked.map(([, score]) => score)),
+    overallAverage: meanOf(ranked),
     deciles: decileScores.map((group, index) => ({
       decile: index + 1,
       personCount: group.length,

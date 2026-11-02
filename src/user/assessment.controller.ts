@@ -1,10 +1,11 @@
-// AssessmentController — `/api/assessments` 4 REST endpoint. T-0117 acceptance 박제.
+// AssessmentController — `/api/assessments` 5 REST endpoint. T-0117 acceptance 박제.
 // ADR-0006 data-model chain (schema + repo + service) 완결 후 HTTP-facing 첫 slice.
 //
 // api.md §3 row L88-92 정합 (AssessmentService 가 이미 노출한 4 primitive 대응 endpoint
 // 만 — UC-06 batch 연산 (run / reeval / reset / 범위 DELETE) 은 평가 pipeline (P5)
 // 의존이라 Out of Scope):
 //   - GET    /api/assessments?personId=&period=  → findByPerson  (200, REQ-038 시계열 조회)
+//   - GET    /api/assessments/cohort-statistics?period= → readCohortStatistics (200, 전체 인원 집계, User+)
 //   - GET    /api/assessments/:id                → findOne       (200, row 부재 시 404)
 //   - POST   /api/assessments                    → create        (201, literal 위반 400 / 중복 409)
 //   - DELETE /api/assessments/:id                → remove        (204, row 부재 시 404)
@@ -26,7 +27,7 @@
 //   - api.md §4 의 의도 auth tier 를 실제 enforce. 신규 auth 결정 0 — UserController
 //     (PATCH role / GET list) 가 첫 production 적용한 JwtAuthGuard + RolesGuard + @Roles
 //     패턴을 1:1 mirror. RolesGuard 의 escalation 매핑 (ROLE_HIERARCHY) 그대로 사용.
-//   - GET (findByPerson / findOne) → User+: `@UseGuards(JwtAuthGuard, RolesGuard)` +
+//   - GET (findByPerson / readCohortStatistics / findOne) → User+: `@UseGuards(JwtAuthGuard, RolesGuard)` +
 //     `@Roles("User")`. User / Admin / SuperAdmin 모두 통과 (조회는 User read-only 범위,
 //     REQ-046).
 //   - POST (create) / DELETE (remove) → Admin+: 동일 guard stack + `@Roles("Admin")`.

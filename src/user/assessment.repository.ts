@@ -161,7 +161,7 @@ export class AssessmentRepository {
   // findCohortInputs — 전체 인원 통계의 입력. 활성 인원 전체(파트 포함)와, 그중 평가가 있는
   // 인원의 contributionScore 평균을 DB 집계로 읽는다. scope 는 cron · backfill 이 적재하는
   // "aggregate" 로 고정한다 — 수동 평가의 commit / document scope 와 섞이면 같은 활동이
-  // 두 번 평균에 들어간다.
+  // 두 번 평균에 들어간다. periodStart 는 제한하지 않아 해당 기간 단위의 전체 이력 평균이다.
   async findCohortInputs(period: string): Promise<AssessmentCohortInputs> {
     const [persons, averages] = await Promise.all([
       this.prisma.person.findMany({
@@ -180,10 +180,12 @@ export class AssessmentRepository {
         partId: part?.id ?? null,
         partName: part?.name ?? null,
       })),
-      scores: averages.map((row) => ({
-        personId: row.personId,
-        score: Number(row._avg.contributionScore),
-      })),
+      // Number(null) 은 0 이므로 평균 결손을 먼저 거른다(값 없음 ≠ 0 점).
+      scores: averages.flatMap(({ personId, _avg }) =>
+        _avg.contributionScore === null
+          ? []
+          : [{ personId, score: Number(_avg.contributionScore) }],
+      ),
     };
   }
 

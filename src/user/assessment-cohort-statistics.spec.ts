@@ -1,8 +1,5 @@
 import { computeCohortStatistics } from "./assessment-cohort-statistics";
-import type {
-  CohortPerson,
-  CohortPersonScore,
-} from "./assessment-cohort-statistics";
+import type { CohortPerson } from "./assessment-cohort-statistics";
 
 function person(
   personId: string,
@@ -69,18 +66,6 @@ describe("computeCohortStatistics", () => {
     expect(deciles[0]).toEqual({ decile: 1, personCount: 1, average: 1 });
     expect(deciles[5]).toEqual({ decile: 6, personCount: 1, average: 3 });
     expect(deciles[1]).toEqual({ decile: 2, personCount: 0, average: null });
-  });
-
-  it("동점자는 입력 순서와 무관하게 personId 순으로 결정적으로 나뉜다", () => {
-    const persons = [person("b"), person("a")];
-    const forward: CohortPersonScore[] = [
-      { personId: "a", score: 2 },
-      { personId: "b", score: 2 },
-    ];
-
-    expect(computeCohortStatistics(persons, forward)).toEqual(
-      computeCohortStatistics(persons, [...forward].reverse()),
-    );
   });
 
   it("평가 없는 인원은 0 점이 아니라 평균에서 제외되고 총원에만 잡힌다", () => {
