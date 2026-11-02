@@ -79,7 +79,11 @@ describe('DashboardView — 전체 인원 통계', () => {
   // jsdom 미사용이라 select 변경을 발화할 수 없어, 컨트롤 → state 한 겹은 source 로 대조한다
   // (DashboardView.period-query-wire.test.tsx 의 source 정적 대조 guard 와 같은 방식).
   it('기간 단위 컨트롤의 콜백이 조회 path 의 state 를 갱신한다', () => {
-    const source = readFileSync(new URL('./DashboardView.tsx', import.meta.url), 'utf8');
+    // 주석 처리된 배선이 guard 를 통과하지 못하게 라인 주석을 지우고 대조한다.
+    const source = readFileSync(
+      new URL('./DashboardView.tsx', import.meta.url),
+      'utf8',
+    ).replace(/^s*//.*$/gm, '');
 
     expect(source).toContain('onPeriodChange={setCohortPeriod}');
     expect(source).toContain('buildCohortStatisticsPath(cohortPeriod)');

@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
+import { Children, isValidElement } from 'react';
+import type { ReactElement, ReactNode, SelectHTMLAttributes } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import CohortStatisticsPanel, {
   barPercent,
@@ -26,6 +28,25 @@ function render(props: Partial<Parameters<typeof CohortStatisticsPanel>[0]>) {
   return renderToStaticMarkup(<CohortStatisticsPanel period="week" {...props} />);
 }
 
+function findSelect(node: ReactNode): ReactElement<SelectHTMLAttributes<unknown> & {
+  onChange: (event: { target: { value: string } }) => void;
+}> | undefined {
+  if (!isValidElement(node)) {
+    return undefined;
+  }
+  if (node.type === 'select') {
+    return node as never;
+  }
+  const { children } = node.props as { children?: ReactNode };
+  for (const child of Children.toArray(children)) {
+    const found = findSelect(child);
+    if (found) {
+      return found;
+    }
+  }
+  return undefined;
+}
+
 describe('CohortStatisticsPanel', () => {
   it('요약 · 분위 · 파트 행과 소수 둘째 자리 평균을 표시한다', () => {
     const html = render({ statistics: STATISTICS });
@@ -48,6 +69,23 @@ describe('CohortStatisticsPanel', () => {
 
     expect(html).toContain('>—</td>');
     expect(html.match(/data-testid="cohort-bar-fill"/g)).toHaveLength(3);
+  });
+
+  it('막대 길이는 만점 대비 비율이다', () => {
+    const html = render({ statistics: STATISTICS });
+
+    expect(html).toContain('width:25%');
+    expect(html).toContain('width:100%');
+  });
+
+  // panel 에 hook 이 없어 함수로 직접 호출해 element 를 얻고, select 의 실제 onChange 를 실행한다.
+  it('select 의 onChange 가 선택값을 onPeriodChange 로 올린다', () => {
+    const onPeriodChange = vi.fn();
+    const select = findSelect(CohortStatisticsPanel({ period: 'week', onPeriodChange }));
+
+    select?.props.onChange({ target: { value: 'day' } });
+
+    expect(onPeriodChange).toHaveBeenCalledExactlyOnceWith('day');
   });
 
   it('막대 열은 스크린 리더에서 숨긴다', () => {
