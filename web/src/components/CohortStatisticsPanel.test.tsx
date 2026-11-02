@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import CohortStatisticsPanel from './CohortStatisticsPanel';
+import CohortStatisticsPanel, {
+  barPercent,
+  formatAverage,
+  forwardPeriodChange,
+} from './CohortStatisticsPanel';
 import type { CohortStatisticsView } from '../api/cohortStatistics';
 
 const STATISTICS: CohortStatisticsView = {
@@ -23,25 +27,34 @@ function render(props: Partial<Parameters<typeof CohortStatisticsPanel>[0]>) {
 }
 
 describe('CohortStatisticsPanel', () => {
-  it('요약 · 분위 · 파트 행을 표시한다', () => {
+  it('요약 · 분위 · 파트 행과 소수 둘째 자리 평균을 표시한다', () => {
     const html = render({ statistics: STATISTICS });
 
     expect(html).toContain('평가 인원 3명');
+    expect(html).toContain('전체 이력 평균 1.50 / 3점');
     expect(html).toContain('평가 없음 1명 제외');
     expect(html).toContain('1분위 (하위 10%)');
     expect(html).toContain('2분위');
     expect(html).toContain('10분위 (상위 10%)');
+    expect(html).toContain('>0.75</td>');
+    expect(html).toContain('>3.00</td>');
     expect(html).toContain('플랫폼');
     expect(html).toContain('3 / 3명');
     expect(html).toContain('파트 미배정');
   });
 
-  it('막대 길이는 만점 대비 비율이고 값 없는 행은 막대가 없다', () => {
+  it('값 없는 행은 — 로 표시하고 0 점처럼 그리지 않는다', () => {
     const html = render({ statistics: STATISTICS });
 
-    expect(html).toContain('width:25%');
-    expect(html).toContain('width:100%');
-    expect(html.match(/cohort-bar__fill/g)).toHaveLength(3);
+    expect(html).toContain('>—</td>');
+    expect(html.match(/data-testid="cohort-bar-fill"/g)).toHaveLength(3);
+  });
+
+  it('막대 열은 스크린 리더에서 숨긴다', () => {
+    const html = render({ statistics: STATISTICS });
+
+    expect(html).toContain('<th aria-hidden="true"></th>');
+    expect(html).toContain('<td aria-hidden="true"');
   });
 
   it('평가 없는 인원이 없으면 제외 문구를 내지 않는다', () => {
@@ -84,4 +97,35 @@ describe('CohortStatisticsPanel', () => {
       expect(html).toMatch(/<option value="month" selected/);
     },
   );
+});
+
+describe('barPercent', () => {
+  it('만점 대비 비율을 내고 범위 밖 값은 0~100 으로 자른다', () => {
+    expect(barPercent(0.75)).toBe(25);
+    expect(barPercent(3)).toBe(100);
+    expect(barPercent(5)).toBe(100);
+    expect(barPercent(-1)).toBe(0);
+  });
+});
+
+describe('formatAverage', () => {
+  it('소수 둘째 자리로 표시하고 null 은 — 다', () => {
+    expect(formatAverage(1.456)).toBe('1.46');
+    expect(formatAverage(0)).toBe('0.00');
+    expect(formatAverage(null)).toBe('—');
+  });
+});
+
+describe('forwardPeriodChange', () => {
+  it('선택값을 콜백으로 올린다', () => {
+    const onPeriodChange = vi.fn();
+
+    forwardPeriodChange({ target: { value: 'month' } }, onPeriodChange);
+
+    expect(onPeriodChange).toHaveBeenCalledExactlyOnceWith('month');
+  });
+
+  it('콜백이 없어도 throw 하지 않는다 (negative)', () => {
+    expect(() => forwardPeriodChange({ target: { value: 'day' } })).not.toThrow();
+  });
 });

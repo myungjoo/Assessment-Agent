@@ -143,6 +143,8 @@ interface DashboardViewProps {
   // 정적 렌더에서 "사용자가 이미 기간을 고른 상태"를 재현하기 위해 허용한다(테스트 가능성).
   // 실 마운트처(AppShell)는 주입하지 않으며, 이후 선택 변경은 컨테이너 state 가 권위다.
   initialEvaluationPeriod?: string;
+  // 전체 인원 통계의 초기 기간 단위 — 같은 initial* 관례로 정적 렌더 검증용으로 허용한다.
+  initialCohortPeriod?: string;
   // 초기 정렬 키/방향/검색어 — 정적 렌더로 정렬·필터 분기를 검증할 수 있도록 주입 허용.
   initialSortKey?: AssessmentRowSortKey;
   initialSortDirection?: 'asc' | 'desc';
@@ -522,6 +524,7 @@ function DashboardView({
   personId,
   period,
   initialEvaluationPeriod = '',
+  initialCohortPeriod = DEFAULT_COHORT_PERIOD,
   initialSortKey = 'contributionScore',
   initialSortDirection = 'desc',
   initialSearchTerm = '',
@@ -633,7 +636,7 @@ function DashboardView({
   } = useApiResource<unknown[]>(PERSONS_PATH);
 
   // 전체 인원 통계 — 대상 미선택(첫 화면) 분기에서만 보이므로 대상을 고르면 조회하지 않는다.
-  const [cohortPeriod, setCohortPeriod] = useState<string>(DEFAULT_COHORT_PERIOD);
+  const [cohortPeriod, setCohortPeriod] = useState<string>(initialCohortPeriod);
   const {
     data: cohortData,
     loading: cohortLoading,
