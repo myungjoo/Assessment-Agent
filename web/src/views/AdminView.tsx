@@ -139,8 +139,8 @@ import { useAdminLlmProviders } from './useAdminLlmProviders';
 // 소유한다. props 유래 초기값 2 개만 인자로 넘긴다.
 import { useAdminServiceIdentities } from './useAdminServiceIdentities';
 // 스케줄 · 재평가 축 hook(T-1889 순수 추출) — 본 컨테이너의 스케줄 패널 · 재평가 트리거 패널
-// prelude 두 구역을 통째로 옮긴 모듈. 컨테이너는 반환 15 심볼만 소비하고 축 내부 상태 · 조회 ·
-// 러너 주입은 hook 이 소유한다. props 유래 초기값 5 개와 축 밖 값 members 만 인자로 넘긴다.
+// prelude 두 구역을 통째로 옮긴 모듈. 컨테이너는 반환 16 심볼만 소비하고 축 내부 상태 · 조회 ·
+// 러너 주입은 hook 이 소유한다. props 유래 초기값 5 개와 축 밖 값 persons(personData)만 넘긴다.
 import { useAdminSchedule } from './useAdminSchedule';
 // 사용자 관리 축 hook ①(T-1891 순수 추출) — 사용자 목록 조회 + 생성 배선 한 구역을 통째로 옮긴
 // 모듈. 컨테이너는 반환 심볼만 소비하고 조회 nonce · path 파생 · 생성 상태 전이는 hook 이
@@ -789,12 +789,11 @@ function AdminView({
 
   // 멤버십 축 hook(T-1896) — 멤버 파생 · 재조회 nonce · remove/add in-flight · 실패 문구 · 조회
   // path · 멤버십 조회 · 멤버십 파생 · 두 mutation 핸들러 · 추가 후보 = 12 선언을
-  // useAdminMemberships 로 순수 추출했다(동작 변경 0). 컨테이너는 GroupMemberList 배선과
-  // useAdminSchedule 의 members 주입이 쓰는 11 심볼만 되돌려 쓰고, 축 내부 nonce · 원본 응답 ·
+  // useAdminMemberships 로 순수 추출했다(동작 변경 0). 컨테이너는 GroupMemberList 배선이 쓰는
+  // 9 심볼만 되돌려 쓰고(재평가 인원 옵션은 T-2080 부터 personData 파생이라 members 미소비), 축 내부 nonce · 원본 응답 ·
   // 조회 path · setter 는 hook 안에 캡슐화된다. 호출 위치는 이동 전 블록이 있던 자리 그대로다 —
   // useApiResource 발사 순번이 바뀌면 호출 순번으로 route 를 구분하는 기존 spec 이 red 가 된다.
   const {
-    members,
     groupMembers,
     membersLoading,
     membersError,
@@ -868,8 +867,9 @@ function AdminView({
 
   // 스케줄 · 재평가 축 배선(T-0885 · T-0886)은 T-1889 에서 useAdminSchedule 로 순수 추출했다
   // (동작 변경 0). 컨테이너는 JSX 소비처 두 덩어리(SchedulePanel · 재평가 인원 <select> + 재평가
-  // 패널)가 쓰는 15 심볼만 되돌려 쓰고, 축 내부 setter 와 조회 원본은 hook 안에 캡슐화된다. 축 밖
-  // 값은 그룹 축 파생 members 하나뿐이라 props 유래 초기값 5 개와 함께 단일 object 로 넘긴다.
+  // 패널)가 쓰는 16 심볼을 모두 되돌려 쓰고, 축 내부 setter 와 조회 원본은 hook 안에 캡슐화된다. 축
+  // 밖 값은 인원 관리 축의 전체 인원 personData 하나뿐이라(T-2080) 초기값 5 개와 함께 단일 object
+  // 로 넘긴다.
   const {
     cronExpression,
     scheduleBusy,
@@ -882,6 +882,7 @@ function AdminView({
     selectedDays,
     reevalSubmitting,
     reevalError,
+    reevalResult,
     personOptions,
     handleReevalTrigger,
     handleReevalSelect,
@@ -892,7 +893,7 @@ function AdminView({
     initialSelectedPersonId,
     initialSelectedDays,
     initialReevalSubmitting,
-    members,
+    persons: personData,
   });
 
   // 파트 축 전체 배선(T-1893 순수 추출) — 이동 전 `1085 행` ~ `1106 행`(재조회 nonce · nonce-aware
@@ -1302,14 +1303,16 @@ function AdminView({
             error={schedulePanelError}
             message={schedulePanelMessage}
           />
-          {/* 재평가 인원 선택 컨트롤(T-0886) — 선택 그룹의 파생 members 를 옵션으로 노출한다(그룹
-              선택 <select> 동형 controlled lift-up — presentational 패널은 person 선택을 모른다,
-              ADR-0041 Decision 1). 선택된 personId 가 재평가 POST 의 path param 으로 쓰인다. 그룹
-              미선택/멤버 0 이면 placeholder 만 노출(재평가는 person 미선택 가드로 억제 — crash 없음). */}
+          {/* 재평가 인원 선택 컨트롤(T-0886, T-2080) — 그룹 선택과 무관하게 인원 관리 목록과 같은
+              전체 인원(personData)을 옵션으로 노출한다(controlled lift-up — presentational 패널은
+              person 선택을 모른다, ADR-0041 Decision 1). 선택된 personId 가 재수집 POST 의 path
+              param 이다. 인원 조회 전 · 실패 · 0 명이면 placeholder 만 노출한다(crash 없음). 진행 중
+              에는 비활성이라 표시되는 결과가 항상 재수집을 시작한 인원의 것이다. */}
           <select
             aria-label="재평가 인원 선택"
             value={selectedPersonId}
             onChange={handlePersonChange}
+            disabled={reevalSubmitting}
           >
             <option value="">{NO_PERSON_SELECTION_LABEL}</option>
             {personOptions.map((person) => (
@@ -1320,11 +1323,12 @@ function AdminView({
           </select>
           {/* 재평가 트리거(여섯 번째 패널, T-0886 — P6 deferred wiring 완결) — 최근 N일 delete→재수집
               (R-74)의 window 후보·선택·진행·실패를 컨테이너가 소유하고, 패널은 windows·selectedDays·
-              onSelect·onTrigger·submitting·error props 만 소비한다(ADR-0041 Decision 1 — 패널은
-              fetch 를 모른다). onSelect 는 selectedDays 갱신, onTrigger 는 POST /api/schedules/
-              recent-deletion/:personId 로 { instants: [], days } body 를 발사한다(person 미선택 시
-              가드로 억제). 성공은 error 없음으로, 실패는 error props(reevalError)로 안전 표시한다
-              (throw 없음). windows 는 frontend-local 상수(REEVAL_WINDOW_OPTIONS). 컴포넌트 수정 0. */}
+              onSelect·onTrigger·submitting·error·result·triggerDisabled props 만 소비한다(ADR-0041
+              Decision 1 — 패널은 fetch 를 모른다). onSelect 는 selectedDays 갱신, onTrigger 는 POST
+              /api/schedules/recent-deletion/:personId 로 { days } body 를 발사한다. 인원 미선택이면
+              triggerDisabled 로 버튼을 비활성화한다(러너의 미선택 가드는 그대로 남는다). 끝나면
+              조회한 실제 결과(reevalResult)를 result 로, 실패는 error(reevalError)로 표시한다
+              (throw 없음). windows 는 frontend-local 상수(REEVAL_WINDOW_OPTIONS). */}
           <ReEvaluationTriggerPanel
             windows={REEVAL_WINDOW_OPTIONS}
             selectedDays={selectedDays}
@@ -1332,6 +1336,8 @@ function AdminView({
             onTrigger={handleReevalTrigger}
             submitting={reevalSubmitting}
             error={reevalError}
+            result={reevalResult}
+            triggerDisabled={selectedPersonId === ''}
           />
           {/* 사용자 관리(T-1159 마운트, REQ-044/REQ-045) — 파트 마운트(T-1152)와 동형이나 GET
               /api/users 가 Admin+ 전용이라 본 섹션만 isAdmin gating 안쪽에 둔다(비-Admin 에게는 아예
