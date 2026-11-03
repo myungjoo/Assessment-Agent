@@ -4568,16 +4568,21 @@ describe('AdminView — ReEvaluationTriggerPanel 배선 렌더 (T-0886)', () => 
     vi.restoreAllMocks();
   });
 
-  // happy-path(mount) — 그룹 선택 시 파생 members 가 person 옵션으로 노출되고, ReEvaluationTriggerPanel
+  // happy-path(mount) — 전체 인원(personData)이 person 옵션으로 노출되고(T-2080), ReEvaluationTriggerPanel
   // 이 실제 mount 되며(window 선택 + 트리거 버튼), 기존 패널(그룹/스케줄)도 회귀 없이 함께 렌더된다.
-  it('그룹 선택 시 person 옵션과 재평가 패널이 마운트된다 (happy-path — mount)', () => {
-    setResource({ data: SAMPLE, loading: false, error: undefined });
+  it('전체 인원이 person 옵션으로 나오고 재평가 패널이 마운트된다 (happy-path — mount)', () => {
+    setRoutes({
+      [GROUPS]: { data: SAMPLE, loading: false, error: undefined },
+      '/api/persons': { data: REEVAL_PERSONS, loading: false, error: undefined },
+    });
     const html = renderToStaticMarkup(<AdminView initialSelectedGroupId="g1" />);
-    // person 선택 컨트롤 + 파생 members 옵션(선택 그룹 g1 의 김철수/이영희).
-    expect(html).toContain(`aria-label="${PERSON_SELECT_LABEL}"`);
-    expect(html).toContain(NO_PERSON_PLACEHOLDER);
-    expect(html).toContain('김철수');
-    expect(html).toContain('이영희');
+    const personSelect = personSelectHtml(html);
+    // person 선택 컨트롤 + personData 파생 옵션(fullName 표시).
+    expect(personSelect).toContain(NO_PERSON_PLACEHOLDER);
+    expect(personSelect).toContain('<option value="p1">최가람</option>');
+    expect(personSelect).toContain('<option value="p9">한누리</option>');
+    // 그룹 members fixture(김철수/이영희)는 인원 옵션의 원천이 아니다.
+    expect(personSelect).not.toContain('김철수');
     // 재평가 패널 마운트 — window 선택 label + 트리거 버튼.
     expect(html).toContain(REEVAL_WINDOW_SELECT_LABEL);
     expect(html).toContain(REEVAL_TRIGGER_LABEL);
@@ -4629,14 +4634,113 @@ describe('AdminView — ReEvaluationTriggerPanel 배선 렌더 (T-0886)', () => 
   });
 
   // negative(초기 안전 렌더) — 그룹/person/days 미선택 초기 상태에서도 crash 없이 패널이 마운트되고
-  // person placeholder 만 노출한다(빈 members → 옵션 없이 placeholder — 안전 렌더).
-  it('그룹/person 미선택 초기 상태에서 crash 없이 마운트하고 placeholder 를 노출한다 (negative — 초기 안전 렌더)', () => {
+  // person placeholder 만 노출한다(빈 personData → 옵션 없이 placeholder — 안전 렌더).
+  it('그룹/person 미선택 · 인원 0 명이면 crash 없이 placeholder 하나만 노출한다 (negative — 초기 안전 렌더)_n', () => {
     setResource({ data: [], loading: false, error: undefined });
     const html = renderToStaticMarkup(<AdminView />);
-    // 그룹 미선택 → members 빈 배열 → person placeholder 만(옵션 없이).
-    expect(html).toContain(NO_PERSON_PLACEHOLDER);
+    // 인원 0 명(EMPTY_OK) → person placeholder 만(옵션 없이).
+    expect(personSelectHtml(html).match(/<option/g)).toHaveLength(1);
     // 패널은 windows 상수를 받아 마운트(person 미선택과 무관 — 패널은 person 을 모른다).
     expect(html).toContain(REEVAL_TRIGGER_LABEL);
+  });
+});
+
+// R-112 — T-2080 인원 옵션(personData 파생) · 패널 result/triggerDisabled 배선 · 진행 중 인원 <select>
+// 비활성. 정적 렌더라 클릭 · 결과 비움은 useAdminSchedule.test.ts 가, result 표시는 소스 배선이 잠근다.
+const REEVAL_PERSONS = [
+  { id: 'p1', fullName: '최가람', email: 'c@example.com', active: true },
+  { id: 'p9', fullName: '한누리', email: 'h@example.com', active: true },
+];
+
+/** 인원 조회(GET /api/persons) 응답만 주입하고 나머지 path 는 setRoutes default 를 쓴다. */
+function setPersons(data: unknown, error?: string) {
+  setRoutes({ '/api/persons': { data, loading: false, error } });
+}
+
+/** 재평가 인원 <select> 한 덩어리의 markup 만 잘라낸다(다른 <select> 와 섞이지 않게). */
+function personSelectHtml(html: string): string {
+  const start = html.indexOf(`aria-label="${PERSON_SELECT_LABEL}"`);
+  if (start < 0) {
+    return '';
+  }
+  const open = html.lastIndexOf('<select', start);
+  return html.slice(open, html.indexOf('</select>', start) + '</select>'.length);
+}
+
+/** 재수집 트리거 버튼 태그만 잘라낸다. */
+function reevalTriggerButtonTag(html: string): string {
+  return html.match(new RegExp(`<button[^>]*>${REEVAL_TRIGGER_LABEL}</button>`))?.[0] ?? '';
+}
+
+describe('AdminView — 재평가 인원 옵션 · 패널 배선 (T-2080)', () => {
+  beforeEach(() => {
+    useApiResourceMock.mockReset();
+  });
+
+  it('그룹 응답에 members 가 없어도(실 API shape) 그룹 미선택으로 전체 인원이 옵션에 나온다 (happy-path — 실 shape)', () => {
+    setRoutes({
+      [GROUPS]: { data: [{ id: 'g1', name: '백엔드팀' }], loading: false, error: undefined },
+      '/api/persons': { data: REEVAL_PERSONS, loading: false, error: undefined },
+    });
+    const personSelect = personSelectHtml(renderToStaticMarkup(<AdminView />));
+
+    expect(personSelect).toContain('<option value="p1">최가람</option>');
+    expect(personSelect).toContain('<option value="p9">한누리</option>');
+  });
+
+  it('인원 조회가 실패(data undefined)해도 throw 없이 placeholder 만 렌더한다 (error path)', () => {
+    setPersons(undefined, 'HTTP 500: 실패');
+    let html = '';
+    expect(() => {
+      html = renderToStaticMarkup(<AdminView initialSelectedDays={7} />);
+    }).not.toThrow();
+
+    expect(personSelectHtml(html).match(/<option/g)).toHaveLength(1);
+    expect(html).toContain(REEVAL_TRIGGER_LABEL);
+  });
+
+  it('인원을 선택했고 기간이 유효하면 트리거 버튼이 활성이다 (branch — 선택)', () => {
+    setPersons(REEVAL_PERSONS);
+    const html = renderToStaticMarkup(
+      <AdminView initialSelectedPersonId="p1" initialSelectedDays={7} />,
+    );
+
+    expect(reevalTriggerButtonTag(html)).not.toBe('');
+    expect(reevalTriggerButtonTag(html)).not.toContain('disabled');
+  });
+
+  it('인원 미선택이면 기간이 유효해도 트리거 버튼이 비활성이라 POST 를 낼 수 없다_n', () => {
+    setPersons(REEVAL_PERSONS);
+    const html = renderToStaticMarkup(
+      <AdminView initialSelectedPersonId="" initialSelectedDays={7} />,
+    );
+
+    expect(reevalTriggerButtonTag(html)).toContain('disabled');
+  });
+
+  it.each([
+    [false, '대기 중에는 활성'],
+    [true, '진행 중에는 비활성'],
+  ])('인원 <select> 는 submitting=%s 일 때 %s 이다 (branch — 진행 / 대기)', (submitting) => {
+    setPersons(REEVAL_PERSONS);
+    const personSelect = personSelectHtml(
+      renderToStaticMarkup(
+        <AdminView initialSelectedPersonId="p1" initialReevalSubmitting={submitting} />,
+      ),
+    );
+    const openTag = personSelect.slice(0, personSelect.indexOf('>'));
+
+    expect(openTag).toContain('<select');
+    expect(openTag.includes('disabled')).toBe(submitting);
+  });
+
+  it('패널에 result · triggerDisabled 를 넘기고 인원 옵션은 personData 에서 온다 (배선 drift guard)', () => {
+    const source = readFileSync(new URL('./AdminView.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain('result={reevalResult}');
+    expect(source).toContain("triggerDisabled={selectedPersonId === ''}");
+    expect(source).toContain('disabled={reevalSubmitting}');
+    expect(source).toContain('persons: personData,');
   });
 });
 

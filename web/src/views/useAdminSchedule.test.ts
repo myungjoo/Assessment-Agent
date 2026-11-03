@@ -80,9 +80,21 @@ const actualRunners = await vi.importActual<
 type Hook = ReturnType<typeof useAdminSchedule>;
 type Deps = Record<string, unknown>;
 
-const MEMBER_A = { id: 'p1', name: '김하나' };
-const MEMBER_B = { id: 'p2', name: '이두리' };
-const MEMBERS = [MEMBER_A, MEMBER_B];
+// 인원 관리 축의 전체 인원 조회 결과(PersonRow) — personOptions 의 원천(T-2080).
+const PERSONS = [
+  { id: 'p1', fullName: '김하나', email: 'a@example.com', active: true },
+  { id: 'p2', fullName: '이두리', email: 'b@example.com', active: true },
+];
+const PERSON_OPTIONS = [
+  { id: 'p1', name: '김하나' },
+  { id: 'p2', name: '이두리' },
+];
+const RESULT = {
+  deletedCount: 2,
+  refreshedCount: 3,
+  notRefreshedCount: 1,
+  aborted: false,
+};
 
 // 반환 표면 계약 — JSX 소비처 두 덩어리가 쓰는 16 심볼(그 이상도 이하도 아니다).
 const RETURN_KEYS = [
@@ -110,7 +122,7 @@ const BASE_PARAMS: UseAdminScheduleParams = {
   initialSelectedPersonId: 'p1',
   initialSelectedDays: 7,
   initialReevalSubmitting: false,
-  members: MEMBERS,
+  persons: PERSONS,
 };
 
 interface ResourceState {
@@ -200,7 +212,7 @@ describe('useAdminSchedule — happy path(초기 반환 · 조회 · 파생 계�
     expect(useApiResourceMock.mock.calls[0]).toEqual([SCHEDULES_PATH]);
   });
 
-  it('props 유래 초기값 5 개와 members 를 이동 전 그대로 반환에 싣는다', () => {
+  it('props 유래 초기값 5 개를 반환에 싣고 persons 를 { id, name } 옵션으로 파생한다', () => {
     const hook = lastOf(renderProbe());
 
     expect(hook.cronExpression).toBe('0 3 * * *');
@@ -208,8 +220,8 @@ describe('useAdminSchedule — happy path(초기 반환 · 조회 · 파생 계�
     expect(hook.selectedPersonId).toBe('p1');
     expect(hook.selectedDays).toBe(7);
     expect(hook.reevalSubmitting).toBe(false);
-    // personOptions = members 한 줄이 글자-동일로 남아 참조까지 그대로다(복사 · 가공 0).
-    expect(hook.personOptions).toBe(MEMBERS);
+    // personOptions 는 fullName 을 name 으로 옮긴 { id, name } 파생이다(T-2080).
+    expect(hook.personOptions).toEqual(PERSON_OPTIONS);
     expect(hook.reevalError).toBeUndefined();
     expect(hook.reevalResult).toBeUndefined();
   });
@@ -431,7 +443,7 @@ describe('useAdminSchedule — branch cover', () => {
     expect(lastOf(sink).selectedDays).toBe(30);
   });
 
-  it('handlePersonChange 가 <select> 이벤트 값을 선택 personId 로 올린다(빈 값이면 미선택 복귀)', async () => {
+  it('handlePersonChange 가 <select> 이벤트 값을 선택 personId 로 올린다(빈 값으로 되돌린 선택은 가공 없이 러너 가드로)_n', async () => {
     const sink = renderProbe({}, (hook, renderIndex) => {
       if (renderIndex === 1) {
         hook.handlePersonChange({ target: { value: 'p2' } });
@@ -451,14 +463,12 @@ describe('useAdminSchedule — branch cover', () => {
 });
 
 describe('useAdminSchedule — negative cases 충분 cover', () => {
-  it('(i) members 가 빈 배열이면 personOptions 도 빈 배열이다(placeholder 경계값)', () => {
-    const empty: { id: string; name: string }[] = [];
-
-    const hook = lastOf(renderProbe({ members: empty }));
+  it('(i) persons 가 빈 배열이면 personOptions 도 빈 배열이다(placeholder 경계값)_n', () => {
+    const hook = lastOf(renderProbe({ persons: [] }));
 
     expect(hook.personOptions).toEqual([]);
-    expect(hook.personOptions).toBe(empty);
   });
+
 
   it('(ii) scheduleData 가 undefined 여도 파생이 throw 하지 않고 안전 안내를 낸다', () => {
     setApiState({ data: undefined, loading: true });
@@ -521,5 +531,64 @@ describe('useAdminSchedule — negative cases 충분 cover', () => {
     await hook.handleApply();
 
     expect(runApplyMock.mock.calls[0][0]).toBe('');
+  });
+});
+
+describe('useAdminSchedule — 인원 옵션 · 인원 변경 시 결과 비움 (T-2080)', () => {
+  /** 러너가 결과 · 실패 문구를 올린 뒤(렌더 1) 렌더 2 에서 인원을 next 로 고른다. */
+  function renderAfterResult(next?: string): Hook {
+    runReEvaluateMock.mockImplementation((_id: string, _days: number, deps: Deps) => {
+      (deps.setResult as (r: unknown) => void)(RESULT);
+      (deps.setError as (e: unknown) => void)('실패 문구');
+      return Promise.resolve();
+    });
+    return lastOf(
+      renderProbe({}, (hook, renderIndex) => {
+        if (renderIndex === 1) {
+          void hook.handleReevalTrigger(7);
+        }
+        if (renderIndex === 2 && next !== undefined) {
+          hook.handlePersonChange({ target: { value: next } });
+        }
+      }),
+    );
+  }
+
+  it('옵션에서 고른 인원으로 runReEvaluate 를 발사한다 (happy-path)', async () => {
+    const sink = renderProbe({ initialSelectedPersonId: '' }, (hook, renderIndex) => {
+      if (renderIndex === 1) {
+        hook.handlePersonChange({ target: { value: hook.personOptions[1].id } });
+      }
+    });
+
+    await lastOf(sink).handleReevalTrigger(7);
+
+    expect(runReEvaluateMock.mock.calls[0][0]).toBe('p2');
+  });
+
+  it('persons 가 undefined(조회 전 · 실패)면 옵션은 빈 배열이고 throw 하지 않는다 (error path)', () => {
+    expect(lastOf(renderProbe({ persons: undefined })).personOptions).toEqual([]);
+  });
+
+  it('러너가 setResult 로 올린 결과가 reevalResult 로 반환된다 (happy-path — 결과)', () => {
+    const hook = renderAfterResult();
+
+    expect(hook.reevalResult).toEqual(RESULT);
+    expect(hook.reevalError).toBe('실패 문구');
+  });
+
+  it('다른 인원으로 바꾸면 결과 · 실패 문구를 비운다 (branch — 인원 변경)', () => {
+    const hook = renderAfterResult('p2');
+
+    expect(hook.selectedPersonId).toBe('p2');
+    expect(hook.reevalResult).toBeUndefined();
+    expect(hook.reevalError).toBeUndefined();
+  });
+
+  it('같은 인원을 다시 고르면 결과 · 실패 문구를 유지한다 (branch — 인원 미변경)', () => {
+    const hook = renderAfterResult('p1');
+
+    expect(hook.reevalResult).toEqual(RESULT);
+    expect(hook.reevalError).toBe('실패 문구');
   });
 });
