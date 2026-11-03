@@ -2,7 +2,7 @@
 id: T-2080
 title: 최근 N일 재수집 ⑫ — 전체 인원을 고를 수 있게 하고 패널에 결과 · 비활성을 배선한다
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 150
@@ -36,28 +36,28 @@ issue-still-relevant 확인: origin/main `591513fc` 의 `AdminView.tsx` `1328 �
 
 인원 옵션:
 
-- [ ] `useAdminSchedule` 의 `members` 인자를 `persons: PersonRow[] | undefined` 로 바꾸고, `personOptions` 는 `{ id, name: fullName }` 파생이다. `AdminView` 는 `personData` 를 넘긴다. 그룹 선택 없이 전체 인원이 옵션에 나온다.
-- [ ] `persons` 가 `undefined` (조회 전 · 실패) 면 옵션은 빈 배열이고 throw 하지 않는다.
+- [x] `useAdminSchedule` 의 `members` 인자를 `persons: PersonRow[] | undefined` 로 바꾸고, `personOptions` 는 `{ id, name: fullName }` 파생이다. `AdminView` 는 `personData` 를 넘긴다. 그룹 선택 없이 전체 인원이 옵션에 나온다.
+- [x] `persons` 가 `undefined` (조회 전 · 실패) 면 옵션은 빈 배열이고 throw 하지 않는다.
 
 패널 배선:
 
-- [ ] `AdminView` 가 패널에 `result={reevalResult}` 와 `triggerDisabled` 를 넘긴다. `triggerDisabled` 는 `selectedPersonId` 가 빈 값일 때 true 다.
-- [ ] 인원을 바꾸면 `reevalResult` · `reevalError` 를 비운다 (다른 인원의 결과가 남지 않는다).
-- [ ] 진행 중 (`reevalSubmitting`) 에는 인원 `<select>` 가 비활성이다. 결과가 시작한 인원의 것임을 보장한다.
+- [x] `AdminView` 가 패널에 `result={reevalResult}` 와 `triggerDisabled` 를 넘긴다. `triggerDisabled` 는 `selectedPersonId` 가 빈 값일 때 true 다.
+- [x] 인원을 바꾸면 `reevalResult` · `reevalError` 를 비운다 (다른 인원의 결과가 남지 않는다).
+- [x] 진행 중 (`reevalSubmitting`) 에는 인원 `<select>` 가 비활성이다. 결과가 시작한 인원의 것임을 보장한다.
 
 주석 · 문구:
 
-- [ ] `AdminView.tsx` 의 "15 심볼" 주석을 실제 수로 맞추고, `1305 행` ~ `1308 행` · `1321 행` ~ `1327 행` 주석을 실제 동작 (전체 인원, `{ days }` body, 결과 표시) 으로 고친다. `useAdminSchedule.ts` `165 행` 주석도 같이 고친다.
+- [x] `AdminView.tsx` 의 "15 심볼" 주석을 실제 수로 맞추고, `1305 행` ~ `1308 행` · `1321 행` ~ `1327 행` 주석을 실제 동작 (전체 인원, `{ days }` body, 결과 표시) 으로 고친다. `useAdminSchedule.ts` `165 행` 주석도 같이 고친다.
 
 R-112 (spec 위치: 위 colocated 두 파일):
 
-- [ ] Happy-path: `personOptions` 파생 · 전체 인원 옵션 렌더 · `result` 표시 · 선택 인원으로 POST 발사 각 1+.
-- [ ] Error path: `persons` 조회 실패 (`undefined`) 에서 옵션이 비고 패널이 throw 없이 렌더된다. 1+.
-- [ ] 분기: 인원 선택 / 미선택의 버튼 활성 · 비활성, 인원 변경 시 비움 / 미변경 시 유지, `<select>` 진행 중 / 대기 각 1+.
-- [ ] Negative (예외 분기마다 1+, test 이름은 `_n` 으로 끝남): 빈 인원 배열, 빈 값으로 되돌린 인원 선택, 미선택에서 트리거 시 POST 미발사.
-- [ ] 그룹 응답에 `members` 가 없어도 (실 API shape) 인원 옵션이 나오는 test 1+. fixture 가 결함을 가리지 않게 한다.
-- [ ] 기존 `AdminView` spec 중 그룹 `members` fixture 로 인원 옵션을 검증하던 test 를 `personData` 기반으로 옮긴다. 그룹 멤버 패널 test 는 건드리지 않는다.
-- [ ] `pnpm lint && pnpm build && pnpm test` · web test · build green, `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%), PR CI green.
+- [x] Happy-path: `personOptions` 파생 · 전체 인원 옵션 렌더 · `result` 표시 · 선택 인원으로 POST 발사 각 1+.
+- [x] Error path: `persons` 조회 실패 (`undefined`) 에서 옵션이 비고 패널이 throw 없이 렌더된다. 1+.
+- [x] 분기: 인원 선택 / 미선택의 버튼 활성 · 비활성, 인원 변경 시 비움 / 미변경 시 유지, `<select>` 진행 중 / 대기 각 1+.
+- [x] Negative (예외 분기마다 1+, test 이름은 `_n` 으로 끝남): 빈 인원 배열, 빈 값으로 되돌린 인원 선택, 미선택에서 트리거 시 POST 미발사.
+- [x] 그룹 응답에 `members` 가 없어도 (실 API shape) 인원 옵션이 나오는 test 1+. fixture 가 결함을 가리지 않게 한다.
+- [x] 기존 `AdminView` spec 중 그룹 `members` fixture 로 인원 옵션을 검증하던 test 를 `personData` 기반으로 옮긴다. 그룹 멤버 패널 test 는 건드리지 않는다.
+- [x] `pnpm lint && pnpm build && pnpm test` · web test · build green, `pnpm test:cov` 통과 (line ≥ 80% / function ≥ 80%), PR CI green.
 
 ## Out of Scope
 
@@ -72,3 +72,7 @@ R-112 (spec 위치: 위 colocated 두 파일):
 `implementer → tester`
 
 ## Follow-ups
+
+- result 의 실제 화면 표시는 정적 렌더로 검증할 수 없어 `AdminView.tsx` 소스 문자열 검사로만 확인한다 (Round 1 MINOR).
+- 인원 미선택 negative test 가 버튼의 `disabled` 만 확인한다. 미선택 POST 차단은 기존 test 가 검증한다 (Round 1 NIT).
+- Round 1 은 executor inline 리뷰라 독립 리뷰가 아니다. diff 는 +246/-54 로 300 LOC 상한과 같다.
