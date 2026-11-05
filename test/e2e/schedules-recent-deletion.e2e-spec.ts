@@ -96,7 +96,7 @@ describe("E2E: POST · GET /api/schedules/recent-deletion/:personId (T-1963, REQ
     const response = await request(app.getHttpServer())
       .post(recentDeletionUrl(person.id))
       .set("Cookie", adminCookie)
-      .send({ instants: [anyInstant()], days: 7 });
+      .send({ days: 7 });
 
     expect(response.status).toBe(202);
     expect(response.headers["content-type"]).toMatch(/application\/json/);
@@ -105,13 +105,25 @@ describe("E2E: POST · GET /api/schedules/recent-deletion/:personId (T-1963, REQ
     expect(await prisma.assessment.count()).toBe(0);
   });
 
+  it("빈 본문 {} 도 202 다 (branch — days 미지정, runner 기본값)", async () => {
+    const person = await seedPerson();
+
+    const response = await request(app.getHttpServer())
+      .post(recentDeletionUrl(person.id))
+      .set("Cookie", adminCookie)
+      .send({});
+
+    expect(response.status).toBe(202);
+    expect(response.body).toEqual({ personId: person.id, ...STARTED });
+  });
+
   // -- 404 (Person 부재) error --
 
   it("존재하지 않는 personId 는 404 + envelope + Assessment 미생성 (error)", async () => {
     const response = await request(app.getHttpServer())
       .post(recentDeletionUrl("nonexistent-person-id"))
       .set("Cookie", adminCookie)
-      .send({ instants: [anyInstant()] });
+      .send({});
 
     expect(response.status).toBe(404);
     expect(response.body.statusCode).toBe(404);
@@ -126,43 +138,35 @@ describe("E2E: POST · GET /api/schedules/recent-deletion/:personId (T-1963, REQ
 
     const response = await request(app.getHttpServer())
       .post(recentDeletionUrl(person.id))
-      .send({ instants: [anyInstant()] });
+      .send({});
 
     expect(response.status).toBe(401);
     expect(await prisma.assessment.count()).toBe(0);
   });
 
-  // -- 분기: controller-scope ValidationPipe 거부 5 종(각 400) --
+  // -- 분기: controller-scope ValidationPipe 거부 6 종(각 400) --
+  // 본문은 { days } 만 받는다. instants 는 제거된 필드라 다른 미정의 키와 같이 거부된다.
   // 같은 400 이라도 layer 가 다르다 — 아래 table 은 **ValidationPipe**(DTO decorator) 가
   // 거부하는 400 이고, 그 뒤의 days 상한 케이스는 pipe 를 통과한 뒤 controller 의
   // @UseFilters(RecentDeletionInputExceptionFilter) 가 매핑하는 400 이다(T-1965/T-1966).
 
   const invalidPayloads: ReadonlyArray<[string, Record<string, unknown>]> = [
+    ["instants 빈 배열 포함(forbidNonWhitelisted)", { instants: [] }],
     [
-      "instants 원소가 비-ISO 문자열(@IsISO8601 each)",
-      {
-        instants: ["not-an-iso-datetime"],
-      },
+      "instants ISO 배열 포함(forbidNonWhitelisted)",
+      { instants: [anyInstant()], days: 7 },
     ],
     [
-      "instants 가 배열 아님(@IsArray)",
-      {
-        instants: "2026-09-08T00:00:00.000Z",
-      },
+      "정의되지 않은 다른 키 포함(forbidNonWhitelisted)",
+      { reference: "2026-09-08T00:00:00.000Z" },
     ],
-    ["days 가 0(@IsPositive)", { instants: [], days: 0 }],
-    ["days 가 음수(@IsPositive)", { instants: [], days: -3 }],
-    [
-      "정의되지 않은 키 포함(forbidNonWhitelisted)",
-      {
-        instants: [],
-        reference: "2026-09-08T00:00:00.000Z",
-      },
-    ],
+    ["days 가 0(@IsPositive)", { days: 0 }],
+    ["days 가 음수(@IsPositive)", { days: -3 }],
+    ["days 가 소수(@IsInt)", { days: 1.5 }],
   ];
 
   it.each(invalidPayloads)(
-    "%s 요청 시 400 + Assessment 미생성 (branch — controller-scope ValidationPipe 거부)",
+    "%s 요청 시 400 + Assessment 미생성 (branch — controller-scope ValidationPipe 거부)_n",
     async (_label, payload) => {
       const person = await seedPerson();
 
@@ -176,6 +180,29 @@ describe("E2E: POST · GET /api/schedules/recent-deletion/:personId (T-1963, REQ
     },
   );
 
+  // regression — 예전 web 본문 { instants: [], days: 1 } 은 이제 400 이다. instants 를 조용히
+  // 무시하던 필드가 DTO 에 되살아나면 202 가 되어 이 test 가 fail 한다.
+  it("예전 web 본문 { instants: [], days: 1 } 은 400 + 재수집 미시작이다 (regression)_n", async () => {
+    const person = await seedPerson();
+
+    const response = await request(app.getHttpServer())
+      .post(recentDeletionUrl(person.id))
+      .set("Cookie", adminCookie)
+      .send({ instants: [], days: 1 });
+
+    expect(response.status).toBe(400);
+    expect(JSON.stringify(response.body.message)).toContain("instants");
+    const status = await request(app.getHttpServer())
+      .get(recentDeletionUrl(person.id))
+      .set("Cookie", adminCookie);
+    expect(status.body).toEqual({
+      personId: person.id,
+      running: false,
+      result: null,
+    });
+    expect(await prisma.assessment.count()).toBe(0);
+  });
+
   // -- 분기: controller filter 의 days 상한 400 매핑(T-1966, T-1965 Follow-up (a)) --
   // pipe 를 통과한 뒤 assertValidDays 의 RangeError 가 500 이 아니라 400 으로 나가는
   // 실 HTTP 왕복을 고정한다 — @UseFilters 배선이 풀리면 여기서 500 으로 red 가 된다.
@@ -186,7 +213,7 @@ describe("E2E: POST · GET /api/schedules/recent-deletion/:personId (T-1963, REQ
     const response = await request(app.getHttpServer())
       .post(recentDeletionUrl(person.id))
       .set("Cookie", adminCookie)
-      .send({ instants: [anyInstant()], days: OVER_MAX_DAYS });
+      .send({ days: OVER_MAX_DAYS });
 
     // 500 이 아님을 status 로 직접 단언 — 입력 결함이 서버 장애로 보고되지 않는다.
     expect(response.status).not.toBe(500);
@@ -209,7 +236,7 @@ describe("E2E: POST · GET /api/schedules/recent-deletion/:personId (T-1963, REQ
     const response = await request(app.getHttpServer())
       .post(recentDeletionUrl(person.id))
       .set("Cookie", adminCookie)
-      .send({ instants: [anyInstant()], days: MAX_DAYS });
+      .send({ days: MAX_DAYS });
 
     expect(response.status).toBe(202);
     expect(response.body).toEqual({ personId: person.id, ...STARTED });
@@ -221,7 +248,7 @@ describe("E2E: POST · GET /api/schedules/recent-deletion/:personId (T-1963, REQ
     const response = await request(app.getHttpServer())
       .post(recentDeletionUrl(person.id))
       .set("Cookie", userCookie)
-      .send({ instants: [anyInstant()], days: OVER_MAX_DAYS });
+      .send({ days: OVER_MAX_DAYS });
 
     expect(response.status).toBe(403);
     // 403 body 는 filter 의 (1) HttpException passthrough — 안내 prefix 가 붙지 않는다.
@@ -239,7 +266,7 @@ describe("E2E: POST · GET /api/schedules/recent-deletion/:personId (T-1963, REQ
     const response = await request(app.getHttpServer())
       .post(recentDeletionUrl(person.id))
       .set("Cookie", userCookie)
-      .send({ instants: [anyInstant()] });
+      .send({});
 
     expect(response.status).toBe(403);
     expect(await prisma.assessment.count()).toBe(0);
@@ -251,7 +278,7 @@ describe("E2E: POST · GET /api/schedules/recent-deletion/:personId (T-1963, REQ
     const response = await request(app.getHttpServer())
       .post(recentDeletionUrl(person.id))
       .set("Cookie", superAdminCookie)
-      .send({ instants: [anyInstant()] });
+      .send({});
 
     expect(response.status).toBe(202);
     expect(response.body).toEqual({ personId: person.id, ...STARTED });
@@ -277,7 +304,7 @@ describe("E2E: POST · GET /api/schedules/recent-deletion/:personId (T-1963, REQ
     const started = await request(app.getHttpServer())
       .post(recentDeletionUrl(person.id))
       .set("Cookie", adminCookie)
-      .send({ instants: [], days: 1 });
+      .send({ days: 1 });
     expect(started.status).toBe(202);
     await waitIdle();
 
