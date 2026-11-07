@@ -2,7 +2,7 @@
 id: T-2082
 title: 최근 N일 재수집 ⑭-a — 사용처 없는 buildRecentDeletionPlan 을 제거한다
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 215
