@@ -86,11 +86,9 @@ const cronTickHandlerProvider = {
       provide: ALREADY_BACKFILLED_CHECKER,
       useExisting: AssessmentBackfillChecker,
     },
-    // RecentDeletionRunnerService(T-0427, P7 ⑤ slice 2) — 최근 N일 결과 manual delete →
-    // 재수집 실행 runner. CollectionTriggerService 를 주입받아 buildRecentDeletionPlan
-    // 출력의 toDelete 를 삭제 후 같은 기간을 재수집한다. 실 삭제 위임 인터페이스
-    // (RECENT_DELETION_DELETER)는 미주입(기본 삭제 0) — 실 repository delete provider 바인딩은
-    // 후속 sub-slice(schema 게이트). 새 module import / controller / schema 변경 0.
+    // RecentDeletionRunnerService(T-0427, 재설계 T-2069) — 최근 N일 재수집 runner. 어제까지의
+    // 닫힌 days 일에서 대상 row 를 좌표(인원 · 기간)로 찾아 다시 수집 · 평가한 뒤 좌표별로
+    // 교체한다. 저장본을 먼저 지우지 않으므로 수집 실패 좌표의 이전 row 는 남는다.
     RecentDeletionRunnerService,
   ],
   // CronScheduleService·BackfillRunnerService 외에 RecentDeletionRunnerService 도 export —
