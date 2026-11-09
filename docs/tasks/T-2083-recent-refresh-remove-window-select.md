@@ -2,7 +2,7 @@
 id: T-2083
 title: 최근 N일 재수집 ⑭-b — 사용처 없는 deletion-window-select 를 제거하고 export 쪽 mirror 주석을 정리한다
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 265
