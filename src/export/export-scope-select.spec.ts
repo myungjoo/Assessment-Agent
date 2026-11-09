@@ -1,6 +1,6 @@
 // export-scope-select 순수 helper spec — R-112 4 종(happy / error / branch / negative 충분
 // cover). scope 3 분기(full/range/partial) + range+entitySelector AND + 반열림 [start, end)
-// 경계 + non-mutating + 예외 분기를 검증한다(deletion-window-select.spec.ts mirror).
+// 경계 + non-mutating + 예외 분기를 검증한다.
 import { PeriodRange } from "../common/period-boundary";
 
 import { estimateExportDumpSize } from "./export-dump-size-estimate";

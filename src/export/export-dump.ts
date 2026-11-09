@@ -6,9 +6,10 @@
 // file 생성 · 압축 · REST 배선 호출 0 이며, 후속 배선 task(repository 게이트 진입 시 재확인)
 // 가 본 envelope 를 소비한다.
 //
-// 코드 골격은 recent-deletion-plan.ts 의 "조립 helper" 패턴(building block 재사용 + non-
-// mutating + 빈 입력 정상 + 검증 위임/전파)과 export-scope-select.ts 의 순수-helper 패턴
-// (assertValidDate · 입력 순서 보존)을 mirror 한다. 타입은 새로 신설하지 않고
+// 조립 규칙: 기존 building block 을 재사용하고, 입력을 변경하지 않으며(non-mutating), 빈
+// 입력은 정상으로 빈 envelope 를 내고, 검증은 assertValidDate 같은 단언 helper 에 위임해
+// 그 TypeError / RangeError 를 호출자에게 그대로 전파한다. export-scope-select.ts 의 순수-helper 패턴(assertValidDate · 입력 순서 보존)도
+// 따른다. 타입은 새로 신설하지 않고
 // export-scope-select.ts 의 ExportRecord / ExportEntity / ExportScope 를 그대로 재사용한다
 // (REQ-032: 입력 record 만 envelope 에 담고 raw 를 새로 fetch 하지 않으므로 envelope layer
 // 에서도 raw 미저장이 자연 유지 — UC-07 §1 invariant (a), §8 (b)).
