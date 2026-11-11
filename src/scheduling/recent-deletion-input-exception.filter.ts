@@ -13,7 +13,7 @@
 //   (1) HttpException (401 / 403 / ValidationPipe 400 / runner 의 Person 404) → 원래
 //       status·body passthrough. T-1963 e2e 의 404 raw forward 계약이 그대로 유지된다.
 //   (2) RangeError (days 가 비-정수 / 0 이하 / 상한 366 초과) → 400 BadRequest.
-//   (3) TypeError (instants 비-배열 · 원소 Invalid Date, reference 비-Date) → 400.
+//   (3) TypeError (reference 비-Date · Invalid Date, now Invalid Date) → 400.
 //   (4) 그 외 unknown → 500 (default 보존 — swallow 금지, 4xx 오분류 금지).
 //
 // 400 message 는 한국어 안내 + 원 error.message 결합이라 호출자가 어느 입력이 잘못됐는지
@@ -55,7 +55,7 @@ export class RecentDeletionInputExceptionFilter implements ExceptionFilter {
       return exception; // (1) 원래 status/body 보존 passthrough.
     }
     if (exception instanceof RangeError || exception instanceof TypeError) {
-      // (2)(3) days 범위·instants 형식 결함 — 호출자 입력 오류이므로 400.
+      // (2)(3) days 범위 · 기준 시각 형식 결함 — 호출자 입력 오류이므로 400.
       return new BadRequestException(buildBadRequestMessage(exception));
     }
     return new InternalServerErrorException(); // (4) 500 default 보존.
