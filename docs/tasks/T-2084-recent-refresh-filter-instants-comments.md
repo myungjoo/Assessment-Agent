@@ -2,7 +2,7 @@
 id: T-2084
 title: 최근 N일 재수집 ⑭-b2 — 입력 결함 filter 의 instants 주석과 spec 예시 message 를 현재 TypeError 출처로 바꾼다
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 25
