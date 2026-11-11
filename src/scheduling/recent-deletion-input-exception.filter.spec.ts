@@ -68,17 +68,15 @@ describe("RecentDeletionInputExceptionFilter", () => {
     expect(response.json).toHaveBeenCalledTimes(1);
   });
 
-  // (3) TypeError → 400 (instants 원소 Invalid Date 계열).
-  it("TypeError(instants 원소 Invalid Date) → 400 (branch — 형식 결함도 호출자 오류)", () => {
+  // (3) TypeError → 400 (기준 시각 now · reference Invalid Date 계열).
+  it("TypeError(now Invalid Date) → 400 (branch — 형식 결함도 호출자 오류)", () => {
     const { response, captured } = buildResponseMock();
     filter.catch(
-      new TypeError(
-        "selectInDeletionWindow: instants[1] 은(는) 유효한 Date instance 여야 합니다",
-      ),
+      new TypeError("planRecentRefresh: 유효한 now 가 필요합니다"),
       buildHost(response),
     );
     expect(captured.status).toBe(HttpStatus.BAD_REQUEST);
-    expect(JSON.stringify(captured.body)).toContain("instants[1]");
+    expect(JSON.stringify(captured.body)).toContain("유효한 now");
   });
 
   // (1) HttpException passthrough — status/body 보존 (재매핑·swallow 0). 404 는 T-1963
