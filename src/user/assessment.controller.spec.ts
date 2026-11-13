@@ -813,3 +813,33 @@ describe("AssessmentController (real RolesGuard escalation 분기)", () => {
     expect(serviceMock.remove).not.toHaveBeenCalled();
   });
 });
+
+describe("AssessmentController.readCohortStatistics()", () => {
+  it("period 를 service 로 forward 하고 결과를 그대로 반환한다 (happy)", async () => {
+    const statistics = { totalPersons: 0 };
+    const readCohortStatistics = jest.fn().mockResolvedValueOnce(statistics);
+    const controller = new AssessmentController({
+      readCohortStatistics,
+    } as unknown as AssessmentService);
+
+    await expect(controller.readCohortStatistics("month")).resolves.toBe(
+      statistics,
+    );
+    expect(readCohortStatistics).toHaveBeenCalledWith("month");
+  });
+
+  it.each([undefined, ""])(
+    "period 누락(%p)은 BadRequestException (negative)",
+    async (period) => {
+      const readCohortStatistics = jest.fn();
+      const controller = new AssessmentController({
+        readCohortStatistics,
+      } as unknown as AssessmentService);
+
+      await expect(controller.readCohortStatistics(period)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(readCohortStatistics).not.toHaveBeenCalled();
+    },
+  );
+});

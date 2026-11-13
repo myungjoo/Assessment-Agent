@@ -354,3 +354,34 @@ describe("AssessmentService", () => {
     });
   });
 });
+
+describe("AssessmentService.readCohortStatistics()", () => {
+  it("입력을 읽어 helper 산출을 반환한다 (happy)", async () => {
+    const findCohortInputs = jest.fn().mockResolvedValueOnce({
+      persons: [{ personId: "p-1", partId: "x", partName: "파트" }],
+      scores: [{ personId: "p-1", score: 2 }],
+    });
+    const service = new AssessmentService({
+      findCohortInputs,
+    } as unknown as AssessmentRepository);
+
+    const result = await service.readCohortStatistics("week");
+
+    expect(findCohortInputs).toHaveBeenCalledWith("week");
+    expect(result.totalPersons).toBe(1);
+    expect(result.overallAverage).toBe(2);
+    expect(result.parts[0].partName).toBe("파트");
+  });
+
+  it("허용 밖 period 는 조회 없이 BadRequestException (negative)", async () => {
+    const findCohortInputs = jest.fn();
+    const service = new AssessmentService({
+      findCohortInputs,
+    } as unknown as AssessmentRepository);
+
+    await expect(service.readCohortStatistics("year")).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(findCohortInputs).not.toHaveBeenCalled();
+  });
+});

@@ -1,16 +1,17 @@
-// AssessmentController — `/api/assessments` 4 REST endpoint. T-0117 acceptance 박제.
+// AssessmentController — `/api/assessments` 5 REST endpoint. T-0117 acceptance 박제.
 // ADR-0006 data-model chain (schema + repo + service) 완결 후 HTTP-facing 첫 slice.
 //
-// api.md §3 row L88-92 정합 (AssessmentService 가 이미 노출한 4 primitive 대응 endpoint
+// api.md §3 row L88-92 정합 (AssessmentService 가 이미 노출한 primitive 대응 endpoint
 // 만 — UC-06 batch 연산 (run / reeval / reset / 범위 DELETE) 은 평가 pipeline (P5)
 // 의존이라 Out of Scope):
 //   - GET    /api/assessments?personId=&period=  → findByPerson  (200, REQ-038 시계열 조회)
+//   - GET    /api/assessments/cohort-statistics?period= → readCohortStatistics (200, 전체 인원 집계, User+)
 //   - GET    /api/assessments/:id                → findOne       (200, row 부재 시 404)
 //   - POST   /api/assessments                    → create        (201, literal 위반 400 / 중복 409)
 //   - DELETE /api/assessments/:id                → remove        (204, row 부재 시 404)
 //
 // ValidationPipe wire 결정 (PersonController / GroupController mirror):
-//   - Controller-scope `@UsePipes(new ValidationPipe({...}))` — 본 controller 4 endpoint 한정.
+//   - Controller-scope `@UsePipes(new ValidationPipe({...}))` — 본 controller 전체 endpoint.
 //   - whitelist: 정의되지 않은 필드 제거.
 //   - forbidNonWhitelisted: 정의되지 않은 필드 (raw 본문 키 등) 포함 시 400 BadRequest
 //     (R-59 raw 미저장 invariant 의 DTO-level 정합).
@@ -26,7 +27,7 @@
 //   - api.md §4 의 의도 auth tier 를 실제 enforce. 신규 auth 결정 0 — UserController
 //     (PATCH role / GET list) 가 첫 production 적용한 JwtAuthGuard + RolesGuard + @Roles
 //     패턴을 1:1 mirror. RolesGuard 의 escalation 매핑 (ROLE_HIERARCHY) 그대로 사용.
-//   - GET (findByPerson / findOne) → User+: `@UseGuards(JwtAuthGuard, RolesGuard)` +
+//   - GET (findByPerson / readCohortStatistics / findOne) → User+: `@UseGuards(JwtAuthGuard, RolesGuard)` +
 //     `@Roles("User")`. User / Admin / SuperAdmin 모두 통과 (조회는 User read-only 범위,
 //     REQ-046).
 //   - POST (create) / DELETE (remove) → Admin+: 동일 guard stack + `@Roles("Admin")`.
@@ -65,6 +66,7 @@ import { JwtAuthGuard } from "../auth/jwt-auth.guard";
 import { Roles } from "../auth/roles.decorator";
 import { RolesGuard } from "../auth/roles.guard";
 
+import type { CohortStatistics } from "./assessment-cohort-statistics";
 import { AssessmentService } from "./assessment.service";
 import { CreateAssessmentDto } from "./dto/create-assessment.dto";
 
@@ -104,6 +106,23 @@ export class AssessmentController {
       personId,
       period !== undefined ? { period } : undefined,
     );
+  }
+
+  // GET /api/assessments/cohort-statistics?period=<day|week|month> — 전체 인원의 10 분위별
+  // 평균 · 파트별 인당 평균. `:id` 보다 먼저 선언해야 id 로 매칭되지 않는다.
+  //
+  // RBAC — User+ tier. 응답은 집계뿐이라 personId 가 없고, User+ 는 이미 인원별 평가를
+  // findByPerson 으로 읽을 수 있어 새로 노출되는 정보가 없다.
+  @Get("cohort-statistics")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("User")
+  async readCohortStatistics(
+    @Query("period") period?: string,
+  ): Promise<CohortStatistics> {
+    if (period === undefined || period === "") {
+      throw new BadRequestException("period query parameter is required");
+    }
+    return this.service.readCohortStatistics(period);
   }
 
   // GET /api/assessments/:id — 단일 Assessment 상세. row 부재 시 service 가
