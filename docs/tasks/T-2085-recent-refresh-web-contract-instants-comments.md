@@ -2,7 +2,7 @@
 id: T-2085
 title: 최근 N일 재수집 ⑭-c1 — web 재평가 계약 guard spec 의 instants 설명과 예시 입력을 현재 DTO 에 맞춘다
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 12
