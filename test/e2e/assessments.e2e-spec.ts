@@ -594,4 +594,130 @@ describe("E2E: /api/assessments HTTP contract + RBAC tier enforce (T-0121)", () 
     });
     expect(response.body.message).toBeTruthy();
   });
+
+  describe("GET /api/assessments/cohort-statistics", () => {
+    const PATH = "/api/assessments/cohort-statistics";
+
+    const seedScore = (
+      personId: string,
+      contributionScore: string,
+      overrides: { period?: string; scope?: string; periodStart?: string } = {},
+    ) =>
+      prisma.assessment.create({
+        data: {
+          personId,
+          period: overrides.period ?? "week",
+          scope: overrides.scope ?? "aggregate",
+          periodStart: new Date(
+            overrides.periodStart ?? "2026-01-05T00:00:00.000Z",
+          ),
+          difficulty: "medium",
+          contributionScore,
+          volume: 1,
+          narrative: "요약",
+        },
+      });
+
+    it("cookie 없으면 401 (RBAC)", async () => {
+      const response = await request(app.getHttpServer()).get(
+        `${PATH}?period=week`,
+      );
+
+      expect(response.status).toBe(401);
+    });
+
+    it("period 누락 · 허용 밖 값은 400 (negative)", async () => {
+      const server = app.getHttpServer();
+
+      const missing = await request(server).get(PATH).set("Cookie", userCookie);
+      const invalid = await request(server)
+        .get(`${PATH}?period=year`)
+        .set("Cookie", userCookie);
+
+      expect(missing.status).toBe(400);
+      expect(invalid.status).toBe(400);
+    });
+
+    it("평가가 없어도 :id 로 매칭되지 않고 200 빈 통계를 준다", async () => {
+      const response = await request(app.getHttpServer())
+        .get(`${PATH}?period=week`)
+        .set("Cookie", userCookie);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({
+        totalPersons: 0,
+        scoredPersons: 0,
+        overallAverage: null,
+        parts: [],
+      });
+      expect(response.body.deciles).toHaveLength(10);
+    });
+
+    it("User token 으로 실 DB 집계를 읽는다 — 활성 인원 · aggregate scope · 선택 기간 단위만 포함", async () => {
+      const part = await prisma.part.create({ data: { name: "통계파트" } });
+      const person = (key: string, active: boolean, partId?: string) =>
+        prisma.person.create({
+          data: {
+            fullName: key,
+            email: `${key}@cohort.e2e.test`,
+            active,
+            partId,
+          },
+        });
+      const low = await person("low", true, part.id);
+      const high = await person("high", true, part.id);
+      const unscored = await person("unscored", true);
+      const inactive = await person("inactive", false, part.id);
+
+      await seedScore(low.id, "1");
+      await seedScore(low.id, "2", {
+        periodStart: "2026-01-12T00:00:00.000Z",
+      });
+      await seedScore(low.id, "3", { scope: "commit" });
+      await seedScore(low.id, "3", { period: "month" });
+      await seedScore(high.id, "3");
+      await seedScore(inactive.id, "3");
+
+      const response = await request(app.getHttpServer())
+        .get(`${PATH}?period=week`)
+        .set("Cookie", userCookie);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({
+        totalPersons: 3,
+        scoredPersons: 2,
+        overallAverage: 2.25,
+      });
+      expect(response.body.deciles[0]).toEqual({
+        decile: 1,
+        personCount: 1,
+        average: 1.5,
+      });
+      expect(response.body.deciles[5]).toEqual({
+        decile: 6,
+        personCount: 1,
+        average: 3,
+      });
+      expect(response.body.parts).toEqual([
+        {
+          partId: part.id,
+          partName: "통계파트",
+          personCount: 2,
+          scoredPersonCount: 2,
+          average: 2.25,
+        },
+        {
+          partId: null,
+          partName: null,
+          personCount: 1,
+          scoredPersonCount: 0,
+          average: null,
+        },
+      ]);
+      const raw = JSON.stringify(response.body);
+      [low.id, high.id, unscored.id, inactive.id].forEach((id) =>
+        expect(raw).not.toContain(id),
+      );
+    });
+  });
 });

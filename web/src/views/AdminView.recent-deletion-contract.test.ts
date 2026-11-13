@@ -7,7 +7,7 @@ import { composeRoute, extractControllerRoute, pathSegments, stripComments } fro
 
 // R-112 — 재평가 트리거(POST /api/schedules/recent-deletion/:personId) web↔backend **계약 drift
 // guard**. mirror 선례 AdminView.role-change-contract.test.ts(T-1171)를 대상만 recentDeletion(POST +
-// @Body RecentDeletionDto)으로 교체. 판별 축: method=POST · @Body{instants 필수/days optional} ·
+// @Body RecentDeletionDto)으로 교체. 판별 축: method=POST · @Body{필수 필드 없음 · days optional} ·
 // literal `recent-deletion` + `:personId` 합성 · encodeURIComponent · falsy-personId 미발사 guard ·
 // 형제 api/schedules base-혼동. 정규식 추출기만 — 새 devDependency 0(공용 helper 추출은 Out of Scope).
 interface HandlerDecorator {
@@ -40,7 +40,7 @@ interface DtoFields {
   required: Set<string>;
   optional: Set<string>;
 }
-// DTO 필드 — required(`instants!`/표기 없음)/optional(`days?`). 클래스 없으면 둘 다 빈 집합.
+// DTO 필드 — required(`name!`/표기 없음)/optional(`days?`). 클래스 없으면 둘 다 빈 집합.
 function extractDtoFields(source: string, className: string): DtoFields {
   const body = new RegExp(`class\\s+${className}\\s*\\{([\\s\\S]*?)\\n\\}`).exec(stripComments(source));
   const required = new Set<string>();
@@ -191,7 +191,7 @@ describe('AdminView — 재평가 트리거 web↔backend 계약 drift guard (T-
     expect(extractDtoFields('', 'RecentDeletionDto').optional.size).toBe(0);
     expect(sliceReEvaluateRunner('')).toBe('');
     const empty: BackendContract = { ...RD_CONTRACT, route: extractControllerRoute('') };
-    const fired = { path: BASE, method: 'POST', bodyKeys: new Set(['instants']), body: {} } as WebFire;
+    const fired = { path: BASE, method: 'POST', bodyKeys: new Set(['days']), body: {} } as WebFire;
     expect(diffContract(fired, empty, PERSON_ID)).toEqual(['backend 계약 추출 실패']);
   });
   it('backend @Controller("api/schedules") + @Post("recent-deletion/:personId") 를 base+literal+path-param 3요소로 합성한다 (분기 — 세그먼트 파싱)', () => {
@@ -279,7 +279,7 @@ describe('AdminView — 재평가 트리거 web↔backend 계약 drift guard (T-
     ['(c) literal 오타 recent-delete', 'recent-delete/:personId'],
     ['(c) 다른 literal reeval', 'reeval/:personId'],
     ['(d) path-param 소실 recent-deletion', 'recent-deletion'],
-    ['(d) 세그먼트 추가 recent-deletion/:personId/instants', 'recent-deletion/:personId/instants'],
+    ['(d) 세그먼트 추가 recent-deletion/:personId/extra', 'recent-deletion/:personId/extra'],
   ])('recentDeletion 이 %s 로 drift 하면 path 불일치로 잡힌다 (negative (c)(d) — literal/path-param drift)', async (_label, subPath) => {
     const fired = await fireReEvaluate(PERSON_ID, 7);
     expect(diffContract(fired as WebFire, { ...RD_CONTRACT, subPath }, PERSON_ID)).toEqual([expect.stringContaining('path 불일치')]);

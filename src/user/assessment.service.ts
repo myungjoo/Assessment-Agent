@@ -28,6 +28,8 @@ import {
 } from "@nestjs/common";
 import type { Assessment } from "@prisma/client";
 
+import { computeCohortStatistics } from "./assessment-cohort-statistics";
+import type { CohortStatistics } from "./assessment-cohort-statistics";
 import {
   AssessmentRepository,
   type AssessmentCreateInput,
@@ -104,6 +106,14 @@ export class AssessmentService {
       this.assertValidPeriod(options.period);
     }
     return this.repository.findByPerson(personId, options);
+  }
+
+  // readCohortStatistics — 대시보드 첫 화면의 전체 인원 통계. period literal 을 검증한 뒤
+  // 입력을 읽어 순수 helper 에 위임한다. 평가가 하나도 없어도 오류가 아니다(빈 통계 반환).
+  async readCohortStatistics(period: string): Promise<CohortStatistics> {
+    this.assertValidPeriod(period);
+    const { persons, scores } = await this.repository.findCohortInputs(period);
+    return computeCohortStatistics(persons, scores);
   }
 
   // remove — hard delete (REQ-041 / REQ-037 lifecycle). repository.delete 가 propagate

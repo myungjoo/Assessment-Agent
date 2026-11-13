@@ -7,8 +7,8 @@
 // 외부 의존(스케줄 · 재평가 러너 3 종 · 안내 문구 helper · 조회 경로 상수 · 조회 hook · api
 // primitive)은 전부 모듈 최상위 import 로 해결하고, 축이 참조하는 props 유래 초기값 5 개
 // (`initialCronExpression` · `initialScheduleBusy` · `initialSelectedPersonId` ·
-// `initialSelectedDays` · `initialReevalSubmitting`)와 축 밖 값 `members`(그룹 축 파생 —
-// `personOptions` 한 줄이 그대로 재사용한다)만 단일 파라미터 object 로 받는다. 기본값 로직은
+// `initialSelectedDays` · `initialReevalSubmitting`)와 축 밖 값 `persons`(인원 관리 축의 전체 인원
+// 조회 결과 — `personOptions` 의 원천, T-2080)만 단일 파라미터 object 로 받는다. 기본값 로직은
 // AdminView 의 props destructure 가 계속 소유한다(hook 안 분기 · 기본값 신설 0).
 //
 // 반환은 JSX 소비처 두 덩어리(SchedulePanel props · 재평가 인원 <select> + 재평가 패널 props)가
@@ -27,7 +27,7 @@ import {
   runReEvaluate,
   runTrigger,
 } from './adminScheduleRunners';
-import type { Member } from '../components/GroupMemberList';
+import type { PersonRow } from '../components/PersonList';
 import type { RecentRefreshResult } from '../components/ReEvaluationTriggerPanel';
 
 export interface UseAdminScheduleParams {
@@ -37,8 +37,8 @@ export interface UseAdminScheduleParams {
   initialSelectedPersonId: string;
   initialSelectedDays: number;
   initialReevalSubmitting: boolean;
-  // 축 밖 값 — 그룹 축이 파생한 선택 그룹 멤버. `personOptions` 가 그대로 재사용한다.
-  members: Member[];
+  // 축 밖 값 — 인원 관리 축의 전체 인원 조회 결과(T-2080). 조회 전 · 실패면 undefined 다.
+  persons: PersonRow[] | undefined;
 }
 
 export function useAdminSchedule({
@@ -47,7 +47,7 @@ export function useAdminSchedule({
   initialSelectedPersonId,
   initialSelectedDays,
   initialReevalSubmitting,
-  members,
+  persons,
 }: UseAdminScheduleParams) {
   // === 스케줄 패널 배선(T-0885) — 다섯 번째 패널 ==========================================
   // cron 식 입력 상태 — controlled lift-up(컨테이너 소유). SchedulePanel 의 onCronChange 가
@@ -136,8 +136,8 @@ export function useAdminSchedule({
 
   // === 재평가 트리거 패널 배선(T-0886) — 여섯 번째 패널 ==================================
   // 선택 person 상태 — controlled lift-up(컨테이너 소유). person <select> 선택이 이 값을 갱신하고,
-  // handleReevalTrigger 가 POST path param 으로 공급한다. 옵션은 선택 그룹의 파생 members 를 쓴다
-  // (기존 deriveMembers 결과 재사용 — 별도 fetch 0). 그룹 선택 <select> 동형의 controlled lift-up.
+  // handleReevalTrigger 가 POST path param 으로 공급한다. 옵션은 전체 인원 목록에서 파생한다
+  // (T-2080 — 그룹 선택과 무관, 별도 fetch 0). 그룹 선택 <select> 동형의 controlled lift-up.
   const [selectedPersonId, setSelectedPersonId] = useState<string>(
     initialSelectedPersonId,
   );
@@ -162,9 +162,16 @@ export function useAdminSchedule({
     RecentRefreshResult | undefined
   >(undefined);
 
-  // person 선택 옵션 — 선택 그룹의 파생 members 를 재사용한다(deriveMembers 결과). 그룹 미선택/멤버
-  // 0 이면 빈 옵션(placeholder 만) — 재평가 트리거는 person 미선택 가드로 안전하게 억제된다.
-  const personOptions = members;
+  // person 선택 옵션 — 인원 관리 축의 전체 인원 목록을 `{ id, name: fullName }` 로 파생한다
+  // (T-2080). 조회 전 · 실패(undefined) · 빈 목록이면 빈 옵션(placeholder 만)이고 throw 하지 않는다 —
+  // 재평가 트리거는 person 미선택 가드와 패널의 triggerDisabled 로 억제된다.
+  const personOptions = useMemo(
+    () =>
+      Array.isArray(persons)
+        ? persons.map((person) => ({ id: person.id, name: person.fullName }))
+        : [],
+    [persons],
+  );
 
   // onTrigger 실 핸들러(T-0886) — 재평가 POST 를 컨테이너 내부 async 로 발사한다(runTrigger 정합 —
   // useApiResource 는 read-on-mount 라 클릭 발화에 부적합). 선택 personId(path param)·days(body)·
@@ -194,8 +201,14 @@ export function useAdminSchedule({
 
   // person 선택 변경 — person <select> 가 선택 person id 를 컨테이너 상태로 올린다(빈 값 = 미선택
   // 으로 되돌림). 그룹 선택 handleSelectChange 동형. panel 은 person 선택을 모른다(Decision 1).
+  // 인원이 실제로 바뀌면 직전 결과 · 실패 문구를 비운다(T-2080 — 다른 인원의 결과가 남지 않는다).
   const handlePersonChange = (event: { target: { value: string } }) => {
-    setSelectedPersonId(event.target.value);
+    const next = event.target.value;
+    if (next !== selectedPersonId) {
+      setReevalResult(undefined);
+      setReevalError(undefined);
+    }
+    setSelectedPersonId(next);
   };
   // === /재평가 트리거 패널 배선(T-0886) ================================================
 

@@ -5,10 +5,10 @@
 // REQ-032(raw 미저장)는 본 helper 가 입력 record 만 다루고 raw 를 새로 fetch 하지 않으므로
 // helper layer 에서도 자연 유지된다(UC-07 §1 invariant (a)).
 //
-// 코드 골격은 deletion-window-select.ts 의 순수-helper 패턴을 mirror 한다: 반열림
-// [start, end) PeriodRange 분류 + assertValidDate/assertValidRange + non-mutating + 입력
-// 순서 보존 + 빈 배열 정상. dateRange 표현은 새 타입을 신설하지 않고 common 의 PeriodRange
-// 를 재사용한다(UC-07 §6.1 dateRange 차원).
+// 순수-helper 규칙: 반열림 [start, end) PeriodRange 로 분류하고, 입력은
+// assertValidDate/assertValidRange 로 검증하며, 입력 배열을 변경하지 않고(non-mutating) 입력
+// 순서를 보존하고, 빈 배열은 정상 입력으로 빈 결과를 낸다. dateRange 표현은 새 타입을 신설하지
+// 않고 common 의 PeriodRange 를 재사용한다(UC-07 §6.1 dateRange 차원).
 //
 // 제네릭 확장(T-1290) — ExportSelection / selectExportRecords 는 record 타입 파라미터
 // TRecord(default = ExportRecord)를 받는다. full-record dump 의 FullExportRecord(= ExportRecord
@@ -80,8 +80,8 @@ export const VALID_EXPORT_ENTITIES: ReadonlyArray<ExportEntity> = [
 
 const VALID_SCOPES: ReadonlySet<string> = new Set(VALID_EXPORT_SCOPES);
 
-// Invalid Date / 비-Date 입력은 명시적 error (deletion-window-select 의 assertValidDate 와
-// 동형 message convention — 해당 helper 가 export 되지 않아 본 파일에 mirror 한다).
+// Invalid Date / 비-Date 입력은 명시적 TypeError 로 거부한다 — message 는
+// "selectExportRecords: <label> 은(는) 유효한 Date instance 여야 합니다" 형식이다.
 function assertValidDate(value: unknown, label: string): asserts value is Date {
   if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
     throw new TypeError(
@@ -92,7 +92,7 @@ function assertValidDate(value: unknown, label: string): asserts value is Date {
 
 // range scope 의 dateRange 검증 — start/end 가 유효 Date 인지(TypeError) + 반열림 구간이
 // 비어있지 않은지(start < end, RangeError). start >= end(역전/빈 구간)는 선별 대상이 없으므로
-// 호출자 오류로 거부한다(deletion-window-select.assertValidWindow 동형).
+// 호출자 오류로 거부한다.
 function assertValidRange(range: PeriodRange): void {
   assertValidDate(range?.start, "dateRange.start");
   assertValidDate(range?.end, "dateRange.end");

@@ -58,7 +58,6 @@ describe("RecentDeletionController (unit)", () => {
 
     const controller = new RecentDeletionController(runner);
     const result = await controller.recentDeletion(PERSON_ID, {
-      instants: [],
       days: 7,
     });
 
@@ -71,23 +70,9 @@ describe("RecentDeletionController (unit)", () => {
     const { runner, runnerMock } = buildRunnerMock();
     runnerMock.startRefresh.mockResolvedValueOnce(RUN_RESULT);
 
-    await new RecentDeletionController(runner).recentDeletion(PERSON_ID, {
-      instants: [],
-    });
+    await new RecentDeletionController(runner).recentDeletion(PERSON_ID, {});
 
     expect(runnerMock.startRefresh).toHaveBeenCalledWith(PERSON_ID, undefined);
-  });
-
-  it("POST recent-deletion — client 의 instants 는 runner 로 전달되지 않는다_n", async () => {
-    const { runner, runnerMock } = buildRunnerMock();
-    runnerMock.startRefresh.mockResolvedValueOnce(RUN_RESULT);
-
-    await new RecentDeletionController(runner).recentDeletion(PERSON_ID, {
-      instants: [ISO_A, ISO_B],
-      days: 1,
-    });
-
-    expect(runnerMock.startRefresh.mock.calls[0]).toEqual([PERSON_ID, 1]);
   });
 
   it("GET recent-deletion — refreshStatus 를 그대로 반환한다", () => {
@@ -111,9 +96,7 @@ describe("RecentDeletionController (unit)", () => {
     runnerMock.startRefresh.mockRejectedValueOnce(rawError);
 
     await expect(
-      new RecentDeletionController(runner).recentDeletion(PERSON_ID, {
-        instants: [],
-      }),
+      new RecentDeletionController(runner).recentDeletion(PERSON_ID, {}),
     ).rejects.toThrow(rawError);
   });
 });
@@ -155,7 +138,7 @@ describe("RecentDeletionController (HTTP integration)", () => {
 
     const res = await request(app.getHttpServer())
       .post(`/api/schedules/recent-deletion/${PERSON_ID}`)
-      .send({ instants: [ISO_A, ISO_B], days: 7 })
+      .send({ days: 7 })
       .expect(202);
 
     expect(res.body).toEqual(RUN_RESULT);
@@ -170,17 +153,34 @@ describe("RecentDeletionController (HTTP integration)", () => {
 
     await request(app.getHttpServer())
       .post("/api/schedules/recent-deletion/other-99")
-      .send({ instants: [ISO_A] })
+      .send({})
       .expect(202);
 
     expect(runnerMock.startRefresh).toHaveBeenCalledWith("other-99", undefined);
   });
 
   // -- ValidationPipe negative — DTO 검증이 실제 HTTP 400 으로 표면화 --------
-  it("POST recent-deletion — 정의 외 본문 키 포함 시 400 (forbidNonWhitelisted) + runner 미호출", async () => {
+  // 본문은 { days } 만 받는다. 정의되지 않은 키는 forbidNonWhitelisted 가 거부한다.
+  it("POST recent-deletion — 정의되지 않은 다른 키 포함 시 400 + runner 미호출_n", async () => {
     await request(app.getHttpServer())
       .post(`/api/schedules/recent-deletion/${PERSON_ID}`)
-      .send({ instants: [ISO_A], reference: ISO_B })
+      .send({ reference: ISO_B })
+      .expect(400);
+    expect(runnerMock.startRefresh).not.toHaveBeenCalled();
+  });
+
+  it("POST recent-deletion — instants 빈 배열 포함 시 400 + runner 미호출_n", async () => {
+    await request(app.getHttpServer())
+      .post(`/api/schedules/recent-deletion/${PERSON_ID}`)
+      .send({ instants: [], days: 1 })
+      .expect(400);
+    expect(runnerMock.startRefresh).not.toHaveBeenCalled();
+  });
+
+  it("POST recent-deletion — instants ISO 배열 포함 시 400 + runner 미호출_n", async () => {
+    await request(app.getHttpServer())
+      .post(`/api/schedules/recent-deletion/${PERSON_ID}`)
+      .send({ instants: [ISO_A, ISO_B] })
       .expect(400);
     expect(runnerMock.startRefresh).not.toHaveBeenCalled();
   });
@@ -193,7 +193,7 @@ describe("RecentDeletionController (HTTP integration)", () => {
     expect(runnerMock.startRefresh).toHaveBeenCalledWith(PERSON_ID, undefined);
   });
 
-  it("POST recent-deletion — instants 없이 days 만으로 202 다", async () => {
+  it("POST recent-deletion — { days } 본문으로 202 다 (ValidationPipe 통과)", async () => {
     runnerMock.startRefresh.mockResolvedValueOnce(RUN_RESULT);
     await request(app.getHttpServer())
       .post(`/api/schedules/recent-deletion/${PERSON_ID}`)
@@ -202,10 +202,10 @@ describe("RecentDeletionController (HTTP integration)", () => {
     expect(runnerMock.startRefresh).toHaveBeenCalledWith(PERSON_ID, 7);
   });
 
-  it("POST recent-deletion — instants 원소가 비-ISO 시 400 + runner 미호출 (negative — @IsISO8601 each)", async () => {
+  it("POST recent-deletion — days 0 시 400 + runner 미호출 (negative — @IsPositive 경계값)_n", async () => {
     await request(app.getHttpServer())
       .post(`/api/schedules/recent-deletion/${PERSON_ID}`)
-      .send({ instants: ["not-a-date"] })
+      .send({ days: 0 })
       .expect(400);
     expect(runnerMock.startRefresh).not.toHaveBeenCalled();
   });
@@ -213,7 +213,7 @@ describe("RecentDeletionController (HTTP integration)", () => {
   it("POST recent-deletion — days 음수 시 400 + runner 미호출 (negative — @IsPositive)", async () => {
     await request(app.getHttpServer())
       .post(`/api/schedules/recent-deletion/${PERSON_ID}`)
-      .send({ instants: [ISO_A], days: -1 })
+      .send({ days: -1 })
       .expect(400);
     expect(runnerMock.startRefresh).not.toHaveBeenCalled();
   });
@@ -221,7 +221,7 @@ describe("RecentDeletionController (HTTP integration)", () => {
   it("POST recent-deletion — days 비-정수 시 400 + runner 미호출 (negative — @IsInt)", async () => {
     await request(app.getHttpServer())
       .post(`/api/schedules/recent-deletion/${PERSON_ID}`)
-      .send({ instants: [ISO_A], days: 1.5 })
+      .send({ days: 1.5 })
       .expect(400);
     expect(runnerMock.startRefresh).not.toHaveBeenCalled();
   });
@@ -234,7 +234,7 @@ describe("RecentDeletionController (HTTP integration)", () => {
 
     await request(app.getHttpServer())
       .post("/api/schedules/recent-deletion/ghost")
-      .send({ instants: [ISO_A] })
+      .send({})
       .expect(404);
   });
 
@@ -245,7 +245,7 @@ describe("RecentDeletionController (HTTP integration)", () => {
 
     await request(app.getHttpServer())
       .post(`/api/schedules/recent-deletion/${PERSON_ID}`)
-      .send({ instants: [ISO_A], days: 7 })
+      .send({ days: 7 })
       .expect(400);
   });
 
@@ -256,7 +256,7 @@ describe("RecentDeletionController (HTTP integration)", () => {
 
     await request(app.getHttpServer())
       .post(`/api/schedules/recent-deletion/${PERSON_ID}`)
-      .send({ instants: [] })
+      .send({})
       .expect(409);
   });
 
@@ -265,7 +265,7 @@ describe("RecentDeletionController (HTTP integration)", () => {
 
     await request(app.getHttpServer())
       .post(`/api/schedules/recent-deletion/${PERSON_ID}`)
-      .send({ instants: [ISO_A] })
+      .send({})
       .expect(500);
   });
 });
@@ -330,7 +330,7 @@ describe("RecentDeletionController (RBAC guard integration)", () => {
 
     await request(app.getHttpServer())
       .post(`/api/schedules/recent-deletion/${PERSON_ID}`)
-      .send({ instants: [ISO_A] })
+      .send({})
       .expect(202);
     expect(runnerMock.startRefresh).toHaveBeenCalledTimes(1);
   });
@@ -347,7 +347,7 @@ describe("RecentDeletionController (RBAC guard integration)", () => {
 
     await request(app.getHttpServer())
       .post(`/api/schedules/recent-deletion/${PERSON_ID}`)
-      .send({ instants: [ISO_A] })
+      .send({})
       .expect(401);
     expect(runnerMock.startRefresh).not.toHaveBeenCalled();
   });
@@ -360,7 +360,7 @@ describe("RecentDeletionController (RBAC guard integration)", () => {
 
     await request(app.getHttpServer())
       .post(`/api/schedules/recent-deletion/${PERSON_ID}`)
-      .send({ instants: [ISO_A] })
+      .send({})
       .expect(403);
     expect(runnerMock.startRefresh).not.toHaveBeenCalled();
   });
@@ -418,7 +418,7 @@ describe("RecentDeletionController (real RolesGuard escalation 분기)", () => {
 
     await request(app.getHttpServer())
       .post(`/api/schedules/recent-deletion/${PERSON_ID}`)
-      .send({ instants: [ISO_A] })
+      .send({})
       .expect(403);
     expect(runnerMock.startRefresh).not.toHaveBeenCalled();
   });
@@ -431,7 +431,7 @@ describe("RecentDeletionController (real RolesGuard escalation 분기)", () => {
 
       await request(app.getHttpServer())
         .post(`/api/schedules/recent-deletion/${PERSON_ID}`)
-        .send({ instants: [ISO_A] })
+        .send({})
         .expect(202);
       expect(runnerMock.startRefresh).toHaveBeenCalledTimes(1);
     },

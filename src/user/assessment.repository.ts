@@ -36,6 +36,17 @@ import type { Assessment, Prisma } from "@prisma/client";
 
 import { PrismaService } from "../persistence/prisma.service";
 
+import type {
+  CohortPerson,
+  CohortPersonScore,
+} from "./assessment-cohort-statistics";
+
+// 전체 인원 통계(computeCohortStatistics) 의 입력 묶음.
+export interface AssessmentCohortInputs {
+  persons: CohortPerson[];
+  scores: CohortPersonScore[];
+}
+
 // Assessment create input shape — ADR-0006 §1 의 허용 입력 컬럼 8 종.
 // `id` / `createdAt` 는 schema 의 `@default(cuid())` / `@default(now())` 가 cover →
 // caller 가 전달 X. raw 본문 컬럼 (commit body / diff / 문서 본문 / `rawBody` /
@@ -145,6 +156,37 @@ export class AssessmentRepository {
       where: { personId },
       orderBy: { periodStart: "desc" },
     });
+  }
+
+  // findCohortInputs — 전체 인원 통계의 입력. 활성 인원 전체(파트 포함)와, 그중 평가가 있는
+  // 인원의 contributionScore 평균을 DB 집계로 읽는다. scope 는 cron · backfill 이 적재하는
+  // "aggregate" 로 고정한다 — 수동 평가의 commit / document scope 와 섞이면 같은 활동이
+  // 두 번 평균에 들어간다. periodStart 는 제한하지 않아 해당 기간 단위의 전체 이력 평균이다.
+  async findCohortInputs(period: string): Promise<AssessmentCohortInputs> {
+    const [persons, averages] = await Promise.all([
+      this.prisma.person.findMany({
+        where: { active: true },
+        select: { id: true, part: { select: { id: true, name: true } } },
+      }),
+      this.prisma.assessment.groupBy({
+        by: ["personId"],
+        where: { period, scope: "aggregate", person: { active: true } },
+        _avg: { contributionScore: true },
+      }),
+    ]);
+    return {
+      persons: persons.map(({ id, part }) => ({
+        personId: id,
+        partId: part?.id ?? null,
+        partName: part?.name ?? null,
+      })),
+      // Number(null) 은 0 이므로 평균 결손을 먼저 거른다(값 없음 ≠ 0 점).
+      scores: averages.flatMap(({ personId, _avg }) =>
+        _avg.contributionScore === null
+          ? []
+          : [{ personId, score: Number(_avg.contributionScore) }],
+      ),
+    };
   }
 
   // delete — hard delete (REQ-041 Admin manual delete / REQ-037 lifecycle,
