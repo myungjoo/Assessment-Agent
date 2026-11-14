@@ -1,6 +1,6 @@
 // AdminView 멤버십 축 hook(T-1896 순수 추출 슬라이스) — AdminView 본문 `736 행` ~ `841 행` 의
-// 멤버십 축 한 덩어리(106 줄, 12 선언)를 선행 주석까지 본문 무변경으로 옮긴 모듈이다. 이동 대상은
-// `membersRefreshNonce` · `removing` · `removeError` ·
+// 멤버십 축 한 덩어리(106 줄, 12 선언 — 그중 `members` 파생은 T-2086 에서 제거)를 선행 주석까지
+// 본문 무변경으로 옮긴 모듈이다. 남은 이동 대상은 `membersRefreshNonce` · `removing` · `removeError` ·
 // `groupMembersPath` useMemo · `useApiResource<MembershipRow[]>` 조회 · `groupMembers` 파생 ·
 // `handleRemove` · `adding` · `addError` · `handleAdd` · `addCandidates` 이고, 동작 변경은 0 이다 —
 // 옮긴 선언의 본문 · 모든 `useMemo`/`useCallback` deps 배열 · `runRemove`/`runAdd` 주입 키가 이동
