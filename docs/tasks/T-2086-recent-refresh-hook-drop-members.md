@@ -2,7 +2,7 @@
 id: T-2086
 title: 최근 N일 재수집 ⑭-c2a — useAdminMemberships 반환에서 쓰이지 않는 members 파생을 뺀다
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 45
