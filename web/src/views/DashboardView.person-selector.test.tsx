@@ -133,8 +133,9 @@ describe('DashboardView — 인원 선택 컨트롤 배선 (T-1723, REQ-074)', (
     renderToStaticMarkup(<DashboardView />);
     expect(useApiResourceMock).toHaveBeenCalledWith(null);
     const calledPaths = useApiResourceMock.mock.calls.map((call) => call[0]);
+    // 전체 인원 통계(/api/assessments/cohort-statistics)는 personId 가 필요 없어 가드 대상이 아니다.
     const queried = calledPaths.some(
-      (path) => typeof path === 'string' && path.startsWith('/api/assessments'),
+      (path) => typeof path === 'string' && path.startsWith('/api/assessments?'),
     );
     expect(queried).toBe(false);
   });
