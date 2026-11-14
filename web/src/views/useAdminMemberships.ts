@@ -1,6 +1,6 @@
 // AdminView 멤버십 축 hook(T-1896 순수 추출 슬라이스) — AdminView 본문 `736 행` ~ `841 행` 의
-// 멤버십 축 한 덩어리(106 줄, 12 선언)를 선행 주석까지 본문 무변경으로 옮긴 모듈이다. 이동 대상은
-// `members` client-side 파생 · `membersRefreshNonce` · `removing` · `removeError` ·
+// 멤버십 축 한 덩어리(106 줄, 12 선언 — 그중 `members` 파생은 T-2086 에서 제거)를 선행 주석까지
+// 본문 무변경으로 옮긴 모듈이다. 남은 이동 대상은 `membersRefreshNonce` · `removing` · `removeError` ·
 // `groupMembersPath` useMemo · `useApiResource<MembershipRow[]>` 조회 · `groupMembers` 파생 ·
 // `handleRemove` · `adding` · `addError` · `handleAdd` · `addCandidates` 이고, 동작 변경은 0 이다 —
 // 옮긴 선언의 본문 · 모든 `useMemo`/`useCallback` deps 배열 · `runRemove`/`runAdd` 주입 키가 이동
@@ -13,14 +13,15 @@
 // 0 건이라 `useAdminPersons` 가 받은 것 같은 외부 setter 파라미터가 본 축에는 필요 없다.
 //
 // 호출 위치 제약: AdminView 는 본 hook 을 **이동 전 블록 자리**(그룹 `groups` 파생 직후, LLM
-// provider 축 hook 앞)에서 호출해야 한다. 반환 `members` 를 `useAdminSchedule` 이 소비하고,
-// `useApiResource` 발사 순번으로 route 를 구분하는 기존 spec 이 있어 순번이 바뀌면 회귀가 난다.
+// provider 축 hook 앞)에서 호출해야 한다. `useApiResource` 발사 순번으로 route 를 구분하는 기존
+// spec 이 있어 순번이 바뀌면 회귀가 난다.
 //
-// 반환은 잔류 소비처(GroupMemberList 배선 · `useAdminSchedule` 의 `members` 주입)가 실제로 쓰는 11
-// 심볼만 공개하고 내부 값(`membershipData` 원본 응답 · `groupMembersPath` · `membersRefreshNonce` ·
-// 각 축의 state setter)은 노출하지 않는다(캡슐화 — T-1884 ~ T-1895 선례 승계). 재조회 nonce 의
+// 반환은 잔류 소비처(GroupMemberList 배선)가 실제로 쓰는 10 심볼만 공개한다. 쓰는 곳이 없어진
+// `members` client-side 파생은 T-2086 에서 반환에서 뺐다. 내부 값(`membershipData` 원본 응답 ·
+// `groupMembersPath` · `membersRefreshNonce` · 각 축의 state setter)은 노출하지 않는다(캡슐화 —
+// T-1884 ~ T-1895 선례 승계). 재조회 nonce 의
 // 유일한 소비처인 `bumpRefresh` 두 자리가 함께 들어왔으므로 setter 를 한시 노출할 이유도 없다.
-// 11 심볼 중 `adding` 만은 현 JSX 가 아직 배선하지 않은 읽기 전용 in-flight 플래그다 — 짝인
+// 10 심볼 중 `adding` 만은 현 JSX 가 아직 배선하지 않은 읽기 전용 in-flight 플래그다 — 짝인
 // `removing` 이 GroupMemberList 의 loading 합성에 쓰이는 것과 대칭을 맞춰 표면에 남기되(추가 진행
 // 표시 배선은 별도 슬라이스), 컨테이너는 destructure 하지 않아 미사용 경고를 만들지 않는다.
 //
@@ -32,7 +33,6 @@ import { runAdd, runRemove } from './adminMembershipRunners';
 import {
   buildGroupMembersPath,
   deriveAddCandidates,
-  deriveMembers,
   deriveMembersFromMemberships,
   findGroup,
 } from './adminMembershipDerivations';
@@ -52,15 +52,6 @@ export function useAdminMemberships({
   selectedGroupId,
   personData,
 }: UseAdminMembershipsParams) {
-  // 선택 그룹의 멤버 파생(client-side, id = personId) — T-1129 부터 GroupMemberList 는 아래 신
-  // endpoint fetch 결과(groupMembers, id = membershipId)를 쓰므로, 본 client-side 파생은 재평가
-  // 인원 선택 <select> 의 personOptions 전용으로 남는다(재평가 POST 는 personId 를 path param 으로
-  // 쓰므로 membershipId 부적합). 미선택/미발견/멤버 미포함이면 빈 배열.
-  const members = useMemo(
-    () => deriveMembers(groups, selectedGroupId || undefined),
-    [groups, selectedGroupId],
-  );
-
   // 멤버십 재조회 nonce(T-1130) — ④c remove DELETE 성공 시 이 값을 +1 해 groupMembersPath 를
   // 변화시켜 useApiResource 재조회를 유발한다(read-only hook 수정 0 경로 — buildMappingsPath 동형).
   const [membersRefreshNonce, setMembersRefreshNonce] = useState<number>(0);
@@ -159,11 +150,10 @@ export function useAdminMemberships({
     [personData, membershipData, selectedGroupId],
   );
 
-  // 반환 표면 — 잔류 소비처가 실제로 쓰는 11 심볼만 공개한다. 원본 응답(`membershipData`) · 조회
+  // 반환 표면 — 잔류 소비처가 실제로 쓰는 10 심볼만 공개한다. 원본 응답(`membershipData`) · 조회
   // path(`groupMembersPath`) · 재조회 nonce 와 각 setter 는 의도적으로 빼 축 밖에서 이 축의 내부
   // 상태를 건드릴 경로를 만들지 않는다(캡슐화).
   return {
-    members,
     groupMembers,
     membersLoading,
     membersError,

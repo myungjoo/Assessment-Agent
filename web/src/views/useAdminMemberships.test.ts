@@ -3,8 +3,8 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 // R-112 — T-1896 useAdminMemberships(AdminView 멤버십 축 순수 추출) 전용 colocated spec.
-// 이동 대상은 멤버십 축 한 덩어리 12 선언(client-side members 파생 · 재조회 nonce · remove
-// in-flight · remove 실패 문구 · groupMembersPath useMemo · 멤버십 조회 · groupMembers 파생 ·
+// 이동 대상은 멤버십 축 한 덩어리 12 선언(client-side members 파생(T-2086 에서 제거) · 재조회
+// nonce · remove in-flight · remove 실패 문구 · groupMembersPath useMemo · 멤버십 조회 · groupMembers 파생 ·
 // handleRemove · add in-flight · add 실패 문구 · handleAdd · addCandidates)이고, 본 spec 은 그
 // 덩어리가 hook 으로 옮겨간 뒤에도 **이동 전과 글자-동일한 주입 계약 · 분기 · 반환 표면**을
 // 유지하는지 잠근다.
@@ -18,7 +18,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 // 반환값을 관측할 수 있다.
 //
 // 조회 hook · api 발사 primitive · mutation 러너 2 종만 vi.mock 으로 대체하고, 경로 빌더
-// (buildGroupMembersPath)와 파생 helper(deriveMembers · deriveMembersFromMemberships ·
+// (buildGroupMembersPath)와 파생 helper(deriveMembersFromMemberships ·
 // deriveAddCandidates · findGroup) · 문구 helper(toErrorMessage)는 원본을 그대로 쓴다 — 본 spec 의
 // 검증 대상은 "hook 이 어떤 path 를 조회하는가" · "어떤 인자를 러너에 넘기는가(주입 계약)" ·
 // "그 주입 계약이 실 러너에 물렸을 때 이동 전과 같은 결과를 내는가" 이고, 러너 · 파생 본문 자체는
@@ -74,10 +74,9 @@ const actualRunners = await vi.importActual<
 type Hook = ReturnType<typeof useAdminMemberships>;
 type Deps = Record<string, unknown>;
 
-// 반환 표면 계약 — 잔류 소비처가 쓰는 11 심볼(파생 2 + 조회 상태 2 + remove 3 + add 3 + 후보 1).
+// 반환 표면 계약 — 잔류 소비처가 쓰는 10 심볼(파생 1 + 조회 상태 2 + remove 3 + add 3 + 후보 1).
 // 그 이상도 이하도 아니다.
 const RETURN_KEYS = [
-  'members',
   'groupMembers',
   'membersLoading',
   'membersError',
@@ -129,7 +128,8 @@ const ADD_DEPS_KEYS = [
 const GROUP_ID = 'g1';
 const BASE = `/api/groups/${GROUP_ID}/members`;
 
-// 선택 그룹 — persons 키로 멤버를 싣는다(deriveMembers 의 members ?? persons fallback 경로).
+// 선택 그룹 — persons 키로 멤버를 싣는다(deriveMembersFromMemberships 의 members ?? persons
+// fallback 경로).
 const GROUP_A: GroupRow = {
   id: GROUP_ID,
   name: '팀 A',
@@ -297,18 +297,13 @@ describe('useAdminMemberships — happy path(조회 · 파생 · 주입 계약)'
     expect(useApiResourceMock.mock.calls[0]).toEqual([BASE]);
   });
 
-  it('groupMembers · members · addCandidates 파생이 이동 전 기대값을 낸다', () => {
+  it('groupMembers · addCandidates 파생이 이동 전 기대값을 낸다', () => {
     const hook = lastOf(renderProbe());
 
     // groupMembers — id 는 membershipId, 표시명은 선택 그룹 person(personId 매칭)에서 채운다.
     expect(hook.groupMembers).toEqual([
       { id: 'ms-1', name: '홍길동', role: '평가자' },
       { id: 'ms-2', name: '김철수', role: undefined },
-    ]);
-    // members — 재평가 인원 select 전용 client-side 파생(id = personId).
-    expect(hook.members).toEqual([
-      { id: 'person-1', name: '홍길동', role: '평가자' },
-      { id: 'person-2', name: '김철수', role: undefined },
     ]);
     // addCandidates — 전체 인원 − 현재 멤버(person-1 · person-2 제외).
     expect(hook.addCandidates).toEqual([{ id: 'person-3', name: '이영희' }]);
@@ -325,7 +320,7 @@ describe('useAdminMemberships — happy path(조회 · 파생 · 주입 계약)'
     expect(hook.addError).toBeUndefined();
   });
 
-  it('잔류 소비처가 쓰는 11 심볼만 공개한다(내부 전용 값은 비공개)', () => {
+  it('잔류 소비처가 쓰는 10 심볼만 공개한다(내부 전용 값은 비공개)', () => {
     const hook = lastOf(renderProbe());
 
     expect(Object.keys(hook).sort()).toEqual(RETURN_KEYS);
@@ -336,6 +331,8 @@ describe('useAdminMemberships — happy path(조회 · 파생 · 주입 계약)'
     for (const key of INTERNAL_ONLY_KEYS) {
       expect(hook).not.toHaveProperty(key);
     }
+    // T-2086 에서 뺀 client-side `members` 파생이 반환 표면으로 다시 새지 않는다.
+    expect(hook).not.toHaveProperty('members');
   });
 
   it('handleRemove 가 membershipId 와 deps 7 키를 러너에 그대로 넘긴다(주입 계약 무변경)', () => {
@@ -537,7 +534,6 @@ describe('useAdminMemberships — 분기(path 조건부 · nonce · 합성 우�
 
     expect(firedPaths()).toEqual([null]);
     expect(hook.groupMembers).toEqual([]);
-    expect(hook.members).toEqual([]);
   });
 
   it('nonce 0 은 깨끗한 path, bumpRefresh 후에는 `_r` 이 붙은 path 로 재조회한다', () => {
@@ -624,8 +620,8 @@ describe('useAdminMemberships — 분기(path 조건부 · nonce · 합성 우�
     const hook = lastOf(renderProbe(undefined, { selectedGroupId: 'g2' }));
 
     expect(firedPaths()).toEqual(['/api/groups/g2/members']);
-    // GROUP_B 는 members · persons 를 싣지 않아 client-side 파생이 빈 배열이다.
-    expect(hook.members).toEqual([]);
+    // 기본 응답이 비어 있어 GROUP_B 기준 멤버십 파생도 빈 배열이다.
+    expect(hook.groupMembers).toEqual([]);
   });
 });
 
@@ -699,10 +695,9 @@ describe('useAdminMemberships — negative cases(발사 억제 · 비정상 응�
     }
   });
 
-  it('선택 id 가 목록에 없는 stale 선택이면 client-side 파생이 빈 배열이다', () => {
+  it('선택 id 가 목록에 없는 stale 선택이면 멤버십 파생이 빈 배열이다', () => {
     const hook = lastOf(renderProbe(undefined, { selectedGroupId: 'gone' }));
 
-    expect(hook.members).toEqual([]);
     // 그 그룹 path 로는 조회가 나가지만 응답이 없어 멤버십 파생도 빈 배열이다.
     expect(hook.groupMembers).toEqual([]);
   });
@@ -715,7 +710,6 @@ describe('useAdminMemberships — negative cases(발사 억제 · 비정상 응�
       { id: 'ms-1', name: '이름 미상', role: undefined },
       { id: 'ms-2', name: '이름 미상', role: undefined },
     ]);
-    expect(hook.members).toEqual([]);
   });
 
   it('핸들러 참조가 같은 deps 에서 렌더 간 안정적이다(불필요 재생성 없음)', () => {
