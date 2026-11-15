@@ -5,8 +5,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 // R-112 — P6 composition wiring ④a AdminView 컨테이너(T-0385, ADR-0041 Decision 1·3·5)
 // 검증. jsdom/@testing-library 미사용(ADR-0040 §5 게이트) — useApiResource 를 vi.mock 으로
 // 치환해 data/loading/error 시나리오를 통제하고 react-dom/server renderToStaticMarkup 으로
-// 정적 렌더 markup 을 단언한다. 선택 그룹 → 멤버 파생은 export 된 순수 helper(deriveMembers/
-// findGroup)를 직접 호출해 검증한다. 파일명 .test.tsx 고정(root jest testRegex 충돌 회피).
+// 정적 렌더 markup 을 단언한다. 선택 그룹 탐색은 export 된 순수 helper(findGroup)를
+// 직접 호출해 검증한다. 파일명 .test.tsx 고정(root jest testRegex 충돌 회피).
 
 import type { ApiResourceState } from '../api/useApiResource';
 
@@ -68,7 +68,6 @@ import {
 
 import AdminView, {
   findGroup,
-  deriveMembers,
   buildGroupMembersPath,
   deriveMembersFromMemberships,
   deriveProviders,
@@ -423,45 +422,6 @@ describe('AdminView — 선택 그룹/멤버 파생 (순수 함수)', () => {
     expect(findGroup(SAMPLE, '없음')).toBeUndefined();
     expect(findGroup(SAMPLE, undefined)).toBeUndefined();
     expect(findGroup(undefined, 'g1')).toBeUndefined();
-  });
-
-  // deriveMembers — 선택 그룹의 members 를 Member[] 로 매핑 + 미선택/미발견/멤버 미포함 시 빈 배열.
-  it('선택 그룹의 members 를 Member[] 로 매핑하고 미선택/미발견이면 빈 배열을 낸다 (멤버 파생)', () => {
-    const members = deriveMembers(SAMPLE, 'g1');
-    expect(members).toHaveLength(2);
-    expect(members[0]).toEqual({ id: 'p1', name: '김철수', role: '리더' });
-    expect(members[1]).toEqual({ id: 'p2', name: '이영희', role: undefined });
-    // 미선택/미발견(stale)/비배열 → 빈 배열(빈 상태 위임).
-    expect(deriveMembers(SAMPLE, undefined)).toEqual([]);
-    expect(deriveMembers(SAMPLE, '없음')).toEqual([]);
-    expect(deriveMembers(undefined, 'g1')).toEqual([]);
-    // 멤버 미포함 그룹 → 빈 배열(④b fetch 대상).
-    expect(deriveMembers([{ id: 'g9', name: '신규팀' }], 'g9')).toEqual([]);
-  });
-
-  // negative — persons 키 fallback + id/name 누락 row 의 합성 key/fallback 라벨.
-  it('persons 키 fallback + id/name 누락 row 를 보수적으로 매핑한다 (negative — 대체 키/누락 필드)', () => {
-    // members 없고 persons 만 있는 그룹 → persons 를 멤버로 쓴다.
-    const viaPersons = deriveMembers(
-      [{ id: 'g3', name: '데브옵스', persons: [{ id: 'p9', fullName: '최강록' }] }],
-      'g3',
-    );
-    // name 없고 fullName 만 있으면 fullName 을 이름으로 쓴다.
-    expect(viaPersons[0]).toEqual({ id: 'p9', name: '최강록', role: undefined });
-
-    // id/name 모두 누락 멤버 → 합성 key(m1) + fallback 라벨(이름 미상).
-    const fallback = deriveMembers(
-      [{ id: 'g4', name: '기획', members: [{ role: '팀원' }] }],
-      'g4',
-    );
-    expect(fallback[0]).toEqual({ id: 'm1', name: '이름 미상', role: '팀원' });
-
-    // 빈 문자열 name 도 fallback 라벨로 보정(의미 없는 빈 이름 방지).
-    const emptyName = deriveMembers(
-      [{ id: 'g5', name: '운영', members: [{ id: 'p5', name: '' }] }],
-      'g5',
-    );
-    expect(emptyName[0]).toMatchObject({ id: 'p5', name: '이름 미상' });
   });
 });
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PersonRow } from '../components/PersonList';
 
-// R-112 — T-1876 순수 추출로 신설된 모듈의 **경계 spec**. 멤버십 파생 helper 5 가 AdminView 안에
+// R-112 — T-1876 순수 추출로 신설된 모듈의 **경계 spec**. 멤버십 파생 helper(현재 4) 가 AdminView 안에
 // 있었을 때는 컨테이너 렌더 spec 이 간접적으로만 훑던 분기들을, 이동 후에는 모듈 경계에서 직접
 // 검증할 수 있다. 본 파일이 검증하는 것은 (a) 값 · 타입 심볼이 새 모듈에서 직접 import 되는가,
 // (b) 각 helper 의 happy / error(안전 fallback) / 분기 / negative 계약이 무엇인가,
@@ -11,10 +11,10 @@ import type { PersonRow } from '../components/PersonList';
 import {
   buildGroupMembersPath,
   deriveAddCandidates,
-  deriveMembers,
   deriveMembersFromMemberships,
   findGroup,
 } from './adminMembershipDerivations';
+import * as derivations from './adminMembershipDerivations';
 import type {
   GroupMemberRow,
   GroupRow,
@@ -23,10 +23,10 @@ import type {
 import {
   buildGroupMembersPath as reexportedBuildGroupMembersPath,
   deriveAddCandidates as reexportedDeriveAddCandidates,
-  deriveMembers as reexportedDeriveMembers,
   deriveMembersFromMemberships as reexportedDeriveMembersFromMemberships,
   findGroup as reexportedFindGroup,
 } from './AdminView';
+import * as adminView from './AdminView';
 
 // 이동한 모듈-private 상수 FALLBACK_MEMBER_NAME 의 기대값 — 상수 자체는 export 되지 않으므로
 // (이동 전 AdminView 배럴에도 없던 심볼) spec 은 그 **관측 가능한 결과값** 으로 계약을 고정한다.
@@ -72,77 +72,6 @@ describe('findGroup', () => {
   it('미발견(stale 선택)이면 throw 없이 undefined 를 반환한다', () => {
     expect(() => findGroup([GROUP], 'g-없음')).not.toThrow();
     expect(findGroup([GROUP], 'g-없음')).toBeUndefined();
-  });
-});
-
-describe('deriveMembers', () => {
-  // happy — group.members 를 Member[] 로 매핑한다(id · name · role).
-  it('선택 그룹의 members 를 Member[] 로 매핑한다', () => {
-    expect(deriveMembers([GROUP], 'g-1')).toEqual([
-      { id: 'p-1', name: '김철수', role: 'Member' },
-      { id: 'p-2', name: '이영희', role: undefined },
-    ]);
-  });
-
-  // 분기 1 — 그룹 미발견(stale/미선택)이면 빈 배열.
-  it('그룹 미발견이면 빈 배열을 반환한다', () => {
-    expect(deriveMembers([GROUP], 'g-없음')).toEqual([]);
-    expect(deriveMembers(undefined, 'g-1')).toEqual([]);
-  });
-
-  // 분기 2 (error path) — 멤버 배열 후보가 비배열/부재면 throw 없이 빈 배열.
-  it('members · persons 가 모두 배열이 아니면 빈 배열을 반환한다', () => {
-    const broken = { id: 'g-1', members: 'nope' } as unknown as GroupRow;
-    expect(() => deriveMembers([broken], 'g-1')).not.toThrow();
-    expect(deriveMembers([broken], 'g-1')).toEqual([]);
-    expect(deriveMembers([{ id: 'g-1' }], 'g-1')).toEqual([]);
-  });
-
-  // 분기 3 — members 가 있으면 persons 보다 우선한다.
-  it('members 키가 persons 보다 우선한다', () => {
-    const both: GroupRow = {
-      id: 'g-1',
-      members: [{ id: 'p-1', name: '우선' }],
-      persons: [{ id: 'p-9', name: '무시' }],
-    };
-    expect(deriveMembers([both], 'g-1')).toEqual([
-      { id: 'p-1', name: '우선', role: undefined },
-    ]);
-  });
-
-  // 분기 4 — members 부재 시 persons 로 fallback 한다.
-  it('members 부재 시 persons 로 fallback 한다', () => {
-    const only: GroupRow = { id: 'g-1', persons: [{ id: 'p-7', name: '대체' }] };
-    expect(deriveMembers([only], 'g-1')).toEqual([
-      { id: 'p-7', name: '대체', role: undefined },
-    ]);
-  });
-
-  // negative (c)(d) — id 누락 row 는 index 기반 합성 key, 이름 누락 · 빈 문자열은 fallback 라벨.
-  it('id 누락은 m<n> 합성 key, 이름 누락 · 빈 이름은 fallback 라벨로 안전 매핑한다', () => {
-    const messy: GroupRow = {
-      id: 'g-1',
-      members: [{ name: '이름만' }, {}, { id: 'p-3', name: '' }],
-    };
-    expect(deriveMembers([messy], 'g-1')).toEqual([
-      { id: 'm1', name: '이름만', role: undefined },
-      { id: 'm2', name: FALLBACK, role: undefined },
-      { id: 'p-3', name: FALLBACK, role: undefined },
-    ]);
-  });
-
-  // error path 보수 — 부분 손상 row 가 있어도 나머지 row 매핑이 계속된다.
-  it('부분 손상 row 가 섞여도 나머지 row 매핑이 계속된다', () => {
-    const messy: GroupRow = {
-      id: 'g-1',
-      members: [{}, { id: 'p-2', name: '정상' }],
-    };
-    expect(deriveMembers([messy], 'g-1')).toHaveLength(2);
-    expect(deriveMembers([messy], 'g-1')[1]).toEqual({
-      id: 'p-2',
-      name: '정상',
-      role: undefined,
-    });
   });
 });
 
@@ -342,11 +271,17 @@ describe('AdminView 배럴 재수출', () => {
   // 가리킴을 박제한다(무수정 통과의 근거).
   it('재수출본이 새 모듈의 심볼과 동일 참조다', () => {
     expect(reexportedFindGroup).toBe(findGroup);
-    expect(reexportedDeriveMembers).toBe(deriveMembers);
     expect(reexportedBuildGroupMembersPath).toBe(buildGroupMembersPath);
     expect(reexportedDeriveMembersFromMemberships).toBe(
       deriveMembersFromMemberships,
     );
     expect(reexportedDeriveAddCandidates).toBe(deriveAddCandidates);
+  });
+
+  // negative — T-2087 에서 삭제한 그룹 응답 직접 멤버 파생 helper 가 두 표면 어디에서도 다시
+  // export 되지 않음을 잠근다(소비처 없는 helper 의 재유입 방지).
+  it('삭제된 그룹 멤버 직접 파생 helper 는 모듈 · 배럴 어디에서도 export 되지 않는다', () => {
+    expect(derivations).not.toHaveProperty('deriveMembers');
+    expect(adminView).not.toHaveProperty('deriveMembers');
   });
 });

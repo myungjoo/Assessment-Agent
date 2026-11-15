@@ -9,11 +9,9 @@
 // (DifficultyModelSelector·ReEvaluationTriggerPanel·DataImportExportPanel·SchedulePanel)
 // 배선 + 멤버 추가/제거 mutation(onRemove) + Admin+ RBAC gating UI 는 ④b/④c Out of Scope.
 //
-// 멤버 데이터 출처(api.md 81 응답 형태 확인 결과): api.md 는 GET /api/groups 를 "임의 group
-// 목록(REQ-028)" 으로만 기술하고 group row 가 멤버 배열을 포함하는지 명시하지 않는다. 따라서
-// 본 slice 는 group row 에 members 필드가 "있으면" 그것을 client-side 로 파생해 표시하고,
-// 없으면 빈 배열(빈 상태) 로 안전 표시한다 — 별도 GET /api/groups/:id/members 신규 fetch 는
-// ④b Out of Scope(본 컨테이너는 useApiResource 를 그룹 목록 조회에 단 한 번만 호출한다).
+// 멤버 데이터 출처: 선택 그룹의 멤버 표시는 GET /api/groups/:id/members 멤버십 조회 결과를
+// deriveMembersFromMemberships 로 파생해 만든다(useAdminMemberships 축). 표시 이름은 그룹 응답의
+// members ?? persons 에서 personId 로 매칭하고, 매칭 실패 · 이름 누락이면 fallback 라벨로 보정한다.
 
 import { useCallback, useMemo, useState } from 'react';
 import { useApiResource, toErrorMessage } from '../api/useApiResource';
@@ -88,14 +86,13 @@ import type {
 // re-export 하므로 기존 spec 의 `from './AdminView'` 도 무수정으로 산다.
 import { runAdd, runRemove } from './adminMembershipRunners';
 import type { AddDeps, RemoveDeps } from './adminMembershipRunners';
-// 그룹 멤버십 파생 helper 축(T-1876 순수 추출) — 위 mutation 러너 군의 짝인 순수 파생 helper 5 와
+// 그룹 멤버십 파생 helper 축(T-1876 순수 추출) — 위 mutation 러너 군의 짝인 순수 파생 helper 4 와
 // 그것이 쓰는 row 타입 3 을 담는 모듈. 본문 · 주석은 한 줄도 바뀌지 않았고 AdminView 는 값과 타입을
 // import 만 한다(단방향 — 본 모듈은 AdminView 를 import 하지 않는다). 파일 끝 export 배럴이 이동 전
 // 표면을 그대로 re-export 하므로 기존 spec 의 `from './AdminView'` 도 무수정으로 산다.
 import {
   buildGroupMembersPath,
   deriveAddCandidates,
-  deriveMembers,
   deriveMembersFromMemberships,
   findGroup,
 } from './adminMembershipDerivations';
@@ -1851,7 +1848,6 @@ function AdminView({
 
 export {
   findGroup,
-  deriveMembers,
   buildGroupMembersPath,
   deriveMembersFromMemberships,
   deriveAddCandidates,
