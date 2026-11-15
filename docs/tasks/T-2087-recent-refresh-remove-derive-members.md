@@ -2,7 +2,7 @@
 id: T-2087
 title: 최근 N일 재수집 ⑭-c2b — 소비처가 사라진 deriveMembers helper 를 지운다
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-041]
 estimatedDiff: 150
