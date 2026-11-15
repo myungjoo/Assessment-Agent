@@ -89,7 +89,7 @@ import type { AddDeps, RemoveDeps } from './adminMembershipRunners';
 // 그룹 멤버십 파생 helper 축(T-1876 순수 추출) — 위 mutation 러너 군의 짝인 순수 파생 helper 4 와
 // 그것이 쓰는 row 타입 3 을 담는 모듈. 본문 · 주석은 한 줄도 바뀌지 않았고 AdminView 는 값과 타입을
 // import 만 한다(단방향 — 본 모듈은 AdminView 를 import 하지 않는다). 파일 끝 export 배럴이 이동 전
-// 표면을 그대로 re-export 하므로 기존 spec 의 `from './AdminView'` 도 무수정으로 산다.
+// 표면(T-2087 삭제분 제외)을 그대로 re-export 하므로 기존 spec 의 `from './AdminView'` 도 무수정으로 산다.
 import {
   buildGroupMembersPath,
   deriveAddCandidates,

@@ -19,7 +19,7 @@
 // 말고 Follow-ups 로 남긴다). AdminView 파일 끝 export 배럴이 임포트한 값 4 개(findGroup ·
 // buildGroupMembersPath · deriveMembersFromMemberships · deriveAddCandidates)와
 // 타입 3 개(GroupRow · GroupMemberRow · MembershipRow)를 re-export 하므로,
-// 기존 계약 spec 의 './AdminView' import 경로는 무수정으로 산다(공개 표면 무변경).
+// 기존 계약 spec 의 './AdminView' import 경로는 무수정으로 산다(T-2087 삭제분 외 공개 표면 무변경).
 
 import type { Member } from '../components/GroupMemberList';
 import type { PersonRow } from '../components/PersonList';
