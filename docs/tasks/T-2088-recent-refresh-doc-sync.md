@@ -2,7 +2,7 @@
 id: T-2088
 title: 최근 N일 재수집 ⑭-d — api.md · modules.md · UC-06 · UC-01 의 재수집 서술을 현재 구현에 맞춘다
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-041]
 estimatedDiff: 24
