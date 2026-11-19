@@ -2,7 +2,7 @@
 id: T-2089
 title: REQ-041 재판정 — 최근 N일 재수집 arc (T-2069 ~ T-2088) 머지 후 상태 칸을 실측으로 다시 쓴다
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-041]
 estimatedDiff: 6
