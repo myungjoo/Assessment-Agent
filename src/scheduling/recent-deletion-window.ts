@@ -1,8 +1,8 @@
-// recent-deletion-window — 최근 N일 결과 manual delete 대상 기간 window 산출 순수 helper
+// recent-deletion-window — 최근 N일 재수집의 대상 기간 window 산출 순수 helper
 // (T-0424, P7 ⑤ slice 1, R-74 / REQ-041). "최근 1일/7일/30일" 처럼 호출자가 지정한
-// days 일 동안의 평가 결과를 manual delete → 재수집하기 위해, 그 대상 기간을 KST 일
-// 경계에 snap 된 반열림 구간 [start, end) 로만 산출한다. 실 삭제/재수집은 후속 slice 가
-// 본 출력을 소비한다 — 본 helper 는 DB·trigger·repository 호출 0 (Out of Scope).
+// days 일 동안의 평가 결과를 다시 수집 · 평가하기 위해, 그 대상 기간을 KST 일 경계에
+// snap 된 반열림 구간 [start, end) 로만 산출한다. 소비처는 recent-deletion-coordinates.ts
+// 의 buildClosedDaysWindow 다 — 본 helper 는 DB·trigger·repository 호출 0.
 //
 // 일 경계 산출은 반드시 period-boundary.ts 의 KST helper 에 위임한다 (ADR-0039
 // §Decision5 — boundary 계산 single source, hardcoded +09:00 산술 금지). 본 파일은
@@ -17,7 +17,7 @@ import {
 // days 기본값 = 1 (R-74 명시 예 중 최소). 호출자가 항상 명시하는 것을 권장하나,
 // 단일 합리적 기본값을 둬 "최근 하루" 호출을 간결히 한다.
 const DEFAULT_DAYS = 1;
-// 상한 가드 = 366 일 (1년, 윤년 여유 포함). 초과 요청은 과도 삭제 window 로 보고 거부.
+// 상한 가드 = 366 일 (1년, 윤년 여유 포함). 초과 요청은 과도한 재수집 window 로 보고 거부.
 const MAX_DAYS = 366;
 // 하루의 ms — 일 경계는 KST helper 로 도출하되, "days 일 전" 으로 물러서기 위한 근사
 // instant 산출에만 사용한다 (실제 경계 snap 은 전적으로 startOfKstDay 책임).

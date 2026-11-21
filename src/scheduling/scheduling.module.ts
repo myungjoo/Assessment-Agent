@@ -58,9 +58,10 @@ const cronTickHandlerProvider = {
   // 이미 providers/exports 에 있는 BackfillRunnerService 를 inject 받아 runBackfill 을
   // 호출한다(새 provider 0 — controller 등록만). cron endpoint 와 별도 controller 로
   // 분리해 단일 책임 유지(같은 prefix `api/schedules`, 클래스만 분리).
-  // RecentDeletionController(T-0428, P7 ⑤ slice 2 후속 b) — 최근 N일 결과 manual delete
-  // → 재수집 REST 진입점. 이미 providers/exports 에 있는 RecentDeletionRunnerService 를
-  // inject 받아 runRecentDeletion 을 호출한다(새 provider 0 — controller 등록만).
+  // RecentDeletionController(T-0428, P7 ⑤ slice 2 후속 b) — 최근 N일 재수집 REST 진입점.
+  // 이미 providers/exports 에 있는 RecentDeletionRunnerService 를 inject 받아 POST 는
+  // startRefresh 로 재수집을 시작하고(202), GET 은 refreshStatus 로 진행 상태를 돌려준다
+  // (새 provider 0 — controller 등록만).
   // BackfillController 와 같은 prefix `api/schedules`, 클래스만 분리해 단일 책임 유지.
   controllers: [
     CronScheduleController,
@@ -91,8 +92,8 @@ const cronTickHandlerProvider = {
     // 교체한다. 저장본을 먼저 지우지 않으므로 수집 실패 좌표의 이전 row 는 남는다.
     RecentDeletionRunnerService,
   ],
-  // CronScheduleService·BackfillRunnerService 외에 RecentDeletionRunnerService 도 export —
-  // 후속 sub-slice(manual delete REST controller)가 inject 받아 runRecentDeletion 을 호출한다.
+  // CronScheduleService·BackfillRunnerService 외에 RecentDeletionRunnerService 도 export 한다.
+  // 현재 module 밖 소비처는 없고, 같은 module 의 RecentDeletionController 가 inject 한다.
   exports: [
     CronScheduleService,
     BackfillRunnerService,
