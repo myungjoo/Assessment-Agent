@@ -74,7 +74,7 @@ function firedPaths(): string[] {
 // 발사된 path 중 assessments/summaries 조회만 추린다(인원 목록 등 다른 조회 제외).
 function queriedPaths(): string[] {
   return firedPaths().filter(
-    (path) => path.startsWith('/api/assessments') || path.startsWith('/api/summaries'),
+    (path) => path.startsWith('/api/assessments?') || path.startsWith('/api/summaries'),
   );
 }
 
