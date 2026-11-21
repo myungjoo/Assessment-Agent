@@ -2,7 +2,7 @@
 id: T-2090
 title: 최근 N일 재수집 — scheduling.module.ts · recent-deletion-window.ts 의 옛 "삭제 → 재수집" 주석을 현재 동작으로 고친다
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-041]
 estimatedDiff: 16
