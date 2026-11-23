@@ -17,7 +17,10 @@ const gap = (periodStart: Date, period = "day", personId = "p1") => ({
 
 function setup() {
   const deps = {
-    resolver: { resolveDefaultModelId: jest.fn().mockResolvedValue("m") },
+    resolver: {
+      resolveDefaultConfigId: jest.fn().mockResolvedValue("cfg"),
+      resolveDefaultModelId: jest.fn().mockResolvedValue("model"),
+    },
     persons: {
       findActive: jest.fn().mockResolvedValue([{ id: "p1" }, { id: "p2" }]),
       findByIdWithIdentities: jest
@@ -82,7 +85,7 @@ describe("EvaluationTickRunnerService", () => {
       { since: MONTH.toJSON(), until: utc("09-30").toJSON() },
     ]);
     expect(calls.map(([, , , context]) => context)).toEqual(coordinates);
-    expect(calls[0].slice(2)).toEqual([{ modelId: "m" }, coordinates[0]]);
+    expect(calls[0].slice(2)).toEqual([{ modelId: "cfg" }, coordinates[0]]);
     expect(status.begin).toHaveBeenCalledWith("evaluation");
     expect(status.end).toHaveBeenCalledWith("evaluation");
     summary(3, 0);
@@ -114,9 +117,23 @@ describe("EvaluationTickRunnerService", () => {
     expect(persons.findActive).toHaveBeenCalledTimes(2);
   });
 
-  it("modelId 해석 실패 시 작업 없이 멈추고 reject 하지 않는다_n", async () => {
+  // T-2091 regression: gateway 는 options.modelId 를 config id 로 조회한다.
+  it("평가에는 modelId 가 아니라 기본 provider 의 config id 를 넘긴다_n", async () => {
+    const { runner, planOnce, resolver, persist } = setup();
+    planOnce("p1", gap(DAY));
+    await runner.run();
+    expect(persist.generateAndPersistIfCollected).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      { modelId: "cfg" },
+      gap(DAY),
+    );
+    expect(resolver.resolveDefaultModelId).not.toHaveBeenCalled();
+  });
+
+  it("config id 해석 실패 시 작업 없이 멈추고 reject 하지 않는다_n", async () => {
     const { runner, resolver, persons, status } = setup();
-    resolver.resolveDefaultModelId.mockRejectedValue(new Error("row 0"));
+    resolver.resolveDefaultConfigId.mockRejectedValue(new Error("row 0"));
     await expect(runner.run()).resolves.toBeUndefined();
     expect(persons.findActive).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalledWith("평가 실행 중단: row 0");
@@ -251,7 +268,7 @@ describe("EvaluationTickRunnerService", () => {
     const { runner, planOnce, resolver, status } = setup();
     planOnce("p1", gap(DAY));
     await runner.run();
-    resolver.resolveDefaultModelId.mockRejectedValueOnce(new Error("no llm"));
+    resolver.resolveDefaultConfigId.mockRejectedValueOnce(new Error("no llm"));
     await runner.run();
     expect(status.recordEvaluationRun).toHaveBeenLastCalledWith({
       source: "tick",
