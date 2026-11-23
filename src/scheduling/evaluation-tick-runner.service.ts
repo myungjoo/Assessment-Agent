@@ -85,7 +85,8 @@ export class EvaluationTickRunnerService implements OnModuleDestroy {
     this.runStatus.begin("evaluation");
     this.tally = emptyTally();
     try {
-      const modelId = await this.resolver.resolveDefaultModelId();
+      // gateway 는 difficulty 가 없으면 options.modelId 를 config id 로 조회한다 (T-2091).
+      const configId = await this.resolver.resolveDefaultConfigId();
       const persons = await this.persons.findActive();
       if (persons.length === 0) {
         this.logger.log("평가 실행 완료: 활성 인원 없음");
@@ -97,7 +98,7 @@ export class EvaluationTickRunnerService implements OnModuleDestroy {
           this.logger.warn("app 종료로 평가 실행을 중단한다");
           return;
         }
-        await this.fillPerson(personId, coordinates, modelId);
+        await this.fillPerson(personId, coordinates, configId);
       }
       this.logger.log(
         `평가 실행 완료: evaluated=${this.tally.evaluated} skipped=${this.tally.skipped} failed=${this.tally.failed}`,
@@ -163,7 +164,7 @@ export class EvaluationTickRunnerService implements OnModuleDestroy {
   private async fillPerson(
     personId: string,
     coordinates: EvaluationPersistContext[],
-    modelId: string,
+    configId: string,
   ): Promise<void> {
     let person: PersonWithIdentities;
     try {
@@ -194,7 +195,7 @@ export class EvaluationTickRunnerService implements OnModuleDestroy {
         const persisted = await this.persist.generateAndPersistIfCollected(
           person,
           { since: start.toISOString(), until: end.toISOString() },
-          { modelId },
+          { modelId: configId },
           context,
         );
         this.tally[persisted === null ? "skipped" : "evaluated"] += 1;

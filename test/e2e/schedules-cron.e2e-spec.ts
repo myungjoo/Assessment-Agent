@@ -21,8 +21,9 @@
 //     경로도 cron registry 상태를 바꾸지 않는다. SuperAdmin 은 RolesGuard escalation
 //     으로 통과(과차단 없음).
 //
-// 실 평가 실행(T-2043, T-2057): GitHub 만 globalThis.fetch 로 대체한다. LLM 은 저장 경로에
-// 활동이 닿지 않아 호출되지 않으며, 실 LLM · 활동 있는 평가의 저장은 본 spec 이 검증하지 않는다.
+// 실 평가 실행(T-2043, T-2057, T-2091): GitHub 와 LLM host 를 globalThis.fetch 로 대체한다.
+// 활동 있는 좌표는 기본 provider 의 config id 로 LLM stub 까지 가서 저장된다. 실 LLM 은
+// 본 spec 이 검증하지 않는다.
 //
 // 실 DB 전략(ADR-0004): mock override 0. createAuthenticatedE2EApp 가 AppModule
 // 부트스트랩 + actor seed, PrismaService 가 실 connection. REST 계약 축은 DB row 를
@@ -57,6 +58,7 @@ const DAILY_4AM = "0 4 * * *";
 const JOB_NAME = "e2e-cron-job-alpha";
 
 const GITHUB_HOST = "github.e2etick.test";
+const LLM_HOST = "llm.e2etick.test";
 const GITHUB_ENV = {
   GITHUB_INSTANCES: "e2etick",
   GITHUB_E2ETICK_HOST: GITHUB_HOST,
@@ -139,6 +141,12 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
     // GithubAdapter 가 생성 시점에 fetch 를 잡으므로 app 부팅 전에 교체한다.
     globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
       const url = String(input);
+      if (url.includes(LLM_HOST)) {
+        return new Response(
+          JSON.stringify({ choices: [{ message: { content: "tick 평가" } }] }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
       if (!url.includes(GITHUB_HOST)) {
         return realFetch(input as string, init);
       }
@@ -399,17 +407,17 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
       githubFailPath = null;
       githubCommits = [];
       process.env[ENC_KEY_ENV] = randomBytes(32).toString("base64");
+      const cipher = app.get(LlmApiKeyCipher, { strict: false });
       Object.assign(process.env, GITHUB_ENV, {
-        GITHUB_E2ETICK_TOKEN_ENC: app
-          .get(LlmApiKeyCipher, { strict: false })
-          .encrypt("e2e-token"),
+        GITHUB_E2ETICK_TOKEN_ENC: cipher.encrypt("e2e-token"),
       });
       await ctx.prisma.llmProviderConfig.deleteMany();
+      // id 는 자동 생성이라 modelId 와 다르다 — tick 이 config id 를 넘겨야 조회된다.
       await ctx.prisma.llmProviderConfig.create({
         data: {
-          provider: "openai-compatible",
-          endpointUrl: "http://llm.e2e.test/v1",
-          apiKey: "e2e-placeholder-key",
+          provider: "custom",
+          endpointUrl: `http://${LLM_HOST}/v1`,
+          apiKey: cipher.encrypt("e2e-llm-key"),
           modelId: "test-model",
         },
       });
@@ -452,6 +460,27 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
       expect(again.map((r) => r.id).sort()).toEqual(
         rows.map((r) => r.id).sort(),
       );
+    });
+
+    // T-2091 regression: 수정 전에는 config id 자리에 modelId 가 넘어가 config 조회가 실패했다.
+    it("창 안 활동이 있는 닫힌 일 좌표를 기본 provider 로 평가해 저장한다", async () => {
+      await createPerson();
+      const yesterday = getKstPeriodRangeByPeriod(
+        "day",
+        new Date(Date.now() - 86_400_000),
+      ).start;
+      githubCommits = [commit(yesterday)];
+
+      await triggerAndWait();
+
+      const row = await ctx.prisma.assessment.findFirst({
+        where: { period: "day", periodStart: yesterday },
+      });
+      expect(row?.narrative).toContain("tick 평가");
+      expect(await ctx.prisma.assessment.count()).toBe(CLOSED_COORDINATES);
+      const run = await lastRun();
+      expect(run.evaluatedCount).toBeGreaterThanOrEqual(1);
+      expect(run.failedCount).toBe(0);
     });
 
     it("GitHub token 장애 중에는 빈 평가를 저장하지 않고, 복구 후 tick 이 채운다_n", async () => {
@@ -586,7 +615,8 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
         expect(await ctx.prisma.assessment.count()).toBe(1);
       });
 
-      // 위 test 의 대조군. 창 안 활동은 LLM 까지 가고, 본 spec 에는 쓸 수 있는 LLM 이 없어 실패한다.
+      // 위 test 의 대조군. 창 안 활동은 LLM 까지 가지만, 이 controller 경로는 아직 config id
+      // 자리에 modelId 를 넘겨 config 조회가 실패한다 (T-2091 Follow-ups).
       it("기간 끝 직전 활동은 좌표의 평가 대상이다_n", async () => {
         const person = await createPerson();
         const start = yesterdayStart();
