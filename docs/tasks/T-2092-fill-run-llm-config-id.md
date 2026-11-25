@@ -2,7 +2,7 @@
 id: T-2092
 title: POST /unevaluated-fill-run 이 기본 provider 의 config id 로 평가해 활동 있는 좌표가 실제로 저장되게 한다
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037]
 estimatedDiff: 130
