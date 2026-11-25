@@ -219,14 +219,15 @@ export class AssessmentEvaluationController {
     // 추가 token / module 배선 변경 0. test 는 jest mock { run } 을 주입해 실 DB read 0 /
     // 실 LLM 0 / 실 네트워크 0 으로 위임 정합만 검증한다.
     private readonly unevaluatedFillRunOrchestrator: UnevaluatedFillRunOrchestratorService,
-    // LlmProviderConfigResolver — POST /unevaluated-fill-run 의 default modelId 의
+    // LlmProviderConfigResolver — POST /unevaluated-fill-run 의 default config id 의
     // **server-side source** (T-0568, ADR-0048 §Decision 1·2). 종전엔 caller 가 보낸
-    // `dto.defaultModelId` 를 그대로 forward 했으나, 본 task(chain item 3)부터
-    // runUnevaluatedFill 진입 시 resolver 가 LlmProviderConfig DB row 의 modelId 를
-    // 단일-row 해석(0-row/2+row/빈·non-string 은 fail-fast throw)해 server-side 에서
-    // 권위 있게 결정한다. resolver 는 LlmModule 이 이미 export(T-0568)하므로 module
-    // 배선 변경 0 — 생성자 주입만으로 inject. test 는 jest mock { resolveDefaultModelId }
-    // 를 주입해 실 DB read 0 / 실 LLM 0 / 실 네트워크 0 으로 배선 정합만 검증한다.
+    // `dto.defaultModelId` 를 그대로 forward 했으나, T-0568(chain item 3)부터
+    // runUnevaluatedFill 진입 시 resolver 가 LlmProviderConfig DB row 를 단일-row
+    // 해석(0-row/2+row/형식 위반은 fail-fast throw)해 server-side 에서 권위 있게 결정한다.
+    // T-2092 부터는 그 row 의 id (config id) 를 넘긴다 — gateway 가 config id 로 조회하기
+    // 때문이다. resolver 는 LlmModule 이 이미 export(T-0568)하므로 module 배선 변경 0 —
+    // 생성자 주입만으로 inject. test 는 jest mock { resolveDefaultConfigId } 를 주입해
+    // 실 DB read 0 / 실 LLM 0 / 실 네트워크 0 으로 배선 정합만 검증한다.
     private readonly llmProviderConfigResolver: LlmProviderConfigResolver,
     // UserService — POST /period 의 요청 User timezone 해석 source(T-0802, ADR-0052
     // §Decision(b)/(d) + §Follow-ups(3)). JWT payload(JwtPayload = { sub, role })는
@@ -764,12 +765,13 @@ export class AssessmentEvaluationController {
     };
     this.runStatus.begin("evaluation");
     try {
-      // default modelId 의 server-side 해석 — caller 가 보낸 `dto.defaultModelId` 를
+      // default config id 의 server-side 해석 — caller 가 보낸 `dto.defaultModelId` 를
       // 더 이상 읽지 않고(이 참조 제거로 chain item 2 의 DTO 필드 제거가 안전해진다),
-      // resolver 가 LlmProviderConfig DB row 의 modelId 를 단일-row 해석해 권위 있게
-      // 결정한다(ADR-0048 §Decision 1·2). 이 await 를 orchestrator 위임보다 **먼저**
-      // 두어, resolver 가 throw 하면(0-row / 2+row / 빈·non-string modelId) 평가 사슬에
-      // 아예 진입하지 않게 한다(비용 있는 LLM round-trip 전 fail-fast).
+      // resolver 가 LlmProviderConfig DB row 를 단일-row 해석해 그 row 의 id (config id)
+      // 를 권위 있게 결정한다(ADR-0048 §Decision 1·2). gateway 가 config id 로 조회하므로
+      // modelId 를 넘기면 id 와 modelId 가 다를 때 평가가 모두 실패한다 (T-2092). 이 await 를
+      // orchestrator 위임보다 **먼저** 두어, resolver 가 throw 하면(0-row / 2+row / 형식
+      // 위반) 평가 사슬에 아예 진입하지 않게 한다(비용 있는 LLM round-trip 전 fail-fast).
       //
       // HTTP status 매핑(ADR-0048 §Out of scope — 503/500/400 중 controller wiring 이
       // 503 으로 박제): resolver 는 layer 책임 경계상 plain Error / TypeError 만 던지므로
@@ -778,10 +780,10 @@ export class AssessmentEvaluationController {
       // resolver 의 한국어 메시지를 503 응답에 담아 진단성을 보존하고, error 객체 자체를
       // cause 로 전파한다. resolver 가 던진 게 아닌 Nest HttpException(향후 resolver 변경
       // 대비)이면 그대로 propagate 한다(이중 wrapping 방지).
-      let resolvedDefaultModelId: string;
+      let resolvedDefaultConfigId: string;
       try {
-        resolvedDefaultModelId =
-          await this.llmProviderConfigResolver.resolveDefaultModelId();
+        resolvedDefaultConfigId =
+          await this.llmProviderConfigResolver.resolveDefaultConfigId();
       } catch (error) {
         throw new ServiceUnavailableException(
           error instanceof Error
@@ -792,7 +794,7 @@ export class AssessmentEvaluationController {
       }
 
       // orchestrator 위임 — rawBridges + dto.modelId(override) + server-side 해석된
-      // defaultModelId + 사전 난이도 routing 스위치를 forward(가공 0). dedup / options
+      // default config id + 사전 난이도 routing 스위치를 forward(가공 0). dedup / options
       // 도출 / 좌표 순회 / 좌표 단위 부분 실패 흡수는 service → core 책임이라 controller
       // 는 pass-through 만 한다. modelId 미지정(undefined) 시에도 임의 default 를 채우지
       // 않고 그대로 undefined 를 forward 한다(service 가 resolved defaultModelId 로
@@ -808,7 +810,7 @@ export class AssessmentEvaluationController {
       const result = await this.unevaluatedFillRunOrchestrator.run(
         dto.rawBridges,
         dto.modelId,
-        resolvedDefaultModelId,
+        resolvedDefaultConfigId,
         dto.useInputDifficultyRouting,
       );
       runRecord = toFillRunRecord(result);

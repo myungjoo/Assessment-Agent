@@ -615,8 +615,8 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
         expect(await ctx.prisma.assessment.count()).toBe(1);
       });
 
-      // 위 test 의 대조군. 창 안 활동은 LLM 까지 가지만, 이 controller 경로는 아직 config id
-      // 자리에 modelId 를 넘겨 config 조회가 실패한다 (T-2091 Follow-ups).
+      // 위 test 의 대조군. 창 안 활동은 LLM 까지 가서 평가되고 저장된다. controller 가
+      // config id 를 넘기므로 id 와 modelId 가 다른 config 도 조회된다 (T-2092).
       it("기간 끝 직전 활동은 좌표의 평가 대상이다_n", async () => {
         const person = await createPerson();
         const start = yesterdayStart();
@@ -626,8 +626,9 @@ describe("E2E: /api/schedules cron 스케줄 REST (T-1968, REQ-039/REQ-043)", ()
         const response = await fillRun(person.id, start);
 
         expect(response.status).toBe(200);
-        expect(response.body.failedCount).toBe(1);
-        expect(await ctx.prisma.assessment.count()).toBe(0);
+        expect(response.body.failedCount).toBe(0);
+        expect(response.body.evaluatedCount).toBeGreaterThanOrEqual(1);
+        expect(await ctx.prisma.assessment.count()).toBe(1);
       });
     });
   });
