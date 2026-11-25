@@ -3,11 +3,12 @@
 // 는 rawBridges / modelId / useInputDifficultyRouting 3 축을 보유한다 — rawBridges(필수
 // nested 배열) + modelId(선택 override) + 사전 난이도 routing 스위치(선택 boolean,
 // ADR-0066 § Decision 1·2) — 을 HTTP boundary 에서 **형식만** 검증한다(POST /api/assessment-evaluation/
-// unevaluated-fill-run). default modelId 는 request body 가 아니라 server-side resolver
+// unevaluated-fill-run). default 는 request body 가 아니라 server-side resolver
 // (`LlmProviderConfigResolver`)가 LlmProviderConfig DB row 에서 단일 해석한다(ADR-0048
 // §Decision 1·3 — caller 가 default 를 매 호출마다 넘기는 구조 제거). controller 가
-// resolver 가 해석한 defaultModelId 를 `UnevaluatedFillRunOrchestratorService.run(
-// rawBridges, requestModelId, defaultModelId)` 의 3 번째 인자로 inject 한다(T-0569 머지).
+// resolver 가 해석한 row 의 id (config id) 를 `UnevaluatedFillRunOrchestratorService.run(
+// rawBridges, requestModelId, defaultModelId)` 의 3 번째 인자로 inject 한다(T-0569 머지,
+// T-2092 부터 modelId 가 아니라 config id — gateway 가 config id 로 조회한다).
 //
 // `UnevaluatedFillPlanRequestDto`(T-0542, plan-side request DTO) 패턴 mirror —
 // class-validator decorator 로 형식만 검증하고, 허용 literal 값(period 의 day/week/month,
@@ -23,7 +24,7 @@
 //
 // 본 DTO 는 controller endpoint(`runUnevaluatedFill`)의 @Body() 로 사용되어 검증된 2 축이
 // `UnevaluatedFillRunOrchestratorService.run(dto.rawBridges, dto.modelId,
-// resolvedDefaultModelId)` 로 흘러간다(3 번째 인자는 server-side resolver source — dto 에서
+// resolvedDefaultConfigId)` 로 흘러간다(3 번째 인자는 server-side resolver source — dto 에서
 // 오지 않는다). controller-scope ValidationPipe(whitelist + forbidNonWhitelisted +
 // transform)과 결합돼 다음을 자동 강제한다:
 //   - 정의되지 않은 필드(이제 defaultModelId 포함) → 400 BadRequest(forbidNonWhitelisted).
@@ -37,7 +38,7 @@
 //     밖(controller / service / core 책임).
 //   - 허용 literal 값 검증(period day/week/month, scope commit/document/aggregate,
 //     허용 modelId set)은 domain helper / service 책임(@IsIn 미적용).
-//   - default modelId 의 source(`LlmProviderConfig` DB row 의 modelId)는 본 DTO 밖 —
+//   - default 의 source(`LlmProviderConfig` DB row 의 id, 즉 config id)는 본 DTO 밖 —
 //     server-side `LlmProviderConfigResolver` 가 단일 해석한다(ADR-0048 §Decision 1·3).
 //   - 새 외부 dependency 0 — class-validator / class-transformer 는 이미 의존(period-
 //     bridge.dto.ts / unevaluated-fill-plan-request.dto.ts 가 사용 중, package.json 박제).
@@ -75,6 +76,7 @@ export class UnevaluatedFillRunRequestDto {
   // 은 core 의 `buildFillRunScoringOptions` 책임). 형식만 검증 — 허용 modelId set 검증은
   // service 책임(@IsIn 미적용). `@IsOptional` 이라 미제공 payload 는 통과하고, 제공 시
   // `@IsNotEmpty` 로 빈 문자열은 거부한다.
+  // 값은 gateway 가 LlmProviderConfig 의 id 로 조회한다 (`POST /evaluate` 와 같은 계약).
   @IsOptional()
   @IsString()
   @IsNotEmpty()

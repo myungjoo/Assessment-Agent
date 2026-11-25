@@ -155,7 +155,7 @@ function makeController(
   } as unknown as UnevaluatedFillRunOrchestratorService;
   // llmProviderConfigResolver — evaluate() 경로 test 에서 미사용이라 throw mock.
   const llmProviderConfigResolver = {
-    resolveDefaultModelId: jest.fn(() => {
+    resolveDefaultConfigId: jest.fn(() => {
       throw new Error(
         "evaluate() 는 llmProviderConfigResolver 를 호출하면 안 된다",
       );
@@ -285,7 +285,7 @@ function makePeriodController(opts: {
   } as unknown as UnevaluatedFillRunOrchestratorService;
   // llmProviderConfigResolver — period() 경로 test 에서 미사용이라 throw mock.
   const llmProviderConfigResolver = {
-    resolveDefaultModelId: jest.fn(() => {
+    resolveDefaultConfigId: jest.fn(() => {
       throw new Error(
         "period() 는 llmProviderConfigResolver 를 호출하면 안 된다",
       );
@@ -408,7 +408,7 @@ function makeFillController(
   } as unknown as UnevaluatedFillRunOrchestratorService;
   // llmProviderConfigResolver — planUnevaluatedFill() 경로 test 에서 미사용이라 throw mock.
   const llmProviderConfigResolver = {
-    resolveDefaultModelId: jest.fn(() => {
+    resolveDefaultConfigId: jest.fn(() => {
       throw new Error(
         "planUnevaluatedFill() 는 llmProviderConfigResolver 를 호출하면 안 된다",
       );
@@ -3513,7 +3513,7 @@ describe("AssessmentEvaluationController.planUnevaluatedFill (RBAC / guard metad
 // runSpy 로 위임 인자 / 횟수 / 반환 forward 검증을 enable 한다.
 function makeRunController(
   runImpl: (...args: unknown[]) => Promise<UnevaluatedFillRunResult>,
-  // resolveImpl — llmProviderConfigResolver.resolveDefaultModelId mock 구현. 기본은
+  // resolveImpl — llmProviderConfigResolver.resolveDefaultConfigId mock 구현. 기본은
   // 단일-row resolve 성공 path("resolved-default") 를 반환한다. 0-row/2+row/빈·non-
   // string fail-fast 시나리오는 reject 하는 impl 을 주입해 503 매핑 분기를 검증한다.
   resolveImpl: () => Promise<string> = async () => "resolved-default",
@@ -3521,6 +3521,9 @@ function makeRunController(
   controller: AssessmentEvaluationController;
   runSpy: jest.Mock;
   resolveSpy: jest.Mock;
+  // modelIdSpy — resolveDefaultModelId 관측 mock. config id 와 다른 값을 돌려줘,
+  // handler 가 이 메서드를 부르면 regression test 가 잡게 한다 (T-2092).
+  modelIdSpy: jest.Mock;
   // beginSpy / endSpy — RunStatusService.begin/end 관측 mock(T-1844 배선 이후).
   beginSpy: jest.Mock;
   endSpy: jest.Mock;
@@ -3530,11 +3533,14 @@ function makeRunController(
   const unevaluatedFillRunOrchestrator = {
     run: runSpy,
   } as unknown as UnevaluatedFillRunOrchestratorService;
-  // llmProviderConfigResolver — default modelId 의 server-side source(ADR-0048 §Decision
-  // 1·2). resolveSpy 로 호출 횟수 / 503 매핑 분기를 검증한다.
+  // llmProviderConfigResolver — default config id 의 server-side source(ADR-0048 §Decision
+  // 1·2). resolveSpy 로 호출 횟수 / 503 매핑 분기를 검증한다. gateway 는 config id 로
+  // 조회하므로 handler 는 resolveDefaultConfigId 만 불러야 한다 (T-2092).
   const resolveSpy = jest.fn(resolveImpl);
+  const modelIdSpy = jest.fn(async () => "model-id-not-config-id");
   const llmProviderConfigResolver = {
-    resolveDefaultModelId: resolveSpy,
+    resolveDefaultConfigId: resolveSpy,
+    resolveDefaultModelId: modelIdSpy,
   } as unknown as LlmProviderConfigResolver;
   // 다른 route 의 collaborator 는 run 경로 test 에서 호출되면 안 되므로 throw mock.
   const orchestrator = {
@@ -3619,6 +3625,7 @@ function makeRunController(
     ),
     runSpy,
     resolveSpy,
+    modelIdSpy,
     beginSpy,
     endSpy,
     recordSpy,
@@ -3712,7 +3719,7 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → re
     const dto = makeRunDto();
     const result = await controller.runUnevaluatedFill(dto);
 
-    // resolver — 정확히 1 회 호출(default modelId 의 server-side source).
+    // resolver — 정확히 1 회 호출(default config id 의 server-side source).
     expect(resolveSpy).toHaveBeenCalledTimes(1);
     // 위임 — 정확히 1 회. 3 번째 인자는 resolver 가 반환한 "resolved-default"(dto.
     // defaultModelId "gpt-4o" 아님 — source 가 resolver 로 이전).
@@ -3727,6 +3734,29 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → re
     expect(result).toEqual(expected);
     // 동일 참조 forward(재정렬/복사 0 — thin delegate).
     expect(result).toBe(expected);
+  });
+
+  // regression (T-2092): gateway 는 options.modelId 를 config id 로 조회한다. resolver 의
+  // config id 와 modelId 가 다를 때 orchestrator 3 번째 인자는 config id 여야 하고
+  // resolveDefaultModelId 는 호출되지 않아야 한다. modelId 를 넘기던 결함이 돌아오면
+  // 3 번째 인자가 "model-id-not-config-id" 가 되어 이 test 가 실패한다.
+  it("orchestrator 3 번째 인자로 modelId 가 아니라 config id 를 넘긴다 (regression — T-2092)", async () => {
+    const { controller, runSpy, resolveSpy, modelIdSpy } = makeRunController(
+      async () => makeRunResult(),
+      async () => "seed-local-llm",
+    );
+
+    const dto = makeRunDto();
+    await controller.runUnevaluatedFill(dto);
+
+    expect(resolveSpy).toHaveBeenCalledTimes(1);
+    expect(modelIdSpy).not.toHaveBeenCalled();
+    expect(runSpy).toHaveBeenCalledWith(
+      dto.rawBridges,
+      "gpt-4o-mini",
+      "seed-local-llm",
+      undefined,
+    );
   });
 
   // negative: default 의 source 는 server-side resolver 뿐이다 — DTO 에서 defaultModelId
@@ -4690,7 +4720,7 @@ function makeResetController(
   const findByIdWithIdentities = forbid("personService");
   const planUnevaluatedFill = forbid("unevaluatedFillPlanner");
   const run = forbid("unevaluatedFillRunOrchestrator");
-  const resolveDefaultModelId = forbid("llmProviderConfigResolver");
+  const resolveDefaultConfigId = forbid("llmProviderConfigResolver");
   const findById = forbid("userService");
   const begin = forbid("runStatus.begin");
   const end = forbid("runStatus.end");
@@ -4706,7 +4736,7 @@ function makeResetController(
       { findByIdWithIdentities } as unknown as PersonService,
       { planUnevaluatedFill } as unknown as EvaluationUnevaluatedFillPlanner,
       { run } as unknown as UnevaluatedFillRunOrchestratorService,
-      { resolveDefaultModelId } as unknown as LlmProviderConfigResolver,
+      { resolveDefaultConfigId } as unknown as LlmProviderConfigResolver,
       { findById } as unknown as UserService,
       { begin, end } as unknown as RunStatusService,
       { resetByPeriod: summaryResetSpy } as unknown as SummaryPersistService,
@@ -4931,7 +4961,7 @@ function makeRelativeComparisonController(
       dep("findByIdWithIdentities"),
       dep("planUnevaluatedFill"),
       dep("run"),
-      dep("resolveDefaultModelId"),
+      dep("resolveDefaultConfigId"),
       dep("findById"),
       dep("begin", "end"),
       dep("resetByPeriod"),
@@ -5205,7 +5235,7 @@ function makeSummaryController(opts: {
       dep("findByIdWithIdentities"),
       dep("planUnevaluatedFill"),
       dep("run"),
-      dep("resolveDefaultModelId"),
+      dep("resolveDefaultConfigId"),
       dep("findById"),
       { begin: beginSpy, end: endSpy } as unknown as RunStatusService,
       dep("resetByPeriod"),

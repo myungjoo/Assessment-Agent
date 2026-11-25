@@ -27,8 +27,9 @@
 //
 // server-side default model 해석 계약(T-0569, ADR-0048 §Decision 1·2 — 본 spec 정합 근거):
 //   controller 의 `runUnevaluatedFill` 은 더 이상 `dto.defaultModelId` 를 읽지 않고,
-//   `LlmProviderConfigResolver.resolveDefaultModelId()` 로 LlmProviderConfig DB row 의
-//   modelId 를 단일-row 해석해 default modelId 를 server-side 에서 권위 있게 결정한다.
+//   `LlmProviderConfigResolver.resolveDefaultConfigId()` 로 LlmProviderConfig DB row 를
+//   단일-row 해석해 그 row 의 id (config id) 를 default 로 server-side 에서 권위 있게
+//   결정한다 (T-2092 — gateway 가 config id 로 조회한다).
 //   row 가 0(또는 2+)이면 resolver 가 throw → controller 가 **503 ServiceUnavailable** 로
 //   매핑한다(평가 사슬 미진입). 따라서 본 e2e 는:
 //     - 200 happy-path 케이스를 위해 beforeEach 에서 **단일 LlmProviderConfig row 를 seed**
@@ -70,8 +71,8 @@ const ROUTE = "/api/assessment-evaluation/unevaluated-fill-run";
 const VALID_MODEL_ID = "test-model";
 
 // seed 할 단일 LlmProviderConfig row 의 필드(schema: provider/endpointUrl/apiKey/modelId 4
-// 컬럼 — id/createdAt/updatedAt 은 @default/@updatedAt). resolver 는 이 row 의 modelId 를
-// trim 해 default modelId 로 반환한다(ADR-0048 §Decision 2 (a) 분기). 좌표 0 이라 이 modelId
+// 컬럼 — id/createdAt/updatedAt 은 @default/@updatedAt). resolver 는 이 row 의 id (config
+// id) 를 default 로 반환한다(ADR-0048 §Decision 2 (a) 분기, T-2092). 좌표 0 이라 이 config
 // 가 실제 LLM 으로 흘러가지 않으므로 endpointUrl/apiKey 는 형식 충족용 placeholder.
 const SEED_LLM_CONFIG = {
   provider: "openai-compatible",
