@@ -19,7 +19,6 @@ function setup() {
   const deps = {
     resolver: {
       resolveDefaultConfigId: jest.fn().mockResolvedValue("cfg"),
-      resolveDefaultModelId: jest.fn().mockResolvedValue("model"),
     },
     persons: {
       findActive: jest.fn().mockResolvedValue([{ id: "p1" }, { id: "p2" }]),
@@ -118,8 +117,10 @@ describe("EvaluationTickRunnerService", () => {
   });
 
   // T-2091 regression: gateway 는 options.modelId 를 config id 로 조회한다.
+  // resolveDefaultModelId 는 T-2093 에서 지워져, 그 메서드를 부르는 코드는 compile
+  // 단계에서 막힌다 (not-called 단언 불필요).
   it("평가에는 modelId 가 아니라 기본 provider 의 config id 를 넘긴다_n", async () => {
-    const { runner, planOnce, resolver, persist } = setup();
+    const { runner, planOnce, persist } = setup();
     planOnce("p1", gap(DAY));
     await runner.run();
     expect(persist.generateAndPersistIfCollected).toHaveBeenCalledWith(
@@ -128,7 +129,6 @@ describe("EvaluationTickRunnerService", () => {
       { modelId: "cfg" },
       gap(DAY),
     );
-    expect(resolver.resolveDefaultModelId).not.toHaveBeenCalled();
   });
 
   it("config id 해석 실패 시 작업 없이 멈추고 reject 하지 않는다_n", async () => {

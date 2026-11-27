@@ -3521,9 +3521,6 @@ function makeRunController(
   controller: AssessmentEvaluationController;
   runSpy: jest.Mock;
   resolveSpy: jest.Mock;
-  // modelIdSpy — resolveDefaultModelId 관측 mock. config id 와 다른 값을 돌려줘,
-  // handler 가 이 메서드를 부르면 regression test 가 잡게 한다 (T-2092).
-  modelIdSpy: jest.Mock;
   // beginSpy / endSpy — RunStatusService.begin/end 관측 mock(T-1844 배선 이후).
   beginSpy: jest.Mock;
   endSpy: jest.Mock;
@@ -3537,10 +3534,8 @@ function makeRunController(
   // 1·2). resolveSpy 로 호출 횟수 / 503 매핑 분기를 검증한다. gateway 는 config id 로
   // 조회하므로 handler 는 resolveDefaultConfigId 만 불러야 한다 (T-2092).
   const resolveSpy = jest.fn(resolveImpl);
-  const modelIdSpy = jest.fn(async () => "model-id-not-config-id");
   const llmProviderConfigResolver = {
     resolveDefaultConfigId: resolveSpy,
-    resolveDefaultModelId: modelIdSpy,
   } as unknown as LlmProviderConfigResolver;
   // 다른 route 의 collaborator 는 run 경로 test 에서 호출되면 안 되므로 throw mock.
   const orchestrator = {
@@ -3625,7 +3620,6 @@ function makeRunController(
     ),
     runSpy,
     resolveSpy,
-    modelIdSpy,
     beginSpy,
     endSpy,
     recordSpy,
@@ -3737,11 +3731,11 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → re
   });
 
   // regression (T-2092): gateway 는 options.modelId 를 config id 로 조회한다. resolver 의
-  // config id 와 modelId 가 다를 때 orchestrator 3 번째 인자는 config id 여야 하고
-  // resolveDefaultModelId 는 호출되지 않아야 한다. modelId 를 넘기던 결함이 돌아오면
-  // 3 번째 인자가 "model-id-not-config-id" 가 되어 이 test 가 실패한다.
+  // config id 와 modelId 가 다를 때 orchestrator 3 번째 인자는 resolveDefaultConfigId 의
+  // 반환값이어야 한다. resolveDefaultModelId 는 T-2093 에서 지워져, 그 메서드를 부르는
+  // 코드는 compile 단계에서 막힌다 (not-called 단언 불필요).
   it("orchestrator 3 번째 인자로 modelId 가 아니라 config id 를 넘긴다 (regression — T-2092)", async () => {
-    const { controller, runSpy, resolveSpy, modelIdSpy } = makeRunController(
+    const { controller, runSpy, resolveSpy } = makeRunController(
       async () => makeRunResult(),
       async () => "seed-local-llm",
     );
@@ -3750,7 +3744,6 @@ describe("AssessmentEvaluationController.runUnevaluatedFill (unit — DTO → re
     await controller.runUnevaluatedFill(dto);
 
     expect(resolveSpy).toHaveBeenCalledTimes(1);
-    expect(modelIdSpy).not.toHaveBeenCalled();
     expect(runSpy).toHaveBeenCalledWith(
       dto.rawBridges,
       "gpt-4o-mini",

@@ -4,13 +4,13 @@
 //
 // 본 spec 은 LlmProviderConfigRepository 를 Jest mock (`jest.fn()`) 으로 대체하여
 // PostgreSQL container 없이 isolated 하게 실행된다. 검증 포인트:
-//   - happy (0): 슬롯 존재 → row 수와 무관하게 그 config 의 modelId (ADR-0062 §Decision 4).
-//   - happy (a): 슬롯 부재 + length === 1 → 그 row 의 modelId (ADR-0048 하위 호환).
+//   - happy (0): 슬롯 존재 → row 수와 무관하게 그 config 의 id (ADR-0062 §Decision 4).
+//   - happy (a): 슬롯 부재 + length === 1 → 그 row 의 id (ADR-0048 하위 호환).
 //   - error path (b): 슬롯 부재 + length === 0 → 한국어 fail-fast `Error` (설정 누락).
 //   - error path (c): 슬롯 부재 + length >= 2 → 한국어 **행동 지시형** fail-fast `Error`.
 //   - branch (formats): length === 1 의 modelId 가 빈 문자열 / whitespace-only /
 //     non-string (number / null / undefined / object) 인 경우 `TypeError` fail-fast.
-//   - negative cases: repository.findMany reject (DB 장애) 를 swallow 하지 않고 propagate.
+//   - negative cases: findSlot · findMany reject (DB 장애) 를 swallow 하지 않고 propagate.
 import type { LlmDefaultProvider, LlmProviderConfig } from "@prisma/client";
 
 import { LlmProviderConfigResolver } from "./llm-provider-config-resolver.service";
@@ -68,86 +68,11 @@ function buildResolver(): {
 }
 
 describe("LlmProviderConfigResolver", () => {
-  describe("resolveDefaultConfigId()", () => {
-    it("슬롯이 가리키는 config 의 id 를 반환한다", async () => {
-      const { resolver, repo, defaultRepo } = buildResolver();
-      defaultRepo.findSlot.mockResolvedValue(buildSlotFixture("cfg-slot"));
-      repo.findById.mockResolvedValue(
-        buildConfigFixture({ id: "cfg-slot", modelId: "gpt-x" }),
-      );
-
-      await expect(resolver.resolveDefaultConfigId()).resolves.toBe("cfg-slot");
-    });
-
-    it("슬롯이 없고 row 가 1 개면 그 row 의 id 를 반환한다", async () => {
-      const { resolver, repo, defaultRepo } = buildResolver();
-      defaultRepo.findSlot.mockResolvedValue(null);
-      repo.findMany.mockResolvedValue([
-        buildConfigFixture({ id: "cfg-only", modelId: "gpt-x" }),
-      ]);
-
-      await expect(resolver.resolveDefaultConfigId()).resolves.toBe("cfg-only");
-    });
-
-    it("슬롯 없이 row 가 2 개면 기본 지정을 요구하는 오류다_n", async () => {
-      const { resolver, repo, defaultRepo } = buildResolver();
-      defaultRepo.findSlot.mockResolvedValue(null);
-      repo.findMany.mockResolvedValue([
-        buildConfigFixture({ id: "cfg-a" }),
-        buildConfigFixture({ id: "cfg-b" }),
-      ]);
-
-      await expect(resolver.resolveDefaultConfigId()).rejects.toThrow(
-        "기본 provider 가 지정되지 않았다",
-      );
-    });
-
-    it("슬롯이 가리키는 config 가 없으면 오류다_n", async () => {
-      const { resolver, repo, defaultRepo } = buildResolver();
-      defaultRepo.findSlot.mockResolvedValue(buildSlotFixture("cfg-gone"));
-      repo.findById.mockResolvedValue(null);
-
-      await expect(resolver.resolveDefaultConfigId()).rejects.toThrow(
-        "cfg-gone",
-      );
-    });
-
-    it("repository reject 를 그대로 전파한다_n", async () => {
-      const { resolver, defaultRepo } = buildResolver();
-      const failure = new Error("DB 장애");
-      defaultRepo.findSlot.mockRejectedValue(failure);
-
-      await expect(resolver.resolveDefaultConfigId()).rejects.toBe(failure);
-    });
-
-    it("row 가 없으면 resolveDefaultModelId 와 같은 오류다_n", async () => {
-      const { resolver, repo, defaultRepo } = buildResolver();
-      defaultRepo.findSlot.mockResolvedValue(null);
-      repo.findMany.mockResolvedValue([]);
-
-      await expect(resolver.resolveDefaultConfigId()).rejects.toThrow(
-        "LLM provider 가 설정되지 않았다",
-      );
-    });
-
-    it("modelId 가 비어 있으면 TypeError 다_n", async () => {
-      const { resolver, repo, defaultRepo } = buildResolver();
-      defaultRepo.findSlot.mockResolvedValue(null);
-      repo.findMany.mockResolvedValue([
-        buildConfigFixture({ id: "cfg-only", modelId: " " }),
-      ]);
-
-      await expect(resolver.resolveDefaultConfigId()).rejects.toBeInstanceOf(
-        TypeError,
-      );
-    });
-  });
-
-  describe("resolveDefaultModelId() — ADR-0062 §Decision 4 의 4 분기 (슬롯 최우선 + row 수 fallback)", () => {
+  describe("resolveDefaultConfigId() — ADR-0062 §Decision 4 의 4 분기 (슬롯 최우선 + row 수 fallback)", () => {
     // ==================================================================
     // (0) 명시 슬롯 존재 — row 수와 무관하게 슬롯이 이긴다 (ADR-0062 제약 1).
     // ==================================================================
-    it("슬롯이 있으면 row 가 3 개여도 슬롯이 가리키는 config 의 modelId 를 반환한다 (happy — (0) hit, 회귀 방지)", async () => {
+    it("슬롯이 있으면 row 가 3 개여도 슬롯이 가리키는 config 의 id 를 반환한다 (happy — (0) hit, 회귀 방지)", async () => {
       const { resolver, repo, defaultRepo } = buildResolver();
       defaultRepo.findSlot.mockResolvedValueOnce(buildSlotFixture("cfg-2"));
       repo.findById.mockResolvedValueOnce(
@@ -161,9 +86,10 @@ describe("LlmProviderConfigResolver", () => {
         buildConfigFixture({ id: "cfg-3" }),
       ]);
 
-      const result = await resolver.resolveDefaultModelId();
+      const result = await resolver.resolveDefaultConfigId();
 
-      expect(result).toBe("gpt-chosen");
+      // modelId ("gpt-chosen") 가 아니라 config id 다 (gateway 가 config id 로 조회).
+      expect(result).toBe("cfg-2");
       expect(defaultRepo.findSlot).toHaveBeenCalledTimes(1);
       expect(repo.findById).toHaveBeenCalledWith("cfg-2");
       expect(repo.findMany).not.toHaveBeenCalled();
@@ -175,10 +101,10 @@ describe("LlmProviderConfigResolver", () => {
       defaultRepo.findSlot.mockResolvedValue(buildSlotFixture("cfg-2"));
       repo.findById.mockResolvedValue(buildConfigFixture({ modelId: "" }));
 
-      await expect(resolver.resolveDefaultModelId()).rejects.toBeInstanceOf(
+      await expect(resolver.resolveDefaultConfigId()).rejects.toBeInstanceOf(
         TypeError,
       );
-      await expect(resolver.resolveDefaultModelId()).rejects.toThrow(
+      await expect(resolver.resolveDefaultConfigId()).rejects.toThrow(
         /비어있다/,
       );
     });
@@ -187,11 +113,14 @@ describe("LlmProviderConfigResolver", () => {
     // 불가). silent fallback 금지 → 한국어 fail-fast.
     it("슬롯이 가리키는 config 가 없으면 한국어 메시지로 throw 한다 (negative — (0) 깨진 FK, silent fallback 금지)", async () => {
       const { resolver, repo, defaultRepo } = buildResolver();
-      defaultRepo.findSlot.mockResolvedValueOnce(buildSlotFixture("cfg-gone"));
-      repo.findById.mockResolvedValueOnce(null);
+      defaultRepo.findSlot.mockResolvedValue(buildSlotFixture("cfg-gone"));
+      repo.findById.mockResolvedValue(null);
 
-      await expect(resolver.resolveDefaultModelId()).rejects.toThrow(
+      await expect(resolver.resolveDefaultConfigId()).rejects.toThrow(
         /슬롯이 가리키는 LlmProviderConfig 가 없다/,
+      );
+      await expect(resolver.resolveDefaultConfigId()).rejects.toThrow(
+        "cfg-gone",
       );
       // fallback 으로 흘러가 임의 row 를 고르지 않음 (reproducibility 보호).
       expect(repo.findMany).not.toHaveBeenCalled();
@@ -203,36 +132,36 @@ describe("LlmProviderConfigResolver", () => {
       const dbError = new Error("Prisma slot read failed");
       defaultRepo.findSlot.mockRejectedValueOnce(dbError);
 
-      await expect(resolver.resolveDefaultModelId()).rejects.toBe(dbError);
+      await expect(resolver.resolveDefaultConfigId()).rejects.toBe(dbError);
       expect(repo.findMany).not.toHaveBeenCalled();
     });
 
     // ------------------------------------------------------------------
-    // Happy path / (a) length === 1 — 그 row 의 modelId 를 trim 후 반환.
+    // Happy path / (a) 슬롯 부재 + length === 1 — 그 row 의 id 를 반환.
     // ------------------------------------------------------------------
-    it("단일-row 일 때 그 row 의 modelId 를 반환한다 (happy — (a) length === 1)", async () => {
+    it("슬롯이 없고 row 가 1 개면 그 row 의 id 를 반환한다 (happy — (a) length === 1)", async () => {
       const { resolver, repo } = buildResolver();
       repo.findMany.mockResolvedValueOnce([
-        buildConfigFixture({ modelId: "gpt-4o-mini" }),
+        buildConfigFixture({ id: "cfg-only", modelId: "gpt-4o-mini" }),
       ]);
 
-      const result = await resolver.resolveDefaultModelId();
+      const result = await resolver.resolveDefaultConfigId();
 
       expect(repo.findMany).toHaveBeenCalledTimes(1);
-      expect(result).toBe("gpt-4o-mini");
+      expect(result).toBe("cfg-only");
     });
 
-    // boundary — modelId 앞뒤 공백은 trim 후 반환 (buildFillRunScoringOptions 의
-    // normalizeModelId 와 동일한 trim 동작 mirror — defaultModelId invariant 유지).
-    it("단일-row 의 modelId 앞뒤 공백은 trim 후 반환한다 (happy — trim 정규화)", async () => {
+    // boundary — modelId 앞뒤 공백은 trim 후 비어 있지 않으므로 형식 검증을 통과한다
+    // (buildFillRunScoringOptions 의 normalizeModelId 와 동일한 trim 동작 mirror).
+    it("단일-row 의 modelId 앞뒤 공백은 형식 검증을 통과하고 id 를 반환한다 (happy — trim 정규화)", async () => {
       const { resolver, repo } = buildResolver();
       repo.findMany.mockResolvedValueOnce([
-        buildConfigFixture({ modelId: "  gpt-4o-mini  " }),
+        buildConfigFixture({ id: "cfg-only", modelId: "  gpt-4o-mini  " }),
       ]);
 
-      const result = await resolver.resolveDefaultModelId();
+      const result = await resolver.resolveDefaultConfigId();
 
-      expect(result).toBe("gpt-4o-mini");
+      expect(result).toBe("cfg-only");
     });
 
     // ------------------------------------------------------------------
@@ -242,7 +171,7 @@ describe("LlmProviderConfigResolver", () => {
       const { resolver, repo } = buildResolver();
       repo.findMany.mockResolvedValueOnce([]);
 
-      await expect(resolver.resolveDefaultModelId()).rejects.toThrow(
+      await expect(resolver.resolveDefaultConfigId()).rejects.toThrow(
         /LLM provider 가 설정되지 않았다/,
       );
       expect(repo.findMany).toHaveBeenCalledTimes(1);
@@ -260,10 +189,13 @@ describe("LlmProviderConfigResolver", () => {
       ]);
 
       const error: unknown = await resolver
-        .resolveDefaultModelId()
+        .resolveDefaultConfigId()
         .catch((caught: unknown) => caught);
 
       // 행동 지시형 문구로 교체되고, ADR-0062 로 해소된 구 문구는 사라졌다.
+      expect((error as Error).message).toContain(
+        "기본 provider 가 지정되지 않았다",
+      );
       expect((error as Error).message).toContain(
         "Admin UI 의 LLM provider 설정에서 기본 provider 를 지정하라",
       );
@@ -279,7 +211,7 @@ describe("LlmProviderConfigResolver", () => {
         buildConfigFixture({ id: "cfg-3" }),
       ]);
 
-      await expect(resolver.resolveDefaultModelId()).rejects.toThrow(
+      await expect(resolver.resolveDefaultConfigId()).rejects.toThrow(
         /row 수=3/,
       );
     });
@@ -293,10 +225,10 @@ describe("LlmProviderConfigResolver", () => {
       // mockResolvedValue (영구) 로 둔다 — mockResolvedValueOnce 는 첫 호출 후 소진.
       repo.findMany.mockResolvedValue([buildConfigFixture({ modelId: "" })]);
 
-      await expect(resolver.resolveDefaultModelId()).rejects.toBeInstanceOf(
+      await expect(resolver.resolveDefaultConfigId()).rejects.toBeInstanceOf(
         TypeError,
       );
-      await expect(resolver.resolveDefaultModelId()).rejects.toThrow(
+      await expect(resolver.resolveDefaultConfigId()).rejects.toThrow(
         /비어있다/,
       );
     });
@@ -308,7 +240,7 @@ describe("LlmProviderConfigResolver", () => {
         buildConfigFixture({ modelId: "   " }),
       ]);
 
-      await expect(resolver.resolveDefaultModelId()).rejects.toBeInstanceOf(
+      await expect(resolver.resolveDefaultConfigId()).rejects.toBeInstanceOf(
         TypeError,
       );
     });
@@ -323,10 +255,10 @@ describe("LlmProviderConfigResolver", () => {
         buildConfigFixture({ modelId: 12345 as unknown as string }),
       ]);
 
-      await expect(resolver.resolveDefaultModelId()).rejects.toBeInstanceOf(
+      await expect(resolver.resolveDefaultConfigId()).rejects.toBeInstanceOf(
         TypeError,
       );
-      await expect(resolver.resolveDefaultModelId()).rejects.toThrow(
+      await expect(resolver.resolveDefaultConfigId()).rejects.toThrow(
         /string 이어야 한다/,
       );
     });
@@ -338,7 +270,7 @@ describe("LlmProviderConfigResolver", () => {
         buildConfigFixture({ modelId: null as unknown as string }),
       ]);
 
-      await expect(resolver.resolveDefaultModelId()).rejects.toBeInstanceOf(
+      await expect(resolver.resolveDefaultConfigId()).rejects.toBeInstanceOf(
         TypeError,
       );
     });
@@ -350,7 +282,7 @@ describe("LlmProviderConfigResolver", () => {
         buildConfigFixture({ modelId: undefined as unknown as string }),
       ]);
 
-      await expect(resolver.resolveDefaultModelId()).rejects.toBeInstanceOf(
+      await expect(resolver.resolveDefaultConfigId()).rejects.toBeInstanceOf(
         TypeError,
       );
     });
@@ -364,7 +296,7 @@ describe("LlmProviderConfigResolver", () => {
       const dbError = new Error("Prisma connection refused");
       repo.findMany.mockRejectedValueOnce(dbError);
 
-      await expect(resolver.resolveDefaultModelId()).rejects.toBe(dbError);
+      await expect(resolver.resolveDefaultConfigId()).rejects.toBe(dbError);
       expect(repo.findMany).toHaveBeenCalledTimes(1);
     });
   });

@@ -1,10 +1,11 @@
 // LlmProviderConfigResolver — `defaultModelId` 의 source 를 `LlmProviderConfig`
 // DB row 로 단일화하는 thin `@Injectable` resolver (ADR-0048 §Decision 1 박제).
 // controller 진입 시 1 회 호출되어 **명시 기본 provider 슬롯 → row 수 fallback**
-// 순서로 판정한 뒤 그 row 의 `modelId` 또는 config `id` 를 반환한다 (ADR-0062 §Decision 4, T-1864).
+// 순서로 판정한 뒤 그 row 의 config `id` 를 반환한다 (ADR-0062 §Decision 4, T-1864).
+// modelId 를 반환하는 메서드를 두지 않는다 — gateway 가 config id 로 조회하므로 (T-2073 · T-2091 · T-2092).
 //
 // 우선순위 (ADR-0062 §Decision 4 — 오너 지시 2026-09-03 "명시 선택이 언제나 우선"):
-//   (0) 슬롯 존재 → 그 슬롯이 가리키는 config 의 modelId. **row 총수를 보지 않는다**
+//   (0) 슬롯 존재 → 그 슬롯이 가리키는 config 의 id. **row 총수를 보지 않는다**
 //       (seed row + UI row 공존 = row ≥ 2 에서도 default 경로가 살아 있다).
 //   (a) 슬롯 부재 + row 1 개 → 그 row (ADR-0048 (a) 하위 호환, 조치 0).
 //   (b) 슬롯 부재 + row 0 개 → 기존 한국어 fail-fast 그대로.
@@ -16,7 +17,7 @@
 // (`Promise<string>`) 무변경이라 AssessmentEvaluationModule 배선은 그대로다. 기본
 // provider 의 **지정** (쓰기) 은 LlmProviderConfigService.setDefault / T-1865 소관.
 // service 가 아닌 repository 2 개를 직접 의존하는 이유도 승계 — apiKey redaction view
-// 는 modelId resolve 에 불필요하고, 직접 의존이 layer 책임을 좁힌다.
+// 는 기본 row 판정에 불필요하고, 직접 의존이 layer 책임을 좁힌다.
 //
 // repository reject (DB 장애 등) 는 어느 조회든 swallow 없이 그대로 propagate.
 import { Injectable } from "@nestjs/common";
@@ -34,23 +35,16 @@ export class LlmProviderConfigResolver {
     private readonly defaultProviderRepository: LlmDefaultProviderRepository,
   ) {}
 
-  // resolveDefaultModelId — 위 (0)/(a)/(b)/(c) 순서로 판정해 그 row 의 `modelId` 를
-  // 형식 검증 후 반환한다.
-  //
-  // @throws {Error} (0) 슬롯이 가리키는 config row 부재 (깨진 FK — silent fallback
-  //                 금지: 임의 선택은 평가 결과의 reproducibility 를 깬다).
-  // @throws {Error} (b) 슬롯 부재 + row 0 / (c) 슬롯 부재 + row ≥ 2.
-  // @throws {TypeError} 채택된 row 의 modelId 가 빈/whitespace / non-string 일 때
-  //                 (어느 분기로 도달했든 동일 적용).
-  async resolveDefaultModelId(): Promise<string> {
-    return this.normalizeModelId((await this.resolveDefaultRow()).modelId);
-  }
-
   /**
-   * 같은 판정으로 고른 row 의 `id` 를 반환한다. `LlmHttpGateway.generate` 는 difficulty 가 없으면
-   * `options.modelId` 를 config id 로 조회하므로, gateway 로 넘길 값은 이것이다.
+   * 위 (0)/(a)/(b)/(c) 순서로 고른 row 의 modelId 형식을 검증한 뒤 그 row 의 `id` 를 반환한다.
+   * `LlmHttpGateway.generate` 는 difficulty 가 없으면 `options.modelId` 를 config id 로
+   * 조회하므로, gateway 로 넘길 값은 이것이다.
    *
-   * @throws resolveDefaultModelId 와 같은 오류. modelId 형식 위반 포함.
+   * @throws {Error} (0) 슬롯이 가리키는 config row 부재 (깨진 FK — silent fallback 금지:
+   *                 임의 선택은 평가 결과의 reproducibility 를 깬다).
+   * @throws {Error} (b) 슬롯 부재 + row 0 / (c) 슬롯 부재 + row ≥ 2.
+   * @throws {TypeError} 고른 row 의 modelId 가 빈 문자열 · whitespace · non-string 일 때
+   *                 (어느 분기로 도달했든 동일 적용).
    */
   async resolveDefaultConfigId(): Promise<string> {
     const row = await this.resolveDefaultRow();
@@ -94,8 +88,8 @@ export class LlmProviderConfigResolver {
     return rows[0];
   }
 
-  // normalizeModelId — 채택된 row 의 modelId 형식 검증 + trim. 두 public method 가
-  // 공유하므로 helper 로 외화 (`buildFillRunScoringOptions` 패턴 mirror).
+  // normalizeModelId — 채택된 row 의 modelId 형식 검증 + trim (`buildFillRunScoringOptions`
+  // 패턴 mirror). 반환값은 쓰지 않고 검증만 한다.
   private normalizeModelId(candidate: unknown): string {
     // type mismatch 차단 — silent coercion 으로 비-string modelId 가 gateway 로
     // 흘러가는 회귀를 한국어 `TypeError` 로 막는다.
