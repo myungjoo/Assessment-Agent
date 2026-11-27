@@ -2,7 +2,7 @@
 id: T-2093
 title: 소비처가 0 이 된 LlmProviderConfigResolver.resolveDefaultModelId 를 지워 config id 자리에 modelId 를 넘기는 결함을 구조적으로 막는다
 phase: P7
-status: PENDING
+status: DONE
 commitMode: pr
 coversReq: [REQ-037, REQ-041]
 estimatedDiff: 150
