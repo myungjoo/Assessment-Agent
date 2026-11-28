@@ -98,6 +98,8 @@ model LlmDefaultProvider {
 
 **채택: [LlmProviderConfigResolver](../../src/llm/llm-provider-config-resolver.service.ts) 의 `resolveDefaultModelId` 는 다음 순서로 판정한다. 슬롯 조회가 언제나 먼저다 (제약 1).**
 
+> pointer (T-2094): T-2093 이후 이 판정은 `resolveDefaultConfigId` 가 맡고 modelId 가 아니라 config id 를 반환한다 (판정 순서는 그대로).
+
 1. **명시 슬롯 존재** → 그 슬롯이 가리키는 `LlmProviderConfig` 의 `modelId` 채택. row 총수는 보지 않는다 (row 가 5 개든 1 개든 슬롯이 이긴다).
 2. **슬롯 부재 + row 정확히 1 개** → 그 row 채택 (ADR-0048 (a) 하위 호환 — 기존 단일-row 배포는 아무 조치 없이 그대로 동작한다).
 3. **슬롯 부재 + row 0 개** → 기존 (b) 메시지 그대로 fail-fast.

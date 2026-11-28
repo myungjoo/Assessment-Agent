@@ -2,7 +2,7 @@
 id: T-2094
 title: ADR-0062 §Decision 4 와 REQ-049 근거 셀이 가리키는 삭제된 resolveDefaultModelId 를 resolveDefaultConfigId 로 정정한다
 phase: P7
-status: PENDING
+status: DONE
 commitMode: direct
 coversReq: [REQ-049]
 estimatedDiff: 6
